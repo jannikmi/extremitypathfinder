@@ -1,12 +1,8 @@
-import random
 import unittest
-from math import degrees, radians, sqrt
+
 import pytest
 
-import numpy as np
-from six.moves import range
-
-from helpers import *
+from helper_fcts import *
 
 
 class HelperTest(unittest.TestCase):
@@ -117,16 +113,37 @@ class HelperTest(unittest.TestCase):
             expected_results = [
                 True, False, False, False, False, False, False, False, False,
                 # on the line test cases
-                border_value, border_value, border_value, border_value,border_value, border_value, border_value, border_value,
+                border_value, border_value, border_value, border_value, border_value, border_value, border_value,
+                border_value,
             ]
 
             self.proto_test_case(list(zip(p_test_cases, expected_results)), test_fct)
+
+    def test_clockwise_numering(self):
+
+        def clockwise_test_fct(input):
+            return has_clockwise_numbering(np.array(input))
+
+        data = [
+            # clockwise numbering!
+            ([(3.0, 7.0), (5.0, 9.0), (5.0, 7.0), ], True),
+            ([(3.0, 7.0), (5.0, 9.0), (4.5, 7.0), (5.0, 4.0)], True),
+            ([(0.0, 0.0), (0.0, 1.0), (1.0, 0.0), ], True),
+
+            # # counter clockwise edge numbering!
+            ([(0.0, 0.0), (1.0, 0.0), (0.0, 1.0), ], False),
+            ([(0.0, 0.0), (10.0, 0.0), (10.0, 10.0), (0.0, 10.0), ], False),
+            ([(0.0, 0.0), (10.0, 0.0), (10.0, 5.0), (10.0, 10.0), (0.0, 10.0), ], False),
+            ([(0.0, 0.0), (10.0, 0.0), (9.0, 5.0), (10.0, 10.0), (0.0, 10.0), ], False),
+
+        ]
+        self.proto_test_case(data, clockwise_test_fct)
 
 
 # TODO test if relation is really bidirectional (find_visible(x,y) = find_visible(y,x))
 
 
 if __name__ == '__main__':
-    # suite = unittest.TestLoader().loadTestsFromTestCase(HelperTest)
-    # unittest.TextTestRunner(verbosity=2).run(suite)
-    unittest.main()
+    suite = unittest.TestLoader().loadTestsFromTestCase(HelperTest)
+    unittest.TextTestRunner(verbosity=2).run(suite)
+    # unittest.main()
