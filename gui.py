@@ -3,7 +3,8 @@ from matplotlib.lines import Line2D
 from matplotlib.artist import Artist
 from matplotlib.mlab import dist_point_to_segment
 
-from helpers import *
+
+# from helpers import *
 
 
 class PolygonInteractor(object):
@@ -159,9 +160,23 @@ from matplotlib.patches import Polygon
 import matplotlib.pyplot as plt
 
 
-def draw(map):
-    fig, ax = plt.subplots()
+def mark_points(vertex_list, c, s):
+    x = []
+    y = []
+    for v in vertex_list:
+        x.append(v.coordinates[0])
+        y.append(v.coordinates[1])
 
+    plt.scatter(x, y, s=s, c=c, )
+
+
+def draw_edge(v1, v2, c, alpha):
+    x1, y1 = v1.coordinates
+    x2, y2 = v2.coordinates
+    plt.plot([x1, x2], [y1, y2], color=c, alpha=alpha)
+
+
+def map_drawing_helper(map, ax):
     polygon_settings = {
         'edgecolor': 'black',
         'fill': False,
@@ -172,58 +187,98 @@ def draw(map):
         polygon = Polygon(coords, **polygon_settings)
         ax.add_patch(polygon)
 
-    def mark_points(vertex_list,c,s):
-        x = []
-        y = []
-        for v in vertex_list:
-            x.append(v.coordinates[0])
-            y.append(v.coordinates[1])
-
-        plt.scatter(x,y,s=s,c=c,)
-
-    def draw_edge(v1,v2,c,alpha):
-        x1,y1 = v1.coordinates
-        x2,y2 = v2.coordinates
-        plt.plot([x1,x2],[y1,y2],color=c, alpha=alpha)
-
     # outside light grey
     draw_polygon(map.boundary_polygon.coordinates)
     for h in map.holes:
         # TODO fill light grey
         draw_polygon(h.coordinates)
 
-    mark_points(map.all_vertices,c='black',s=15)
-    mark_points(map.all_extremities,c='red',s=50)
+    mark_points(map.all_vertices, c='black', s=15)
+    mark_points(map.all_extremities, c='red', s=50)
 
-    for start, all_goals in map.graph.items():
-        for goal, distance in all_goals:
-            draw_edge(start,goal,c='red',alpha=0.3)
-
-    # TODO draw start and goal green, and new edges yellow
+    for start, all_goals in map.graph.get_neighbours():
+        for goal in all_goals:
+            draw_edge(start, goal, c='red', alpha=0.3)
 
     ax.set_xlim((min(map.boundary_polygon.coordinates[:, 0]) - 1, max(map.boundary_polygon.coordinates[:, 0]) + 1))
     ax.set_ylim((min(map.boundary_polygon.coordinates[:, 1]) - 1, max(map.boundary_polygon.coordinates[:, 1]) + 1))
 
+
+def draw_map(map):
+    fig, ax = plt.subplots()
+
+    map_drawing_helper(map, ax)
     # TODO export png from the different steps
     # TODO export png depending on the current status of the map!
     plt.show()
 
 
-if __name__ == '__main__':
-    # counter clockwise edge numbering!
-    # polygon1 = [(0.0, 0.0), (10.0, 0.0), (10.0, 10.0), (0.0, 10.0)]
-    # polygon1 = [(0.0, 0.0), (10.0, 0.0), (10.0, 5.0), (10.0, 10.0), (0.0, 10.0)]
-    polygon1 = [(0.0, 0.0), (10.0, 0.0), (9.0, 5.0), (10.0, 10.0), (0.0, 10.0)]
-    # clockwise numbering!
-    # holes1 = []
-    # holes1 = [[(3.0, 7.0), (5.0, 9.0), (5.0, 7.0), ], ]
-    holes1 = [[(3.0, 7.0), (5.0, 9.0),(4.5, 7.0), (5.0, 4.0), ], ]
+def draw_with_path(map, temp_graph, start, goal, vertex_path):
+    fig, ax = plt.subplots()
 
-    map = Map()
-    map.store(polygon1, holes1)
-    # print(map.all_extremities)
-    map.prepare()
-    draw(map)
+    map_drawing_helper(map, ax)
+
+    # additionally draw:
+    # new edges yellow
+    if start in temp_graph.get_all_nodes():
+        for n2, d in temp_graph._existing_edges_from(start):
+            draw_edge(start, n2, c='y', alpha=0.7)
+
+    all_nodes = temp_graph.get_all_nodes()
+    if goal in all_nodes:
+        # edges only run towards goal TODO
+        for n1 in all_nodes:
+            if goal in temp_graph.get_neighbours_of(n1):
+                draw_edge(n1, goal, c='y', alpha=0.7)
+
+    # start, path and goal in green
+    mark_points(vertex_path, c='g', s=50)
+    mark_points([start, goal], c='g', s=80)
+    if vertex_path:
+        v1 = vertex_path[0]
+        for v2 in vertex_path[1:]:
+            draw_edge(v1,v2,c='g',alpha=1)
+            v1=v2
+
+    plt.show()
+
+
+def draw_graph(graph):
+    fig, ax = plt.subplots()
+
+    all_nodes = graph.get_all_nodes()
+    mark_points(all_nodes, c='black', s=30)
+
+    for n in all_nodes:
+        x,y = n.coordinates
+        neigbours = graph.get_neighbours_of(n)
+        for n2 in neigbours:
+            x2,y2 = n2.coordinates
+            dx,dy = x2-x,y2-y
+            plt.arrow(x,y,dx,dy,head_width=0.2,head_length=0.7,head_starts_at_zero=False,shape='full',length_includes_head=True)
+
+    ax.set_xlim((min(n.coordinates[0] for n in all_nodes) - 1, max(n.coordinates[0] for n in all_nodes) + 1))
+    ax.set_ylim((min(n.coordinates[1] for n in all_nodes) - 1, max(n.coordinates[1] for n in all_nodes) + 1))
+
+    plt.show()
+
+
+if __name__ == '__main__':
+    pass
+    # # counter clockwise edge numbering!
+    # # polygon1 = [(0.0, 0.0), (10.0, 0.0), (10.0, 10.0), (0.0, 10.0)]
+    # # polygon1 = [(0.0, 0.0), (10.0, 0.0), (10.0, 5.0), (10.0, 10.0), (0.0, 10.0)]
+    # polygon1 = [(0.0, 0.0), (10.0, 0.0), (9.0, 5.0), (10.0, 10.0), (0.0, 10.0)]
+    # # clockwise numbering!
+    # # holes1 = []
+    # # holes1 = [[(3.0, 7.0), (5.0, 9.0), (5.0, 7.0), ], ]
+    # holes1 = [[(3.0, 7.0), (5.0, 9.0), (4.5, 7.0), (5.0, 4.0), ], ]
+    #
+    # map = Map()
+    # map.store(polygon1, holes1)
+    # # print(map.all_extremities)
+    # map.prepare()
+    # draw_map(map)
     # import matplotlib.pyplot as plt
     # from matplotlib.patches import Polygon
     #

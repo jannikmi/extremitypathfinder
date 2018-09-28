@@ -1,8 +1,13 @@
+import math
 from typing import List
-
+from copy import copy
 import numpy as np
 
-# from gui import draw
+# TODO numba precompilation of some parts possible?!
+# TODO lazy_python: origin shift translate, angle representatione evaluation, graph a star heuristic
+
+
+from gui import draw_with_path, draw_map, draw_graph
 
 '''
 requirements for the data:
@@ -17,7 +22,7 @@ requirements for the data:
 
 '''
 
-# TODO lazy_python
+
 class AngleRepresentation:
     """
     a class automatically computing a representation for the angle from the origin to a given vector
@@ -71,13 +76,21 @@ class AngleRepresentation:
         self.value = self.quadrant + self.angle_measure
 
 
-def inside_polygon(x, y, coords):
+def inside_polygon(x, y, coords, border_value):
     assert coords.shape[1] == 2
 
-    # should return True for point equal to any polygon vertex
+    # should return the border value for point equal to any polygon vertex
     for c in coords[:]:
         if np.all(c == [x, y]):
-            return True
+            return border_value
+
+    # and if the point p lies on any polygon edge
+    p = np.array([x, y])
+    p1 = coords[-1, :]
+    for p2 in coords[:]:
+        if abs((AngleRepresentation(p1 - p).value - AngleRepresentation(p2 - p).value)) == 2.0:
+            return border_value
+        p1 = p2
 
     contained = False
     # the edge from the last to the first point is checked first
@@ -114,15 +127,6 @@ def inside_polygon(x, y, coords):
         y_gt_y1 = y_gt_y2
         i += 1
 
-    if not contained:
-        # should also return true if the point p lies on any  polygon edge
-        p = np.array([x, y])
-        p1 = coords[-1, :]
-        for p2 in coords[:]:
-            if abs((AngleRepresentation(p1 - p).value - AngleRepresentation(p2 - p).value)) == 2.0:
-                return True
-            p1 = p2
-
     return contained
 
 
@@ -130,7 +134,7 @@ class Vertex:
     # defining static attributes on class
     # TODO optimize memory usage
     # TODO link edges and neighbours already during creation?
-    __slots__ = ['coordinate', ]
+    # __slots__ = ['coordinate', ]
 
     coordinates = None
     is_extremity = False
@@ -282,49 +286,56 @@ class Polygon:
 # take 2 edges (3 vertices) compute angle between them and
 
 
-class UndirectedGraph:
-    # TODO better to work with just id instead of full vertex class?!
+class DirectedHeuristicGraph:
+    # TODO better performance when working with just id instead of full vertex class?!
     # TODO but keep coords etc. for drawing graph later on...
 
     distances: dict = {}
     neighbours: dict = {}
 
-    def __init__(self, nodes):
-        for n in nodes:
-            self.neighbours[n] = set()
-
-    # TODO getter setter. make non accesible!
-    def get_neighbours(self, node):
-        return self.neighbours[node]
-
-    def get_distance(self, node1, node2):
-        # undirected edges:
-        # just one direction is being stored, but it counts for both directions!
-        try:
-            return self.distances[(node1, node2)]
-        except KeyError:
-            try:
-                return self.distances[(node2, node1)]
-            except KeyError:
-                return None
-
-    def add_edge(self, node1, node2, distance):
-        self.neighbours[node1] |= node2
-        self.neighbours[node2] |= node1
-        self.distances[(node1, node2)] = distance
-
-    def add_multiple_edges(self, node1, node_distance_iter):
-        for node2, distance in node_distance_iter:
-            self.add_edge(node1, node2, distance)
-
-
-class HeuristicGraph(UndirectedGraph):
     # the heuristic must NEVER OVERESTIMATE the actual cost (here: actual shortest distance)
     # <=> must always be lowest for node with the POSSIBLY lowest cost
     # <=> heuristic is LOWER BOUND for the cost
     # the heuristic here: distance to the goal node (is always the shortest possible distance!)
     heuristic: dict = {}
     goal_node: Vertex = None
+
+    def __init__(self, nodes):
+        for n in nodes:
+            self.neighbours[n] = set()
+
+    def get_all_nodes(self):
+        return self.neighbours.keys()
+
+    def get_neighbours(self):
+        return self.neighbours.items()
+
+    # TODO getter setter. make non accesible!
+    def get_neighbours_of(self, node):
+        return self.neighbours[node]
+
+    def get_distance(self, node1, node2):
+        # directed edges: just one direction is being stored
+        try:
+            return self.distances[(node1, node2)]
+        except KeyError:
+            return None
+
+    def add_directed_edge(self, node1, node2, distance):
+        self.neighbours.setdefault(node1, set()).add(node2)
+        self.distances[(node1, node2)] = distance
+
+    def add_undirected_edge(self, node1, node2, distance):
+        self.add_directed_edge(node1, node2, distance)
+        self.add_directed_edge(node2, node1, distance)
+
+    def add_multiple_undirected_edges(self, node1, node_distance_iter):
+        for node2, distance in node_distance_iter:
+            self.add_undirected_edge(node1, node2, distance)
+
+    def add_multiple_directed_edges(self, node1, node_distance_iter):
+        for node2, distance in node_distance_iter:
+            self.add_directed_edge(node1, node2, distance)
 
     def set_goal_node(self, goal_node):
         assert goal_node in self.neighbours.keys()
@@ -333,20 +344,97 @@ class HeuristicGraph(UndirectedGraph):
         for node in self.neighbours.keys():
             self.heuristic[node] = np.linalg.norm(node.coordinates - goal_node.coordinates)
 
-    # TODO getter setter. make non accesible!
+    # TODO getter setter. make non accessible!
     def get_heuristic(self, node):
         return self.heuristic[node]
 
     def _existing_edges_from(self, node1):
         # optimisation: when goal node is reachable return it first (-> a star search terminates)
         if self.goal_node in self.neighbours[node1]:
-            return self.goal_node, self.get_distance(node1, self.goal_node)
+            yield self.goal_node, self.get_distance(node1, self.goal_node)  # not return!
         for node2 in self.neighbours[node1]:
             yield node2, self.get_distance(node1, node2)
+    #
+    # def get_edges_from(self,node1):
+    #     return {(node2, self.get_distance(node1, node2)) for node2 in self.neighbours[node1]}
 
 
-def heuristic(v1, v2):
-    return np.linalg.norm(v1.coordinates - v2.coordinates)
+import heapq  # implementation of the heap queue algorithm, also known as the priority queue algorithm (binary tree)
+
+
+class PriorityQueue:
+    def __init__(self):
+        self.elements = []
+
+    def empty(self):
+        return len(self.elements) == 0
+
+    def put(self, item, priority):
+        heapq.heappush(self.elements, (priority, item))
+
+    def get(self):
+        return heapq.heappop(self.elements)[1]  # return only the item without the priority
+
+
+def modified_a_star(heuristic_graph: DirectedHeuristicGraph, start: Vertex, goal: Vertex):
+    """
+    :param heuristic_graph: the graph to search in
+    :param start: the vertex to start from
+    :param goal: the vertex to end at
+    :return: a tuple of the shortest path FROM GOAL TO START (reversed) and its length
+    """
+
+    def reconstruct_path():
+        # backtrack where path came from
+        current_node = goal
+        path = []
+        while current_node is not None:
+            path.append(current_node)
+            current_node = came_from[current_node]
+        # path.reverse()  # to get the actual path
+        return path
+
+    heuristic_graph.set_goal_node(goal)  # computes the heuristic for all vertices once # TODO lazy
+
+    # idea: make sure to not 'walk back' delete edges with increasing heuristic?!
+    #   -> not worth it. requires basically a a* search...
+
+    priority_queue = PriorityQueue()
+    priority_queue.put(start, 0.0)
+    came_from = {start: None, }
+    cost_so_far = {start: 0.0, }
+
+    while not priority_queue.empty():
+        # always 'expand' the node with the lowest current cost estimate (= cost_so_far + heuristic)
+        current = priority_queue.get()
+        print('expanding:', current.coordinates)
+
+        # look at the distances to all neighbours
+        for next_node, distance in heuristic_graph._existing_edges_from(current):
+            print('visiting:', next_node.coordinates)
+
+            # since the current node is the one with the lowest cost estimate
+            #   and the goal is directly reachable from the current node (-> heuristic == distance),
+            # the cost estimate is actually the true cost.
+            # because of the geometric property mentioned above there can be no other shortest path to the goal
+            # the algorithm can be terminated (regular a* would now still continue to fully expand the current node)
+            # optimisation: let _exiting_edges_from() return the goal node first if it is among the neighbours
+            if next_node == goal:
+                print('reached goal node. terminating')
+                total_path_length = cost_so_far[current] + distance
+                came_from[next_node] = current
+                return reconstruct_path(), total_path_length
+
+            new_cost = cost_so_far[current] + distance
+            if new_cost < cost_so_far.get(next_node, math.inf):
+                # found shortest path to this node so far
+                cost_so_far[next_node] = new_cost
+                came_from[next_node] = current
+                priority = new_cost + heuristic_graph.get_heuristic(next_node)
+                priority_queue.put(next_node, priority)
+
+    # goal is not reachable
+    return [], None
 
 
 class Map:
@@ -360,7 +448,7 @@ class Map:
     # boundary_extremities = None
     # hole_extremities = None
     prepared: bool = False
-    graph: UndirectedGraph = {}
+    graph: DirectedHeuristicGraph = {}
 
     def store(self, boundary_coordinates, hole_coordinates, validation=False):
         self.prepared = False
@@ -428,7 +516,8 @@ class Map:
 
             # filter out all vertices whose representation lies within the range between
             #   the two given angle representations
-            # vertices with the same representation should NOT be returned! (they can be visible!)
+            # vertices with the same representation should be returned!
+            #   (they can be visible, but should be ruled out if they lie behind!)
             # which range ('clockwise' or 'counter-clockwise') should be checked is determined by:
             #   - query angle (range) is < 180deg or not (>= 180deg)
 
@@ -441,14 +530,14 @@ class Map:
 
             def lies_within(vertex):
                 # vertices with the same representation should NOT be returned!
-                return min_repr_val < vertex.angle_representation.value < max_repr_val
+                return min_repr_val <= vertex.angle_representation.value <= max_repr_val
 
             # when the range contains the 0.0 value (transition from 3.99... -> 0.0)
             # it is easier to check if a representation does NOT lie within this range
             # -> filter_fct = not_within
             def not_within(vertex):
                 # vertices with the same representation should NOT be returned!
-                return not (min_repr_val <= vertex.angle_representation.value <= max_repr_val)
+                return not (min_repr_val < vertex.angle_representation.value < max_repr_val)
 
             if repr_diff < 2.0:
                 # angle < 180 deg
@@ -613,7 +702,9 @@ class Map:
             #   idea: work with a list of sets, add new set for higher priority
             for e in vertices_in_front:
                 # only add the neighbour edges to the priority set if they still have to be checked!
-                priority_edges.update(edges_to_check.intersection({e.edge1, e.edge2}))
+                if type(e) == PolygonVertex:
+                    # only vertices belonging to polygons have neighbours
+                    priority_edges.update(edges_to_check.intersection({e.edge1, e.edge2}))
 
         # all remaining vertices are visible
         visible_vertices.update(candidates)
@@ -635,7 +726,7 @@ class Map:
         # precompute
         # construct graph of visible (=directly reachable) extremities
         # fixed ordering of the extremities (IDs) through the list self.all_extremities
-        self.graph = UndirectedGraph(self.all_extremities)
+        self.graph = DirectedHeuristicGraph(self.all_extremities)
         # {e: set() for e in self.all_extremities}
         extremities_to_check = set(self.all_extremities)
         for extremity1 in self.all_extremities:
@@ -644,7 +735,7 @@ class Map:
             # this would only give the same result when algorithms are correct
             # also the extremity itself must not be checked when looking for visible neighbours
             extremities_to_check.remove(extremity1)
-            self.graph.add_multiple_edges(self.find_visible(extremity1, extremities_to_check))
+            self.graph.add_multiple_undirected_edges(extremity1, self.find_visible(extremity1, extremities_to_check))
 
         # extremities_to_check = set(self.all_extremities)
         # for extremity1 in self.all_extremities:
@@ -659,9 +750,10 @@ class Map:
         #         self.graph[extremity2] |= {(extremity1, distance)}
 
         self.prepared = True
-        print(self.graph)
         # draw(self)
-        # TODO ? compute shortest paths between all directly reachable extremities
+
+        # TODO ? compute shortest paths between all directly reachable extremities. advantages?!
+        # really safes computation during query time?!
 
     def find_shortest_path(self, start_coordinates, goal_coordinates):
         # path planning query:
@@ -671,23 +763,23 @@ class Map:
         if not self.prepared:
             self.prepare()
 
-        if start_coordinates == goal_coordinates:
-            # start and goal are identical and can be reached instantly
-            return ([start_coordinates, goal_coordinates], 0.0)
-
         # make sure start and goal are within the boundary polygon and outside of all holes
         def within_map(query_coords):
             # within the boundary polygon and outside of all holes
             x, y = query_coords
-            if not inside_polygon(x, y, self.boundary_polygon.coordinates):
+            if not inside_polygon(x, y, self.boundary_polygon.coordinates, border_value=True):
                 return False
             for hole in self.holes:
-                if inside_polygon(x, y, hole.coordinates):
+                if inside_polygon(x, y, hole.coordinates, border_value=False):
                     return False
             return True
 
         if not (within_map(start_coordinates) and within_map(goal_coordinates)):
             raise ValueError('start or goal do not lie within the map')
+
+        if start_coordinates == goal_coordinates:
+            # start and goal are identical and can be reached instantly
+            return [start_coordinates, goal_coordinates], 0.0
 
         # check if start and goal nodes have identical coordinates with one of the vertices
         # optimisations for visibility test can be made in this case:
@@ -695,59 +787,95 @@ class Map:
         # running graph shortest path search with identical but separate nodes would lead to
         # longer running time and resulting paths with 0 segments
         # query point might not be an extremity (regular polygon vertex)
-        new_start_vertex = True
-        new_goal_vertex = True
-        new_start_node = True
-        new_goal_node = True
+        start_vertex_existed = False
+        goal_vertex_existed = False
+        start_is_extremity = False
+        goal_is_extremity = False
         for v in self.all_vertices:
-            if v.coordinates == start_coordinates:
+            if np.all(v.coordinates == start_coordinates):
+                start_vertex_existed = True
                 start_vertex = v
-                new_start_vertex = False
                 if v.is_extremity:
                     # for this node all the
                     # do not add new node in graph
-                    new_start_node = False
+                    start_is_extremity = True
                 break
 
         for v in self.all_vertices:
-            if v.coordinates == goal_coordinates:
+            if np.all(v.coordinates == goal_coordinates):
+                goal_vertex_existed = True
                 goal_vertex = v
-                new_goal_vertex = False
                 if v.is_extremity:
                     # do not add new node in graph
-                    new_goal_node = False
+                    goal_is_extremity = True
                 break
 
-        # compute the all directly reachable extremities from start and goal based on visibility
-        if new_start_vertex:
+        if not start_vertex_existed:
             start_vertex = Vertex(start_coordinates)
-        if new_goal_vertex:
+        if not goal_vertex_existed:
             goal_vertex = Vertex(goal_coordinates)
 
         # create temporary graph (real copy to not edit the original prepared graph)
-        temp_graph = self.graph.copy()
+        # a shallow copy: constructs a new compound object and then (to the extent possible)
+        #   inserts references into it to the objects found in the original.
+        temporary_graph = copy(self.graph)
 
-        if new_start_node:
+        # when start and goal are both extremities
+        #  they are both present in the graph already and their connections are already known
+        # computing the all directly reachable extremities from start and goal based on visibility is not required
+        candidates = set()
+        if not start_is_extremity:
+            # when the start is not an extremity the connections to all other extremities have to be checked
+            candidates.update(self.all_extremities)
+
+        if not goal_is_extremity:
+            # when the goal is not an extremity the connections to the goal are unknown and have to be checked
+            # when it is an extremity it is contained in the all_extremities and gets checked automatically!
+            # IMPORTANT: check if the goal node is visible from the start node!
             # query point might not be a vertex, but lie directly on an edge! (angle = 180deg)
             # has to be considered in .find_visible()
-            visibles_n_distances_start = self.find_visible(start_vertex, set(self.all_extremities))
-            # add to graph, but only in the direction (start -> extremity)
-            temp_graph[start_vertex] = visibles_n_distances_start
+            candidates.add(goal_vertex)
 
-        if new_goal_node:
+        if not goal_vertex_existed:
+            # IMPORTANT: manually translate the goal vertex, because it is not part of any polygon
+            #   and hence does not get translated automatically
+            goal_vertex.translate(start_vertex)
+
+        visibles_n_distances = self.find_visible(start_vertex, candidates)
+
+        # IMPORTANT geometrical property of this problem: it is always shortest to directly reach a node
+        #   instead of visiting other nodes first (there is never an advantage through reduced edge weight)
+        # -> when goal is directly reachable, there can be no other shorter path to it
+        for v, d in visibles_n_distances:
+            if v == goal_vertex:
+                vertex_path = [start_vertex, goal_vertex]
+                print(vertex_path)
+                draw_with_path(self, temporary_graph, goal_vertex, start_vertex, vertex_path)
+                return [start_coordinates, goal_coordinates], d
+
+        # add to graph, TODO but only in the direction (start -> extremity)
+        # TODO no, because being called the other way round!
+        temporary_graph.add_multiple_undirected_edges(start_vertex, visibles_n_distances)
+
+        if not goal_is_extremity:
             # query point might not be a vertex, but lie directly on an edge! (angle = 180deg)
             # has to be considered in .find_visible()
-            visibles_n_distances_goal = self.find_visible(goal_vertex, set(self.all_extremities))
-            # add to graph, but only in the direction (extremity -> goal)
-            for v, d in visibles_n_distances_goal:
-                self.graph[v] |= {(goal_vertex, d)}
+            # start node does not have to be considered, because of the earlier check for the start node
+            visibles_n_distances = self.find_visible(goal_vertex, set(self.all_extremities))
+            # add to graph, TODO but only in the direction (extremity -> goal)
+            # TODO no, because being called the other way round!
+            temporary_graph.add_multiple_undirected_edges(goal_vertex, visibles_n_distances)
 
-        # TODO might be directly visible! handled by a*
-
-        # a star algorithm
-        # todo modify?!
-        # TODO more clever approach
+        # TODO find other more clever approach than modified a star?!
         # TODO find way to draw
+        # function returns the shortest path from goal to start (computational reasons), so just swap the parameters
+        vertex_path, distance = modified_a_star(temporary_graph, start=goal_vertex, goal=start_vertex)
+        # extract the coordinates from the path
+        print('end reached')
+        draw_graph(temporary_graph)
+        print(vertex_path)
+        # draw_with_path(self, temporary_graph, goal_vertex, start_vertex, vertex_path)
+        return [tuple(v.coordinates) for v in vertex_path], distance
 
 
 if __name__ == "__main__":
@@ -757,9 +885,19 @@ if __name__ == "__main__":
     polygon1 = [(0.0, 0.0), (10.0, 0.0), (9.0, 5.0), (10.0, 10.0), (0.0, 10.0)]
     # clockwise numbering!
     # holes1 = []
-    holes1 = [[(3.0, 7.0), (5.0, 9.0), (5.0, 7.0), ], ]
+    # holes1 = [[(3.0, 7.0), (5.0, 9.0), (5.0, 7.0), ], ]
+    holes1 = [[(3.0, 7.0), (5.0, 9.0), (4.5, 7.0), (5.0, 4.0), ], ]
 
     map = Map()
     map.store(polygon1, holes1)
     # print(map.all_extremities)
     map.prepare()
+
+    start_coords = (1, 1)
+    # goal_coords = (2, 2)
+    goal_coords = (6, 7)
+
+    # TODO test numpy array array conversion works
+    print(map.find_shortest_path(start_coords, goal_coords))
+
+    # TODO command line support?! create files with polygons and holes?

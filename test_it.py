@@ -17,7 +17,6 @@ class HelperTest(unittest.TestCase):
             actual_output = fct(input)
             if actual_output != expected_output:
                 print('input: {} expected: {} got: {}'.format(input, expected_output, actual_output))
-
             assert actual_output == expected_output
 
     def test_angle_repr(self):
@@ -86,38 +85,42 @@ class HelperTest(unittest.TestCase):
 
     def test_inside_polygon(self):
         # TODO more detailed test. edges with slopes... also in timezonefinder
-        def test_fct(input):
-            polygon_test_case = np.array([(-1.0, -1.0), (1.0, -1.0), (1.0, 1.0), (-1.0, 1.0)])
-            x, y = input
-            return inside_polygon(x, y, polygon_test_case)
 
-        p_test_cases = [
-            # (x,y),
-            # inside
-            (0.0, 0.0),
-            # # outside
-            (-2.0, 2.0),
-            (0, 2.0),
-            (2.0, 2.0),
-            (-2.0, 0),
-            (2.0, 0),
-            (-2.0, -2.0),
-            (0, -2.0),
-            (2.0, -2.0),
+        for border_value in [True, False]:
+            def test_fct(input):
+                polygon_test_case = np.array([(-1.0, -1.0), (1.0, -1.0), (1.0, 1.0), (-1.0, 1.0)])
+                x, y = input
 
-            # on the line test cases
-            (0.0, -0.5),
-            (0, 0.5),
-            (-0.5, 0),
-            (0.5, 0),
-        ]
-        expected_results = [
-            True, False, False, False, False, False, False, False, False,
-            # on the line test cases
-            True, True, True, True,
-        ]
+                return inside_polygon(x, y, polygon_test_case, border_value)
 
-        self.proto_test_case(list(zip(p_test_cases, expected_results)), test_fct)
+            p_test_cases = [
+                # (x,y),
+                # inside
+                (0.0, 0.0),
+                # # outside
+                (-2.0, 2.0),
+                (0, 2.0),
+                (2.0, 2.0),
+                (-2.0, 0),
+                (2.0, 0),
+                (-2.0, -2.0),
+                (0, -2.0),
+                (2.0, -2.0),
+
+                # on the line test cases
+                (-1.0, -1.0), (1.0, -1.0), (1.0, 1.0), (-1.0, 1.0),
+                (0.0, 1),
+                (0, -1),
+                (1, 0),
+                (-1, 0),
+            ]
+            expected_results = [
+                True, False, False, False, False, False, False, False, False,
+                # on the line test cases
+                border_value, border_value, border_value, border_value,border_value, border_value, border_value, border_value,
+            ]
+
+            self.proto_test_case(list(zip(p_test_cases, expected_results)), test_fct)
 
 
 # TODO test if relation is really bidirectional (find_visible(x,y) = find_visible(y,x))
