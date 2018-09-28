@@ -2,6 +2,8 @@ scrapyard.py
 tmp.py
 .pytest_cache
 .DS_Store
+plots/
+venv/
 
 
 # GITIGNORE DEFAULTS

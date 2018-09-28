@@ -1,12 +1,16 @@
 from copy import copy
 
-from a_star import modified_a_star
-from gui import draw_loaded_map, draw_prepared_map, draw_graph, draw_only_path, draw_with_path
-from helper_fcts import *
-from helper_classes import *
+from extremitypathfinder.graph_search import modified_a_star
+from extremitypathfinder.gui import draw_loaded_map, draw_prepared_map, draw_graph, draw_only_path, draw_with_path
+from extremitypathfinder.helper_fcts import *
+from extremitypathfinder.helper_classes import *
 
-
+# TODO no matplotlib dependency
 # TODO verbosity option
+# TODO conda forge recipe
+# TODO write tests
+# adjust publish py
+# publisch
 
 class Map:
     # class for keeping preloaded map for consecutive path queries
@@ -303,7 +307,7 @@ class Map:
         self.prepared = True
         if export_plots:
             draw_prepared_map(self)
-        # TODO pre compute shortest paths between all directly reachable extremities. advantages?!
+        # TODO improvement: pre compute shortest paths between all directly reachable extremities. advantages?!
         # does it really safe computations during query time?!
 
     def find_shortest_path(self, start_coordinates, goal_coordinates, export_plots=False):
@@ -417,7 +421,7 @@ class Map:
             # add to graph, but only in the direction: extremity <- goal (being called the other way round)
             temporary_graph.add_multiple_directed_edges(goal_vertex, visibles_n_distances)
 
-        # TODO find other more clever approach than modified a star?!
+        # TODO improvement: find other more clever approach than modified a star?!
         # function returns the shortest path from goal to start (computational reasons), so just swap the parameters
         vertex_path, distance = modified_a_star(temporary_graph, start=goal_vertex, goal=start_vertex)
         # extract the coordinates from the path
@@ -447,8 +451,8 @@ if __name__ == "__main__":
     # draw_map(map)
 
     start_coords = (9.5, 1.0)
-    goal_coords = (9.5, 9.0)
+    goal_coords = (4.0, 8.5)
 
-    print(map.find_shortest_path(start_coords, goal_coords))
+    print(map.find_shortest_path(start_coords, goal_coords,export_plots=True))
 
     # TODO command line support?! create files with polygons and holes?

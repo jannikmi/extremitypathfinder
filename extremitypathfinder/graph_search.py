@@ -1,10 +1,10 @@
-# modified sample code from https://www.redblobgames.com/pathfinding/a-star/
-
 import heapq  # implementation of the heap queue algorithm, also known as the priority queue algorithm (binary tree)
 from math import inf as infinity
 
-from helper_classes import DirectedHeuristicGraph, Vertex
+from extremitypathfinder.helper_classes import DirectedHeuristicGraph, Vertex
 
+
+# modified sample code from https://www.redblobgames.com/pathfinding/a-star/
 
 class PriorityQueue:
     def __init__(self):
@@ -25,7 +25,7 @@ def modified_a_star(heuristic_graph: DirectedHeuristicGraph, start: Vertex, goal
     :param heuristic_graph: the graph to search in
     :param start: the vertex to start from
     :param goal: the vertex to end at
-    :return: a tuple of the shortest path FROM GOAL TO START (reversed) and its length
+    :return: a tuple of the shortest path FROM GOAL TO START (reversed) and its total length
     """
 
     def reconstruct_path():

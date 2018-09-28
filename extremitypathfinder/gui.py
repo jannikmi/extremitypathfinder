@@ -48,10 +48,10 @@ def draw_polygon(ax, coords, **kwargs):
 
 
 def draw_boundaries(map, ax):
-    # outside light grey
+    # TODO outside light grey
+    # TODO fill holes light grey
     draw_polygon(ax, map.boundary_polygon.coordinates)
     for h in map.holes:
-        # TODO fill light grey
         draw_polygon(ax, h.coordinates, facecolor='grey', fill=True)
 
     mark_points(map.all_vertices, c='black', s=15)
@@ -69,11 +69,15 @@ def set_limits(map, ax):
     ax.set_ylim((min(map.boundary_polygon.coordinates[:, 1]) - 1, max(map.boundary_polygon.coordinates[:, 1]) + 1))
 
 
-def map_drawing_helper(map, ax):
-    draw_boundaries(map, ax)
-    draw_internal_graph(map, ax)
-    set_limits(map, ax)
-
+def draw_path(vertex_path):
+    # start, path and goal in green
+    if vertex_path:
+        mark_points(vertex_path, c='g', alpha=0.9, s=50)
+        mark_points([vertex_path[0], vertex_path[1]], c='g', s=100)
+        v1 = vertex_path[0]
+        for v2 in vertex_path[1:]:
+            draw_edge(v1, v2, c='g', alpha=1.0)
+            v1 = v2
 
 # TODO unify functions and give int to decide what to draw
 def draw_loaded_map(map):
@@ -81,8 +85,6 @@ def draw_loaded_map(map):
 
     draw_boundaries(map, ax)
     set_limits(map, ax)
-    # TODO export png from the different steps
-    # TODO export png depending on the current status of the map!
     export_plot(fig, 'map_plot')
     plt.show()
 
@@ -93,8 +95,6 @@ def draw_prepared_map(map):
     draw_boundaries(map, ax)
     draw_internal_graph(map, ax)
     set_limits(map, ax)
-    # TODO export png from the different steps
-    # TODO export png depending on the current status of the map!
     export_plot(fig, 'prepared_map_plot')
     plt.show()
 
@@ -135,18 +135,11 @@ def draw_with_path(map, temp_graph, start, goal, vertex_path):
 def draw_only_path(map, vertex_path):
     fig, ax = plt.subplots()
 
-    map_drawing_helper(map, ax)
+    draw_boundaries(map, ax)
+    set_limits(map, ax)
+    draw_path(vertex_path)
 
-    # start, path and goal in green
-    if vertex_path:
-        mark_points(vertex_path, c='g', alpha=0.9, s=50)
-        mark_points([vertex_path[0], vertex_path[1]], c='g', s=100)
-        v1 = vertex_path[0]
-        for v2 in vertex_path[1:]:
-            draw_edge(v1, v2, c='g', alpha=1.0)
-            v1 = v2
-
-        export_plot(fig, 'path_plot')
+    export_plot(fig, 'path_plot')
     plt.show()
 
 

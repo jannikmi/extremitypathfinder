@@ -1,0 +1,13 @@
+numpy
+matplotlib
+
+docutils
+flake8
+flake8-commas
+isort
+modernize
+multilint
+pygments
+pytest
+pytest-cov
+

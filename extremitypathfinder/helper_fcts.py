@@ -2,10 +2,10 @@ from itertools import combinations
 
 import numpy as np
 
-from helper_classes import AngleRepresentation
+from extremitypathfinder.helper_classes import AngleRepresentation
 
 
-# TODO numba precompilation of some parts possible?!
+# TODO numba precompilation of some parts possible?! do profiling first!
 # TODO lazy_python: origin shift translate, angle representatione evaluation, graph a star heuristic
 
 

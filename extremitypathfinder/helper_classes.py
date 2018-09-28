@@ -3,6 +3,11 @@ from typing import List
 import numpy as np
 
 
+# TODO getter setter. make non accesible!
+# TODO optimize memory usage
+# TODO lazy_python: origin shift translate, angle representatione evaluation, graph a star heuristic
+
+
 class AngleRepresentation:
     """
     a class automatically computing a representation for the angle from the origin to a given vector
@@ -58,8 +63,6 @@ class AngleRepresentation:
 
 class Vertex:
     # defining static attributes on class
-    # TODO optimize memory usage
-    # TODO link edges and neighbours already during creation?
     # __slots__ = ['coordinate', ]
 
     coordinates = None
@@ -74,7 +77,6 @@ class Vertex:
         self.coordinates = np.array(coordinates)
 
     def translate(self, new_origin):
-        # TODO lazy evaluation! how to know if still up to date?!
         # store the coordinate value of the point relative to the new origin vector
         self.coordinates_translated = self.coordinates - new_origin.coordinates
         self.distance_to_origin = np.linalg.norm(self.coordinates_translated)
@@ -87,18 +89,10 @@ class Vertex:
 
 
 class PolygonVertex(Vertex):
-    # TODO how to link to polygon? needed?
-    # TODO link real polygon or remove ID
-    polygon_ID = None
     edge1 = None
     edge2 = None
     neighbours = [None, None]
 
-    def __init__(self, polygon_ID, coordinates):
-        super(PolygonVertex, self).__init__(coordinates)
-        self.polygon_ID = polygon_ID
-
-    # TODO setter
     def declare_extremity(self):
         self.is_extremity = True
 
@@ -180,7 +174,7 @@ class Polygon:
         if self.length < 3:
             raise ValueError('This is not a valid polygon:', coordinate_list, '# edges:', self.length)
 
-        self.vertices = [PolygonVertex(id(self), coordinate) for coordinate in coordinate_list]
+        self.vertices = [PolygonVertex(coordinate) for coordinate in coordinate_list]
 
         vertex1 = self.vertices[-1]
         for vertex2 in self.vertices:
@@ -199,9 +193,6 @@ class Polygon:
 
 
 class DirectedHeuristicGraph:
-    # TODO better performance when working with just id instead of full vertex class?!
-    # TODO but keep coords etc. for drawing graph later on...
-
     distances: dict = {}
     neighbours: dict = {}
     all_nodes: set = set()
@@ -215,8 +206,6 @@ class DirectedHeuristicGraph:
 
     def __init__(self, nodes):
         self.all_nodes.update(nodes)
-
-    # TODO getter setter. make non accesible!
 
     def get_all_nodes(self):
         return self.all_nodes
