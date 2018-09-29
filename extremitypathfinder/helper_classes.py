@@ -5,7 +5,7 @@ import numpy as np
 
 # TODO getter setter. make non accesible!
 # TODO optimize memory usage
-# TODO lazy_python: origin shift translate, angle representatione evaluation, graph a star heuristic
+# TODO lazy: graph a star heuristic
 
 
 class AngleRepresentation:
@@ -69,6 +69,7 @@ class Vertex:
     is_extremity = False
 
     # a container for temporally storing shifted coordinates
+    is_outdated: bool = True
     coordinates_translated = None
     angle_representation = None
     distance_to_origin = None
@@ -76,9 +77,10 @@ class Vertex:
     def __init__(self, coordinates):
         self.coordinates = np.array(coordinates)
 
-    def translate(self, new_origin):
+    def evaluate(self):
+        global origin
         # store the coordinate value of the point relative to the new origin vector
-        self.coordinates_translated = self.coordinates - new_origin.coordinates
+        self.coordinates_translated = self.coordinates - origin.coordinates
         self.distance_to_origin = np.linalg.norm(self.coordinates_translated)
         if self.distance_to_origin == 0:
             # the coordinages of the origin and this vertex are equal
@@ -87,11 +89,40 @@ class Vertex:
         else:
             self.angle_representation = AngleRepresentation(self.coordinates_translated)
 
+    # lazy evaluation
+    def get_coordinates_translated(self):
+        if self.is_outdated:
+            self.evaluate()
+        return self.coordinates_translated
+
+    def get_angle_representation(self):
+        if self.is_outdated:
+            self.evaluate()
+        try:
+            return self.angle_representation.value
+        except AttributeError:
+            return None
+
+    def get_distance_to_origin(self):
+        if self.is_outdated:
+            self.evaluate()
+        return self.distance_to_origin
+
+    def mark_outdated(self):
+        self.is_outdated = True
+
+
+origin = None
+
 
 class PolygonVertex(Vertex):
     edge1 = None
-    edge2 = None
-    neighbours = [None, None]
+    edge2= None
+    neighbour1 = None
+    neighbour2 = None
+
+    def get_neighbours(self):
+        return self.neighbour1,self.neighbour2
 
     def declare_extremity(self):
         self.is_extremity = True
@@ -99,12 +130,12 @@ class PolygonVertex(Vertex):
     def set_edge1(self, e1):
         self.edge1 = e1
         # ordering is important! the numbering convention has to stay intact!
-        self.neighbours[0] = e1.vertex1
+        self.neighbour1 = e1.vertex1
 
     def set_edge2(self, e2):
         self.edge2 = e2
         # ordering is important! the numbering convention has to stay intact!
-        self.neighbours[1] = e2.vertex1
+        self.neighbour2= e2.vertex2
 
 
 class Edge:
@@ -184,12 +215,13 @@ class Polygon:
             vertex2.set_edge1(edge)
             self.edges.append(edge)
             vertex1 = vertex2
-
         self.find_extremities()
 
     def translate(self, new_origin: Vertex):
+        global origin
+        origin = new_origin
         for vertex in self.vertices:
-            vertex.translate(new_origin)
+            vertex.mark_outdated()
 
 
 class DirectedHeuristicGraph:
@@ -224,7 +256,22 @@ class DirectedHeuristicGraph:
             return None
 
     def get_heuristic(self, node):
-        return self.heuristic[node]
+        global origin  # use origin contains the current goal node
+        # lazy evaluation:
+        h = self.heuristic.get(node, None)
+        if h is None:
+            h = np.linalg.norm(node.coordinates - origin.coordinates)
+            self.heuristic[node] = h
+        return h
+
+    def set_goal_node(self, goal_node):
+        assert goal_node in self.all_nodes  # has no outgoing edges -> no neighbours
+        # IMPORTANT: while using heuristic graph (a star), do not use change
+        global origin
+        origin = goal_node  # use origin for temporally storing the goal node
+        self.goal_node = goal_node
+        # reset heuristic for all
+        self.heuristic.clear()
 
     def _existing_edges_from(self, node1):
         # optimisation: when goal node is reachable return it first (-> a star search terminates)
@@ -233,7 +280,6 @@ class DirectedHeuristicGraph:
         for node2 in self.neighbours[node1]:
             yield node2, self.get_distance(node1, node2)
 
-    #
     # def get_edges_from(self,node1):
     #     return {(node2, self.get_distance(node1, node2)) for node2 in self.neighbours[node1]}
 
@@ -255,9 +301,13 @@ class DirectedHeuristicGraph:
         for node2, distance in node_distance_iter:
             self.add_directed_edge(node1, node2, distance)
 
-    def set_goal_node(self, goal_node):
-        assert goal_node in self.all_nodes  # has no outgoing edges -> no neighbours
-        self.goal_node = goal_node
-        # compute heuristic for all
-        for node in self.neighbours.keys():
-            self.heuristic[node] = np.linalg.norm(node.coordinates - goal_node.coordinates)
+    def remove_undirected_edge(self, node1, node2):
+        # should work even if edge does not exist yet
+        self.neighbours.setdefault(node1, set()).discard(node2)
+        self.neighbours.setdefault(node2, set()).discard(node1)
+        self.distances.pop((node1, node2),None)
+        self.distances.pop((node2, node1),None)
+
+    def remove_multiple_undirected_edges(self, node1, node2_iter):
+        for node2 in node2_iter:
+            self.remove_undirected_edge(node1, node2)

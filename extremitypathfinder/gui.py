@@ -15,6 +15,8 @@ POLYGON_SETTINGS = {
     'linewidth': 1.0,
 }
 
+SHOW_PLOTS = False
+
 
 def get_plot_name(file_name='plot'):
     return './plots/' + file_name + '_' + str(time.time())[:-7] + '.png'
@@ -73,11 +75,12 @@ def draw_path(vertex_path):
     # start, path and goal in green
     if vertex_path:
         mark_points(vertex_path, c='g', alpha=0.9, s=50)
-        mark_points([vertex_path[0], vertex_path[1]], c='g', s=100)
+        mark_points([vertex_path[0], vertex_path[-1]], c='g', s=100)
         v1 = vertex_path[0]
         for v2 in vertex_path[1:]:
             draw_edge(v1, v2, c='g', alpha=1.0)
             v1 = v2
+
 
 # TODO unify functions and give int to decide what to draw
 def draw_loaded_map(map):
@@ -86,7 +89,8 @@ def draw_loaded_map(map):
     draw_boundaries(map, ax)
     set_limits(map, ax)
     export_plot(fig, 'map_plot')
-    plt.show()
+    if SHOW_PLOTS:
+        plt.show()
 
 
 def draw_prepared_map(map):
@@ -96,7 +100,8 @@ def draw_prepared_map(map):
     draw_internal_graph(map, ax)
     set_limits(map, ax)
     export_plot(fig, 'prepared_map_plot')
-    plt.show()
+    if SHOW_PLOTS:
+        plt.show()
 
 
 def draw_with_path(map, temp_graph, start, goal, vertex_path):
@@ -120,16 +125,11 @@ def draw_with_path(map, temp_graph, start, goal, vertex_path):
                 draw_edge(n1, goal, c='y', alpha=0.7)
 
     # start, path and goal in green
-    if vertex_path:
-        mark_points(vertex_path, c='g', alpha=0.9, s=50)
-        mark_points([start, goal], c='g', s=100)
-        v1 = vertex_path[0]
-        for v2 in vertex_path[1:]:
-            draw_edge(v1, v2, c='g', alpha=1.0)
-            v1 = v2
+    draw_path(vertex_path)
 
-        export_plot(fig, 'graph_path_plot')
-    plt.show()
+    export_plot(fig, 'graph_path_plot')
+    if SHOW_PLOTS:
+        plt.show()
 
 
 def draw_only_path(map, vertex_path):
@@ -140,7 +140,8 @@ def draw_only_path(map, vertex_path):
     draw_path(vertex_path)
 
     export_plot(fig, 'path_plot')
-    plt.show()
+    if SHOW_PLOTS:
+        plt.show()
 
 
 def draw_graph(graph):
@@ -162,7 +163,8 @@ def draw_graph(graph):
     ax.set_ylim((min(n.coordinates[1] for n in all_nodes) - 1, max(n.coordinates[1] for n in all_nodes) + 1))
 
     export_plot(fig, 'graph_plot')
-    plt.show()
+    if SHOW_PLOTS:
+        plt.show()
 
 
 if __name__ == '__main__':

@@ -2,7 +2,7 @@ from itertools import combinations
 
 import numpy as np
 
-from extremitypathfinder.helper_classes import AngleRepresentation
+from helper_classes import AngleRepresentation, Vertex
 
 
 # TODO numba precompilation of some parts possible?! do profiling first!
@@ -61,6 +61,8 @@ def inside_polygon(x, y, coords, border_value):
     return contained
 
 
+
+
 def no_identical_consequent_vertices(coords):
     p1 = coords[-1]
     for p2 in coords:
@@ -70,23 +72,41 @@ def no_identical_consequent_vertices(coords):
     return True
 
 
-def no_self_intersection(coords):
-    def has_intersection(p1, p2, q1, q2):
-        # solve the set of equations
-        # (p2-p1) lambda + (p1) = (q2-q1) mu + (q1)
-        #  in matrix form A x = b:
-        # [(p2-p1) (q1-q2)] (lambda, mu)' = (q1-p1)
-        A = np.array([p2 - p1, q1 - q2])
-        b = np.array(q1 - p1)
-        try:
-            x = np.linalg.solve(A, b)
-            # not crossing the line segment is considered to be ok
-            # so x == 0.0 or x == 1.0 is not considered an intersection
-            return 0.0 < x[0] < 1.0
-        except np.linalg.LinAlgError:
-            # line segments might be parallel (set of equations not solvable)
-            return False
+def has_intersection(p1, p2, q1, q2):
+    # solve the set of equations
+    # (p2-p1) lambda + (p1) = (q2-q1) mu + (q1)
+    #  in matrix form A x = b:
+    # [(p2-p1) (q1-q2)] (lambda, mu)' = (q1-p1)
+    A = np.array([p2 - p1, q1 - q2])
+    b = np.array(q1 - p1)
+    try:
+        x = np.linalg.solve(A, b)
+        # not crossing the line segment is considered to be ok
+        # so x == 0.0 or x == 1.0 is not considered an intersection
+        return 0.0 < x[0] < 1.0
+    except np.linalg.LinAlgError:
+        # line segments might be parallel (set of equations not solvable)
+        return False
 
+
+# special case of has_intersection()
+def lies_behind(p1, p2, v):
+    # solve the set of equations
+    # (p2-p1) lambda + (p1) = (v) mu
+    #  in matrix form A x = b:
+    # [(p1-p2) (v)] (lambda, mu)' = (p1)
+    # because the vertex lies within the angle range between the two edge vertices
+    #    (together with the other conditions on the polygons)
+    #   this set of linear equations is always solvable (the matrix is regular)
+    A = np.array([p1 - p2, v])
+    b = np.array(p1)
+    x = np.linalg.solve(A, b)
+    # vertices on the edge are possibly visible! ( < not <=)
+    # TODO allowed!?: detect when nodes are identical (x[0] == 0.0 or 1.0 and x[1] == 0.0 or 1.0
+    return x[1] < 1.0
+
+
+def no_self_intersection(coords):
     polygon_length = len(coords)
     for index_p1, index_q1 in combinations(range(polygon_length), 2):
         # TODO optimisation: neighbouring edges never have an intersection
@@ -160,3 +180,66 @@ def validate(boundary_coords, list_hole_coords):
         assert has_clockwise_numbering(hole_coords)
 
     # TODO rectification
+
+
+def find_within_range(repr1, repr2, vertex_set, angle_range_less_180):
+    # filter out all vertices whose representation lies within the range between
+    #   the two given angle representations
+    # vertices with the same representation should also be returned!
+    # they can be visible, but will be ruled out if they lie behind any edge!
+    # which range ('clockwise' or 'counter-clockwise') should be checked is determined by:
+    #   - query angle (range) is < 180deg or not (>= 180deg)
+
+    if len(vertex_set) == 0:
+        return vertex_set
+
+    repr_diff = abs(repr1 - repr2)
+    if repr_diff == 0.0:
+        return set()
+
+    min_repr_val = min(repr1, repr2)
+    max_repr_val = max(repr1, repr2)  # = min_angle + angle_diff
+
+    def lies_within(vertex):
+        # vertices with the same representation should NOT be returned!
+        return min_repr_val <= vertex.get_angle_representation() <= max_repr_val
+
+    # when the range contains the 0.0 value (transition from 3.99... -> 0.0)
+    # it is easier to check if a representation does NOT lie within this range
+    # -> filter_fct = not_within
+    def not_within(vertex):
+        # vertices with the same representation should NOT be returned!
+        return not (min_repr_val < vertex.get_angle_representation() < max_repr_val)
+
+    if repr_diff < 2.0:
+        # angle < 180 deg
+        if angle_range_less_180:
+            filter_fct = lies_within
+        else:
+            # the actual range to search is from min_val to max_val, but clockwise!
+            filter_fct = not_within
+
+    elif repr_diff == 2.0:
+        # angle == 180deg
+        # for some query points it is unknown if they lie on an edge
+        # an angle of 180deg might appear even if it is expected to be <180deg
+        # if angle_range_less_180:
+        #     raise ValueError(repr1, repr2, repr_diff)
+
+        # which range to filter is determined by the order of the points
+        # since the polygons follow a numbering convention,
+        # the 'left' side of p1-p2 always lies inside the map
+        # -> filter out everything on the right side (='behind')
+        if repr1 < repr2:
+            filter_fct = lies_within
+        else:
+            filter_fct = not_within
+
+    else:
+        # angle > 180deg
+        if angle_range_less_180:
+            filter_fct = not_within
+        else:
+            filter_fct = lies_within
+
+    return set(filter(filter_fct, vertex_set))

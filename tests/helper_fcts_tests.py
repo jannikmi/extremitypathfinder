@@ -84,7 +84,7 @@ class HelperFctsTest(unittest.TestCase):
         proto_test_case(data, clockwise_test_fct)
 
 
-# TODO test if relation is really bidirectional (find_visible(x,y) = find_visible(y,x))
+# TODO test if relation is really bidirectional (y in find_visible(x,y) <=> x in find_visible(y,x))
 
 
 if __name__ == '__main__':
