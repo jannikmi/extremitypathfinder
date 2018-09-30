@@ -6,7 +6,6 @@ from helper_classes import AngleRepresentation, Vertex
 
 
 # TODO numba precompilation of some parts possible?! do profiling first!
-# TODO lazy_python: origin shift translate, angle representatione evaluation, graph a star heuristic
 
 
 def inside_polygon(x, y, coords, border_value):

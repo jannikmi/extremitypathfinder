@@ -46,7 +46,7 @@ def modified_a_star(heuristic_graph, start, goal):
         # path.reverse()  # to get the actual path
         return path
 
-    heuristic_graph.set_goal_node(goal)  # computes the heuristic for all vertices once # TODO lazy
+    heuristic_graph.set_goal_node(goal)  # lazy update of the heuristic
 
     # idea: make sure to not 'walk back' delete edges with increasing heuristic?!
     #   -> not worth it. requires basically a a* search...

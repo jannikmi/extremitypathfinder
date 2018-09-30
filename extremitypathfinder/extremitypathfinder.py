@@ -32,7 +32,8 @@ class Map:
     # boundary_extremities = None
     # hole_extremities = None
     prepared: bool = False
-    graph: DirectedHeuristicGraph = {}
+    graph: DirectedHeuristicGraph = None
+    temp_graph: DirectedHeuristicGraph = None  # for storing and plotting the graph during a query
 
     def store(self, boundary_coordinates, list_of_hole_coordinates, validation=False, export_plots=False):
         self.prepared = False
@@ -80,7 +81,7 @@ class Map:
             query point also might lie directly on an edge! (angle = 180deg)
 
         :param vertex_candidates: the set of all vertices which should be checked for visibility.
-            TODO is being manipulated, so has to be a copy!
+            IMPORTANT: is being manipulated, so has to be a copy!
 
         :param edges_to_check: the set of edges which determine visibility
         :return: a set of tuples of all vertices visible from the query vertex and the corresponding distance
@@ -92,7 +93,7 @@ class Map:
 
         priority_edges = set()
         # goal: eliminating all vertices lying 'behind' any edge
-        # TODO improvement: process edges roughly in sequence, but still allow jumps
+        # TODO improvement in combination with priority: process edges roughly in sequence, but still allow jumps
         while len(vertex_candidates) > 0 and len(edges_to_check) > 0:
             # check prioritized items first
             try:
@@ -231,15 +232,14 @@ class Map:
             # neighbouring vertices are reachable with the distance equal to the edge length
             n1, n2 = query_extremity.get_neighbours()
             if n1 in candidate_extremities:
-                visible_vertices.add((n1,n1.get_distance_to_origin()))
+                visible_vertices.add((n1, n1.get_distance_to_origin()))
                 candidate_extremities.remove(n1)
             if n2 in candidate_extremities:
-                visible_vertices.add((n2,n2.get_distance_to_origin()))
+                visible_vertices.add((n2, n2.get_distance_to_origin()))
                 candidate_extremities.remove(n2)
             # even though candidate_extremities might be empty now
             # must not skip to next loop here, because existing graph edges might get deleted later!
             # if len(candidate_extremities) == 0:
-            print(candidate_extremities, visible_vertices)
 
             # eliminate all vertices 'behind' the query point from the candidate set
             # since the query vertex is an extremity the 'outer' angle is < 180 degree
@@ -279,11 +279,7 @@ class Map:
             edges_to_check.remove(query_extremity.edge1)
             edges_to_check.remove(query_extremity.edge2)
 
-            print(candidate_extremities, visible_vertices)
             visible_vertices |= self.find_visible(candidate_extremities, edges_to_check)
-            print(candidate_extremities, visible_vertices)
-            print()
-
 
             self.graph.add_multiple_undirected_edges(query_extremity, visible_vertices)
 
@@ -332,7 +328,7 @@ class Map:
         # create temporary graph (real copy to not edit the original prepared graph)
         # a shallow copy: constructs a new compound object and then (to the extent possible)
         #   inserts references into it to the objects found in the original.
-        temporary_graph = copy(self.graph)
+        self.temp_graph = copy(self.graph)
 
         # the visibility of all other extremities has to be checked
         # IMPORTANT: check if the goal node is visible from the start node!
@@ -354,28 +350,31 @@ class Map:
             if v == goal_vertex:
                 vertex_path = [start_vertex, goal_vertex]
                 if export_plots:
-                    draw_with_path(self, temporary_graph, goal_vertex, start_vertex, vertex_path)
+                    draw_with_path(self, self.temp_graph, goal_vertex, start_vertex, vertex_path)
                     draw_only_path(self, vertex_path)
                 return [start_coordinates, goal_coordinates], d
 
             # add unidirectional edges to the temporary graph
             # since modified a star algorithm returns the shortest path from goal to start
             # add edges in the direction: start <-extremity
-            temporary_graph.add_directed_edge(v, start_vertex, d)
+            self.temp_graph.add_directed_edge(v, start_vertex, d)
 
         # start node does not have to be considered, because of the earlier check for the start node
+        candidates = set(self.all_extremities)
         self.translate(goal_vertex)
-        visibles_n_distances = self.find_visible(set(self.all_extremities), set(self.all_edges))
+        visibles_n_distances = self.find_visible(candidates, edges_to_check=set(self.all_edges))
         # add edges in the direction: extremity <- goal
-        temporary_graph.add_multiple_directed_edges(goal_vertex, visibles_n_distances)
+        self.temp_graph.add_multiple_directed_edges(goal_vertex, visibles_n_distances)
 
         # function returns the shortest path from goal to start (computational reasons), so just swap the parameters
         # NOTE: exploiting property 2 from [1] here would be more expensive than beneficial
-        vertex_path, distance = modified_a_star(temporary_graph, start=goal_vertex, goal=start_vertex)
+        vertex_path, distance = modified_a_star(self.temp_graph, start=goal_vertex, goal=start_vertex)
         if export_plots:
-            draw_graph(temporary_graph)
-            draw_with_path(self, temporary_graph, goal_vertex, start_vertex, vertex_path)
+            draw_graph(self.temp_graph)
+            draw_with_path(self, self.temp_graph, goal_vertex, start_vertex, vertex_path)
             draw_only_path(self, vertex_path)
+
+        del self.temp_graph  # free the memory
 
         # extract the coordinates from the path
         return [tuple(v.coordinates) for v in vertex_path], distance
@@ -400,6 +399,7 @@ if __name__ == "__main__":
     start_coords = (4.5, 1.0)
     goal_coords = (4.0, 8.5)
 
-    print(map.find_shortest_path(start_coords, goal_coords, export_plots=False))
+    path, length = map.find_shortest_path(start_coords, goal_coords, export_plots=False)
+    print(path)
 
     # TODO command line support. read polygons and holes from .json files?

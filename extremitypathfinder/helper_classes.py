@@ -4,8 +4,6 @@ import numpy as np
 
 
 # TODO getter setter. make non accesible!
-# TODO optimize memory usage
-# TODO lazy: graph a star heuristic
 
 
 class AngleRepresentation:

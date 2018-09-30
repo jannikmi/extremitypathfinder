@@ -16,7 +16,7 @@ extremitypathfinder
 .. image:: https://anaconda.org/conda-forge/extremitypathfinderr/badges/version.svg
     :target: https://anaconda.org/conda-forge/extremitypathfinder
 
-Python package for geometric shortest path computation for given 2D multi-polygon maps based on visibility.
+Python package for fast geometric shortest path computation for given 2D multi-polygon maps based on visibility.
 
 Also see:
 `GitHub <https://github.com/MrMinimal64/extremitypathfinder>`__,
@@ -54,20 +54,69 @@ in the command line:
 Usage
 =====
 
-Data format:
-____________
+::
 
+    from extremitypathfinder import Map
+    map = Map()
+
+
+
+Store environment:
+__________________
 
 
 ::
 
-    TODO
+    map.store(boundary_coordinates, list_of_hole_coordinates)
 
 
-plotting
+**Data format:**
+Ensure that all the following conditions on the polygons are fulfilled:
+
+- numpy or python array of coordinate tuples: ``[(x1,y1), (x2,y2,)...]``
+- the first point is NOT repeated at the end
+- must at least contain 3 vertices
+- no consequent vertices with identical coordinates in the polygons (same coordinates in general are allowed)
+- a polygon must not have self intersections (intersections with other polygons are allowed)
+- edge numbering has to follow this convention (for easier computations):
+    - outer boundary polygon: counter clockwise
+    - holes: clockwise
+
+Pass ``validate=True`` to ``.store()`` in order to check those condition.
+Pass ``export_plots=True`` in order to generate and store plots with matplotlib.
+
 
 
 **Note:** As mentioned in `[1, Ch. III 6.3] <http://www.cs.au.dk/~gerth/advising/thesis/anders-strand-holm-vinther_magnus-strand-holm-vinther.pdf>`__ in Chessboard like Gridworlds it can be better to use A* right away.
+
+
+
+Preprocessing:
+______________
+
+
+::
+
+    map.prepare(export_plots=False)
+
+
+
+Query:
+______
+
+
+::
+
+    path, length = map.find_shortest_path(start_coordinates, goal_coordinates, export_plots=False)
+
+
+
+Plotting:
+_________
+
+TODO
+
+
 
 
 Basic Idea
@@ -125,7 +174,7 @@ todo explain algorithm
 todo link other algorithms
 
 
-**Modifications to A-star**: The basic algorithm has been modified to exploit the following geometrical property of this specific task (and hence also the extracted graph):
+**Modifications to A-star:** The basic algorithm has been modified to exploit the following geometrical property of this specific task (and hence also the extracted graph):
 it is always shortest to directly reach a node instead of visiting other nodes first
 (there is never an advantage through reduced edge weight).
 
@@ -136,6 +185,9 @@ This can be exploited in a lot of cases to make a* terminate earlier than for ge
 - when always only expanding the nodes with the lowest estimated cost (lower bound), there is no need to revisit nodes (path only gets longer)
 
 
+**Laziness:**
+
+I will write this later...
 
 Comparison to pyvisgraph
 ========================

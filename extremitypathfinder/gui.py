@@ -18,6 +18,7 @@ POLYGON_SETTINGS = {
 SHOW_PLOTS = False
 
 
+# TODO manually specify plot directory
 def get_plot_name(file_name='plot'):
     return './plots/' + file_name + '_' + str(time.time())[:-7] + '.png'
 
@@ -82,7 +83,7 @@ def draw_path(vertex_path):
             v1 = v2
 
 
-# TODO unify functions and give int to decide what to draw
+# TODO unify functions and give int to decide what to draw, automatically detect from given input?!
 def draw_loaded_map(map):
     fig, ax = plt.subplots()
 
@@ -168,4 +169,21 @@ def draw_graph(graph):
 
 
 if __name__ == '__main__':
-    pass
+
+    polygon1 = [(0.0, 0.0), (10.0, 0.0), (9.0, 5.0), (10.0, 10.0), (0.0, 10.0)]
+    # clockwise numbering!
+    # holes1 = []
+    # holes1 = [[(3.0, 7.0), (5.0, 9.0), (5.0, 7.0), ], ]
+    holes1 = [[(3.0, 7.0), (5.0, 9.0), (4.5, 7.0), (5.0, 4.0), ], ]
+
+    map = Map()
+    map.store(polygon1, holes1)
+    # print(map.all_extremities)
+    map.prepare()
+    # draw_map(map)
+
+    start_coords = (4.5, 1.0)
+    goal_coords = (4.0, 8.5)
+
+    path, length = map.find_shortest_path(start_coords, goal_coords, export_plots=False)
+    print(path)
