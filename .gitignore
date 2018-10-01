@@ -4,6 +4,7 @@ tmp.py
 .DS_Store
 plots/
 venv/
+map.pickle
 
 
 # GITIGNORE DEFAULTS

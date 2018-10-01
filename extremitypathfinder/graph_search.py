@@ -60,24 +60,25 @@ def modified_a_star(heuristic_graph, start, goal):
     while not priority_queue.empty():
         # always 'expand' the node with the lowest current cost estimate (= cost_so_far + heuristic)
         current = priority_queue.get()
-        print('expanding:', current.coordinates)
+        # print('expanding:', current.coordinates)
         expanded_nodes.add(current)
 
         # look at the distances to all neighbours
         for next_node, distance in heuristic_graph._existing_edges_from(current):
             if next_node in expanded_nodes:
-                # this node has already been visited. there is no need to consider costs (path can only get longer!)
+                # this node has already been visited. there is no need to consider costs
+                # path can only get longer by visiting other nodes first: new_cost is never < cost_so_far
                 continue
 
-            print('visiting:', next_node.coordinates)
+            # print('visiting:', next_node.coordinates)
             if next_node == goal:
                 # since the current node is the one with the lowest cost estimate
                 #   and the goal is directly reachable from the current node (-> heuristic == distance),
                 # the cost estimate is actually the true cost.
                 # because of the geometric property mentioned above there can be no other shortest path to the goal
-                # the algorithm can be terminated (regular a* would now still continue to fully expand the current node)
-                # optimisation: let _exiting_edges_from() return the goal node first if it is among the neighbours
-                print('reached goal node. terminating')
+                # the algorithm can be terminated (regular a* would now still continue to all other neighbours first)
+                # optimisation: _exiting_edges_from() returns the goal node first if it is among the neighbours
+                # print('reached goal node. terminating')
                 total_path_length = cost_so_far[current] + distance
                 came_from[next_node] = current
                 return reconstruct_path(), total_path_length

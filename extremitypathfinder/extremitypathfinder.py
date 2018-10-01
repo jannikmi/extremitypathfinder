@@ -1,30 +1,32 @@
 from copy import copy
+import pickle
 
-import numpy as np
-from graph_search import modified_a_star
-from gui import draw_loaded_map, draw_prepared_map, draw_graph, draw_only_path, draw_with_path
-from helper_classes import *
-from helper_fcts import *
-
-
-# TODO no matplotlib dependency
-# TODO verbosity option
-# TODO conda forge recipe
-# TODO write tests
-# adjust publish py
-# publish
-# TODO take advantage of processors with multiple cores using the multiprocessing
-# compare to: https://github.com/TaipanRex/pyvisgraph
-# build GUI like Visibility Graph Simulator https://github.com/TaipanRex/visgraph_simulator
+from .graph_search import modified_a_star
+from .gui import draw_loaded_map, draw_prepared_map, draw_graph, draw_only_path, draw_with_path
+from .helper_classes import *
+from .helper_fcts import *
 
 
-# Reference [1] Vinther, Anders Strand-Holm, Magnus Strand-Holm Vinther, and Peyman Afshani.
+# TODO possible to allow polygon consisting of 2 vertices only(=barrier)? lots of algorithms need at least 3 vertices
+
+
+# Reference:
+#   [1] Vinther, Anders Strand-Holm, Magnus Strand-Holm Vinther, and Peyman Afshani.
 #   "Pathfinding in Two-dimensional Worlds"
 #   http://www.cs.au.dk/~gerth/advising/thesis/anders-strand-holm-vinther_magnus-strand-holm-vinther.pdf
-class Map:
+
+def load_pickle(path='./map.pickle'):
+    print('loading map from:', path)
+    with open(path, 'rb') as f:
+        return pickle.load(f)
+
+
+class PolygonEnvironment:
     # class for keeping preloaded map for consecutive path queries
     boundary_polygon: Polygon = None
     holes: List[Polygon] = None
+
+    # TODO find way to not store separate list of all (already stored in the polygons)
     all_edges: List[Edge] = None
     all_vertices: List[Vertex] = None
     all_extremities: List[Vertex] = None
@@ -35,13 +37,13 @@ class Map:
     graph: DirectedHeuristicGraph = None
     temp_graph: DirectedHeuristicGraph = None  # for storing and plotting the graph during a query
 
-    def store(self, boundary_coordinates, list_of_hole_coordinates, validation=False, export_plots=False):
+    def store(self, boundary_coordinates, list_of_hole_coordinates, validate=False, export_plots=False):
         self.prepared = False
         # 'loading the map
         boundary_coordinates = np.array(boundary_coordinates)
         list_of_hole_coordinates = [np.array(hole_coords) for hole_coords in list_of_hole_coordinates]
-        if validation:
-            validate(boundary_coordinates, list_of_hole_coordinates)
+        if validate:
+            check_data_requirements(boundary_coordinates, list_of_hole_coordinates)
 
         self.boundary_polygon = Polygon(boundary_coordinates, is_hole=False)
         # IMPORTANT: make a copy of the list instead of linking to the same list (python!)
@@ -66,6 +68,12 @@ class Map:
         # -> no conversion of obtained graphs needed!
         # TODO option for smoothing (reduces extremities!)
         raise NotImplementedError()
+
+    def export_pickle(self, path='./map.pickle'):
+        print('storing map class in:', path)
+        with open(path, 'wb') as f:
+            pickle.dump(self, f)
+        print('done.\n')
 
     def translate(self, new_origin):
         self.boundary_polygon.translate(new_origin)
@@ -381,25 +389,6 @@ class Map:
 
 
 if __name__ == "__main__":
-    # counter clockwise edge numbering!
-    # polygon1 = [(0.0, 0.0), (10.0, 0.0), (10.0, 10.0), (0.0, 10.0)]
-    # polygon1 = [(0.0, 0.0), (10.0, 0.0), (10.0, 5.0), (10.0, 10.0), (0.0, 10.0)]
-    polygon1 = [(0.0, 0.0), (10.0, 0.0), (9.0, 5.0), (10.0, 10.0), (0.0, 10.0)]
-    # clockwise numbering!
-    # holes1 = []
-    # holes1 = [[(3.0, 7.0), (5.0, 9.0), (5.0, 7.0), ], ]
-    holes1 = [[(3.0, 7.0), (5.0, 9.0), (4.5, 7.0), (5.0, 4.0), ], ]
-
-    map = Map()
-    map.store(polygon1, holes1)
-    # print(map.all_extremities)
-    map.prepare()
-    # draw_map(map)
-
-    start_coords = (4.5, 1.0)
-    goal_coords = (4.0, 8.5)
-
-    path, length = map.find_shortest_path(start_coords, goal_coords, export_plots=False)
-    print(path)
+    pass
 
     # TODO command line support. read polygons and holes from .json files?

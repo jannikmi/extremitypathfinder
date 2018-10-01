@@ -2,7 +2,7 @@ from itertools import combinations
 
 import numpy as np
 
-from helper_classes import AngleRepresentation, Vertex
+from .helper_classes import AngleRepresentation
 
 
 # TODO numba precompilation of some parts possible?! do profiling first!
@@ -60,8 +60,6 @@ def inside_polygon(x, y, coords, border_value):
     return contained
 
 
-
-
 def no_identical_consequent_vertices(coords):
     p1 = coords[-1]
     for p2 in coords:
@@ -76,13 +74,15 @@ def has_intersection(p1, p2, q1, q2):
     # (p2-p1) lambda + (p1) = (q2-q1) mu + (q1)
     #  in matrix form A x = b:
     # [(p2-p1) (q1-q2)] (lambda, mu)' = (q1-p1)
-    A = np.array([p2 - p1, q1 - q2])
+    A = np.array([p2 - p1, q1 - q2]).T
     b = np.array(q1 - p1)
     try:
         x = np.linalg.solve(A, b)
         # not crossing the line segment is considered to be ok
         # so x == 0.0 or x == 1.0 is not considered an intersection
-        return 0.0 < x[0] < 1.0
+        # assert np.all((p2 - p1) * x[0] + p1 == (q2 - q1) * x[1] + q1)
+        # assert np.allclose(np.dot(A, x), b)
+        return np.all(0.0 < x) and np.all(x < 1.0)
     except np.linalg.LinAlgError:
         # line segments might be parallel (set of equations not solvable)
         return False
@@ -108,13 +108,17 @@ def lies_behind(p1, p2, v):
 def no_self_intersection(coords):
     polygon_length = len(coords)
     for index_p1, index_q1 in combinations(range(polygon_length), 2):
-        # TODO optimisation: neighbouring edges never have an intersection
+        # always: index_p1 < index_q1
+        if index_p1 == index_q1 - 1 or index_p1 == index_q1 + 1:
+            # neighbouring edges never have an intersection
+            continue
         p1, p2 = coords[index_p1], coords[(index_p1 + 1) % polygon_length]
         q1, q2 = coords[index_q1], coords[(index_q1 + 1) % polygon_length]
         if has_intersection(p1, p2, q1, q2):
+            print(p1, p2, q1, q2)
             return False
 
-    # TODO check for intersections across 2 edges!
+    # TODO check for intersections across 2 edges! use computed intersection
     return True
 
 
@@ -149,9 +153,8 @@ def has_clockwise_numbering(coords):
     return False
 
 
-def validate(boundary_coords, list_hole_coords):
+def check_data_requirements(boundary_coords, list_hole_coords):
     # TODO test
-    # TODO possible to allow polygon consisting of 2 vertices only(=barrier)? lots of algorithms need at least 3 vertices
     """
     ensure that all the following conditions on the polygons are fulfilled:
         - must at least contain 3 vertices

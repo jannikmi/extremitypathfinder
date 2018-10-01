@@ -14,10 +14,9 @@ import re
 # pytest
 
 # pip-tools package:
-# compile with python 2!
 # its important to pin requirements to get reproducible errors!
 # compile a new requirements file (with the latest versions)
-# source activate py2env
+# source activate pathEnv
 # pip-compile --upgrade
 # same as?!:
 # pip-compile --output-file requirements.txt requirements.in
@@ -32,8 +31,8 @@ import re
 # commands
 # tox -r to rebuild your tox virtualenvs when you've made changes to requirements setup
 # rstcheck *.rst
-# tox -r -e py{27,36}-codestyle
-# tox -r -e py27
+# tox -r -e py36-codestyle
+# tox -r -e py36
 
 
 def get_version(package):

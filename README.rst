@@ -27,7 +27,7 @@ Also see:
 Dependencies
 ============
 
-(``python``),
+(``python3``),
 ``numpy``,
 ``matplotlib``,
 
@@ -54,10 +54,13 @@ in the command line:
 Usage
 =====
 
+code from ``example.py``:
+
+
 ::
 
-    from extremitypathfinder import Map
-    map = Map()
+    from extremitypathfinder import PolygonEnvironment
+    environment = PolygonEnvironment()
 
 
 
@@ -65,12 +68,7 @@ Store environment:
 __________________
 
 
-::
-
-    map.store(boundary_coordinates, list_of_hole_coordinates)
-
-
-**Data format:**
+**Required data format:**
 Ensure that all the following conditions on the polygons are fulfilled:
 
 - numpy or python array of coordinate tuples: ``[(x1,y1), (x2,y2,)...]``
@@ -82,12 +80,22 @@ Ensure that all the following conditions on the polygons are fulfilled:
     - outer boundary polygon: counter clockwise
     - holes: clockwise
 
-Pass ``validate=True`` to ``.store()`` in order to check those condition.
+
+::
+
+    # counter clockwise vertex numbering!
+    boundary_coordinates = [(0.0, 0.0), (10.0, 0.0), (9.0, 5.0), (10.0, 10.0), (0.0, 10.0)]
+
+    # clockwise numbering!
+    list_of_holes = [[(3.0, 7.0), (5.0, 9.0), (4.5, 7.0), (5.0, 4.0), ], ]
+    environment.store(boundary_coordinates, list_of_holes, validate=False, export_plots=False)
+
+BETA: Pass ``validate=True`` to ``.store()`` in order to check those condition.
 Pass ``export_plots=True`` in order to generate and store plots with matplotlib.
 
 
 
-**Note:** As mentioned in `[1, Ch. III 6.3] <http://www.cs.au.dk/~gerth/advising/thesis/anders-strand-holm-vinther_magnus-strand-holm-vinther.pdf>`__ in Chessboard like Gridworlds it can be better to use A* right away.
+**Note:** As mentioned in `[1, Ch. III 6.3] <http://www.cs.au.dk/~gerth/advising/thesis/anders-strand-holm-vinther_magnus-strand-holm-vinther.pdf>`__ in 'chessboard-like grid worlds' it can be better to use A* right away (-> implemented in ``graph_search.py``).
 
 
 
@@ -107,7 +115,10 @@ ______
 
 ::
 
-    path, length = map.find_shortest_path(start_coordinates, goal_coordinates, export_plots=False)
+
+    start_coordinates = (4.5, 1.0)
+    goal_coordinates = (4.0, -1908.5)
+    path, length = environment.find_shortest_path(start_coordinates, goal_coordinates, export_plots=False)
 
 
 
@@ -116,6 +127,17 @@ _________
 
 TODO
 
+
+Storing and Loading Environment:
+______________________________________________
+
+
+::
+
+    environment.export_pickle(path='./pickle_file.pickle')
+
+    from extremitypathfinder import load_pickle
+    environment = load_pickle(path='./pickle_file.pickle')
 
 
 
@@ -152,15 +174,19 @@ This package pretty much implements the Visibility Graph Optimized (VGO) Algorit
 Rough Procedure:
 ________________
 
-`` TODO include plots for each step``
-
-
 - **1. Preprocessing the map:** Independently of any query start and goal points the optimized visibility graph is being computed for the static environment once with ``map.prepare()``. Later versions might include a faster approach to compute visibility on the fly, for use cases where the map is changing dynamically
 
-- **2. Including start and goal:** The start and goal points are being connected to the graph depending on their visibility
+.. image:: ./img/prepared_map_plot.png
+
+
+- **2. Including start and goal:** The start and goal points are being connected to the graph depending on their visibility. Notice that the added edges are directed:
+
+.. image:: ./img/graph_plot.png
 
 - **3. A-star shortest path computation :** Finding the shortest path on graphs is a well known problem. Use a version of the popular ``A*-Algorthm`` optimized for this special use case.
 
+.. image:: ./img/graph_path_plot.png
+.. image:: ./img/path_plot.png
 
 Tweaks (my contribution):
 _________________________
