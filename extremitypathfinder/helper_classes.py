@@ -57,6 +57,12 @@ class AngleRepresentation:
 
         self.value = self.quadrant + self.angle_measure
 
+    def __str__(self):
+        return str(self.value)
+
+    def __repr__(self):
+        return self.__str__()
+
 
 class Vertex:
     # defining static attributes on class to safe memory
@@ -73,17 +79,25 @@ class Vertex:
         self.angle_representation = None
         self.distance_to_origin = None
 
+    def __str__(self):
+        return str(self.coordinates)
+
+    def __repr__(self):
+        return self.__str__()
+
     def evaluate(self):
         global origin
         # store the coordinate value of the point relative to the new origin vector
         self.coordinates_translated = self.coordinates - origin.coordinates
         self.distance_to_origin = np.linalg.norm(self.coordinates_translated)
-        if self.distance_to_origin == 0:
+        if self.distance_to_origin == 0.0:
             # the coordinages of the origin and this vertex are equal
             # an angle is not defined in this case!
             self.angle_representation = None
         else:
             self.angle_representation = AngleRepresentation(self.coordinates_translated)
+
+        self.is_outdated = False
 
     # lazy evaluation
     def get_coordinates_translated(self):
@@ -143,6 +157,12 @@ class Edge:
     def __init__(self, vertex1, vertex2):
         self.vertex1: PolygonVertex = vertex1
         self.vertex2: PolygonVertex = vertex2
+
+    def __str__(self):
+        return self.vertex1.__str__() + '-->' + self.vertex2.__str__()
+
+    def __repr__(self):
+        return self.__str__()
 
 
 class Polygon:

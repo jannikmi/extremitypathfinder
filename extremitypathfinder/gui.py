@@ -145,7 +145,7 @@ def draw_only_path(map, vertex_path):
         plt.show()
 
 
-def draw_graph(graph):
+def draw_graph(map, graph):
     fig, ax = plt.subplots()
 
     all_nodes = graph.get_all_nodes()
@@ -160,8 +160,7 @@ def draw_graph(graph):
             plt.arrow(x, y, dx, dy, head_width=0.15, head_length=0.5, head_starts_at_zero=False, shape='full',
                       length_includes_head=True)
 
-    ax.set_xlim((min(n.coordinates[0] for n in all_nodes) - 1, max(n.coordinates[0] for n in all_nodes) + 1))
-    ax.set_ylim((min(n.coordinates[1] for n in all_nodes) - 1, max(n.coordinates[1] for n in all_nodes) + 1))
+    set_limits(map, ax)
 
     export_plot(fig, 'graph_plot')
     if SHOW_PLOTS:

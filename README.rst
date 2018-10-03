@@ -18,6 +18,9 @@ extremitypathfinder
 
 Python package for fast geometric shortest path computation for given 2D multi-polygon maps based on visibility.
 
+
+.. image:: ./img/path_plot.png
+
 Also see:
 `GitHub <https://github.com/MrMinimal64/extremitypathfinder>`__,
 `PyPI <https://pypi.python.org/pypi/extremitypathfinder/>`__,
@@ -88,7 +91,7 @@ Ensure that all the following conditions on the polygons are fulfilled:
 
     # clockwise numbering!
     list_of_holes = [[(3.0, 7.0), (5.0, 9.0), (4.5, 7.0), (5.0, 4.0), ], ]
-    environment.store(boundary_coordinates, list_of_holes, validate=False, export_plots=False)
+    environment.store(boundary_coordinates, list_of_holes, validate=True, export_plots=False)
 
 BETA: Pass ``validate=True`` to ``.store()`` in order to check those condition.
 Pass ``export_plots=True`` in order to generate and store plots with matplotlib.
@@ -162,7 +165,8 @@ As long as there are no obstacles between two points present, it is obviously al
 When obstacles obstruct the direct path (goal is not directly 'visible' from the start) however, extremities (and only extremities!) have to be visited until the goal is directly visible.
 
 *Improvement:* As described in `[1, Ch. II 4.4.2 "Property One"] <http://www.cs.au.dk/~gerth/advising/thesis/anders-strand-holm-vinther_magnus-strand-holm-vinther.pdf>`__ during preprocessing time the visibility graph can be reduced further without the loss of guaranteed optimality of the algorithm:
-All extremities lying "in front of" an extremity e such that they
+Starting from any point lying "in front of" an extremity ``e``, such that both adjacent edges are visible, one will never visit ``e``, because everything is reachable on a shorter path without ``e`` (except ``e`` itself). An extremity ``e1`` lying in the area "in front of"
+extremity ``e`` hence is never the next vertex in a shortest path coming from ``e``. And also in reverse: when coming from ``e1`` everything else than ``e`` itself can be reached faster without visiting ``e1``. -> ``e`` and ``e1`` do not have to be connected in the graph.
 
 
 Algorithm
@@ -183,10 +187,9 @@ ________________
 
 .. image:: ./img/graph_plot.png
 
-- **3. A-star shortest path computation :** Finding the shortest path on graphs is a well known problem. Use a version of the popular ``A*-Algorthm`` optimized for this special use case.
+- **3. A-star shortest path computation :** Finding the shortest path on graphs is a well known problem. Use a version of the popular ``A*-Algorithm`` optimized for this special use case.
 
 .. image:: ./img/graph_path_plot.png
-.. image:: ./img/path_plot.png
 
 Tweaks (my contribution):
 _________________________
@@ -211,9 +214,8 @@ This can be exploited in a lot of cases to make a* terminate earlier than for ge
 - when always only expanding the nodes with the lowest estimated cost (lower bound), there is no need to revisit nodes (path only gets longer)
 
 
-**Laziness:**
+**Laziness:** I will write this later...
 
-I will write this later...
 
 Comparison to pyvisgraph
 ========================
@@ -222,7 +224,7 @@ todo link
 
 
 Pros:
-- computationally superior procedure in theory
+- in theory computationally superior procedure
 
 
 Cons:
@@ -247,7 +249,7 @@ contact me: *[python] {*-at-*} [michelfe] {-*dot*-} [it]*
 License
 =======
 
-``timezonefinder`` is distributed under the terms of the MIT license
+``extremitypathfinder`` is distributed under the terms of the MIT license
 (see LICENSE.txt).
 
 

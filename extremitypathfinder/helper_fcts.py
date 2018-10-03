@@ -245,3 +245,156 @@ def find_within_range(repr1, repr2, vertex_set, angle_range_less_180):
             filter_fct = lies_within
 
     return set(filter(filter_fct, vertex_set))
+
+
+def convert_gridworld(size_x: int, size_y: int, obstacle_iter: iter, simplify: bool = True) -> (list, list):
+    """
+    prerequisites: grid world must not have non-obstacle cells which are surrounded by obstacles
+    ("single white cell in black surrounding" = useless for path planning)
+    :param size_x: the horizontal grid world size
+    :param size_y: the vertical grid world size
+    :param obstacle_iter: an iterable of coordinate pairs (x,y) representing blocked grid cells (obstacles)
+    :param simplify: whether the polygons should be simplified or not. reduces edge amount, allow diagonal edges
+    :return: an boundary polygon (counter clockwise numbering) and a list of hole polygons (clockwise numbering)
+    NOTE: convert grid world into polygons in a way that coordinates coincide with grid!
+        -> no conversion of obtained graphs needed!
+        the origin of the polygon coordinate system is (-0.5,-0.5) in the grid cell system (= corners of the grid world)
+    """
+
+    assert size_x > 0 and size_y > 0
+
+    if len(obstacle_iter) == 0:
+        # there are no obstacles. return just the simple boundary rectangle
+        return [np.array(x, y) for x, y in [(0, 0), (size_x, 0), (size_x, size_y), (0, size_y)]], []
+
+    # convert (x,y) into np.arrays
+    # obstacle_iter = [np.array(o) for o in obstacle_iter]
+    obstacle_iter = np.array(obstacle_iter)
+
+    def within_grid(pos):
+        return 0 <= pos[0] < size_x and 0 <= pos[1] < size_y
+
+    def is_equal(pos1, pos2):
+        return np.all(pos1 == pos2)
+
+    def pos_in_iter(pos, iter):
+        for i in iter:
+            if is_equal(pos, i):
+                return True
+        return False
+
+    def is_obstacle(pos):
+        return pos_in_iter(pos, obstacle_iter)
+
+    def is_blocked(pos):
+        return not within_grid(pos) or is_obstacle(pos)
+
+    def is_unblocked(pos):
+        return within_grid(pos) and not is_obstacle(pos)
+
+    def find_start(start_pos, boundary_detect_fct, **kwargs):
+        # returns the lowest and leftmost unblocked grid cell from the start position
+        # for which the detection function evaluates to True
+        start_x, start_y = start_pos
+        for y in range(start_y, size_y):
+            for x in range(start_x, size_x):
+                pos = np.array([x, y])
+                if boundary_detect_fct(pos, **kwargs):
+                    return pos
+
+    # north, east, south, west
+    directions = np.array([[0, 1], [1, 0], [0, -1], [-1, 0]], dtype=int)
+    # the correct offset to determine where nodes should be added.
+    offsets = np.array([[0, 1], [1, 1], [1, 0], [0, 0]], dtype=int)
+
+    def construct_polygon(start_pos, boundary_detect_fct, cntr_clockwise_wanted: bool):
+        current_pos = start_pos.copy()
+        # (at least) the west and south are blocked
+        #   -> there has to be a polygon node at the current position (bottom left corner of the cell)
+        edge_list = [start_pos]
+        forward_index = 0  # start with moving north
+        forward_vect = directions[forward_index]
+        left_index = (forward_index - 1) % 4
+        left_vect = directions[(forward_index - 1) % 4]
+        just_turned = True
+
+        # follow the border between obstacles and free cells ("wall") until one reaches the start position again
+        while 1:
+            # left has to be checked first
+            # do not check if just turned left or right (-> the left is blocked for sure)
+            # left_pos = current_pos + left_vect
+            if not (just_turned or boundary_detect_fct(current_pos + directions[left_index])):
+                # print('< turn left')
+                forward_index = left_index
+                left_index = (forward_index - 1) % 4
+                forward_vect = directions[forward_index]
+                just_turned = True
+
+                # add a new node at the correct position
+                # decrease the index first!
+                edge_list.append(current_pos + offsets[forward_index])
+
+                # move forward (previously left, there is no obstacle)
+                current_pos += forward_vect
+            else:
+                forward_pos = current_pos + forward_vect
+                if boundary_detect_fct(forward_pos):
+                    node_pos = current_pos + offsets[forward_index]
+                    # there is a node at the bottom left corner of the start position (offset= (0,0) )
+                    if is_equal(node_pos, start_pos):
+                        # check and terminate if this node does already exist
+                        break
+
+                    # add a new node at the correct position
+                    edge_list.append(node_pos)
+                    # print('> turn right')
+                    left_index = forward_index
+                    forward_index = (forward_index + 1) % 4
+                    forward_vect = directions[forward_index]
+                    just_turned = True
+                    # print(direction_index,forward_vect,just_turned,edge_list,)
+                else:
+                    # print('^ move forward')
+                    current_pos += forward_vect
+                    just_turned = False
+
+        if cntr_clockwise_wanted:
+            # make edge numbering counter clockwise!
+            edge_list.reverse()
+        return np.array(edge_list)
+
+    # build the boundary polygon
+    # start at the lowest and leftmost unblocked grid cell
+    start_pos = find_start(start_pos=(0, 0), boundary_detect_fct=is_unblocked)
+    # print(start_pos+directions[3])
+    # raise ValueError
+    boundary_edges = construct_polygon(start_pos, boundary_detect_fct=is_blocked, cntr_clockwise_wanted=True)
+
+    if simplify:
+        # TODO simplify
+        pass
+
+    # detect which of the obstacles have to be converted into holes
+    # just the obstacles inside the boundary polygon are part of holes
+    # shift coordinates by +(0.5,0.5) for correct detection
+    # the border value does not matter here
+    unchecked_obstacles = [o for o in obstacle_iter if
+                           inside_polygon(o[0] + 0.5, o[1] + 0.5, boundary_edges, border_value=True)]
+
+    hole_list = []
+    while len(unchecked_obstacles) > 0:
+        start_pos = find_start(start_pos=(0, 0), boundary_detect_fct=pos_in_iter, iter=unchecked_obstacles)
+        hole = construct_polygon(start_pos, boundary_detect_fct=is_unblocked, cntr_clockwise_wanted=False)
+
+        # detect which of the obstacles still do not belong to any hole:
+        # delete the obstacles which are included in the just constructed hole
+        unchecked_obstacles = [o for o in unchecked_obstacles if
+                               not inside_polygon(o[0] + 0.5, o[1] + 0.5, hole, border_value=True)]
+
+        if simplify:
+            # TODO simplify
+            pass
+
+        hole_list.append(hole)
+
+    return boundary_edges, hole_list

@@ -61,13 +61,18 @@ class PolygonEnvironment:
         if export_plots:
             draw_loaded_map(self)
 
-    def store_gridworld(self):
-        # TODO option to input grid world
-
-        # convert gridworld into polygons in a way that coordinates still coincide with grid!
-        # -> no conversion of obtained graphs needed!
-        # TODO option for smoothing (reduces extremities!)
-        raise NotImplementedError()
+    def store_grid_world(self, size_x: int, size_y: int, obstacle_iter: iter, simplify: bool = True, validate=False,
+                         export_plots=False):
+        """
+        prerequisites: grid world must not have non-obstacle cells which are surrounded by obstacles
+        ("single white cell in black surrounding" = useless for path planning)
+        :param size_x: the horizontal grid world size
+        :param size_y: the vertical grid world size
+        :param obstacle_iter: an iterable of coordinate pairs (x,y) representing blocked grid cells (obstacles)
+        :param simplify: whether the polygons should be simplified or not. reduces edge amount, allow diagonal edges
+        """
+        boundary_coordinates, list_of_hole_coordinates = convert_gridworld(size_x, size_y, obstacle_iter, simplify)
+        self.store(boundary_coordinates, list_of_hole_coordinates, validate, export_plots)
 
     def export_pickle(self, path='./map.pickle'):
         print('storing map class in:', path)
@@ -93,6 +98,10 @@ class PolygonEnvironment:
 
         :param edges_to_check: the set of edges which determine visibility
         :return: a set of tuples of all vertices visible from the query vertex and the corresponding distance
+
+        NOTE: pre computing the shortest paths between all directly reachable extremities
+            and storing them in the graph would not be an advantage, because then the graph is fully connected
+            a star would visit every node in the graph at least once (-> disadvantage!)
         """
 
         visible_vertices = set()
@@ -118,6 +127,7 @@ class PolygonEnvironment:
             if len(vertices_to_check) == 0:
                 continue
 
+            print(edge.vertex1,edge.vertex2)
             if edge.vertex1.distance_to_origin == 0.0:
                 # vertex1 has the same coordinates as the query vertex
                 # (but does not belong to the same polygon, not identical!)
@@ -126,6 +136,8 @@ class PolygonEnvironment:
                 # its angle representation is not defined (no line segment from vertex1 to query vertex!)
                 # everything between its neighbouring edges is not visible
                 v1, v2 = edge.vertex1.get_neighbours()
+                print(edge.vertex1, edge.vertex2)
+                print(v1,v2)
                 range_less_180 = edge.vertex1.is_extremity
                 e1 = edge.vertex1.edge1
                 # do not check the other neighbouring edge of vertex1 in the future
@@ -146,6 +158,9 @@ class PolygonEnvironment:
             #   within this angle range
             repr1 = v1.get_angle_representation()
             repr2 = v2.get_angle_representation()
+            assert repr1 is not None
+            assert repr2 is not None
+            # TODO do not delete edges same repr!
             # the "view range" of an edge from a query point (spanned by the two vertices of the edge)
             #   is normally < 180deg,
             # but in the case that the query point directly lies on the edge the angle is 180deg
@@ -233,6 +248,10 @@ class PolygonEnvironment:
 
             visible_vertices = set()
             candidate_extremities = extremities_to_check.copy()
+            # remove the extremities with the same coordinates as the query extremity
+            candidate_extremities.difference_update(
+                {c for c in candidate_extremities if c.get_angle_representation() is None})
+
             # existing edges do not have to be checked again
             candidate_extremities.difference_update(self.graph.get_neighbours_of(query_extremity))
             # these vertices all belong to a polygon
@@ -259,27 +278,26 @@ class PolygonEnvironment:
             candidate_extremities.difference_update(
                 find_within_range(repr1, repr2, candidate_extremities, angle_range_less_180=True))
 
-            # as shown in [1, Ch. II 4.4.2 "Property One"] an extremity e1 lying in the area "in front of"
-            #   another extremity e2 are never the next vertices in a shortest path coming from e2.
-            #   and also in reverse: when coming from e1 everything else than e2 itself can be reached faster
-            #   without visiting e2. -> e1 and e2 do not have to be connected in the graph.
+            # as shown in [1, Ch. II 4.4.2 "Property One"] Starting from any point lying "in front of" an extremity e,
+            # such that both adjacent edges are visible, one will never visit e, because everything is
+            # reachable on a shorter path without e (except e itself). An extremity e1 lying in the area "in front of"
+            #   extremity e hence is never the next vertex in a shortest path coming from e.
+            #   And also in reverse: when coming from e1 everything else than e itself can be reached faster
+            #   without visiting e2. -> e1 and e do not have to be connected in the graph.
             # IMPORTANT: this condition only holds for building the basic visibility graph!
             #   when a query point happens to be an extremity, edges to the (visible) extremities in front
             #   MUST be added to the graph!
             # find extremities which fulfill this condition for the given query extremity
-            # print(repr1,repr2)
             repr1 = (repr1 + 2.0) % 4.0  # rotate 180 deg
             repr2 = (repr2 + 2.0) % 4.0
-            # print(repr1,repr2)
 
             # IMPORTANT: check all extremities here, not just current candidates
-            temp_candidates = set(self.all_extremities)
-            temp_candidates.remove(query_extremity)
+            # do not check extremities with equal coordinates (also query extremity itself!)
+            temp_candidates = {e for e in self.all_extremities if e.get_angle_representation() is not None}
             lie_in_front = find_within_range(repr1, repr2, temp_candidates, angle_range_less_180=True)
-            # print(query_extremity.coordinates, lie_in_front)
             # already existing edges in the graph have to be removed
             self.graph.remove_multiple_undirected_edges(query_extremity, lie_in_front)
-            # do not consider when looking for visible extremities (might actually be visible!)
+            # do not consider when looking for visible extremities (NOTE: they might actually be visible!)
             candidate_extremities.difference_update(lie_in_front)
 
             # all edges except the neighbouring edges (handled already) have to be checked
@@ -294,8 +312,6 @@ class PolygonEnvironment:
         self.prepared = True
         if export_plots:
             draw_prepared_map(self)
-        # TODO improvement: pre compute shortest paths between all directly reachable extremities. advantages?!
-        # does it really safe computations during query time?!
 
     def find_shortest_path(self, start_coordinates, goal_coordinates, export_plots=False):
         # path planning query:
@@ -344,17 +360,17 @@ class PolygonEnvironment:
         candidates = set(self.all_extremities)
         candidates.add(goal_vertex)
 
-        self.translate(start_vertex)
+        self.translate(new_origin=start_vertex)
         # IMPORTANT: manually translate the goal vertex, because it is not part of any polygon
         #   and hence does not get translated automatically
         goal_vertex.mark_outdated()
 
-        visibles_n_distances = self.find_visible(candidates, edges_to_check=set(self.all_edges))
+        visibles_n_distances_start = self.find_visible(candidates, edges_to_check=set(self.all_edges))
 
         # IMPORTANT geometrical property of this problem: it is always shortest to directly reach a node
         #   instead of visiting other nodes first (there is never an advantage through reduced edge weight)
         # -> when goal is directly reachable, there can be no other shorter path to it. Terminate
-        for v, d in visibles_n_distances:
+        for v, d in visibles_n_distances_start:
             if v == goal_vertex:
                 vertex_path = [start_vertex, goal_vertex]
                 if export_plots:
@@ -365,20 +381,57 @@ class PolygonEnvironment:
             # add unidirectional edges to the temporary graph
             # since modified a star algorithm returns the shortest path from goal to start
             # add edges in the direction: start <-extremity
+            # TODO: improvement: add edges last, after filtering them. instead of deleting edges
             self.temp_graph.add_directed_edge(v, start_vertex, d)
 
         # start node does not have to be considered, because of the earlier check for the start node
         candidates = set(self.all_extremities)
-        self.translate(goal_vertex)
-        visibles_n_distances = self.find_visible(candidates, edges_to_check=set(self.all_edges))
+        self.translate(new_origin=goal_vertex)
+        visibles_n_distances_goal = self.find_visible(candidates, edges_to_check=set(self.all_edges))
         # add edges in the direction: extremity <- goal
-        self.temp_graph.add_multiple_directed_edges(goal_vertex, visibles_n_distances)
+        self.temp_graph.add_multiple_directed_edges(goal_vertex, visibles_n_distances_goal)
+
+        # also here unnecessary edges in the graph can be deleted when start or goal lie in front of visible extremities
+        # IMPORTANT: when a query point happens to coincide with an extremity, edges to the (visible) extremities
+        #  in front MUST be added to the graph! Handled by always introducing new (non extremity, non polygon) vertices.
+
+        # for every extremity that is visible from either goal or stat
+        for vertex, d in visibles_n_distances_goal | visibles_n_distances_start:
+            if vertex == goal_vertex:
+                # the goal vertex might be marked visible, it is not an extremity -> skip
+                continue
+
+            self.translate(new_origin=vertex)
+            # IMPORTANT: manually translate the goal and start vertices
+            start_vertex.mark_outdated()
+            goal_vertex.mark_outdated()
+
+            goal_vertex.mark_outdated()
+            n1, n2 = vertex.get_neighbours()
+            repr1 = (n1.get_angle_representation() + 2.0) % 4.0  # rotated 180 deg
+            repr2 = (n2.get_angle_representation() + 2.0) % 4.0
+
+            # check only if point is visible
+            # IMPORTANT: special case: here the nodes must stay connected if they have the same angle representation!
+            temp_candidates = set()
+            repr_start = start_vertex.get_angle_representation()
+            if repr_start != repr1 and repr_start != repr2 and (vertex, d) in visibles_n_distances_start:
+                temp_candidates.add(start_vertex)
+
+            repr_goal = goal_vertex.get_angle_representation()
+            if repr_goal != repr1 and repr_goal != repr2 and (vertex, d) in visibles_n_distances_goal:
+                temp_candidates.add(goal_vertex)
+            lie_in_front = find_within_range(repr1, repr2, temp_candidates, angle_range_less_180=True)
+            print(vertex, repr_start, repr_goal, repr1, repr2,
+                  [(x.coordinates, x.get_coordinates_translated()) for x in lie_in_front],
+                  [(x.coordinates, x.get_coordinates_translated()) for x in temp_candidates])
+            self.graph.remove_multiple_undirected_edges(vertex, lie_in_front)
 
         # function returns the shortest path from goal to start (computational reasons), so just swap the parameters
         # NOTE: exploiting property 2 from [1] here would be more expensive than beneficial
         vertex_path, distance = modified_a_star(self.temp_graph, start=goal_vertex, goal=start_vertex)
         if export_plots:
-            draw_graph(self.temp_graph)
+            draw_graph(self, self.temp_graph)
             draw_with_path(self, self.temp_graph, goal_vertex, start_vertex, vertex_path)
             draw_only_path(self, vertex_path)
 
