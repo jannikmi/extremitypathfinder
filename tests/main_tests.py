@@ -1,5 +1,6 @@
 import unittest
 
+from math import sqrt
 import pytest
 
 from extremitypathfinder.extremitypathfinder import PolygonEnvironment, load_pickle
@@ -40,8 +41,7 @@ class MainTest(unittest.TestCase):
             (7, 7),
 
             # hole 2
-            # (6, 4),
-
+            (7, 5),
         ]
         #
         # size_x, size_y = 5,4
@@ -98,7 +98,27 @@ class MainTest(unittest.TestCase):
                 print(start_coordinates, goal_coordinates)
                 environment.find_shortest_path(start_coordinates, goal_coordinates, export_plots=False)
 
+        for ((start_coordinates, goal_coordinates), expected_output) in [
+            # ((start,goal),(path,distance))
+            # identical nodes
+            ((15, 5), (15, 5), ([(15, 5), (15, 5)], 0.0)),
+
+            # directly reachable
+            ((15, 5), (15, 6), ([(15, 5), (15, 6)], 1.0)),
+            ((15, 6), (15, 5), ([(15, 6), (15, 5)], 1.0)),
+            ((15, 5), (16, 6), ([(15, 5), (16, 6)], sqrt(2))),
+            ((16, 6), (15, 5), ([(16, 6), (15, 5)], sqrt(2))),
+
+            #
+        ]:
+            # print(input, expected_output, fct(input))
+            actual_output = environment.find_shortest_path(start_coordinates, goal_coordinates, export_plots=False)
+            if actual_output != expected_output:
+                print('input: {} expected: {} got: {}'.format(input, expected_output, actual_output))
+            assert actual_output == expected_output
+
         # points on the polygon edges (vertices) should be accepted!
+        # FIXME and have direct connection to all visible extremities!
 
 
 if __name__ == '__main__':

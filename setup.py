@@ -6,6 +6,8 @@ import sys
 
 from setuptools import setup
 
+# TODO append to pypi version:  see Github for plots
+
 
 def get_version(package):
     """

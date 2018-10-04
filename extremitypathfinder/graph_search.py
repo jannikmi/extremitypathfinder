@@ -1,6 +1,7 @@
 import heapq  # implementation of the heap queue algorithm, also known as the priority queue algorithm (binary tree)
 from math import inf as infinity
 
+
 # from extremitypathfinder.helper_classes import DirectedHeuristicGraph, Vertex
 
 
@@ -60,7 +61,8 @@ def modified_a_star(heuristic_graph, start, goal):
     while not priority_queue.empty():
         # always 'expand' the node with the lowest current cost estimate (= cost_so_far + heuristic)
         current = priority_queue.get()
-        # print('expanding:', current.coordinates)
+        print('expanding:', current.coordinates)
+        print('neighbours:', heuristic_graph.get_neighbours_of(current))
         expanded_nodes.add(current)
 
         # look at the distances to all neighbours
@@ -70,7 +72,7 @@ def modified_a_star(heuristic_graph, start, goal):
                 # path can only get longer by visiting other nodes first: new_cost is never < cost_so_far
                 continue
 
-            # print('visiting:', next_node.coordinates)
+            print('visiting:', next_node.coordinates)
             if next_node == goal:
                 # since the current node is the one with the lowest cost estimate
                 #   and the goal is directly reachable from the current node (-> heuristic == distance),
@@ -85,7 +87,7 @@ def modified_a_star(heuristic_graph, start, goal):
 
             new_cost = cost_so_far[current] + distance
             if new_cost < cost_so_far.get(next_node, infinity):
-                # found shortest path to this node so far
+                print('shortest path to this node so far:', new_cost)
                 cost_so_far[next_node] = new_cost
                 came_from[next_node] = current
                 priority = new_cost + heuristic_graph.get_heuristic(next_node)

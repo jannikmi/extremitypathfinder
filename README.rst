@@ -97,11 +97,6 @@ BETA: Pass ``validate=True`` to ``.store()`` in order to check those condition.
 Pass ``export_plots=True`` in order to generate and store plots with matplotlib.
 
 
-
-**Note:** As mentioned in `[1, Ch. III 6.3] <http://www.cs.au.dk/~gerth/advising/thesis/anders-strand-holm-vinther_magnus-strand-holm-vinther.pdf>`__ in 'chessboard-like grid worlds' it can be better to use A* right away (-> implemented in ``graph_search.py``).
-
-
-
 Preprocessing:
 ______________
 
@@ -125,13 +120,53 @@ ______
 
 
 
-Plotting:
-_________
-
-TODO
+Converting and storing a grid world:
+____________________________________
 
 
-Storing and Loading Environment:
+::
+
+    size_x, size_y = 19, 10
+    obstacle_iter = [# (x,y),
+        # obstacles changing boundary
+        (0, 1),
+        (1, 1),
+        (2, 1),
+        (3, 1),
+
+        (17, 9),
+        (17, 8),
+        (17, 7),
+
+        (17, 5),
+        (17, 4),
+        (17, 3),
+        (17, 2),
+        (17, 1),
+        (17, 0),
+
+        # hole 1
+        (5, 5),
+        (5, 6),
+        (6, 6),
+        (6, 7),
+        (7, 7),
+
+        # hole 2
+        (7, 5),
+    ]
+    environment.store_grid_world(size_x, size_y, obstacle_iter, simplify=False, validate=False, export_plots=False)
+
+
+
+**Note:** As mentioned in `[1, Ch. III 6.3] <http://www.cs.au.dk/~gerth/advising/thesis/anders-strand-holm-vinther_magnus-strand-holm-vinther.pdf>`__ in 'chessboard-like grid worlds' it can be better to use A* right away (-> implemented in ``graph_search.py``).
+
+
+
+.. image:: ./img/grid_map_plot.png
+
+
+Cache and import the environment:
 ______________________________________________
 
 
@@ -144,10 +179,15 @@ ______________________________________________
 
 
 
+Plotting:
+_________
+
+
+Use the ``export_plots`` arguments of the functions.
+
+
 Basic Idea
 ==========
-
-TODO map plot
 
 
 Well described in `[1, Ch. II 3.2] <http://www.cs.au.dk/~gerth/advising/thesis/anders-strand-holm-vinther_magnus-strand-holm-vinther.pdf>`__:
@@ -167,6 +207,8 @@ When obstacles obstruct the direct path (goal is not directly 'visible' from the
 *Improvement:* As described in `[1, Ch. II 4.4.2 "Property One"] <http://www.cs.au.dk/~gerth/advising/thesis/anders-strand-holm-vinther_magnus-strand-holm-vinther.pdf>`__ during preprocessing time the visibility graph can be reduced further without the loss of guaranteed optimality of the algorithm:
 Starting from any point lying "in front of" an extremity ``e``, such that both adjacent edges are visible, one will never visit ``e``, because everything is reachable on a shorter path without ``e`` (except ``e`` itself). An extremity ``e1`` lying in the area "in front of"
 extremity ``e`` hence is never the next vertex in a shortest path coming from ``e``. And also in reverse: when coming from ``e1`` everything else than ``e`` itself can be reached faster without visiting ``e1``. -> ``e`` and ``e1`` do not have to be connected in the graph.
+
+TODO: visualisation plot
 
 
 Algorithm
@@ -197,10 +239,11 @@ _________________________
 **Visibility detection:**
 To my knowledge the was no previous algorithm for computing the visibility of points that is visiting edges at most once without any intersection, distance or trigonometric computations and without sorting.
 
+todo advantages
 todo explain angle representation
 todo explain algorithm
 
-todo link other algorithms
+todo compare, link other algorithms
 
 
 **Modifications to A-star:** The basic algorithm has been modified to exploit the following geometrical property of this specific task (and hence also the extracted graph):

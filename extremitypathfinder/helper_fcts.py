@@ -80,7 +80,7 @@ def has_intersection(p1, p2, q1, q2):
         x = np.linalg.solve(A, b)
         # not crossing the line segment is considered to be ok
         # so x == 0.0 or x == 1.0 is not considered an intersection
-        # assert np.all((p2 - p1) * x[0] + p1 == (q2 - q1) * x[1] + q1)
+        # assert np.allclose((p2 - p1) * x[0] + p1, (q2 - q1) * x[1] + q1)
         # assert np.allclose(np.dot(A, x), b)
         return np.all(0.0 < x) and np.all(x < 1.0)
     except np.linalg.LinAlgError:
@@ -97,11 +97,13 @@ def lies_behind(p1, p2, v):
     # because the vertex lies within the angle range between the two edge vertices
     #    (together with the other conditions on the polygons)
     #   this set of linear equations is always solvable (the matrix is regular)
-    A = np.array([p1 - p2, v])
+    A = np.array([p1 - p2, v]).T
     b = np.array(p1)
     x = np.linalg.solve(A, b)
+    # assert np.allclose((p2 - p1) * x[0] + p1, v * x[1])
+    # assert np.allclose(np.dot(A, x), b)
+
     # vertices on the edge are possibly visible! ( < not <=)
-    # TODO allowed!?: detect when nodes are identical (x[0] == 0.0 or 1.0 and x[1] == 0.0 or 1.0
     return x[1] < 1.0
 
 

@@ -69,6 +69,10 @@ class Vertex:
     __slots__ = ['coordinates', 'is_extremity', 'is_outdated', 'coordinates_translated', 'angle_representation',
                  'distance_to_origin']
 
+    def __gt__(self, other):
+        # ordering needed for priority queue. multiple vertices possibly have the same priority.
+        return id(self) > id(other)
+
     def __init__(self, coordinates):
         self.coordinates = np.array(coordinates)
         self.is_extremity = False
@@ -268,6 +272,8 @@ class DirectedHeuristicGraph:
 
     def get_distance(self, node1, node2):
         # directed edges: just one direction is being stored
+        return self.distances[(node1, node2)]
+        # TODO
         try:
             return self.distances[(node1, node2)]
         except KeyError:
@@ -293,14 +299,12 @@ class DirectedHeuristicGraph:
 
     def _existing_edges_from(self, node1):
         # optimisation: when goal node is reachable return it first (-> a star search terminates)
-        if self.goal_node in self.neighbours[node1]:
+        neighbours = self.neighbours[node1]
+        if self.goal_node in neighbours:
             yield self.goal_node, self.get_distance(node1, self.goal_node)  # not return!
         # NOTE: all neighbours are being checked by A*, so the ordering does not matter!
-        for node2 in self.neighbours[node1]:
+        for node2 in neighbours:
             yield node2, self.get_distance(node1, node2)
-
-    # def get_edges_from(self,node1):
-    #     return {(node2, self.get_distance(node1, node2)) for node2 in self.neighbours[node1]}
 
     def add_directed_edge(self, node1, node2, distance):
         self.neighbours.setdefault(node1, set()).add(node2)
@@ -330,3 +334,25 @@ class DirectedHeuristicGraph:
     def remove_multiple_undirected_edges(self, node1, node2_iter):
         for node2 in node2_iter:
             self.remove_undirected_edge(node1, node2)
+
+    def join_identical_nodes(self):
+        # join all nodes with the same coordinates
+        # this is required for a* to work. multiple nodes would otherwise have the same priority and coordinates
+        nodes_to_check = self.get_all_nodes().copy()
+        while len(nodes_to_check) > 1:
+            n1 = nodes_to_check.pop()
+            coordinates1 = n1.coordinates
+            same_nodes = {n for n in nodes_to_check if np.allclose(coordinates1, n.coordinates)}
+            nodes_to_check.difference_update(same_nodes)
+            for n2 in same_nodes:
+                neighbours_n1 = self.neighbours[n1]
+                # print('removing node',n2)
+                self.all_nodes.remove(n2)
+                neighbours_n2 = self.neighbours.pop(n2)
+                for n3 in neighbours_n2:
+                    d = self.distances.pop((n2, n3))
+                    self.distances.pop((n3, n2))
+                    self.neighbours[n3].remove(n2)
+                    if n3 not in neighbours_n1:
+                        # and add all the new edges to node 1
+                        self.add_undirected_edge(n1, n3, d)
