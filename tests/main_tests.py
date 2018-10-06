@@ -60,12 +60,6 @@ class MainTest(unittest.TestCase):
         environment.store_grid_world(size_x, size_y, obstacle_iter, simplify=False, validate=False, export_plots=False)
         environment.prepare(export_plots=False)
 
-        start_coordinates = (17, 9.0)
-        goal_coordinates = (17, 0.5)
-        # path, length = environment.find_shortest_path(start_coordinates, goal_coordinates, export_plots=False)
-        # path, length = environment.find_shortest_path(start_coordinates, goal_coordinates, export_plots=True)
-        # print(path)
-
         # TODO
 
         # test if path distance is correct
@@ -95,21 +89,29 @@ class MainTest(unittest.TestCase):
             ((17, 0.5), (6.5, 6.5)),
         ]:
             with pytest.raises(ValueError):
-                print(start_coordinates, goal_coordinates)
                 environment.find_shortest_path(start_coordinates, goal_coordinates, export_plots=False)
 
         for ((start_coordinates, goal_coordinates), expected_output) in [
             # ((start,goal),(path,distance))
             # identical nodes
-            ((15, 5), (15, 5), ([(15, 5), (15, 5)], 0.0)),
+            (((15, 5), (15, 5)), ([(15, 5), (15, 5)], 0.0)),
 
             # directly reachable
-            ((15, 5), (15, 6), ([(15, 5), (15, 6)], 1.0)),
-            ((15, 6), (15, 5), ([(15, 6), (15, 5)], 1.0)),
-            ((15, 5), (16, 6), ([(15, 5), (16, 6)], sqrt(2))),
-            ((16, 6), (15, 5), ([(16, 6), (15, 5)], sqrt(2))),
+            (((15, 5), (15, 6)), ([(15, 5), (15, 6)], 1.0)),
+            (((15, 6), (15, 5)), ([(15, 6), (15, 5)], 1.0)),
+            (((15, 5), (16, 6)), ([(15, 5), (16, 6)], sqrt(2))),
+            (((16, 6), (15, 5)), ([(16, 6), (15, 5)], sqrt(2))),
+            # on edge
+            (((15, 0), (15, 6)), ([(15, 0), (15, 6)], 6.0)),
+            (((15, 6), (15, 0)), ([(15, 6), (15, 0)], 6.0)),
+            (((17, 5), (16, 5)), ([(15, 5), (16, 6)], 1.0)),
+            (((16, 5), (17, 5)), ([(16, 6), (15, 5)], 1.0)),
+            # on edge of hole
+            (((7, 8), (7, 9)), ([(7, 8), (7, 9)], 1.0)),
+            (((7, 9), (7, 8)), ([(7, 9), (7, 8)], 1.0)),
 
-            #
+            # directly reachable through a single vertex (does not change distance!)
+
         ]:
             # print(input, expected_output, fct(input))
             actual_output = environment.find_shortest_path(start_coordinates, goal_coordinates, export_plots=False)

@@ -8,8 +8,8 @@ if __name__ == "__main__":
 
     # clockwise numbering!
     list_of_holes = [[(3.0, 7.0), (5.0, 9.0), (4.5, 7.0), (5.0, 4.0), ], ]
-    # environment.store(boundary_coordinates, list_of_holes, validate=True, export_plots=True)
-    environment.store(boundary_coordinates, list_of_holes, validate=False, export_plots=False)
+    environment.store(boundary_coordinates, list_of_holes, validate=True, export_plots=True)
+    # environment.store(boundary_coordinates, list_of_holes, validate=False, export_plots=False)
 
     environment.prepare(export_plots=True)
 
@@ -18,8 +18,8 @@ if __name__ == "__main__":
 
     start_coordinates = (4.5, 1.0)
     goal_coordinates = (4.0, 8.5)
-    path, length = environment.find_shortest_path(start_coordinates, goal_coordinates, export_plots=False)
-    # path, length = environment.find_shortest_path(start_coordinates, goal_coordinates, export_plots=True)
+    # path, length = environment.find_shortest_path(start_coordinates, goal_coordinates, export_plots=False)
+    path, length = environment.find_shortest_path(start_coordinates, goal_coordinates, export_plots=True)
     print(path)
 
     size_x, size_y = 19, 10

@@ -64,11 +64,13 @@ class PolygonEnvironment:
     def store_grid_world(self, size_x: int, size_y: int, obstacle_iter: iter, simplify: bool = True, validate=False,
                          export_plots=False):
         """
-        prerequisites: grid world must not have non-obstacle cells which are surrounded by obstacles
-        ("single white cell in black surrounding" = useless for path planning)
+        prerequisites: grid world must not have single non-obstacle cells which are surrounded by obstacles
+        ("white cell in black surrounding" = useless for path planning)
         :param size_x: the horizontal grid world size
         :param size_y: the vertical grid world size
         :param obstacle_iter: an iterable of coordinate pairs (x,y) representing blocked grid cells (obstacles)
+        :param validate:
+        :param export_plots:
         :param simplify: whether the polygons should be simplified or not. reduces edge amount, allow diagonal edges
         """
         boundary_coordinates, list_of_hole_coordinates = convert_gridworld(size_x, size_y, obstacle_iter, simplify)
@@ -81,6 +83,7 @@ class PolygonEnvironment:
         print('done.\n')
 
     def translate(self, new_origin):
+        # shifts the coordinate system (setting all temporary coordinates)
         self.boundary_polygon.translate(new_origin)
         for hole in self.holes:
             hole.translate(new_origin)
@@ -364,10 +367,9 @@ class PolygonEnvironment:
         #   inserts references into it to the objects found in the original.
         self.temp_graph = copy(self.graph)
 
-        # the visibility of only the graphs nodes have to be checked
-        # IMPORTANT: check if the goal node is visible from the start node!
-        # has to be considered in .find_visible()
+        # the visibility of only the graphs nodes have to be checked (not all extremities!)
         candidates = set(self.temp_graph.get_all_nodes())
+        # IMPORTANT: check if the goal node is visible from the start node!
         candidates.add(goal_vertex)
 
         self.translate(new_origin=start_vertex)

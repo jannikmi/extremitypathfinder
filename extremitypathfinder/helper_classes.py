@@ -95,7 +95,7 @@ class Vertex:
         self.coordinates_translated = self.coordinates - origin.coordinates
         self.distance_to_origin = np.linalg.norm(self.coordinates_translated)
         if self.distance_to_origin == 0.0:
-            # the coordinages of the origin and this vertex are equal
+            # the coordinates of the origin and this vertex are equal
             # an angle is not defined in this case!
             self.angle_representation = None
         else:

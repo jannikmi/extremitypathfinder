@@ -63,7 +63,8 @@ def inside_polygon(x, y, coords, border_value):
 def no_identical_consequent_vertices(coords):
     p1 = coords[-1]
     for p2 in coords:
-        assert not np.all(p1 == p2)
+        # TODO adjust allowed difference epsilon
+        assert not np.allclose(p1, p2)
         p1 = p2
 
     return True
