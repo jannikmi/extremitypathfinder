@@ -1,4 +1,4 @@
-from copy import copy
+from copy import deepcopy
 import pickle
 
 from .graph_search import modified_a_star
@@ -83,7 +83,9 @@ class PolygonEnvironment:
         print('done.\n')
 
     def translate(self, new_origin):
-        # shifts the coordinate system (setting all temporary coordinates)
+        # shifts the coordinate system
+        # computing the angle representations, shifted coordinates and distances for all vertices
+        #   respective to the query point (lazy!)
         self.boundary_polygon.translate(new_origin)
         for hole in self.holes:
             hole.translate(new_origin)
@@ -98,6 +100,7 @@ class PolygonEnvironment:
 
         :param vertex_candidates: the set of all vertices which should be checked for visibility.
             IMPORTANT: is being manipulated, so has to be a copy!
+            IMPORTANT: must not contain the query vertex!
 
         :param edges_to_check: the set of edges which determine visibility
         :return: a set of tuples of all vertices visible from the query vertex and the corresponding distance
@@ -114,6 +117,7 @@ class PolygonEnvironment:
         priority_edges = set()
         # goal: eliminating all vertices lying 'behind' any edge
         # TODO improvement in combination with priority: process edges roughly in sequence, but still allow jumps
+        # would follow closer edges more often which have a bigger chance to eliminate candidates -> speed up
         while len(vertex_candidates) > 0 and len(edges_to_check) > 0:
             # check prioritized items first
             try:
@@ -122,58 +126,92 @@ class PolygonEnvironment:
             except KeyError:
                 edge = edges_to_check.pop()
 
+            lies_on_edge = False
+            v1, v2 = edge.vertex1, edge.vertex2
+            if v1.get_distance_to_origin() == 0.0:
+                # vertex1 has the same coordinates as the query vertex -> on the edge
+                lies_on_edge = True
+                # (but does not belong to the same polygon, not identical!)
+                # mark this vertex as not visible (would otherwise add 0 distance edge in the graph)
+                vertex_candidates.discard(v1)
+                # its angle representation is not defined (no line segment from vertex1 to query vertex!)
+                range_less_180 = v1.is_extremity
+                # do not check the other neighbouring edge of vertex1 in the future
+                e1 = v1.edge1
+                edges_to_check.discard(e1)
+                priority_edges.discard(e1)
+                # everything between its two neighbouring edges is not visible for sure
+                v1, v2 = v1.get_neighbours()
+
+            elif v2.get_distance_to_origin() == 0.0:
+                lies_on_edge = True
+                vertex_candidates.discard(v2)
+                range_less_180 = v2.is_extremity
+                e1 = v2.edge2
+                edges_to_check.discard(e1)
+                priority_edges.discard(e1)
+                v1, v2 = v2.get_neighbours()
+
+            repr1 = v1.get_angle_representation()
+            repr2 = v2.get_angle_representation()
+
+            repr_diff = abs(repr1 - repr2)
+            if repr_diff == 2.0:
+                # angle == 180deg -> on the edge
+                lies_on_edge = True
+                range_less_180 = False  # does actually not matter here
+
+            if lies_on_edge:
+                # when the query vertex lies on an edge (or vertex) no behind/in front checks must be performed!
+                # the neighbouring edges are visible for sure
+                try:
+                    vertex_candidates.remove(v1)
+                    visible_vertices.add(v1)
+                except KeyError:
+                    pass
+                try:
+                    vertex_candidates.remove(v2)
+                    visible_vertices.add(v2)
+                except KeyError:
+                    pass
+
+                # all the candidates between the two vertices v1 v2 are not visible for sure
+                # candidates with the same representation should not be deleted, because they can be visible!
+                vertex_candidates.difference_update(
+                    find_within_range(repr1, repr2, repr_diff, vertex_candidates, angle_range_less_180=range_less_180,
+                                      equal_repr_allowed=False))
+                continue
+
+            # case: a 'regular' edge
+            # eliminate all candidates which are blocked by the edge
+            # that means inside the angle range spanned by the edge and actually behind it
             vertices_to_check = vertex_candidates.copy()
             # the vertices belonging to the edge itself (its vertices) must not be checked.
             # use discard() instead of remove() to not raise an error (they might not be candidates)
-            vertices_to_check.discard(edge.vertex1)
-            vertices_to_check.discard(edge.vertex2)
+            vertices_to_check.discard(v1)
+            vertices_to_check.discard(v2)
             if len(vertices_to_check) == 0:
                 continue
-
-            if edge.vertex1.get_distance_to_origin() == 0.0:
-                # vertex1 has the same coordinates as the query vertex
-                # (but does not belong to the same polygon, not identical!)
-                # do not mark this vertex as visible (would add 0 distance edge in the graph)
-                vertex_candidates.discard(edge.vertex1)
-                # its angle representation is not defined (no line segment from vertex1 to query vertex!)
-                # everything between its neighbouring edges is not visible
-                v1, v2 = edge.vertex1.get_neighbours()
-                # print(edge.vertex1, edge.vertex2)
-                # print(v1,v2)
-                range_less_180 = edge.vertex1.is_extremity
-                e1 = edge.vertex1.edge1
-                # do not check the other neighbouring edge of vertex1 in the future
-                edges_to_check.discard(e1)
-                priority_edges.discard(e1)
-            elif edge.vertex2.get_distance_to_origin() == 0.0:
-                vertex_candidates.discard(edge.vertex2)
-                v1, v2 = edge.vertex2.get_neighbours()
-                range_less_180 = edge.vertex2.is_extremity
-                e1 = edge.vertex2.edge2
-                edges_to_check.discard(e1)
-                priority_edges.discard(e1)
-            else:
-                v1, v2 = edge.vertex1, edge.vertex2
-                range_less_180 = True
 
             # for all candidate edges check if there are any candidate vertices (besides the ones belonging to the edge)
             #   within this angle range
-            repr1 = v1.get_angle_representation()
-            repr2 = v2.get_angle_representation()
+            # TODO
             assert repr1 is not None
             assert repr2 is not None
             # the "view range" of an edge from a query point (spanned by the two vertices of the edge)
-            #   is normally < 180deg,
-            # but in the case that the query point directly lies on the edge the angle is 180deg
-            vertices_to_check = find_within_range(repr1, repr2, vertices_to_check, angle_range_less_180=range_less_180)
+            #   is always < 180deg when the edge is not running through the query point (=180 deg)
+            #  candidates with the same representation as v1 or v2 should be considered.
+            #   they can be visible, but should be ruled out if they lie behind any edge!
+            vertices_to_check = find_within_range(repr1, repr2, repr_diff, vertices_to_check, angle_range_less_180=True,
+                                                  equal_repr_allowed=True)
             if len(vertices_to_check) == 0:
                 continue
 
-            # if a vertex is farther away from the query point than both vertices of the edge,
+            # if a candidate is farther away from the query point than both vertices of the edge,
             #    it surely lies behind the edge
-            max_distance = max(edge.vertex1.get_distance_to_origin(), edge.vertex2.get_distance_to_origin())
+            max_distance = max(v1.get_distance_to_origin(), v2.get_distance_to_origin())
             vertices_behind = set(filter(lambda extr: extr.get_distance_to_origin() > max_distance, vertices_to_check))
-            # they do not have to be checked
+            # they do not have to be checked, no intersection computation necessary
             # TODO improvement: increase the neighbouring edges' priorities when there were extremities behind
             vertices_to_check.difference_update(vertices_behind)
             if len(vertices_to_check) == 0:
@@ -181,18 +219,18 @@ class PolygonEnvironment:
                 vertex_candidates.difference_update(vertices_behind)
                 continue
 
-            # if the edge is closer than both vertices it surely lies in front (
-            min_distance = min(edge.vertex1.get_distance_to_origin(), edge.vertex2.get_distance_to_origin())
+            # if the candidate is closer than both edge vertices it surely lies in front (
+            min_distance = min(v1.get_distance_to_origin(), v2.get_distance_to_origin())
             vertices_in_front = set(
                 filter(lambda extr: extr.get_distance_to_origin() < min_distance, vertices_to_check))
             # they do not have to be checked (safes computation)
             vertices_to_check.difference_update(vertices_in_front)
 
-            # in any other case it has to be tested if the line segment from query point (=origin) to the vertex v
+            # for all remaining vertices v it has to be tested if the line segment from query point (=origin) to v
             #    has an intersection with the current edge p1---p2
             # vertices directly on the edge are allowed (not eliminated)!
-            p1 = edge.vertex1.get_coordinates_translated()
-            p2 = edge.vertex2.get_coordinates_translated()
+            p1 = v1.get_coordinates_translated()
+            p2 = v2.get_coordinates_translated()
             for vertex in vertices_to_check:
                 if lies_behind(p1, p2, vertex.get_coordinates_translated()):
                     vertices_behind.add(vertex)
@@ -201,12 +239,9 @@ class PolygonEnvironment:
 
             # vertices behind any edge are not visible
             vertex_candidates.difference_update(vertices_behind)
-            for v in vertices_behind:
-                if np.all(v.coordinates == [17, 0.5]):
-                    raise ValueError
             # if there are no more candidates left. immediately quit checking edges
             if len(vertex_candidates) == 0:
-                return {(e, e.get_distance_to_origin()) for e in visible_vertices}
+                break
 
             # check the neighbouring edges of all vertices which lie in front of the edge next first
             # (prioritize them)
@@ -214,7 +249,7 @@ class PolygonEnvironment:
             # the fewer vertex candidates remain, the faster the procedure
             # TODO improvement: increase priority every time and draw highest priority items
             #   but this involves sorting (expensive for large polygons!)
-            #   idea: work with a list of sets, add new set for higher priority
+            #   idea: work with a list of sets, add new set for higher priority, no real sorting, but still managing!
             # TODO test speed impact
             for e in vertices_in_front:
                 # only add the neighbour edges to the priority set if they still have to be checked!
@@ -230,16 +265,23 @@ class PolygonEnvironment:
         return {(e, e.get_distance_to_origin()) for e in visible_vertices}
 
     def prepare(self, export_plots=False):
-        # compute the all directly reachable extremities based on visibility
-        # compute the distances between all directly reachable extremities
-        # store as graph
+        """
+        precomputes all directly reachable extremities based on visibility
+        and the distances between them
+        internally stores a visibility graph optimized (reduced) for path planning
+        :param export_plots:
+        :return:
+        """
+
+        if self.prepared:
+            raise ValueError('this environment is already prepared. load new polygons first.')
 
         # preprocessing the map
         # construct graph of visible (=directly reachable) extremities
         # and optimize graph further at construction time
-        self.graph = DirectedHeuristicGraph(self.all_extremities)
+        self.graph = DirectedHeuristicGraph()
         extremities_to_check = set(self.all_extremities)
-        # have to run for all (also last one!), because edges might get deleted every loop
+        # have to run for all (also last one!), because existing edges might get deleted every loop
         while len(extremities_to_check) > 0:
             query_extremity: PolygonVertex = extremities_to_check.pop()
             # extremities are always visible to each other (bi-directional relation -> undirected graph)
@@ -247,7 +289,6 @@ class PolygonEnvironment:
             #  (would only give the same result when algorithms are correct)
             # the extremity itself must not be checked when looking for visible neighbours
 
-            # compute the angle representations and distances for all vertices respective to the query point
             self.translate(new_origin=query_extremity)
 
             visible_vertices = set()
@@ -256,31 +297,36 @@ class PolygonEnvironment:
             candidate_extremities.difference_update(
                 {c for c in candidate_extremities if c.get_angle_representation() is None})
 
-            # existing edges do not have to be checked again
-            candidate_extremities.difference_update(self.graph.get_neighbours_of(query_extremity))
             # these vertices all belong to a polygon
             # direct neighbours of the query vertex are visible
             # neighbouring vertices are reachable with the distance equal to the edge length
             n1, n2 = query_extremity.get_neighbours()
-            if n1 in candidate_extremities:
-                visible_vertices.add((n1, n1.get_distance_to_origin()))
+            try:
                 candidate_extremities.remove(n1)
-            if n2 in candidate_extremities:
-                visible_vertices.add((n2, n2.get_distance_to_origin()))
+                visible_vertices.add((n1, n1.get_distance_to_origin()))
+            except KeyError:
+                pass
+            try:
                 candidate_extremities.remove(n2)
+                visible_vertices.add((n2, n2.get_distance_to_origin()))
+            except KeyError:
+                pass
+
             # even though candidate_extremities might be empty now
-            # must not skip to next loop here, because existing graph edges might get deleted later!
-            # if len(candidate_extremities) == 0:
+            # must not skip to next loop here, because existing graph edges might get deleted here!
 
             # eliminate all vertices 'behind' the query point from the candidate set
             # since the query vertex is an extremity the 'outer' angle is < 180 degree
             # then the difference between the angle representation of the two edges has to be < 2.0
-            # all vertices within the angle of the two neighbouring edges are not visible (no candidates!)
-            # vertices with the same angle representation might be visible!
+            # all vertices between the angle of the two neighbouring edges ('outer side')
+            #   are not visible (no candidates!)
+            # vertices with the same angle representation might be visible! do not delete them!
             repr1 = n1.get_angle_representation()
             repr2 = n2.get_angle_representation()
+            repr_diff = abs(repr1 - repr2)
             candidate_extremities.difference_update(
-                find_within_range(repr1, repr2, candidate_extremities, angle_range_less_180=True))
+                find_within_range(repr1, repr2, repr_diff, candidate_extremities, angle_range_less_180=True,
+                                  equal_repr_allowed=False))
 
             # as shown in [1, Ch. II 4.4.2 "Property One"] Starting from any point lying "in front of" an extremity e,
             # such that both adjacent edges are visible, one will never visit e, because everything is
@@ -294,33 +340,32 @@ class PolygonEnvironment:
             # find extremities which fulfill this condition for the given query extremity
             repr1 = (repr1 + 2.0) % 4.0  # rotate 180 deg
             repr2 = (repr2 + 2.0) % 4.0
-            # TODO do not delete edges same repr!
+            # IMPORTANT: the true angle diff does not change, but the repr diff does! compute again
+            repr_diff = abs(repr1 - repr2)
 
             # IMPORTANT: check all extremities here, not just current candidates
             # do not check extremities with equal coordinates (also query extremity itself!)
-            #   and with the same angle represenation (edges must not get deleted from graph!)
-            temp_candidates = set()
-            for e in self.all_extremities:
-                repr = e.get_angle_representation()
-                if repr is not None and repr != repr1 and repr != repr2:
-                    temp_candidates.add(e)
-            lie_in_front = find_within_range(repr1, repr2, temp_candidates, angle_range_less_180=True)
-            # already existing edges in the graph have to be removed
+            #   and with the same angle representation (those edges must not get deleted from graph!)
+            temp_candidates = set(filter(lambda e: e.get_angle_representation() is not None, self.all_extremities))
+            lie_in_front = find_within_range(repr1, repr2, repr_diff, temp_candidates, angle_range_less_180=True,
+                                             equal_repr_allowed=False)
+
+            # already existing edges in the graph to the extremities in front have to be removed
             self.graph.remove_multiple_undirected_edges(query_extremity, lie_in_front)
             # do not consider when looking for visible extremities (NOTE: they might actually be visible!)
             candidate_extremities.difference_update(lie_in_front)
 
-            # all edges except the neighbouring edges (handled already) have to be checked
+            # all edges except the neighbouring edges (handled above!) have to be checked
             edges_to_check = set(self.all_edges)
             edges_to_check.remove(query_extremity.edge1)
             edges_to_check.remove(query_extremity.edge2)
 
-            visible_vertices |= self.find_visible(candidate_extremities, edges_to_check)
+            visible_vertices.update(self.find_visible(candidate_extremities, edges_to_check))
 
             self.graph.add_multiple_undirected_edges(query_extremity, visible_vertices)
 
         # join all nodes with the same coordinates
-        self.graph.join_identical_nodes()
+        self.graph.make_clean()
 
         self.prepared = True
         if export_plots:
@@ -362,13 +407,8 @@ class PolygonEnvironment:
         start_vertex = Vertex(start_coordinates)
         goal_vertex = Vertex(goal_coordinates)
 
-        # create temporary graph (real copy to not edit the original prepared graph)
-        # a shallow copy: constructs a new compound object and then (to the extent possible)
-        #   inserts references into it to the objects found in the original.
-        self.temp_graph = copy(self.graph)
-
         # the visibility of only the graphs nodes have to be checked (not all extremities!)
-        candidates = set(self.temp_graph.get_all_nodes())
+        candidates = set(self.graph.get_all_nodes())
         # IMPORTANT: check if the goal node is visible from the start node!
         candidates.add(goal_vertex)
 
@@ -378,6 +418,11 @@ class PolygonEnvironment:
         goal_vertex.mark_outdated()
 
         visibles_n_distances_start = self.find_visible(candidates, edges_to_check=set(self.all_edges))
+
+        # create temporary graph
+        # DirectedHeuristicGraph implements __deepcopy__() to not change the original precomputed self.graph
+        # but to still not create real copies of vertex instances!
+        self.temp_graph = deepcopy(self.graph)
 
         # IMPORTANT geometrical property of this problem: it is always shortest to directly reach a node
         #   instead of visiting other nodes first (there is never an advantage through reduced edge weight)
@@ -415,27 +460,29 @@ class PolygonEnvironment:
                 # the goal vertex might be marked visible, it is not an extremity -> skip
                 continue
 
+            assert type(vertex) == PolygonVertex and vertex.is_extremity  # TODO
+
             self.translate(new_origin=vertex)
             # IMPORTANT: manually translate the goal and start vertices
             start_vertex.mark_outdated()
             goal_vertex.mark_outdated()
 
-            goal_vertex.mark_outdated()
             n1, n2 = vertex.get_neighbours()
             repr1 = (n1.get_angle_representation() + 2.0) % 4.0  # rotated 180 deg
             repr2 = (n2.get_angle_representation() + 2.0) % 4.0
+            repr_diff = abs(repr1 - repr2)
 
             # check only if point is visible
-            # IMPORTANT: special case: here the nodes must stay connected if they have the same angle representation!
             temp_candidates = set()
-            repr_start = start_vertex.get_angle_representation()
-            if repr_start != repr1 and repr_start != repr2 and (vertex, d) in visibles_n_distances_start:
+            if (vertex, d) in visibles_n_distances_start:
                 temp_candidates.add(start_vertex)
 
-            repr_goal = goal_vertex.get_angle_representation()
-            if repr_goal != repr1 and repr_goal != repr2 and (vertex, d) in visibles_n_distances_goal:
+            if (vertex, d) in visibles_n_distances_goal:
                 temp_candidates.add(goal_vertex)
-            lie_in_front = find_within_range(repr1, repr2, temp_candidates, angle_range_less_180=True)
+
+            # IMPORTANT: special case: here the nodes must stay connected if they have the same angle representation!
+            lie_in_front = find_within_range(repr1, repr2, repr_diff, temp_candidates, angle_range_less_180=True,
+                                             equal_repr_allowed=False)
             self.graph.remove_multiple_undirected_edges(vertex, lie_in_front)
 
         # function returns the shortest path from goal to start (computational reasons), so just swap the parameters

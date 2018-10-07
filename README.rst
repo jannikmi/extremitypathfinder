@@ -72,7 +72,8 @@ Ensure that all the following conditions on the polygons are fulfilled:
 - the first point is NOT repeated at the end
 - must at least contain 3 vertices
 - no consequent vertices with identical coordinates in the polygons (same coordinates in general are allowed)
-- a polygon must not have self intersections (intersections with other polygons are allowed)
+- a polygon must not have self intersections
+- polygons must not intersect each other
 - edge numbering has to follow this convention (for easier computations):
     - outer boundary polygon: counter clockwise
     - holes: clockwise
@@ -210,6 +211,10 @@ When obstacles obstruct the direct path (goal is not directly 'visible' from the
 Starting from any point lying "in front of" an extremity ``e``, such that both adjacent edges are visible, one will never visit ``e``, because everything is reachable on a shorter path without ``e`` (except ``e`` itself). An extremity ``e1`` lying in the area "in front of"
 extremity ``e`` hence is never the next vertex in a shortest path coming from ``e``. And also in reverse: when coming from ``e1`` everything else than ``e`` itself can be reached faster without visiting ``e1``. -> ``e`` and ``e1`` do not have to be connected in the graph.
 
+.. image:: ./img/prepared_map_plot.png
+
+The edges of the precomputed graph between the extremities are shown in red. Notice that the extremity on the right is not connected to any other extremity due to the above mentioned optimisation.
+
 
 Algorithm
 =========
@@ -220,16 +225,16 @@ This package pretty much implements the Visibility Graph Optimized (VGO) Algorit
 Rough Procedure:
 ________________
 
-- **1. Preprocessing the map:** Independently of any query start and goal points the optimized visibility graph is being computed for the static environment once with ``map.prepare()``. Later versions might include a faster approach to compute visibility on the fly, for use cases where the map is changing dynamically. The edges of the precomputed graph between the extremities are shown in red in the following plot. Notice that the extremity on the right is not connected to any other extremity due to the above mentioned optimisation:
+- **1. Preprocessing the map:** Independently of any query start and goal points the optimized visibility graph is being computed for the static environment once with ``map.prepare()``. Later versions might include a faster approach to compute visibility on the fly, for use cases where the map is changing dynamically.
 
-.. image:: ./img/prepared_map_plot.png
+.. image:: ./img/grid_prepared_map_plot.png
 
 
 - **2. Including start and goal:** For each shortest path query the start and goal points are being connected to the internal graph depending on their visibility. Notice that the added edges are directed:
 
 .. image:: ./img/graph_plot.png
 
-- **3. A-star shortest path computation :** Finding the shortest path on graphs is a well known problem. This package uses a modified version of the popular ``A*-Algorithm`` optimized for this special use case.
+- **3. A-star shortest path computation :** Finding the shortest path on graphs is a standard computer science problem. This package uses a modified version of the popular ``A*-Algorithm`` optimized for this special use case.
 
 .. image:: ./img/graph_path_plot.png
 
@@ -244,6 +249,8 @@ Simple fundamental idea: points (extremities) are visible when there is no edge 
 Rough procedure: For all edges delete the points lying behind them. Points that remain at the end are visible.
 
 In this use case we are not interested in the full visibility graph, but the visibility of just some points (extremities, start and goal). Additionally deciding if a point lies behind an edge can often be done without computing intersections by just comparing distances. This can be used to reduce the needed computations.
+
+Further speed up can be accomplished by trying to prioritize closer edges, because they have a bigger chance to eliminate candidates.
 
 Implemented in ``PolygonEnvironment.find_visible()`` in ``extremitypathfinder.py``
 

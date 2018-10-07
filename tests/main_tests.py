@@ -43,26 +43,16 @@ class MainTest(unittest.TestCase):
             # hole 2
             (7, 5),
         ]
-        #
-        # size_x, size_y = 5,4
-        # obstacle_iter = [
-        #     # (x,y),
-        #
-        #     # obstacles changing boundary
-        #     (3, 0),
-        #     (3, 1),
-        #
-        #     # hole 1
-        #     (1,2),
-        #
-        # ]
 
         environment.store_grid_world(size_x, size_y, obstacle_iter, simplify=False, validate=False, export_plots=False)
-        environment.prepare(export_plots=False)
+        assert len(environment.all_extremities) == 17  # should detect all extremities
+        # environment.prepare(export_plots=False)
+        environment.prepare(export_plots=True)
+
+        assert len(environment.graph.all_nodes) == 16  # identical nodes should get joined in the graph!
 
         # TODO
 
-        # test if path distance is correct
 
         # should stay the same if extremities lie on direct path
 
@@ -104,8 +94,8 @@ class MainTest(unittest.TestCase):
             # on edge
             (((15, 0), (15, 6)), ([(15, 0), (15, 6)], 6.0)),
             (((15, 6), (15, 0)), ([(15, 6), (15, 0)], 6.0)),
-            (((17, 5), (16, 5)), ([(15, 5), (16, 6)], 1.0)),
-            (((16, 5), (17, 5)), ([(16, 6), (15, 5)], 1.0)),
+            (((17, 5), (16, 5)), ([(17, 5), (16, 5)], 1.0)),
+            (((16, 5), (17, 5)), ([(16, 5), (17, 5)], 1.0)),
             # on edge of hole
             (((7, 8), (7, 9)), ([(7, 8), (7, 9)], 1.0)),
             (((7, 9), (7, 8)), ([(7, 9), (7, 8)], 1.0)),
@@ -113,14 +103,30 @@ class MainTest(unittest.TestCase):
             # directly reachable through a single vertex (does not change distance!)
 
         ]:
+            # test if path and distance are correct
             # print(input, expected_output, fct(input))
+            # actual_output = environment.find_shortest_path(start_coordinates, goal_coordinates, export_plots=True)
             actual_output = environment.find_shortest_path(start_coordinates, goal_coordinates, export_plots=False)
+
             if actual_output != expected_output:
-                print('input: {} expected: {} got: {}'.format(input, expected_output, actual_output))
+                print('input: {} expected: {} got: {}'.format((start_coordinates, goal_coordinates), expected_output,
+                                                              actual_output))
             assert actual_output == expected_output
+
+
+        # even after many queries the internal graph should have the same structure as before
+        # when the deep copy mechanism works correctly
+        assert len(environment.graph.all_nodes) == 16  # identical nodes should get joined in the graph!
+
 
         # points on the polygon edges (vertices) should be accepted!
         # FIXME and have direct connection to all visible extremities!
+
+        # **NOTE**: If two Polygons have vertices with identical coordinates (this is allowed), paths through these vertices are theoretically possible!
+        # When the paths should be blocked, use a single polygon with multiple identical vertices instead (also allowed).
+
+
+        # when two nodes have the same angle representation there should only be an edge to the closer node!
 
 
 if __name__ == '__main__':
