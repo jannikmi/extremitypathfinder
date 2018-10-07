@@ -1,13 +1,12 @@
-from copy import deepcopy
 import pickle
+from copy import deepcopy
 
 from .graph_search import modified_a_star
-from .gui import draw_loaded_map, draw_prepared_map, draw_graph, draw_only_path, draw_with_path
 from .helper_classes import *
 from .helper_fcts import *
 
 
-# TODO possible to allow polygon consisting of 2 vertices only(=barrier)? lots of algorithms need at least 3 vertices
+# TODO possible to allow polygon consisting of 2 vertices only(=barrier)? lots of functions need at least 3 vertices atm
 
 
 # Reference:
@@ -15,6 +14,8 @@ from .helper_fcts import *
 #   "Pathfinding in Two-dimensional Worlds"
 #   http://www.cs.au.dk/~gerth/advising/thesis/anders-strand-holm-vinther_magnus-strand-holm-vinther.pdf
 
+
+# is not a helper function to make it an importable part of the package
 def load_pickle(path='./map.pickle'):
     print('loading map from:', path)
     with open(path, 'rb') as f:
@@ -37,7 +38,7 @@ class PolygonEnvironment:
     graph: DirectedHeuristicGraph = None
     temp_graph: DirectedHeuristicGraph = None  # for storing and plotting the graph during a query
 
-    def store(self, boundary_coordinates, list_of_hole_coordinates, validate=False, export_plots=False):
+    def store(self, boundary_coordinates, list_of_hole_coordinates, validate=False):
         self.prepared = False
         # 'loading the map
         boundary_coordinates = np.array(boundary_coordinates)
@@ -58,11 +59,7 @@ class PolygonEnvironment:
             self.all_edges += hole_polygon.edges
             self.all_vertices += hole_polygon.vertices
 
-        if export_plots:
-            draw_loaded_map(self)
-
-    def store_grid_world(self, size_x: int, size_y: int, obstacle_iter: iter, simplify: bool = True, validate=False,
-                         export_plots=False):
+    def store_grid_world(self, size_x: int, size_y: int, obstacle_iter: iter, simplify: bool = True, validate=False, ):
         """
         prerequisites: grid world must not have single non-obstacle cells which are surrounded by obstacles
         ("white cell in black surrounding" = useless for path planning)
@@ -70,11 +67,10 @@ class PolygonEnvironment:
         :param size_y: the vertical grid world size
         :param obstacle_iter: an iterable of coordinate pairs (x,y) representing blocked grid cells (obstacles)
         :param validate:
-        :param export_plots:
         :param simplify: whether the polygons should be simplified or not. reduces edge amount, allow diagonal edges
         """
         boundary_coordinates, list_of_hole_coordinates = convert_gridworld(size_x, size_y, obstacle_iter, simplify)
-        self.store(boundary_coordinates, list_of_hole_coordinates, validate, export_plots)
+        self.store(boundary_coordinates, list_of_hole_coordinates, validate)
 
     def export_pickle(self, path='./map.pickle'):
         print('storing map class in:', path)
@@ -104,10 +100,6 @@ class PolygonEnvironment:
 
         :param edges_to_check: the set of edges which determine visibility
         :return: a set of tuples of all vertices visible from the query vertex and the corresponding distance
-
-        NOTE: pre computing the shortest paths between all directly reachable extremities
-            and storing them in the graph would not be an advantage, because then the graph is fully connected
-            a star would visit every node in the graph at least once (-> disadvantage!)
         """
 
         visible_vertices = set()
@@ -193,11 +185,11 @@ class PolygonEnvironment:
             if len(vertices_to_check) == 0:
                 continue
 
+            # assert repr1 is not None
+            # assert repr2 is not None
+
             # for all candidate edges check if there are any candidate vertices (besides the ones belonging to the edge)
             #   within this angle range
-            # TODO
-            assert repr1 is not None
-            assert repr2 is not None
             # the "view range" of an edge from a query point (spanned by the two vertices of the edge)
             #   is always < 180deg when the edge is not running through the query point (=180 deg)
             #  candidates with the same representation as v1 or v2 should be considered.
@@ -264,13 +256,17 @@ class PolygonEnvironment:
         # return a set of tuples: (vertex, distance)
         return {(e, e.get_distance_to_origin()) for e in visible_vertices}
 
-    def prepare(self, export_plots=False):
+    def prepare(self):
         """
         precomputes all directly reachable extremities based on visibility
         and the distances between them
         internally stores a visibility graph optimized (reduced) for path planning
-        :param export_plots:
         :return:
+
+        NOTE: pre computing the shortest paths between all directly reachable extremities
+            and storing them in the graph would not be an advantage, because then the graph is fully connected
+            a star would visit every node in the graph at least once (-> disadvantage!).
+            TODO maybe advantage with optimized a star
         """
 
         if self.prepared:
@@ -366,12 +362,9 @@ class PolygonEnvironment:
 
         # join all nodes with the same coordinates
         self.graph.make_clean()
-
         self.prepared = True
-        if export_plots:
-            draw_prepared_map(self)
 
-    def find_shortest_path(self, start_coordinates, goal_coordinates, export_plots=False):
+    def find_shortest_path(self, start_coordinates, goal_coordinates, free_space_after=True):
         # path planning query:
         # make sure the map has been loaded and prepared
         if self.boundary_polygon is None:
@@ -407,15 +400,16 @@ class PolygonEnvironment:
         start_vertex = Vertex(start_coordinates)
         goal_vertex = Vertex(goal_coordinates)
 
-        # the visibility of only the graphs nodes have to be checked (not all extremities!)
-        candidates = set(self.graph.get_all_nodes())
-        # IMPORTANT: check if the goal node is visible from the start node!
-        candidates.add(goal_vertex)
-
-        self.translate(new_origin=start_vertex)
+        self.translate(new_origin=start_vertex)  # do before checking angle representations!
         # IMPORTANT: manually translate the goal vertex, because it is not part of any polygon
         #   and hence does not get translated automatically
         goal_vertex.mark_outdated()
+
+        # the visibility of only the graphs nodes have to be checked (not all extremities!)
+        # points with the same angle representation should not be considered visible
+        candidates = set(filter(lambda n: n.get_angle_representation() is not None, self.graph.get_all_nodes()))
+        # IMPORTANT: check if the goal node is visible from the start node!
+        candidates.add(goal_vertex)
 
         visibles_n_distances_start = self.find_visible(candidates, edges_to_check=set(self.all_edges))
 
@@ -430,10 +424,6 @@ class PolygonEnvironment:
         for v, d in visibles_n_distances_start:
             if v == goal_vertex:
                 vertex_path = [start_vertex, goal_vertex]
-                if export_plots:
-                    # those plots do not contain all the edges (early termination)!
-                    draw_with_path(self, self.temp_graph, goal_vertex, start_vertex, vertex_path)
-                    draw_only_path(self, vertex_path)
                 return [start_coordinates, goal_coordinates], d
 
             # add unidirectional edges to the temporary graph
@@ -442,10 +432,10 @@ class PolygonEnvironment:
             # TODO: improvement: add edges last, after filtering them. instead of deleting edges
             self.temp_graph.add_directed_edge(v, start_vertex, d)
 
+        self.translate(new_origin=goal_vertex)  # do before checking angle representations!
         # the visibility of only the graphs nodes have to be checked
         # start node does not have to be considered, because of the earlier check for the start node
-        candidates = set(self.temp_graph.get_all_nodes())
-        self.translate(new_origin=goal_vertex)
+        candidates = set(filter(lambda n: n.get_angle_representation() is not None, self.graph.get_all_nodes()))
         visibles_n_distances_goal = self.find_visible(candidates, edges_to_check=set(self.all_edges))
         # add edges in the direction: extremity <- goal
         self.temp_graph.add_multiple_directed_edges(goal_vertex, visibles_n_distances_goal)
@@ -455,45 +445,46 @@ class PolygonEnvironment:
         #  in front MUST be added to the graph! Handled by always introducing new (non extremity, non polygon) vertices.
 
         # for every extremity that is visible from either goal or stat
-        for vertex, d in visibles_n_distances_goal | visibles_n_distances_start:
-            if vertex == goal_vertex:
-                # the goal vertex might be marked visible, it is not an extremity -> skip
-                continue
-
-            assert type(vertex) == PolygonVertex and vertex.is_extremity  # TODO
-
-            self.translate(new_origin=vertex)
-            # IMPORTANT: manually translate the goal and start vertices
-            start_vertex.mark_outdated()
-            goal_vertex.mark_outdated()
-
-            n1, n2 = vertex.get_neighbours()
-            repr1 = (n1.get_angle_representation() + 2.0) % 4.0  # rotated 180 deg
-            repr2 = (n2.get_angle_representation() + 2.0) % 4.0
-            repr_diff = abs(repr1 - repr2)
+        # NOTE: edges are undirected! self.temp_graph.get_neighbours_of(start_vertex) == set()
+        # neighbours_start = self.temp_graph.get_neighbours_of(start_vertex)
+        neighbours_start = {n for n, d in visibles_n_distances_start}
+        # the goal vertex might be marked visible, it is not an extremity -> skip
+        neighbours_start.discard(goal_vertex)
+        neighbours_goal = self.temp_graph.get_neighbours_of(goal_vertex)
+        for vertex in neighbours_start | neighbours_goal:
+            # assert type(vertex) == PolygonVertex and vertex.is_extremity
 
             # check only if point is visible
             temp_candidates = set()
-            if (vertex, d) in visibles_n_distances_start:
+            if vertex in neighbours_start:
                 temp_candidates.add(start_vertex)
 
-            if (vertex, d) in visibles_n_distances_goal:
+            if vertex in neighbours_goal:
                 temp_candidates.add(goal_vertex)
 
-            # IMPORTANT: special case: here the nodes must stay connected if they have the same angle representation!
-            lie_in_front = find_within_range(repr1, repr2, repr_diff, temp_candidates, angle_range_less_180=True,
-                                             equal_repr_allowed=False)
-            self.graph.remove_multiple_undirected_edges(vertex, lie_in_front)
+            if len(temp_candidates) > 0:
+                self.translate(new_origin=vertex)
+                # IMPORTANT: manually translate the goal and start vertices
+                start_vertex.mark_outdated()
+                goal_vertex.mark_outdated()
+
+                n1, n2 = vertex.get_neighbours()
+                repr1 = (n1.get_angle_representation() + 2.0) % 4.0  # rotated 180 deg
+                repr2 = (n2.get_angle_representation() + 2.0) % 4.0
+                repr_diff = abs(repr1 - repr2)
+
+                # IMPORTANT: special case:
+                # here the nodes must stay connected if they have the same angle representation!
+                lie_in_front = find_within_range(repr1, repr2, repr_diff, temp_candidates, angle_range_less_180=True,
+                                                 equal_repr_allowed=False)
+                self.temp_graph.remove_multiple_undirected_edges(vertex, lie_in_front)
 
         # function returns the shortest path from goal to start (computational reasons), so just swap the parameters
         # NOTE: exploiting property 2 from [1] here would be more expensive than beneficial
         vertex_path, distance = modified_a_star(self.temp_graph, start=goal_vertex, goal=start_vertex)
-        if export_plots:
-            draw_graph(self, self.temp_graph)
-            draw_with_path(self, self.temp_graph, goal_vertex, start_vertex, vertex_path)
-            draw_only_path(self, vertex_path)
 
-        del self.temp_graph  # free the memory
+        if free_space_after:
+            del self.temp_graph  # free the memory
 
         # extract the coordinates from the path
         return [tuple(v.coordinates) for v in vertex_path], distance

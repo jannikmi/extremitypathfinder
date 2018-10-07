@@ -1,9 +1,10 @@
 import time
+from os.path import join, abspath
 
 import matplotlib.pyplot as plt
 from matplotlib.patches import Polygon
 
-# from helpers import *
+from .extremitypathfinder import PolygonEnvironment
 
 EXPORT_RESOLUTION = 200  # dpi
 EXPORT_SIZE_X = 19.0  # inch
@@ -17,10 +18,11 @@ POLYGON_SETTINGS = {
 
 SHOW_PLOTS = False
 
+PLOTTING_DIR = 'all_plots'
 
-# TODO manually specify plot directory
+
 def get_plot_name(file_name='plot'):
-    return './plots/' + file_name + '_' + str(time.time())[:-7] + '.png'
+    return abspath(join(PLOTTING_DIR, file_name + '_' + str(time.time())[:-7] + '.png'))
 
 
 def export_plot(fig, file_name):
@@ -28,20 +30,33 @@ def export_plot(fig, file_name):
     plt.savefig(get_plot_name(file_name), dpi=EXPORT_RESOLUTION)
 
 
-def mark_points(vertex_list, **kwargs):
-    x = []
-    y = []
-    for v in vertex_list:
-        x.append(v.coordinates[0])
-        y.append(v.coordinates[1])
+def mark_points(vertex_iter, **kwargs):
+    xs = []
+    ys = []
+    if type(vertex_iter) == set:
+        for v in vertex_iter:
+            xs.append(v.coordinates[0])
+            ys.append(v.coordinates[1])
+    elif type(vertex_iter[0]) == tuple:
+        for x, y in vertex_iter:
+            xs.append(x)
+            ys.append(y)
+    else:
+        for v in vertex_iter:
+            xs.append(v.coordinates[0])
+            ys.append(v.coordinates[1])
 
-    plt.scatter(x, y, **kwargs)
+    plt.scatter(xs, ys, **kwargs)
 
 
-def draw_edge(v1, v2, c, alpha):
-    x1, y1 = v1.coordinates
-    x2, y2 = v2.coordinates
-    plt.plot([x1, x2], [y1, y2], color=c, alpha=alpha)
+def draw_edge(v1, v2, c, alpha, **kwargs):
+    if type(v1) == tuple:
+        x1, y1 = v1
+        x2, y2 = v2
+    else:
+        x1, y1 = v1.coordinates
+        x2, y2 = v2.coordinates
+    plt.plot([x1, x2], [y1, y2], color=c, alpha=alpha, **kwargs)
 
 
 def draw_polygon(ax, coords, **kwargs):
@@ -64,7 +79,7 @@ def draw_boundaries(map, ax):
 def draw_internal_graph(map, ax):
     for start, all_goals in map.graph.get_neighbours():
         for goal in all_goals:
-            draw_edge(start, goal, c='red', alpha=0.2)
+            draw_edge(start, goal, c='red', alpha=0.2, linewidth=2)
 
 
 def set_limits(map, ax):
@@ -83,7 +98,6 @@ def draw_path(vertex_path):
             v1 = v2
 
 
-# TODO unify functions and give int to decide what to draw, automatically detect from given input?!
 def draw_loaded_map(map):
     fig, ax = plt.subplots()
 
@@ -105,9 +119,10 @@ def draw_prepared_map(map):
         plt.show()
 
 
-def draw_with_path(map, temp_graph, start, goal, vertex_path):
+def draw_with_path(map, temp_graph, vertex_path):
     fig, ax = plt.subplots()
 
+    start, goal = vertex_path[0], vertex_path[-1]
     draw_boundaries(map, ax)
     draw_internal_graph(map, ax)
     set_limits(map, ax)
@@ -167,22 +182,52 @@ def draw_graph(map, graph):
         plt.show()
 
 
+class PlottingEnvironment(PolygonEnvironment):
+
+    def __init__(self, plotting_dir='./plots/'):
+        super().__init__()
+        global PLOTTING_DIR
+        PLOTTING_DIR = plotting_dir
+
+    def store(self, *args, **kwargs):
+        super().store(*args, **kwargs)
+        draw_loaded_map(self)
+
+    def prepare(self):
+        super().prepare()
+        draw_prepared_map(self)
+
+    def find_shortest_path(self, *args, **kwargs):
+        # important to not delete the temp graph! for plotting
+        vertex_path, distance = super().find_shortest_path(*args, free_space_after=False, **kwargs)
+        draw_graph(self, self.temp_graph)
+        draw_with_path(self, self.temp_graph, vertex_path)
+        draw_only_path(self, vertex_path)
+
+        del self.temp_graph  # free the memory
+
+        # extract the coordinates from the path
+        return vertex_path, distance
+
+
 if __name__ == '__main__':
+    # for plotting:
+    environment = PlottingEnvironment(plotting_dir='my_favourite_dir')
 
-    polygon1 = [(0.0, 0.0), (10.0, 0.0), (9.0, 5.0), (10.0, 10.0), (0.0, 10.0)]
+    # counter clockwise vertex numbering!
+    boundary_coordinates = [(0.0, 0.0), (10.0, 0.0), (9.0, 5.0), (10.0, 10.0), (0.0, 10.0)]
+
     # clockwise numbering!
-    # holes1 = []
-    # holes1 = [[(3.0, 7.0), (5.0, 9.0), (5.0, 7.0), ], ]
-    holes1 = [[(3.0, 7.0), (5.0, 9.0), (4.5, 7.0), (5.0, 4.0), ], ]
+    list_of_holes = [[(3.0, 7.0), (5.0, 9.0), (4.5, 7.0), (5.0, 4.0), ], ]
+    # environment.store(boundary_coordinates, list_of_holes, validate=True, export_plots=True)
+    environment.store(boundary_coordinates, list_of_holes, validate=False)
 
-    map = Map()
-    map.store(polygon1, holes1)
-    # print(map.all_extremities)
-    map.prepare()
-    # draw_map(map)
+    environment.prepare()
 
-    start_coords = (4.5, 1.0)
-    goal_coords = (4.0, 8.5)
+    # environment.export_pickle()
+    # environment = load_pickle()
 
-    path, length = map.find_shortest_path(start_coords, goal_coords, export_plots=False)
+    start_coordinates = (4.5, 1.0)
+    goal_coordinates = (4.0, 8.5)
+    path, length = environment.find_shortest_path(start_coordinates, goal_coordinates)
     print(path)

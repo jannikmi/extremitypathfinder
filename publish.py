@@ -5,8 +5,6 @@ import re
 # TODO adjust
 # required packages
 # numpy
-# matplotlib?!
-# (llvmlite, numba)
 
 # for testing:
 # pip-tools

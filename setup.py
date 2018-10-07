@@ -61,6 +61,5 @@ setup(
     long_description=readme + '\n\n' + changelog,
     install_requires=[
         'numpy',
-        'matplotlib',  # TODO find a way to avoid
     ],
 )

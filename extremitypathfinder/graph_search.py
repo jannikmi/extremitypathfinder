@@ -61,18 +61,20 @@ def modified_a_star(heuristic_graph, start, goal):
     while not priority_queue.empty():
         # always 'expand' the node with the lowest current cost estimate (= cost_so_far + heuristic)
         current = priority_queue.get()
-        print('expanding:', current.coordinates)
-        print('neighbours:', heuristic_graph.get_neighbours_of(current))
+        # print('expanding:', current.coordinates)
+        # print('neighbours:', heuristic_graph.get_neighbours_of(current))
         expanded_nodes.add(current)
 
         # look at the distances to all neighbours
+        # TODO optimisation: order neighbouring nodes after heuristic, keep multiple generators open
+        # then do not check all neighbours first, but always the one with lowest heuristic
         for next_node, distance in heuristic_graph._existing_edges_from(current):
             if next_node in expanded_nodes:
                 # this node has already been visited. there is no need to consider costs
                 # path can only get longer by visiting other nodes first: new_cost is never < cost_so_far
                 continue
 
-            print('visiting:', next_node.coordinates)
+            # print('visiting:', next_node.coordinates)
             if next_node == goal:
                 # since the current node is the one with the lowest cost estimate
                 #   and the goal is directly reachable from the current node (-> heuristic == distance),
@@ -87,7 +89,7 @@ def modified_a_star(heuristic_graph, start, goal):
 
             new_cost = cost_so_far[current] + distance
             if new_cost < cost_so_far.get(next_node, infinity):
-                print('shortest path to this node so far:', new_cost)
+                # print('shortest path to this node so far:', new_cost)
                 cost_so_far[next_node] = new_cost
                 came_from[next_node] = current
                 priority = new_cost + heuristic_graph.get_heuristic(next_node)

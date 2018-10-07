@@ -280,11 +280,6 @@ class DirectedHeuristicGraph:
     def get_distance(self, node1, node2):
         # directed edges: just one direction is being stored
         return self.distances[(node1, node2)]
-        # TODO
-        try:
-            return self.distances[(node1, node2)]
-        except KeyError:
-            return None
 
     def get_heuristic(self, node):
         global origin  # use origin contains the current goal node

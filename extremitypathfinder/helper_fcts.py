@@ -100,11 +100,13 @@ def lies_behind(p1, p2, v):
     #   this set of linear equations is always solvable (the matrix is regular)
     A = np.array([p1 - p2, v]).T
     b = np.array(p1)
-    # TODO
-    try:
-        x = np.linalg.solve(A, b)
-    except np.linalg.LinAlgError:
-        raise ValueError
+    x = np.linalg.solve(A, b)
+
+    # Debug:
+    # try:
+    #     x = np.linalg.solve(A, b)
+    # except np.linalg.LinAlgError:
+    #     raise ValueError
     # assert np.allclose((p2 - p1) * x[0] + p1, v * x[1])
     # assert np.allclose(np.dot(A, x), b)
 

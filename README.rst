@@ -18,7 +18,7 @@ extremitypathfinder
 Python package for fast geometric shortest path computation in 2D multi-polygon or grid environments based on visibility graphs.
 
 
-.. image:: ./img/path_plot.png
+.. image:: ./img/grid_graph_path_plot.png
 
 Also see:
 `GitHub <https://github.com/MrMinimal64/extremitypathfinder>`__,
@@ -31,7 +31,6 @@ Dependencies
 
 (``python3``),
 ``numpy``,
-``matplotlib``,
 
 
 Installation
@@ -86,10 +85,9 @@ Ensure that all the following conditions on the polygons are fulfilled:
 
     # clockwise numbering!
     list_of_holes = [[(3.0, 7.0), (5.0, 9.0), (4.5, 7.0), (5.0, 4.0), ], ]
-    environment.store(boundary_coordinates, list_of_holes, validate=False, export_plots=False)
+    environment.store(boundary_coordinates, list_of_holes, validate=False)
 
 **BETA**: Pass ``validate=True`` in order to check the condition on the data.
-Pass ``export_plots=True`` in order to generate and store plots with matplotlib.
 
 **NOTE**: If two Polygons have vertices with identical coordinates (this is allowed), paths through these vertices are theoretically possible!
 When the paths should be blocked, use a single polygon with multiple identical vertices instead (also allowed).
@@ -104,7 +102,7 @@ ______________
 
 ::
 
-    map.prepare(export_plots=False)
+    map.prepare()
 
 
 
@@ -117,7 +115,7 @@ ______
 
     start_coordinates = (4.5, 1.0)
     goal_coordinates = (4.0, 8.5)
-    path, length = environment.find_shortest_path(start_coordinates, goal_coordinates, export_plots=False)
+    path, length = environment.find_shortest_path(start_coordinates, goal_coordinates)
 
 
 
@@ -156,7 +154,7 @@ ____________________________________
         # hole 2
         (7, 5),
     ]
-    environment.store_grid_world(size_x, size_y, obstacle_iter, simplify=False, validate=False, export_plots=False)
+    environment.store_grid_world(size_x, size_y, obstacle_iter, simplify=False, validate=False)
 
 
 
@@ -182,9 +180,8 @@ ______________________________________________
 Plotting:
 _________
 
-TODO
 
-Use the ``export_plots`` arguments of the functions.
+Check the code in ``example.py`` and ``plotting.py``.
 
 
 Basic Idea
@@ -211,10 +208,6 @@ When obstacles obstruct the direct path (goal is not directly 'visible' from the
 Starting from any point lying "in front of" an extremity ``e``, such that both adjacent edges are visible, one will never visit ``e``, because everything is reachable on a shorter path without ``e`` (except ``e`` itself). An extremity ``e1`` lying in the area "in front of"
 extremity ``e`` hence is never the next vertex in a shortest path coming from ``e``. And also in reverse: when coming from ``e1`` everything else than ``e`` itself can be reached faster without visiting ``e1``. -> ``e`` and ``e1`` do not have to be connected in the graph.
 
-.. image:: ./img/prepared_map_plot.png
-
-The edges of the precomputed graph between the extremities are shown in red. Notice that the extremity on the right is not connected to any other extremity due to the above mentioned optimisation.
-
 
 Algorithm
 =========
@@ -225,9 +218,10 @@ This package pretty much implements the Visibility Graph Optimized (VGO) Algorit
 Rough Procedure:
 ________________
 
-- **1. Preprocessing the map:** Independently of any query start and goal points the optimized visibility graph is being computed for the static environment once with ``map.prepare()``. Later versions might include a faster approach to compute visibility on the fly, for use cases where the map is changing dynamically.
+- **1. Preprocessing the map:** Independently of any query start and goal points the optimized visibility graph is being computed for the static environment once with ``map.prepare()``. Later versions might include a faster approach to compute visibility on the fly, for use cases where the map is changing dynamically. The edges of the precomputed graph between the extremities are shown in red in the following plots. Notice that the extremity on the right is not connected to any other extremity due to the above mentioned optimisation:
 
-.. image:: ./img/grid_prepared_map_plot.png
+
+.. image:: ./img/prepared_map_plot.png
 
 
 - **2. Including start and goal:** For each shortest path query the start and goal points are being connected to the internal graph depending on their visibility. Notice that the added edges are directed:
@@ -241,7 +235,8 @@ ________________
 Tweaks (my contribution):
 _________________________
 
-**Visibility detection:**
+**Visibility detection:** my **"Angle Range Elimination Algorithm"** (AREA)
+
 To my knowledge the was no previous algorithm for computing the visibility of points (<-> visibility graph) that is visiting edges at most once without any trigonometric computations, without sorting and with that few distance/intersection checks.
 
 Simple fundamental idea: points (extremities) are visible when there is no edge running in front "blocking the view".
@@ -256,7 +251,7 @@ Implemented in ``PolygonEnvironment.find_visible()`` in ``extremitypathfinder.py
 
 **Comparison:**
 
-Lee's visibility graph algorithm with complexity :math:`O(n^2 log_2 n)`: cf. http://cs.smith.edu/~streinu/Teaching/Courses/274/Spring98/Projects/Philip/fp/algVisibility.htm
+Lee's visibility graph algorithm (complexity :math:`O(n^2 log_2 n)`): cf. http://cs.smith.edu/~streinu/Teaching/Courses/274/Spring98/Projects/Philip/fp/algVisibility.htm
 
 - Initially all edges are being checked for intersection
 - Necessarily checking the visibility of all points (instead of just some)
@@ -267,14 +262,14 @@ Lee's visibility graph algorithm with complexity :math:`O(n^2 log_2 n)`: cf. htt
 
 
 
-My algorithm (unknown name and complexity):
+My Algorithm (unknown complexity):
 
 - Checking all edges
 - Not considering all points (just a few candidates)
 - Decreasing number of candidates with every run (visibility is a bijective relation. no need to check twice!)
 - Minimal intersection comp. (fraction of candidates)
 - No sorting needed
-- Could theoretically also work with just lines (this package currently just allows polygons)
+- Could theoretically also work with just lines (this package however currently just allows polygons)
 - More simple and clear approach
 
 
