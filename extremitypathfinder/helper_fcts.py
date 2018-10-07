@@ -4,7 +4,6 @@ import numpy as np
 
 from .helper_classes import AngleRepresentation
 
-
 # TODO numba precompilation of some parts possible?! do profiling first!
 
 
@@ -341,7 +340,7 @@ def convert_gridworld(size_x: int, size_y: int, obstacle_iter: iter, simplify: b
         forward_index = 0  # start with moving north
         forward_vect = directions[forward_index]
         left_index = (forward_index - 1) % 4
-        left_vect = directions[(forward_index - 1) % 4]
+        # left_vect = directions[(forward_index - 1) % 4]
         just_turned = True
 
         # follow the border between obstacles and free cells ("wall") until one reaches the start position again

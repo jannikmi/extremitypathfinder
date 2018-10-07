@@ -25,7 +25,7 @@ if __name__ == "__main__":
     start_coordinates = (4.5, 1.0)
     goal_coordinates = (4.0, 8.5)
     path, length = environment.find_shortest_path(start_coordinates, goal_coordinates)
-    print(path)
+    print(path, length)
 
     # grid world
     size_x, size_y = 19, 10

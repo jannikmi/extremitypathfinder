@@ -1,12 +1,11 @@
 numpy
 
-docutils
-flake8
+docutils # to check your setup.py is well configured
+flake8 # check code quality
 flake8-commas
-isort
-modernize
+isort # to show where imports aren’t sorted
 multilint
-pygments
+pygments # to check your setup.py is well configured
 pytest
 pytest-cov
 

@@ -2,6 +2,10 @@
 extremitypathfinder
 ===================
 
+
+
+
+
 .. image:: https://travis-ci.org/MrMinimal64/extremitypathfinder.svg?branch=master
     :target: https://travis-ci.org/MrMinimal64/extremitypathfinder
 
@@ -22,8 +26,7 @@ Python package for fast geometric shortest path computation in 2D multi-polygon 
 
 Also see:
 `GitHub <https://github.com/MrMinimal64/extremitypathfinder>`__,
-`PyPI <https://pypi.python.org/pypi/extremitypathfinder/>`__,
-
+`PyPI <https://pypi.python.org/pypi/extremitypathfinder/>`__
 
 
 Dependencies
@@ -352,3 +355,5 @@ Python binding of VisiLibity: https://github.com/tsaoyu/PyVisiLibity
 Paper about Lee's algorithm: http://www.dav.ee/papers/Visibility_Graph_Algorithm.pdf
 
 C implementation of Lee's algorithm: https://github.com/davetcoleman/visibility_graph
+
+

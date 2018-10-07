@@ -1,11 +1,8 @@
 import heapq  # implementation of the heap queue algorithm, also known as the priority queue algorithm (binary tree)
 from math import inf as infinity
 
-
-# from extremitypathfinder.helper_classes import DirectedHeuristicGraph, Vertex
-
-
 # modified sample code from https://www.redblobgames.com/pathfinding/a-star/
+
 
 class PriorityQueue:
     def __init__(self):
@@ -54,8 +51,8 @@ def modified_a_star(heuristic_graph, start, goal):
 
     priority_queue = PriorityQueue()
     priority_queue.put(start, 0.0)
-    came_from = {start: None, }
-    cost_so_far = {start: 0.0, }
+    came_from = {start: None}
+    cost_so_far = {start: 0.0}
     expanded_nodes = set()
 
     while not priority_queue.empty():

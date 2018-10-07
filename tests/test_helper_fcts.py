@@ -1,7 +1,10 @@
 import unittest
 
-from extremitypathfinder.helper_fcts import *
-from .test_helpers import proto_test_case
+import numpy as np
+
+from extremitypathfinder.helper_classes import AngleRepresentation
+from extremitypathfinder.helper_fcts import has_clockwise_numbering, inside_polygon
+from test_helpers import proto_test_case
 
 
 class HelperFctsTest(unittest.TestCase):
@@ -70,15 +73,15 @@ class HelperFctsTest(unittest.TestCase):
 
         data = [
             # clockwise numbering!
-            ([(3.0, 7.0), (5.0, 9.0), (5.0, 7.0), ], True),
+            ([(3.0, 7.0), (5.0, 9.0), (5.0, 7.0)], True),
             ([(3.0, 7.0), (5.0, 9.0), (4.5, 7.0), (5.0, 4.0)], True),
-            ([(0.0, 0.0), (0.0, 1.0), (1.0, 0.0), ], True),
+            ([(0.0, 0.0), (0.0, 1.0), (1.0, 0.0)], True),
 
             # # counter clockwise edge numbering!
-            ([(0.0, 0.0), (1.0, 0.0), (0.0, 1.0), ], False),
-            ([(0.0, 0.0), (10.0, 0.0), (10.0, 10.0), (0.0, 10.0), ], False),
-            ([(0.0, 0.0), (10.0, 0.0), (10.0, 5.0), (10.0, 10.0), (0.0, 10.0), ], False),
-            ([(0.0, 0.0), (10.0, 0.0), (9.0, 5.0), (10.0, 10.0), (0.0, 10.0), ], False),
+            ([(0.0, 0.0), (1.0, 0.0), (0.0, 1.0)], False),
+            ([(0.0, 0.0), (10.0, 0.0), (10.0, 10.0), (0.0, 10.0)], False),
+            ([(0.0, 0.0), (10.0, 0.0), (10.0, 5.0), (10.0, 10.0), (0.0, 10.0)], False),
+            ([(0.0, 0.0), (10.0, 0.0), (9.0, 5.0), (10.0, 10.0), (0.0, 10.0)], False),
 
         ]
         proto_test_case(data, clockwise_test_fct)

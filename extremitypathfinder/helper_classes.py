@@ -130,7 +130,7 @@ class Vertex:
 class PolygonVertex(Vertex):
     # __slots__ declared in parents are available in child classes. However, child subclasses will get a __dict__
     # and __weakref__ unless they also define __slots__ (which should only contain names of any additional slots).
-    __slots__ = ['edge1', 'edge2', 'neighbour1', 'neighbour2', ]
+    __slots__ = ['edge1', 'edge2', 'neighbour1', 'neighbour2']
 
     def __init__(self, *args, **kwargs):
         super(PolygonVertex, self).__init__(*args, **kwargs)

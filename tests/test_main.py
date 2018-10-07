@@ -125,7 +125,8 @@ class MainTest(unittest.TestCase):
             # directly reachable through a single vertex (does not change distance!)
             (((5, 1), (3, 3)), ([(5, 1), (4, 2), (3, 3)], sqrt(2 ** 2 + 2 ** 2))),
 
-            # If two Polygons have vertices with identical coordinates (this is allowed), paths through these vertices are theoretically possible!
+            # If two Polygons have vertices with identical coordinates (this is allowed),
+            #   paths through these vertices are theoretically possible!
             (((6.5, 5.5), (7.5, 6.5)), ([(6.5, 5.5), (7, 6), (7.5, 6.5)], sqrt(1 ** 2 + 1 ** 2))),
 
             # distance should stay the same even if multiple extremities lie on direct path
@@ -164,7 +165,8 @@ class MainTest(unittest.TestCase):
         # otherwise the temporarily added vertices during a query stay stored
         assert len(environment.graph.all_nodes) == 16
 
-        # TODO test: When the paths should be blocked, use a single polygon with multiple identical vertices instead (also allowed).
+        # TODO test: When the paths should be blocked, use a single polygon with multiple identical
+        #   vertices instead (also allowed).
 
         # TODO test graph construction
         # when two nodes have the same angle representation there should only be an edge to the closer node!

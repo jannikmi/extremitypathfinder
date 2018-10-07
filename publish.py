@@ -51,7 +51,7 @@ def set_version(new_version_number=None, old_version_number=''):
     import fileinput
     import sys
 
-    file = os.path.join('timezonefinder', '__init__.py')
+    file = os.path.join('extremitypathfinder', '__init__.py')
 
     for line in fileinput.input(file, inplace=1):
         if old_version_number in line:
@@ -125,9 +125,7 @@ if __name__ == "__main__":
     except ValueError:
         pass
 
-    # TODO run authors tests
-
-    old_version = get_version('timezonefinder')
+    old_version = get_version('extremitypathfinder')
 
     print('The actual version number is:', old_version)
     print('Enter new version number:')
@@ -145,16 +143,12 @@ if __name__ == "__main__":
 
         print('Invalid version input. Should be of format "x.x.xxx" and higher than the old version.')
 
-    version = get_version('timezonefinder')
+    version = get_version('extremitypathfinder')
     print('version number has been set to:', version)
     print('=====================')
 
-    routine(None, 'Is the newest OSM data version in use? Does the readme show correct data version?', 'OK. Continue',
-            'Exit')
-    routine(None, 'Remember to keep helpers.py and helpers_numba.py consistent!', 'OK. Continue', 'Exit')
-    routine(None, 'Are all .bin files listed in the package data in setup.py?!', 'OK. Continue', 'Exit')
-    routine(None, 'Are all dependencies written in setup.py, requirements.in/.txt and the Readme?', 'OK. Continue', 'Exit')
     routine(None, 'Remember to write a changelog now for version %s' % version, 'Done. Continue', 'Exit')
+    routine(None, 'Are all dependencies written in setup.py, requirements.in/.txt and the Readme?', 'OK. Continue', 'Exit')
     routine(None,
             'Maybe update test routine (requirements.txt) with pip-compile! Commands are written in the beginning of this script',
             'Done. Run tests', 'Exit')
@@ -162,7 +156,7 @@ if __name__ == "__main__":
     # print('Enter virtual env name:')
     # virtual env has to be given!
     # virt_env_name = input()
-    virt_env_name = 'tzEnv'
+    virt_env_name = 'pathEnv'
     virt_env_act_command = 'source activate ' + virt_env_name.strip() + '; '
 
     print('___________')
@@ -184,12 +178,10 @@ if __name__ == "__main__":
     except ValueError:
         pass
 
-    routine(virt_env_act_command + "tox" + rebuild_flag + " -e py{27,37}-codestyle",
+    routine(virt_env_act_command + "tox" + rebuild_flag + " -e py37-codestyle",
             'checking syntax, codestyle and imports',
             'continue')
 
-    routine(virt_env_act_command + "tox" + rebuild_flag + " -e py27", 'checking if package is building with tox',
-            'continue')
     routine(virt_env_act_command + "tox" + rebuild_flag + " -e py37", 'checking if package is building with tox',
             'continue')
 
@@ -247,4 +239,4 @@ if __name__ == "__main__":
     print('Publishing Done.')
     print('now run:')
     print('(only when the upload didnt work) python3 setup.py bdist_wheel upload')
-    print('sudo -H pip3 install timezonefinder --upgrade')
+    print('sudo -H pip3 install extremitypathfinder --upgrade')

@@ -6,8 +6,6 @@ import sys
 
 from setuptools import setup
 
-# TODO append to pypi version:  see Github for plots
-
 
 def get_version(package):
     """
@@ -18,12 +16,12 @@ def get_version(package):
 
 
 version = get_version('extremitypathfinder')
-
-with open('README.rst') as f:
-    readme = f.read()
-
-with open('CHANGELOG.rst') as changelog_file:
-    changelog = changelog_file.read()
+#
+# with open('README.rst') as f:
+#     readme = f.read()
+#
+# with open('CHANGELOG.rst') as changelog_file:
+#     changelog = changelog_file.read()
 
 # https://stackoverflow.com/questions/23174738/setup-py-packages-and-unicode-literals
 native_string_pckg_name = 'extremitypathfinder'
@@ -42,23 +40,35 @@ setup(
     author_email='python@michelfe.it',
     license='MIT licence',
     url='https://github.com/MrMinimal64/extremitypathfinder',  # use the URL to the github repo
-    keywords='robotics path pathfinding shortestpath polygon',
+    keywords='path-planning path-finding shortest-path visibility graph polygon robotics navigation offline',
     classifiers=[
-        # TODO
-        # 'Development Status :: 5 - Production/Stable',
+        'Development Status :: 5 - Production/Stable',
         'Intended Audience :: Developers',
+        'Intended Audience :: Information Technology',
+        'Intended Audience :: Science/Research',
         'License :: OSI Approved :: MIT License',
         'Operating System :: OS Independent',
         'Programming Language :: Python',
+        'Programming Language :: Python :: 3 :: Only',
         'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 3.0',
+        'Programming Language :: Python :: 3.1',
+        'Programming Language :: Python :: 3.2',
+        'Programming Language :: Python :: 3.3',
         'Programming Language :: Python :: 3.3',
         'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
-        # TODO
+        'Topic :: Scientific/Engineering',
+        'Topic :: Scientific/Engineering :: Artificial Intelligence',
     ],
-    long_description=readme + '\n\n' + changelog,
+    long_description='Python package for fast geometric shortest path computation in 2D multi-polygon '
+                     'or grid environments based on visibility graphs.\n'
+                     'Please check Github for the documentation with plots: '
+                     'https://github.com/MrMinimal64/extremitypathfinder',
+    # TODO
+    # long_description=readme + '\n\n' + changelog,
     install_requires=[
         'numpy',
     ],

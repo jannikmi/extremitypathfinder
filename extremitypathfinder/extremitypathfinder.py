@@ -1,10 +1,12 @@
 import pickle
 from copy import deepcopy
+from typing import List
+
+import numpy as np
 
 from .graph_search import modified_a_star
-from .helper_classes import *
-from .helper_fcts import *
-
+from .helper_classes import DirectedHeuristicGraph, Edge, Polygon, PolygonVertex, Vertex
+from .helper_fcts import check_data_requirements, convert_gridworld, find_within_range, inside_polygon, lies_behind
 
 # TODO possible to allow polygon consisting of 2 vertices only(=barrier)? lots of functions need at least 3 vertices atm
 
@@ -14,9 +16,11 @@ from .helper_fcts import *
 #   "Pathfinding in Two-dimensional Worlds"
 #   http://www.cs.au.dk/~gerth/advising/thesis/anders-strand-holm-vinther_magnus-strand-holm-vinther.pdf
 
+DEFAULT_PICKLE_NAME = 'environment.pickle'
+
 
 # is not a helper function to make it an importable part of the package
-def load_pickle(path='./map.pickle'):
+def load_pickle(path=DEFAULT_PICKLE_NAME):
     print('loading map from:', path)
     with open(path, 'rb') as f:
         return pickle.load(f)
@@ -59,7 +63,7 @@ class PolygonEnvironment:
             self.all_edges += hole_polygon.edges
             self.all_vertices += hole_polygon.vertices
 
-    def store_grid_world(self, size_x: int, size_y: int, obstacle_iter: iter, simplify: bool = True, validate=False, ):
+    def store_grid_world(self, size_x: int, size_y: int, obstacle_iter: iter, simplify: bool = True, validate=False):
         """
         prerequisites: grid world must not have single non-obstacle cells which are surrounded by obstacles
         ("white cell in black surrounding" = useless for path planning)
@@ -72,7 +76,7 @@ class PolygonEnvironment:
         boundary_coordinates, list_of_hole_coordinates = convert_gridworld(size_x, size_y, obstacle_iter, simplify)
         self.store(boundary_coordinates, list_of_hole_coordinates, validate)
 
-    def export_pickle(self, path='./map.pickle'):
+    def export_pickle(self, path=DEFAULT_PICKLE_NAME):
         print('storing map class in:', path)
         with open(path, 'wb') as f:
             pickle.dump(self, f)
