@@ -240,7 +240,7 @@ _________________________
 
 **Visibility detection:** my **"Angle Range Elimination Algorithm"** (AREA)
 
-To my knowledge the was no previous algorithm for computing the visibility of points (<-> visibility graph) that is visiting edges at most once without any trigonometric computations, without sorting and with that few distance/intersection checks.
+To my knowledge there was no previous algorithm for computing the visibility of points (<-> visibility graph) that is visiting edges at most once without any trigonometric computations, without sorting and with that few distance/intersection checks.
 
 Simple fundamental idea: points (extremities) are visible when there is no edge running in front "blocking the view".
 
@@ -265,7 +265,7 @@ Lee's visibility graph algorithm (complexity :math:`O(n^2 log_2 n)`): cf. http:/
 
 
 
-My Algorithm (unknown complexity):
+My Algorithm:
 
 - Checking all edges
 - Not considering all points (just a few candidates)
@@ -277,7 +277,7 @@ My Algorithm (unknown complexity):
 
 
 
-**Angle representation**: Instead of computing directly with angles in degree or radians, it is much more efficient and still sufficient to use a representation that is mapping an angle to a range :math:`a \in [0.0 ; 4.0[` (:math:`[0.0 ; 1.0[` in all 4 quadrants).
+**Angle representation**: Instead of computing directly with angles in degree or radians, it is much more efficient and still sufficient to use a representation that is mapping an angle to a range :math:`a \in [0.0 ; 4.0[` (:math:`[0.0 ; 1.0[` in all 4 quadrants). This can be done without computationally expensive trigonometric functions!
 Check the implementation in class ``AngleRepresentation`` in ``helper_classes.py``.
 
 
@@ -306,16 +306,14 @@ This package is similar to `pyvisgraph <https://github.com/TaipanRex/pyvisgraph>
 
 **Pros:**
 
-- very reduced visibility graph
-- optimized algorithms
-- in theory computationally superior procedure
+- very reduced visibility graph (time and memory!)
+- algorithms optimized for path finding
 - possibility to convert and use grid worlds
 
 
 **Cons:**
 
 - parallel computing not supported so far
-- new, but tested package. might still contain bugs
 - no existing speed comparison
 
 
