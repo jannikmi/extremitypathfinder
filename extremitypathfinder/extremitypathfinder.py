@@ -416,6 +416,9 @@ class PolygonEnvironment:
         candidates.add(goal_vertex)
 
         visibles_n_distances_start = self.find_visible(candidates, edges_to_check=set(self.all_edges))
+        if len(visibles_n_distances_start) == 0:
+            # The start node does not have any neighbours. Hence there is not possible path to the goal.
+            return [], None
 
         # create temporary graph
         # DirectedHeuristicGraph implements __deepcopy__() to not change the original precomputed self.graph
@@ -427,7 +430,6 @@ class PolygonEnvironment:
         # -> when goal is directly reachable, there can be no other shorter path to it. Terminate
         for v, d in visibles_n_distances_start:
             if v == goal_vertex:
-                vertex_path = [start_vertex, goal_vertex]
                 return [start_coordinates, goal_coordinates], d
 
             # add unidirectional edges to the temporary graph
@@ -441,6 +443,10 @@ class PolygonEnvironment:
         # start node does not have to be considered, because of the earlier check for the start node
         candidates = set(filter(lambda n: n.get_angle_representation() is not None, self.graph.get_all_nodes()))
         visibles_n_distances_goal = self.find_visible(candidates, edges_to_check=set(self.all_edges))
+        if len(visibles_n_distances_goal) == 0:
+            # The goal node does not have any neighbours. Hence there is not possible path to the goal.
+            return [], None
+
         # add edges in the direction: extremity <- goal
         self.temp_graph.add_multiple_directed_edges(goal_vertex, visibles_n_distances_goal)
 
