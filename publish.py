@@ -237,6 +237,6 @@ if __name__ == "__main__":
 
     print('______________')
     print('Publishing Done.')
-    print('now run:')
-    print('(only when the upload didnt work) python3 setup.py bdist_wheel upload')
+    print('when the upload didnt work run:')
+    print('python3 setup.py bdist_wheel upload')
     print('sudo -H pip3 install extremitypathfinder --upgrade')

@@ -1,5 +1,3 @@
-# from extremitypathfinder.extremitypathfinder import load_pickle
-
 from extremitypathfinder.extremitypathfinder import PolygonEnvironment as Environment
 
 # enable for plotting:
@@ -20,6 +18,8 @@ if __name__ == "__main__":
     environment.prepare()
 
     # environment.export_pickle()
+
+    # from extremitypathfinder.extremitypathfinder import load_pickle
     # environment = load_pickle()
 
     start_coordinates = (4.5, 1.0)
@@ -30,9 +30,8 @@ if __name__ == "__main__":
     # grid world
     size_x, size_y = 19, 10
     obstacle_iter = [
-        # (x,y),
-
         # obstacles changing boundary
+        # (x,y),
         (0, 1),
         (1, 1),
         (2, 1),
@@ -58,7 +57,6 @@ if __name__ == "__main__":
 
         # hole 2
         (7, 5),
-
     ]
 
     environment.store_grid_world(size_x, size_y, obstacle_iter, simplify=False, validate=False)

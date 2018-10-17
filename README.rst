@@ -193,7 +193,7 @@ Basic Idea
 
 Well described in `[1, Ch. II 3.2] <http://www.cs.au.dk/~gerth/advising/thesis/anders-strand-holm-vinther_magnus-strand-holm-vinther.pdf>`__:
 
-An map/environment/world of a given shortest path problem can be represented by one boundary polygon with holes (themselves polygons).
+A map/environment/world of a given shortest path problem can be represented by one boundary polygon with holes (themselves polygons).
 
 **IDEA**: Two categories of vertices/corners can be distinguished in these kind of environments:
 
@@ -207,27 +207,32 @@ Extremities have an inner angle (facing towards the inside of the environment) o
 As long as there are no obstacles between two points present, it is obviously always best (=shortest) to move to the goal point directly.
 When obstacles obstruct the direct path (goal is not directly 'visible' from the start) however, extremities (and only extremities!) have to be visited to reach the areas "behind" them until the goal is directly visible.
 
-**Improvement:** As described in `[1, Ch. II 4.4.2 "Property One"] <http://www.cs.au.dk/~gerth/advising/thesis/anders-strand-holm-vinther_magnus-strand-holm-vinther.pdf>`__ during preprocessing time the visibility graph can be reduced further without the loss of guaranteed optimality of the algorithm:
-Starting from any point lying "in front of" an extremity ``e``, such that both adjacent edges are visible, one will never visit ``e``, because everything is reachable on a shorter path without ``e`` (except ``e`` itself). An extremity ``e1`` lying in the area "in front of"
-extremity ``e`` hence is never the next vertex in a shortest path coming from ``e``. And also in reverse: when coming from ``e1`` everything else than ``e`` itself can be reached faster without visiting ``e1``. -> ``e`` and ``e1`` do not have to be connected in the graph.
+
+One can build a so called "**Visibility Graph**" with just extremities, start and goal and compute the shortest path on it. In a visibility graph two nodes are connected iff there is nothing obstructing the path between them. **The path obtained by this algorithm is guaranteed to be optimal**, meaning that there exists no shorter path between start and goal.
+
+
+**Improvement:** As described in `[1, Ch. II 4.4.2 "Property One"] <http://www.cs.au.dk/~gerth/advising/thesis/anders-strand-holm-vinther_magnus-strand-holm-vinther.pdf>`__ the visibility graph can be reduced even further without the loss of guaranteed optimality:
+Starting from any point lying "in front of" an extremity ``e`` (both adjacent edges are at least partly visible) one will never visit ``e``, because everything is reachable on a shorter path without ``e`` (except ``e`` itself). An extremity ``e1`` lying in the area "in front of"
+extremity ``e`` hence is never the next vertex in a shortest path coming from ``e``. And also in reverse: when coming from ``e1`` everything else than ``e`` itself can be reached more directly without visiting ``e1`. As a consequence ``e`` and ``e1`` do not have to be connected in the graph. After deleting these kind of edges the visibility graph is minimal for the purpose of shortest path computation, i.e. no edge can be deleted without loosing guaranteed optimality `[1, Ch. II 4.4.2 "VGO" p.35] <http://www.cs.au.dk/~gerth/advising/thesis/anders-strand-holm-vinther_magnus-strand-holm-vinther.pdf>`__.
+
 
 
 Algorithm
 =========
 
-This package pretty much implements the Visibility Graph Optimized (VGO) Algorithm described in `[1, Ch. II 4.4.2] <http://www.cs.au.dk/~gerth/advising/thesis/anders-strand-holm-vinther_magnus-strand-holm-vinther.pdf>`__, just with a few computational tweaks:
+This package pretty much implements the Visibility Graph Optimized (VGO) Algorithm described in `[1, Ch. II 4.4.2 "VGO" p.34] <http://www.cs.au.dk/~gerth/advising/thesis/anders-strand-holm-vinther_magnus-strand-holm-vinther.pdf>`__, just with a few computational tweaks:
 
 
 Rough Procedure:
 ________________
 
-- **1. Preprocessing the map:** Independently of any query start and goal points the optimized visibility graph is being computed for the static environment once with ``map.prepare()``. Later versions might include a faster approach to compute visibility on the fly, for use cases where the map is changing dynamically. The edges of the precomputed graph between the extremities are shown in red in the following plots. Notice that the extremity on the right is not connected to any other extremity due to the above mentioned optimisation:
+- **1. Preprocessing the map:** Independently of any query start and goal points the optimized visibility graph is being computed for the static environment once with ``map.prepare()``. Later versions might include a faster approach to compute visibility on the fly, for use cases where the map is changing dynamically (after every query). The edges of the precomputed graph between the extremities are shown in red in the following plots. Notice that the extremity on the right is not connected to any other extremity due to the above mentioned optimisation:
 
 
 .. image:: ./img/prepared_map_plot.png
 
 
-- **2. Including start and goal:** For each shortest path query the start and goal points are being connected to the internal graph depending on their visibility. Notice that the added edges are directed and also here the optimisation is being used to reduce the amount of edges:
+- **2. Including start and goal:** For each shortest path query the start and goal points are being connected to the internal graph depending on their visibility. Notice that the added edges are directed and also here the optimisation is being used to reduce the amount of edges in the graph, in order to reduce the time needed for the next step:
 
 .. image:: ./img/graph_plot.png
 
@@ -290,13 +295,14 @@ Check the implementation in class ``AngleRepresentation`` in ``helper_classes.py
     It is always shortest to directly reach a node instead of visiting other nodes first
     (there is never an advantage through reduced edge weight).
 
-This can be exploited in a lot of cases to make A* terminate earlier than for general graphs:
+In A* the neighbour with the lowest total cost estimate is always being visited next. So the above mentioned property can be exploited in a lot of cases to make A* run faster and terminate earlier than for general graphs:
 
 - no need to revisit nodes (path only gets longer)
 
+- not all neighbours of the current node have to be checked like in vanilla A* before continuing to the next node.
+
 - when the goal is directly reachable, there can be no other shorter path to it -> terminate.
 
-- not all neighbours of the current node have to be checked like in vanilla A* before continuing to the next node.
 
 Implemented in ``graph_search.py``
 
