@@ -292,9 +292,11 @@ Check the implementation in class ``AngleRepresentation`` in ``helper_classes.py
 
 This can be exploited in a lot of cases to make A* terminate earlier than for general graphs:
 
-- when always only expanding the nodes with the lowest estimated cost (lower bound), there is no need to revisit nodes (path only gets longer)
+- no need to revisit nodes (path only gets longer)
 
-- when the goal is directly reachable, there can be no other shorter path to it -> terminate
+- when the goal is directly reachable, there can be no other shorter path to it -> terminate.
+
+- not all neighbours of the current node have to be checked like in vanilla A* before continuing to the next node.
 
 Implemented in ``graph_search.py``
 

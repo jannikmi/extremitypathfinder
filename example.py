@@ -13,7 +13,7 @@ if __name__ == "__main__":
     boundary_coordinates = [(0.0, 0.0), (10.0, 0.0), (9.0, 5.0), (10.0, 10.0), (0.0, 10.0)]
 
     # clockwise numbering!
-    list_of_holes = [[(3.0, 7.0), (5.0, 9.0), (4.5, 7.0), (5.0, 4.0), ], ]
+    list_of_holes = [[(3.0, 7.0), (5.0, 9.0), (4.5, 7.0), (5.0, 4.0), ]]
     # environment.store(boundary_coordinates, list_of_holes, validate=True, export_plots=True)
     environment.store(boundary_coordinates, list_of_holes, validate=False)
 

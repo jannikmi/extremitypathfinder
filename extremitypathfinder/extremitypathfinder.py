@@ -404,20 +404,22 @@ class PolygonEnvironment:
         start_vertex = Vertex(start_coordinates)
         goal_vertex = Vertex(goal_coordinates)
 
-        self.translate(new_origin=start_vertex)  # do before checking angle representations!
-        # IMPORTANT: manually translate the goal vertex, because it is not part of any polygon
+        # check the goal node first (earlier termination possible)
+        self.translate(new_origin=goal_vertex)  # do before checking angle representations!
+        # IMPORTANT: manually translate the start vertex, because it is not part of any polygon
         #   and hence does not get translated automatically
-        goal_vertex.mark_outdated()
+        start_vertex.mark_outdated()
 
         # the visibility of only the graphs nodes have to be checked (not all extremities!)
         # points with the same angle representation should not be considered visible
+        # (they also cause errors in the algorithms, because their angle repr is not defined!)
         candidates = set(filter(lambda n: n.get_angle_representation() is not None, self.graph.get_all_nodes()))
-        # IMPORTANT: check if the goal node is visible from the start node!
-        candidates.add(goal_vertex)
+        # IMPORTANT: check if the start node is visible from the goal node!
+        candidates.add(start_vertex)
 
-        visibles_n_distances_start = self.find_visible(candidates, edges_to_check=set(self.all_edges))
-        if len(visibles_n_distances_start) == 0:
-            # The start node does not have any neighbours. Hence there is not possible path to the goal.
+        visibles_n_distances_goal = self.find_visible(candidates, edges_to_check=set(self.all_edges))
+        if len(visibles_n_distances_goal) == 0:
+            # The goal node does not have any neighbours. Hence there is not possible path to the goal.
             return [], None
 
         # create temporary graph
@@ -428,27 +430,27 @@ class PolygonEnvironment:
         # IMPORTANT geometrical property of this problem: it is always shortest to directly reach a node
         #   instead of visiting other nodes first (there is never an advantage through reduced edge weight)
         # -> when goal is directly reachable, there can be no other shorter path to it. Terminate
-        for v, d in visibles_n_distances_start:
-            if v == goal_vertex:
+        for v, d in visibles_n_distances_goal:
+            if v == start_vertex:
                 return [start_coordinates, goal_coordinates], d
 
             # add unidirectional edges to the temporary graph
-            # since modified a star algorithm returns the shortest path from goal to start
-            # add edges in the direction: start <-extremity
+            # add edges in the direction: extremity (v) -> goal
             # TODO: improvement: add edges last, after filtering them. instead of deleting edges
-            self.temp_graph.add_directed_edge(v, start_vertex, d)
+            self.temp_graph.add_directed_edge(v, goal_vertex, d)
 
-        self.translate(new_origin=goal_vertex)  # do before checking angle representations!
+        self.translate(new_origin=start_vertex)  # do before checking angle representations!
         # the visibility of only the graphs nodes have to be checked
-        # start node does not have to be considered, because of the earlier check for the start node
+        # the goal node does not have to be considered, because of the earlier check
         candidates = set(filter(lambda n: n.get_angle_representation() is not None, self.graph.get_all_nodes()))
-        visibles_n_distances_goal = self.find_visible(candidates, edges_to_check=set(self.all_edges))
-        if len(visibles_n_distances_goal) == 0:
-            # The goal node does not have any neighbours. Hence there is not possible path to the goal.
+        visibles_n_distances_start = self.find_visible(candidates, edges_to_check=set(self.all_edges))
+        if len(visibles_n_distances_start) == 0:
+            # The start node does not have any neighbours. Hence there is not possible path to the goal.
             return [], None
 
-        # add edges in the direction: extremity <- goal
-        self.temp_graph.add_multiple_directed_edges(goal_vertex, visibles_n_distances_goal)
+        # add edges in the direction: start -> extremity
+        # TODO: improvement: add edges last, after filtering them. instead of deleting edges
+        self.temp_graph.add_multiple_directed_edges(start_vertex, visibles_n_distances_start)
 
         # also here unnecessary edges in the graph can be deleted when start or goal lie in front of visible extremities
         # IMPORTANT: when a query point happens to coincide with an extremity, edges to the (visible) extremities
@@ -489,9 +491,8 @@ class PolygonEnvironment:
                                                  equal_repr_allowed=False)
                 self.temp_graph.remove_multiple_undirected_edges(vertex, lie_in_front)
 
-        # function returns the shortest path from goal to start (computational reasons), so just swap the parameters
         # NOTE: exploiting property 2 from [1] here would be more expensive than beneficial
-        vertex_path, distance = modified_a_star(self.temp_graph, start=goal_vertex, goal=start_vertex)
+        vertex_path, distance = modified_a_star(self.temp_graph, start_vertex, goal_vertex)
 
         if free_space_after:
             del self.temp_graph  # free the memory

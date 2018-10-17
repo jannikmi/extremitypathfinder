@@ -286,6 +286,7 @@ class DirectedHeuristicGraph:
         # lazy evaluation:
         h = self.heuristic.get(node, None)
         if h is None:
+            # has been reset, compute again
             h = np.linalg.norm(node.coordinates - origin.coordinates)
             self.heuristic[node] = h
         return h
@@ -300,13 +301,17 @@ class DirectedHeuristicGraph:
         self.heuristic.clear()
 
     def _existing_edges_from(self, node1):
-        # optimisation: when goal node is reachable return it first (-> a star search terminates)
-        neighbours = self.neighbours[node1]
-        if self.goal_node in neighbours:
-            yield self.goal_node, self.get_distance(node1, self.goal_node)  # not return!
-        # NOTE: all neighbours are being checked by A*, so the ordering does not matter!
-        for node2 in neighbours:
-            yield node2, self.get_distance(node1, node2)
+        # optimisation:
+        #   return the neighbours ordered after their cost estimate: distance+ heuristic (= current-next + next-goal)
+        #   -> when the goal is reachable return it first (-> a star search terminates)
+
+        neighbours = self.get_neighbours_of(node1)
+        distances = [self.get_distance(node1, n) for n in neighbours]
+        out_sorted = sorted([(n, distances[i], distances[i] + self.get_heuristic(n)) for i, n in enumerate(neighbours)],
+                            key=lambda x: x[2])
+
+        # yield node, distance, cost= distance + heuristic
+        yield from out_sorted
 
     def add_directed_edge(self, node1, node2, distance):
         assert node1 != node2  # no self loops allowed!

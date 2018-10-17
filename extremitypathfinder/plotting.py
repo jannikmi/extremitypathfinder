@@ -208,5 +208,3 @@ class PlottingEnvironment(PolygonEnvironment):
 
         # extract the coordinates from the path
         return vertex_path, distance
-
-
