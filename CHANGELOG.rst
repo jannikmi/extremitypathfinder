@@ -2,6 +2,11 @@ Changelog
 =========
 
 
+1.1.0 (2018-10-17)
+------------------
+
+* optimised A*-algorithm to not visit all neighbours of the current node before continuing
+
 
 1.0.0 (2018-10-07)
 ------------------

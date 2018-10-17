@@ -227,13 +227,15 @@ ________________
 .. image:: ./img/prepared_map_plot.png
 
 
-- **2. Including start and goal:** For each shortest path query the start and goal points are being connected to the internal graph depending on their visibility. Notice that the added edges are directed:
+- **2. Including start and goal:** For each shortest path query the start and goal points are being connected to the internal graph depending on their visibility. Notice that the added edges are directed and also here the optimisation is being used to reduce the amount of edges:
 
 .. image:: ./img/graph_plot.png
 
 - **3. A-star shortest path computation :** Finding the shortest path on graphs is a standard computer science problem. This package uses a modified version of the popular ``A*-Algorithm`` optimized for this special use case.
 
 .. image:: ./img/graph_path_plot.png
+
+
 
 Tweaks (my contribution):
 _________________________
@@ -250,6 +252,8 @@ In this use case we are not interested in the full visibility graph, but the vis
 
 Further speed up can be accomplished by trying to prioritize closer edges, because they have a bigger chance to eliminate candidates.
 
+The basic runtime complexity of this algorithm should be :math:`O(m^2 n)`, where m is the amount of extremities (candidates) and n is the amount of edges (= #vertices). This is fast, because of a few tweaks and usually :math:`m << n`.
+
 Implemented in ``PolygonEnvironment.find_visible()`` in ``extremitypathfinder.py``
 
 **Comparison:**
@@ -261,7 +265,7 @@ Lee's visibility graph algorithm (complexity :math:`O(n^2 log_2 n)`): cf. http:/
 - Always checking all points in every run
 - One intersection computation for most points (always when T is not empty)
 - Sorting: all points according to degree on startup, edges in binary tree T
-- can work with just lines (not restricted to polygons)
+- Can work with just lines (not restricted to polygons)
 
 
 
@@ -269,7 +273,7 @@ My Algorithm:
 
 - Checking all edges
 - Not considering all points (just a few candidates)
-- Decreasing number of candidates with every run (visibility is a bijective relation. no need to check twice!)
+- Decreasing number of candidates with every run (visibility is a symmetric relation -> only need to check once for every point pair!)
 - Minimal intersection comp. (fraction of candidates)
 - No sorting needed
 - Could theoretically also work with just lines (this package however currently just allows polygons)
@@ -288,9 +292,11 @@ Check the implementation in class ``AngleRepresentation`` in ``helper_classes.py
 
 This can be exploited in a lot of cases to make A* terminate earlier than for general graphs:
 
-- when always only expanding the nodes with the lowest estimated cost (lower bound), there is no need to revisit nodes (path only gets longer)
+- no need to revisit nodes (path only gets longer)
 
-- when the goal is directly reachable, there can be no other shorter path to it -> terminate
+- when the goal is directly reachable, there can be no other shorter path to it -> terminate.
+
+- not all neighbours of the current node have to be checked like in vanilla A* before continuing to the next node.
 
 Implemented in ``graph_search.py``
 

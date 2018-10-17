@@ -208,26 +208,3 @@ class PlottingEnvironment(PolygonEnvironment):
 
         # extract the coordinates from the path
         return vertex_path, distance
-
-
-if __name__ == '__main__':
-    # for plotting:
-    environment = PlottingEnvironment(plotting_dir='my_favourite_dir')
-
-    # counter clockwise vertex numbering!
-    boundary_coordinates = [(0.0, 0.0), (10.0, 0.0), (9.0, 5.0), (10.0, 10.0), (0.0, 10.0)]
-
-    # clockwise numbering!
-    list_of_holes = [[(3.0, 7.0), (5.0, 9.0), (4.5, 7.0), (5.0, 4.0)]]
-    # environment.store(boundary_coordinates, list_of_holes, validate=True, export_plots=True)
-    environment.store(boundary_coordinates, list_of_holes, validate=False)
-
-    environment.prepare()
-
-    # environment.export_pickle()
-    # environment = load_pickle()
-
-    start_coordinates = (4.5, 1.0)
-    goal_coordinates = (4.0, 8.5)
-    path, length = environment.find_shortest_path(start_coordinates, goal_coordinates)
-    print(path)
