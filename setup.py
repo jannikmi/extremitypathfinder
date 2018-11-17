@@ -40,7 +40,8 @@ setup(
     author_email='python@michelfe.it',
     license='MIT licence',
     url='https://github.com/MrMinimal64/extremitypathfinder',  # use the URL to the github repo
-    keywords='path-planning path-finding shortest-path visibility graph polygon robotics navigation offline',
+    keywords='path-planning path-finding shortest-path visibility graph visibility-graph polygon'
+             'robotics navigation offline ',
     classifiers=[
         'Development Status :: 5 - Production/Stable',
         'Intended Audience :: Developers',

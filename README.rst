@@ -4,17 +4,18 @@ extremitypathfinder
 
 
 
-
-
 .. image:: https://travis-ci.org/MrMinimal64/extremitypathfinder.svg?branch=master
     :target: https://travis-ci.org/MrMinimal64/extremitypathfinder
-
 
 .. image:: https://img.shields.io/pypi/wheel/extremitypathfinder.svg
     :target: https://pypi.python.org/pypi/extremitypathfinder
 
+.. image:: https://pepy.tech/badge/extremitypathfinder
+    :alt: Total PyPI downloads
+    :target: https://pypi.python.org/pypi/extremitypathfinder
 
 .. image:: https://img.shields.io/pypi/v/extremitypathfinder.svg
+    :alt: latest version on PyPI
     :target: https://pypi.python.org/pypi/extremitypathfinder
 
 
@@ -56,7 +57,7 @@ Usage
 Check code in ``example.py``:
 
 
-::
+.. code-block:: python
 
     from extremitypathfinder import PolygonEnvironment
     environment = PolygonEnvironment()
@@ -81,7 +82,7 @@ Ensure that all the following conditions on the polygons are fulfilled:
     - holes: clockwise
 
 
-::
+.. code-block:: python
 
     # counter clockwise vertex numbering!
     boundary_coordinates = [(0.0, 0.0), (10.0, 0.0), (9.0, 5.0), (10.0, 10.0), (0.0, 10.0)]
@@ -113,8 +114,7 @@ Query:
 ______
 
 
-::
-
+.. code-block:: python
 
     start_coordinates = (4.5, 1.0)
     goal_coordinates = (4.0, 8.5)
@@ -126,7 +126,7 @@ Converting and storing a grid world:
 ____________________________________
 
 
-::
+.. code-block:: python
 
     size_x, size_y = 19, 10
     obstacle_iter = [# (x,y),
@@ -171,7 +171,7 @@ Cache and import the environment:
 ______________________________________________
 
 
-::
+.. code-block:: python
 
     environment.export_pickle(path='./pickle_file.pickle')
 
@@ -326,12 +326,11 @@ This package is similar to `pyvisgraph <https://github.com/TaipanRex/pyvisgraph>
 Contact
 =======
 
+
 Most certainly there is stuff I missed, things I could have optimized even further or explained more clearly, etc. I would be really glad to get some feedback on my code.
 
-If you encounter any bugs, have suggestions, criticism, etc.
-feel free to **open an Issue**, **add a Pull Requests** on Git or ...
-
-contact me: *[python] {*-at-*} [michelfe] {-*dot*-} [it]*
+If you encounter any bugs, have suggestions etc.
+do not hesitate to **open an Issue** or **add a Pull Requests** on Git.
 
 
 

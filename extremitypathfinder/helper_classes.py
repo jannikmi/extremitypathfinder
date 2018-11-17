@@ -6,7 +6,7 @@ import numpy as np
 origin = None
 
 
-class AngleRepresentation:
+class AngleRepresentation(object):
     """
     a class automatically computing a representation for the angle from the origin to a given vector
     value in [0.0 : 4.0[
@@ -65,7 +65,7 @@ class AngleRepresentation:
         return self.__str__()
 
 
-class Vertex:
+class Vertex(object):
     # defining static attributes on class to safe memory
     __slots__ = ['coordinates', 'is_extremity', 'is_outdated', 'coordinates_translated', 'angle_representation',
                  'distance_to_origin']
@@ -156,7 +156,7 @@ class PolygonVertex(Vertex):
         self.neighbour2 = e2.vertex2
 
 
-class Edge:
+class Edge(object):
     __slots__ = ['vertex1', 'vertex2']
 
     def __init__(self, vertex1, vertex2):
@@ -170,7 +170,7 @@ class Edge:
         return self.__str__()
 
 
-class Polygon:
+class Polygon(object):
     __slots__ = ['vertices', 'edges', 'extremities', 'coordinates',
                  # 'is_hole', 'length',
                  ]

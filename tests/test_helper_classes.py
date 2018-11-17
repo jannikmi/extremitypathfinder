@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from extremitypathfinder.helper_classes import AngleRepresentation
-from test_helpers import proto_test_case
+from helpers import proto_test_case
 
 
 class HelperClassesTest(unittest.TestCase):
