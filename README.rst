@@ -105,7 +105,7 @@ ______________
 
 ::
 
-    map.prepare()
+    environment.prepare()
 
 
 
@@ -255,9 +255,9 @@ Rough procedure: For all edges delete the points lying behind them. Points that 
 
 In this use case we are not interested in the full visibility graph, but the visibility of just some points (extremities, start and goal). Additionally deciding if a point lies behind an edge can often be done without computing intersections by just comparing distances. This can be used to reduce the needed computations.
 
-Further speed up can be accomplished by trying to prioritize closer edges, because they have a bigger chance to eliminate candidates.
+Further speed up can be accomplished by trying to prioritize closer edges, because they have a bigger chance to eliminate candidates, which then in the future do need to be checked any more.
 
-The basic runtime complexity of this algorithm should be :math:`O(m^2 n)`, where m is the amount of extremities (candidates) and n is the amount of edges (= #vertices). This is fast, because of a few tweaks and usually :math:`m << n`.
+The worst case time complexity of this algorithm is :math:`O(m^2 n)`, where m is the amount of extremities (candidates) and n is the amount of edges (= #vertices). This is fast, because of the above mentioned tweaks and usually :math:`m << n`.
 
 Implemented in ``PolygonEnvironment.find_visible()`` in ``extremitypathfinder.py``
 
@@ -266,7 +266,7 @@ Implemented in ``PolygonEnvironment.find_visible()`` in ``extremitypathfinder.py
 Lee's visibility graph algorithm (complexity :math:`O(n^2 log_2 n)`): cf. http://cs.smith.edu/~streinu/Teaching/Courses/274/Spring98/Projects/Philip/fp/algVisibility.htm
 
 - Initially all edges are being checked for intersection
-- Necessarily checking the visibility of all points (instead of just some)
+- Necessarily checking the visibility of all points
 - Always checking all points in every run
 - One intersection computation for most points (always when T is not empty)
 - Sorting: all points according to degree on startup, edges in binary tree T
@@ -279,7 +279,7 @@ My Algorithm:
 - Checking all edges
 - Not considering all points (just a few candidates)
 - Decreasing number of candidates with every run (visibility is a symmetric relation -> only need to check once for every point pair!)
-- Minimal intersection comp. (fraction of candidates)
+- Intersection computation only for a fraction of candidates
 - No sorting needed
 - Could theoretically also work with just lines (this package however currently just allows polygons)
 - More simple and clear approach
@@ -290,7 +290,7 @@ My Algorithm:
 Check the implementation in class ``AngleRepresentation`` in ``helper_classes.py``.
 
 
-**Modifications to A-star:** The basic algorithm has been modified to exploit the following geometrical property of this specific task (and hence also the extracted graph):
+**Modifications to A-star:** The basic algorithm has been modified to exploit the following geometrical property of 2D euclidean environments (and hence also their extracted visibility graph):
 
     It is always shortest to directly reach a node instead of visiting other nodes first
     (there is never an advantage through reduced edge weight).
