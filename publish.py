@@ -22,11 +22,11 @@ compile a new requirements file (with the latest versions)
 source activate pathEnv
 pip-compile --upgrade
 same as?!:
-pip-compile --output-file requirements.txt requirements.in
+pip-compile --output-file requirements_tests.txt requirements_tests.in
 only update the flask package:
 pip-compile --upgrade-package flask
 compile a new requirements file (with versions currently used in the virtual env )
-pip-compile --generate-hashes requirements.in
+pip-compile --generate-hashes requirements_tests.in
 
 do NOT sync. will install ONLY the packages specified! (no more tox etc. installed!)
 pip-sync
@@ -153,7 +153,7 @@ if __name__ == "__main__":
     print('=====================')
 
     routine(None, 'Remember to write a changelog now for version %s' % version, 'Done. Continue', 'Exit')
-    routine(None, 'Are all dependencies written in setup.py, requirements.in/.txt and the Readme?', 'OK. Continue', 'Exit')
+    routine(None, 'Are all dependencies written in setup.py, requirements_tests.in/.txt and the Readme?', 'OK. Continue', 'Exit')
     routine(None,
             'Maybe update test routine (requirements.txt) with pip-compile! Commands are written in the beginning of this script',
             'Done. Run tests', 'Exit')
@@ -167,7 +167,7 @@ if __name__ == "__main__":
     print('___________')
     print('Running TESTS:')
 
-    # routine(virt_env_act_command + "pip-compile requirements.in;pip-sync",
+    # routine(virt_env_act_command + "pip-compile requirements_tests.in;pip-sync",
     #         'pinning the requirements.txt and bringing virtualEnv to exactly the specified state:', 'next: build check')
 
     routine(virt_env_act_command + "rstcheck *.rst", 'checking syntax of all .rst files:', 'next: build check')

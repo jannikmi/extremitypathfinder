@@ -6,8 +6,6 @@ from .helper_classes import AngleRepresentation
 
 
 # TODO numba precompilation of some parts possible?! do profiling first!
-
-
 def inside_polygon(x, y, coords, border_value):
     # should return the border value for point equal to any polygon vertex
     # TODO overflow possible with large values when comparing slopes, change procedure
@@ -128,7 +126,7 @@ def lies_behind(p1, p2, v):
 
 def no_self_intersection(coords):
     polygon_length = len(coords)
-    again_check = []
+    # again_check = []
     for index_p1, index_q1 in combinations(range(polygon_length), 2):
         # always: index_p1 < index_q1
         if index_p1 == index_q1 - 1 or index_p1 == index_q1 + 1:
