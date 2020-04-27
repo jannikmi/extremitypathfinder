@@ -1,1 +1,3 @@
+# basic dependencies:
+# python3.6+
 numpy
