@@ -4,4 +4,4 @@ source = extremitypathfinder
 [report]
 omit =
     *__init__*
-    plotting.pytox
+    *plotting.py

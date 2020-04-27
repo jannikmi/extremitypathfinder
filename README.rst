@@ -19,7 +19,6 @@ extremitypathfinder
     :target: https://pypi.python.org/pypi/extremitypathfinder
 
 
-
 Python package for fast geometric shortest path computation in 2D multi-polygon or grid environments based on visibility graphs.
 
 
@@ -33,7 +32,7 @@ Also see:
 Dependencies
 ============
 
-(``python3``),
+(``python3.6+``),
 ``numpy``,
 
 

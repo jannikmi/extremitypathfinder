@@ -37,13 +37,6 @@ setup(
         'Programming Language :: Python',
         'Programming Language :: Python :: 3 :: Only',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.0',
-        'Programming Language :: Python :: 3.1',
-        'Programming Language :: Python :: 3.2',
-        'Programming Language :: Python :: 3.3',
-        'Programming Language :: Python :: 3.3',
-        'Programming Language :: Python :: 3.4',
-        'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
@@ -54,7 +47,7 @@ setup(
                      'or grid environments based on visibility graphs.\n'
                      'Please check Github for the documentation with plots: '
                      'https://github.com/MrMinimal64/extremitypathfinder',
-    python_requires='>=3.0',
+    python_requires='>=3.6',
     install_requires=[
         'numpy',
     ],
