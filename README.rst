@@ -12,7 +12,7 @@ extremitypathfinder
 
 .. image:: https://pepy.tech/badge/extremitypathfinder
     :alt: Total PyPI downloads
-    :target: https://pypi.python.org/pypi/extremitypathfinder
+    :target: https://pepy.tech/project/extremitypathfinder
 
 .. image:: https://img.shields.io/pypi/v/extremitypathfinder.svg
     :alt: latest version on PyPI
@@ -242,7 +242,7 @@ _________________________
 
 **Visibility detection:** my **"Angle Range Elimination Algorithm"** (AREA)
 
-To my knowledge there was no previous algorithm for computing the visibility of points (<-> visibility graph) that is visiting edges at most once without any trigonometric computations, without sorting and with that few distance/intersection checks.
+To the best of my knowledge there was no previous algorithm for computing the visibility of points (<-> visibility graph) that is visiting edges at most once without any trigonometric computations, without sorting and with that few distance/intersection checks.
 
 Simple fundamental idea: points (extremities) are visible when there is no edge running in front "blocking the view".
 
@@ -281,7 +281,7 @@ My Algorithm:
 
 
 
-**Angle representation**: Instead of computing directly with angles in degree or radians, it is much more efficient and still sufficient to use a representation that is mapping an angle to a range :math:`a \in [0.0 ; 4.0[` (:math:`[0.0 ; 1.0[` in all 4 quadrants). This can be done without computationally expensive trigonometric functions!
+**Angle representation**: Instead of computing with angles in degree or radians, it is much more efficient and still sufficient to use a representation that is mapping an angle to a range :math:`a \in [0.0 ; 4.0[` (:math:`[0.0 ; 1.0[` in all 4 quadrants). This can be done without computationally expensive trigonometric functions!
 Check the implementation in class ``AngleRepresentation`` in ``helper_classes.py``.
 
 

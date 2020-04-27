@@ -2,7 +2,6 @@
 
 import os
 import re
-import sys
 
 from setuptools import setup
 
@@ -16,25 +15,11 @@ def get_version(package):
 
 
 version = get_version('extremitypathfinder')
-#
-# with open('README.rst') as f:
-#     readme = f.read()
-#
-# with open('CHANGELOG.rst') as changelog_file:
-#     changelog = changelog_file.read()
-
-# https://stackoverflow.com/questions/23174738/setup-py-packages-and-unicode-literals
-native_string_pckg_name = 'extremitypathfinder'
-if sys.version_info.major == 2:
-    native_string_pckg_name = b'extremitypathfinder'
 
 setup(
     name='extremitypathfinder',
     version=version,
     packages=['extremitypathfinder'],
-    # package_data={
-    #     native_string_pckg_name: [],
-    # },
     description='python package for geometric shortest path computation for given 2D multi-polygon maps',
     author='J. Michelfeit',
     author_email='python@michelfe.it',
@@ -68,8 +53,6 @@ setup(
                      'or grid environments based on visibility graphs.\n'
                      'Please check Github for the documentation with plots: '
                      'https://github.com/MrMinimal64/extremitypathfinder',
-    # TODO
-    # long_description=readme + '\n\n' + changelog,
     install_requires=[
         'numpy',
     ],

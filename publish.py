@@ -1,37 +1,42 @@
 import os
-import sys
 import re
+import sys
+from os import listdir
+from os.path import abspath, join, pardir, isfile
 
-# TODO adjust
-# required packages
-# numpy
+"""
+required packages
+numpy
 
-# for testing:
-# pip-tools
-# rstcheck
-# pytest
+for testing:
+pip-tools
+rstcheck
+pytest
 
-# pip-tools package:
-# its important to pin requirements to get reproducible errors!
-# compile a new requirements file (with the latest versions)
-# source activate pathEnv
-# pip-compile --upgrade
-# same as?!:
-# pip-compile --output-file requirements.txt requirements.in
-# only update the flask package:
-# pip-compile --upgrade-package flask
-# compile a new requirements file (with versions currently used in the virtual env )
-# pip-compile --generate-hashes requirements.in
+for uploading/publishing:
+twine
 
-# do NOT sync. will install ONLY the packages specified! (no more tox etc. installed!)
-# pip-sync
+pip-tools package:
+its important to pin requirements to get reproducible errors!
+compile a new requirements file (with the latest versions)
+source activate pathEnv
+pip-compile --upgrade
+same as?!:
+pip-compile --output-file requirements.txt requirements.in
+only update the flask package:
+pip-compile --upgrade-package flask
+compile a new requirements file (with versions currently used in the virtual env )
+pip-compile --generate-hashes requirements.in
 
-# commands
-# tox -r to rebuild your tox virtualenvs when you've made changes to requirements setup
-# rstcheck *.rst
-# tox -r -e py36-codestyle
-# tox -r -e py36
+do NOT sync. will install ONLY the packages specified! (no more tox etc. installed!)
+pip-sync
 
+commands
+tox -r to rebuild your tox virtualenvs when you've made changes to requirements setup
+rstcheck *.rst
+tox -r -e py36-codestyle
+tox -r -e py36
+"""
 
 def get_version(package):
     """
@@ -207,24 +212,21 @@ if __name__ == "__main__":
     print('=================')
     print('PUBLISHING:')
 
-    '''
-    ~/.pypirc file required:
-    [distutils]
-    index-servers =
-    pypi
-    pypitest
-    
-    [pypi]
-    repository=https://pypi.python.org/pypi
-    username=MrMinimal64
-    password=****
-    
-    [pypitest]
-    repository=https://testpypi.python.org/pypi
-    username=MrMinimal64
-    password=your_password
-    '''
-    routine("python3 setup.py sdist bdist_wheel upload", 'Uploading the package now.')
+    # routine("python3 setup.py sdist bdist_wheel upload", 'Uploading the package now.') # deprecated
+    # new twine publishing routine:
+    # https://packaging.python.org/tutorials/packaging-projects/
+    routine("python3 setup.py sdist bdist_wheel", 'building the package now.')
+
+    path = abspath(join(__file__, pardir, 'dist'))
+    all_archives_this_version = [f for f in listdir(path) if isfile(join(path, f)) and version_number in f]
+    paths2archives = [abspath(join(path, f)) for f in all_archives_this_version]
+    command = "twine upload --repository-url https://test.pypi.org/legacy/ " + ' '.join(paths2archives)
+
+    # upload all archives of this version
+    routine(virt_env_act_command + command, 'testing if upload works.')
+
+    command = "twine upload " + ' '.join(paths2archives)
+    routine(virt_env_act_command + command, 'real upload to PyPI.')
 
     # tag erstellen
     routine(None, 'Do you want to create a git release tag?', 'Yes', 'No')

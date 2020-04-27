@@ -416,8 +416,8 @@ def convert_gridworld(size_x: int, size_y: int, obstacle_iter: iter, simplify: b
     boundary_edges = construct_polygon(start_pos, boundary_detect_fct=is_blocked, cntr_clockwise_wanted=True)
 
     if simplify:
-        # TODO simplify
-        pass
+        # TODO
+        raise NotImplementedError()
 
     # detect which of the obstacles have to be converted into holes
     # just the obstacles inside the boundary polygon are part of holes
@@ -437,7 +437,7 @@ def convert_gridworld(size_x: int, size_y: int, obstacle_iter: iter, simplify: b
                                not inside_polygon(o[0] + 0.5, o[1] + 0.5, hole, border_value=True)]
 
         if simplify:
-            # TODO simplify
+            # TODO
             pass
 
         hole_list.append(hole)
