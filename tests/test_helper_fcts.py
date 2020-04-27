@@ -4,7 +4,7 @@ import numpy as np
 
 from extremitypathfinder.helper_classes import AngleRepresentation
 from extremitypathfinder.helper_fcts import has_clockwise_numbering, inside_polygon
-from test_helpers import proto_test_case
+from helpers import proto_test_case
 
 
 class HelperFctsTest(unittest.TestCase):

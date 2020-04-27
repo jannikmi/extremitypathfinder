@@ -1,4 +1,11 @@
+# Test dependencies
+# will be pinned by pip-compile in 'requirements_tests.txt'
+# python3.6+
+
 numpy
+
+pytest
+pytest-cov
 
 docutils # to check your setup.py is well configured
 flake8 # check code quality
@@ -6,6 +13,3 @@ flake8-commas
 isort # to show where imports aren’t sorted
 multilint
 pygments # to check your setup.py is well configured
-pytest
-pytest-cov
-

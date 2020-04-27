@@ -1,23 +1,46 @@
 sudo: false
 language: python
-python: '3.6'
 
+
+# Test matrix spells out each supported version of Python explicitly:
+matrix:
+    include:
+        # has to be the same py version specified in tox.ini
+
+        -   python: 3.7
+            env: TOXENV=codestyle
+
+        -   python: 3.6
+            env: TOXENV=py36
+        -   python: 3.7
+            env: TOXENV=py37
+        -   python: 3.8
+            env: TOXENV=py38
+
+
+#allow_failures:
+#    # Tests with ... are allowed to fail
+#    -   env: ...
 
 install:
-  - pip install tox
+    - ./.travis/install.sh
 
 script:
-  - tox
+    - ./.travis/run.sh tox
+
+#after_success:
+#  - coverage combine
+#  - coveralls
 
 branches:
     only:
-    - master
-    - dev
+        - master
+        - dev
 
 notifications:
     email:
-     recipients:
-     - python@michelfe.it
-     on_success: never
-     on_failure: always
-     on_start: never   # options: [always|never|change] default: always
+        recipients:
+            - python@michelfe.it
+        on_success: always
+        on_failure: always
+        on_start: never   # options: [always|never|change] default: always

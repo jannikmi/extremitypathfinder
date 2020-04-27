@@ -1,46 +1,26 @@
 # -*- coding:utf-8 -*-
 
-import os
-import re
-import sys
-
 from setuptools import setup
-
-
-def get_version(package):
-    """
-    Return package version as listed in `__version__` in `__init__.py`.
-    """
-    init_py = open(os.path.join(package, '__init__.py')).read()
-    return re.search("__version__ = ['\"]([^'\"]+)['\"]", init_py).group(1)
-
-
-version = get_version('extremitypathfinder')
-#
-# with open('README.rst') as f:
-#     readme = f.read()
-#
-# with open('CHANGELOG.rst') as changelog_file:
-#     changelog = changelog_file.read()
-
-# https://stackoverflow.com/questions/23174738/setup-py-packages-and-unicode-literals
-native_string_pckg_name = 'extremitypathfinder'
-if sys.version_info.major == 2:
-    native_string_pckg_name = b'extremitypathfinder'
 
 setup(
     name='extremitypathfinder',
-    version=version,
     packages=['extremitypathfinder'],
-    # package_data={
-    #     native_string_pckg_name: [],
-    # },
     description='python package for geometric shortest path computation for given 2D multi-polygon maps',
+    # version: in VERSION file https://packaging.python.org/guides/single-sourcing-package-version/
+    # With this approach you must make sure that the VERSION file is included in all your source
+    # and binary distributions (e.g. add include VERSION to your MANIFEST.in).
     author='J. Michelfeit',
     author_email='python@michelfe.it',
     license='MIT licence',
+    license_file='LICENSE',
     url='https://github.com/MrMinimal64/extremitypathfinder',  # use the URL to the github repo
-    keywords='path-planning path-finding shortest-path visibility graph polygon robotics navigation offline',
+    project_urls={
+        "Source Code": "https://github.com/MrMinimal64/extremitypathfinder",
+        "Documentation": "https://github.com/MrMinimal64/extremitypathfinder/blob/master/README.rst",
+        "Changelog": "https://github.com/MrMinimal64/extremitypathfinder/blob/master/CHANGELOG.rst",
+    },
+    keywords='path-planning path-finding shortest-path visibility graph visibility-graph polygon'
+             'robotics navigation offline ',
     classifiers=[
         'Development Status :: 5 - Production/Stable',
         'Intended Audience :: Developers',
@@ -51,15 +31,9 @@ setup(
         'Programming Language :: Python',
         'Programming Language :: Python :: 3 :: Only',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.0',
-        'Programming Language :: Python :: 3.1',
-        'Programming Language :: Python :: 3.2',
-        'Programming Language :: Python :: 3.3',
-        'Programming Language :: Python :: 3.3',
-        'Programming Language :: Python :: 3.4',
-        'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
         'Topic :: Scientific/Engineering',
         'Topic :: Scientific/Engineering :: Artificial Intelligence',
     ],
@@ -67,8 +41,7 @@ setup(
                      'or grid environments based on visibility graphs.\n'
                      'Please check Github for the documentation with plots: '
                      'https://github.com/MrMinimal64/extremitypathfinder',
-    # TODO
-    # long_description=readme + '\n\n' + changelog,
+    python_requires='>=3.6',
     install_requires=[
         'numpy',
     ],

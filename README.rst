@@ -4,19 +4,19 @@ extremitypathfinder
 
 
 
-
-
 .. image:: https://travis-ci.org/MrMinimal64/extremitypathfinder.svg?branch=master
     :target: https://travis-ci.org/MrMinimal64/extremitypathfinder
-
 
 .. image:: https://img.shields.io/pypi/wheel/extremitypathfinder.svg
     :target: https://pypi.python.org/pypi/extremitypathfinder
 
+.. image:: https://pepy.tech/badge/extremitypathfinder
+    :alt: Total PyPI downloads
+    :target: https://pepy.tech/project/extremitypathfinder
 
 .. image:: https://img.shields.io/pypi/v/extremitypathfinder.svg
+    :alt: latest version on PyPI
     :target: https://pypi.python.org/pypi/extremitypathfinder
-
 
 
 Python package for fast geometric shortest path computation in 2D multi-polygon or grid environments based on visibility graphs.
@@ -32,7 +32,7 @@ Also see:
 Dependencies
 ============
 
-(``python3``),
+(``python3.6+``),
 ``numpy``,
 
 
@@ -56,7 +56,7 @@ Usage
 Check code in ``example.py``:
 
 
-::
+.. code-block:: python
 
     from extremitypathfinder import PolygonEnvironment
     environment = PolygonEnvironment()
@@ -81,7 +81,7 @@ Ensure that all the following conditions on the polygons are fulfilled:
     - holes: clockwise
 
 
-::
+.. code-block:: python
 
     # counter clockwise vertex numbering!
     boundary_coordinates = [(0.0, 0.0), (10.0, 0.0), (9.0, 5.0), (10.0, 10.0), (0.0, 10.0)]
@@ -113,8 +113,7 @@ Query:
 ______
 
 
-::
-
+.. code-block:: python
 
     start_coordinates = (4.5, 1.0)
     goal_coordinates = (4.0, 8.5)
@@ -126,7 +125,7 @@ Converting and storing a grid world:
 ____________________________________
 
 
-::
+.. code-block:: python
 
     size_x, size_y = 19, 10
     obstacle_iter = [# (x,y),
@@ -171,7 +170,7 @@ Cache and import the environment:
 ______________________________________________
 
 
-::
+.. code-block:: python
 
     environment.export_pickle(path='./pickle_file.pickle')
 
@@ -247,7 +246,7 @@ _________________________
 
 **Visibility detection:** my **"Angle Range Elimination Algorithm"** (AREA)
 
-To my knowledge there was no previous algorithm for computing the visibility of points (<-> visibility graph) that is visiting edges at most once without any trigonometric computations, without sorting and with that few distance/intersection checks.
+To the best of my knowledge there was no previous algorithm for computing the visibility of points (<-> visibility graph) that is visiting edges at most once without any trigonometric computations, without sorting and with that few distance/intersection checks.
 
 Simple fundamental idea: points (extremities) are visible when there is no edge running in front "blocking the view".
 
@@ -286,7 +285,7 @@ My Algorithm:
 
 
 
-**Angle representation**: Instead of computing directly with angles in degree or radians, it is much more efficient and still sufficient to use a representation that is mapping an angle to a range :math:`a \in [0.0 ; 4.0[` (:math:`[0.0 ; 1.0[` in all 4 quadrants). This can be done without computationally expensive trigonometric functions!
+**Angle representation**: Instead of computing with angles in degree or radians, it is much more efficient and still sufficient to use a representation that is mapping an angle to a range :math:`a \in [0.0 ; 4.0[` (:math:`[0.0 ; 1.0[` in all 4 quadrants). This can be done without computationally expensive trigonometric functions!
 Check the implementation in class ``AngleRepresentation`` in ``helper_classes.py``.
 
 
@@ -332,12 +331,11 @@ This package is similar to `pyvisgraph <https://github.com/TaipanRex/pyvisgraph>
 Contact
 =======
 
+
 Most certainly there is stuff I missed, things I could have optimized even further or explained more clearly, etc. I would be really glad to get some feedback on my code.
 
-If you encounter any bugs, have suggestions, criticism, etc.
-feel free to **open an Issue**, **add a Pull Requests** on Git or ...
-
-contact me: *[python] {*-at-*} [michelfe] {-*dot*-} [it]*
+If you encounter any bugs, have suggestions etc.
+do not hesitate to **open an Issue** or **add a Pull Requests** on Git.
 
 
 

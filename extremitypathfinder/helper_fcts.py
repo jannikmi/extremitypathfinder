@@ -4,11 +4,11 @@ import numpy as np
 
 from .helper_classes import AngleRepresentation
 
+
 # TODO numba precompilation of some parts possible?! do profiling first!
-
-
 def inside_polygon(x, y, coords, border_value):
     # should return the border value for point equal to any polygon vertex
+    # TODO overflow possible with large values when comparing slopes, change procedure
     for c in coords[:]:
         if np.all(c == [x, y]):
             return border_value
@@ -69,7 +69,13 @@ def no_identical_consequent_vertices(coords):
     return True
 
 
-def has_intersection(p1, p2, q1, q2):
+def get_intersection_status(p1, p2, q1, q2):
+    # return:
+    #   0: no intersection
+    #   1: intersection in ]p1;p2[
+    # TODO 4 different possibilities
+    #   2: intersection directly in p1 or p2
+    #   3: intersection directly in q1 or q2
     # solve the set of equations
     # (p2-p1) lambda + (p1) = (q2-q1) mu + (q1)
     #  in matrix form A x = b:
@@ -82,10 +88,15 @@ def has_intersection(p1, p2, q1, q2):
         # so x == 0.0 or x == 1.0 is not considered an intersection
         # assert np.allclose((p2 - p1) * x[0] + p1, (q2 - q1) * x[1] + q1)
         # assert np.allclose(np.dot(A, x), b)
-        return np.all(0.0 < x) and np.all(x < 1.0)
+        if x[0] <= 0.0 or x[1] <= 0.0 or x[0] >= 1.0 or x[1] >= 1.0:
+            return 0
+        # if np.all(0.0 <= x) and np.all(x <= 1.0):
+        #     return 2
     except np.linalg.LinAlgError:
-        # line segments might be parallel (set of equations not solvable)
-        return False
+        # line segments are parallel (matrix is singular, set of equations is not solvable)
+        return 0
+
+    return 1
 
 
 # special case of has_intersection()
@@ -115,6 +126,7 @@ def lies_behind(p1, p2, v):
 
 def no_self_intersection(coords):
     polygon_length = len(coords)
+    # again_check = []
     for index_p1, index_q1 in combinations(range(polygon_length), 2):
         # always: index_p1 < index_q1
         if index_p1 == index_q1 - 1 or index_p1 == index_q1 + 1:
@@ -122,17 +134,23 @@ def no_self_intersection(coords):
             continue
         p1, p2 = coords[index_p1], coords[(index_p1 + 1) % polygon_length]
         q1, q2 = coords[index_q1], coords[(index_q1 + 1) % polygon_length]
-        if has_intersection(p1, p2, q1, q2):
-            print(p1, p2, q1, q2)
+        intersect_status = get_intersection_status(p1, p2, q1, q2)
+        if intersect_status == 1:
             return False
+        # if intersect_status == 2:
+        # TODO 4 different options. check which side the other edge lies on.
+        # if edge changes sides this is a an intersection
+        # again_check.append((p1, p2, q1, q2))
+        # print(p1, p2, q1, q2)
 
     # TODO check for intersections across 2 edges! use computed intersection
+
     return True
 
 
 def has_clockwise_numbering(coords):
     # approach: when numbering is clockwise:
-    # at least the majority of averaged consequent point triplets lie...
+    # at least the majority of averaged points of all consequent point triplets lie...
     #  ... inside the polygon when the second point is an extremity
     #  ... else outside
 
@@ -396,8 +414,8 @@ def convert_gridworld(size_x: int, size_y: int, obstacle_iter: iter, simplify: b
     boundary_edges = construct_polygon(start_pos, boundary_detect_fct=is_blocked, cntr_clockwise_wanted=True)
 
     if simplify:
-        # TODO simplify
-        pass
+        # TODO
+        raise NotImplementedError()
 
     # detect which of the obstacles have to be converted into holes
     # just the obstacles inside the boundary polygon are part of holes
@@ -417,7 +435,7 @@ def convert_gridworld(size_x: int, size_y: int, obstacle_iter: iter, simplify: b
                                not inside_polygon(o[0] + 0.5, o[1] + 0.5, hole, border_value=True)]
 
         if simplify:
-            # TODO simplify
+            # TODO
             pass
 
         hole_list.append(hole)
