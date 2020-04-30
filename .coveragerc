@@ -1,7 +1,0 @@
-[run]
-source = extremitypathfinder
-
-[report]
-omit =
-    *__init__*
-    *plotting.py

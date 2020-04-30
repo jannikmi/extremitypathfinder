@@ -1,0 +1,8 @@
+TODOs
+
+sphinx docu
+docstrings
+api autodoc
+
+s. Issues
+s. TODOs in code

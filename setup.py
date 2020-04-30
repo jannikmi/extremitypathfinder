@@ -43,6 +43,6 @@ setup(
                      'https://github.com/MrMinimal64/extremitypathfinder',
     python_requires='>=3.6',
     install_requires=[
-        'numpy',
+        'numpy>=1.16',
     ],
 )

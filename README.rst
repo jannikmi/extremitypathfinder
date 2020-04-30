@@ -3,7 +3,6 @@ extremitypathfinder
 ===================
 
 
-
 .. image:: https://travis-ci.org/MrMinimal64/extremitypathfinder.svg?branch=master
     :target: https://travis-ci.org/MrMinimal64/extremitypathfinder
 
@@ -33,7 +32,7 @@ Dependencies
 ============
 
 (``python3.6+``),
-``numpy``,
+``numpy``
 
 
 Installation

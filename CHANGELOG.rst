@@ -2,10 +2,28 @@ Changelog
 =========
 
 
+1.2.0 (TBA)
+------------------
+
+supporting only python 3.6+
+
+internal:
+
+* add sponsor button
+* updated publishing routine
+* split up requirement files (basic, tests)
+* specific tags for supported python versions in wheel
+* testing all different python versions with tox
+* added coverage tests
+* added editorconfig
+* specify version in VERSION file
+
+
 1.1.0 (2018-10-17)
 ------------------
 
 * optimised A*-algorithm to not visit all neighbours of the current node before continuing
+
 
 
 1.0.0 (2018-10-07)
