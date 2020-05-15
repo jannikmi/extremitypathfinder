@@ -32,14 +32,18 @@ class PolygonEnvironment:
 
     # TODO find way to not store separate list of all (already stored in the polygons)
     all_edges: List[Edge] = None
-    all_vertices: List[Vertex] = None
-    all_extremities: List[Vertex] = None
+    all_extremities: List[PolygonVertex] = None
 
-    # boundary_extremities = None
-    # hole_extremities = None
     prepared: bool = False
     graph: DirectedHeuristicGraph = None
     temp_graph: DirectedHeuristicGraph = None  # for storing and plotting the graph during a query
+
+    @property
+    def all_vertices(self) -> List[PolygonVertex]:
+        all_vertices = self.boundary_polygon.vertices.copy()
+        for hole in self.holes:
+            all_vertices += hole.vertices
+        return all_vertices
 
     def store(self, boundary_coordinates, list_of_hole_coordinates, validate=False):
         self.prepared = False
@@ -52,7 +56,6 @@ class PolygonEnvironment:
         self.boundary_polygon = Polygon(boundary_coordinates, is_hole=False)
         # IMPORTANT: make a copy of the list instead of linking to the same list (python!)
         self.all_edges = self.boundary_polygon.edges.copy()
-        self.all_vertices = self.boundary_polygon.vertices.copy()
         self.all_extremities = self.boundary_polygon.extremities.copy()
         self.holes = []
         for coordinates in list_of_hole_coordinates:
@@ -60,7 +63,6 @@ class PolygonEnvironment:
             self.holes.append(hole_polygon)
             self.all_extremities += hole_polygon.extremities
             self.all_edges += hole_polygon.edges
-            self.all_vertices += hole_polygon.vertices
 
     def store_grid_world(self, size_x: int, size_y: int, obstacle_iter: iter, simplify: bool = True, validate=False):
         """
@@ -96,16 +98,23 @@ class PolygonEnvironment:
             hole.translate(new_origin)
 
     def prepare(self):
-        """
-        precomputes all directly reachable extremities based on visibility
-        and the distances between them
-        internally stores a visibility graph optimized (reduced) for path planning
-        :return:
+        """ precomputes a visibility graph optimized (reduced) for path planning
 
-        NOTE: pre computing the shortest paths between all directly reachable extremities
+        computes all directly reachable extremities based on visibility and their distance to each other
+
+        .. note::
+            multiple polygon vertices might have identical coordinates.
+            they must be treated as distinct vertices here, since their attached edges determine visibility
+            in the created graph however these nodes must be merged at the end to avoid ambiguities!
+
+        .. note::
+            pre computing the shortest paths between all directly reachable extremities
             and storing them in the graph would not be an advantage, because then the graph is fully connected
             a star would visit every node in the graph at least once (-> disadvantage!).
-            TODO maybe advantage with optimized a star
+
+        :return: None
+
+
         """
 
         if self.prepared:
@@ -116,6 +125,7 @@ class PolygonEnvironment:
         # and optimize graph further at construction time
         self.graph = DirectedHeuristicGraph()
         extremities_to_check = set(self.all_extremities)
+        print(extremities_to_check)
         # have to run for all (also last one!), because existing edges might get deleted every loop
         while len(extremities_to_check) > 0:
             query_extremity: PolygonVertex = extremities_to_check.pop()

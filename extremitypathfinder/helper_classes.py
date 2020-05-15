@@ -3,7 +3,7 @@ from typing import List, Optional
 
 import numpy as np
 
-# TODO
+# TODO find a way to avoid global variable, wrap all in a different kind of 'coordinate system environment'?
 # placeholder for temporarily storing the current origin
 origin = None
 
@@ -72,19 +72,19 @@ class Vertex(object):
     __slots__ = ['coordinates', 'is_extremity', 'is_outdated', 'coordinates_translated', 'angle_representation',
                  'distance_to_origin']
 
-    def __gt__(self, other):
-        # ordering needed for priority queue. multiple vertices possibly have the same priority.
-        return id(self) > id(other)
-
     def __init__(self, coordinates):
         self.coordinates = np.array(coordinates)
-        self.is_extremity = False
+        self.is_extremity: bool = False
 
         # a container for temporally storing shifted coordinates
         self.is_outdated: bool = True
         self.coordinates_translated = None
-        self.angle_representation = None
-        self.distance_to_origin = None
+        self.angle_representation: Optional[AngleRepresentation] = None
+        self.distance_to_origin: float = 0.0
+
+    def __gt__(self, other):
+        # ordering needed for priority queue. multiple vertices possibly have the same priority.
+        return id(self) > id(other)
 
     def __str__(self):
         return str(self.coordinates)
@@ -136,10 +136,10 @@ class PolygonVertex(Vertex):
 
     def __init__(self, *args, **kwargs):
         super(PolygonVertex, self).__init__(*args, **kwargs)
-        self.edge1: Edge = None
-        self.edge2: Edge = None
-        self.neighbour1: PolygonVertex = None
-        self.neighbour2: PolygonVertex = None
+        self.edge1: Optional[Edge] = None
+        self.edge2: Optional[Edge] = None
+        self.neighbour1: Optional[PolygonVertex] = None
+        self.neighbour2: Optional[PolygonVertex] = None
 
     def get_neighbours(self):
         return self.neighbour1, self.neighbour2
@@ -271,6 +271,7 @@ class DirectedHeuristicGraph(object):
         self.distances: dict = {}
         self.neighbours: dict = {}
         self.all_nodes: set = set()
+        # TODO use same set as extremities of env, but different for copy!
 
         # the heuristic must NEVER OVERESTIMATE the actual cost (here: actual shortest distance)
         # <=> must always be lowest for node with the POSSIBLY lowest cost
@@ -304,7 +305,6 @@ class DirectedHeuristicGraph(object):
         return self.distances[(node1, node2)]
 
     def get_heuristic(self, node):
-        # TODO
         global origin  # use origin contains the current goal node
         # lazy evaluation:
         h = self.heuristic.get(node, None)
@@ -317,7 +317,7 @@ class DirectedHeuristicGraph(object):
     def set_goal_node(self, goal_node):
         assert goal_node in self.all_nodes  # has no outgoing edges -> no neighbours
         # IMPORTANT: while using heuristic graph (a star), do not change origin!
-        global origin  # TODO
+        global origin
         origin = goal_node  # use origin for temporally storing the goal node
         self.goal_node = goal_node
         # reset heuristic for all
@@ -365,10 +365,9 @@ class DirectedHeuristicGraph(object):
             if neighbours is not None:
                 neighbours.discard(n2)
                 self.distances.pop((n1, n2), None)
-                if len(neighbours) == 0:
-                    # no neighbours left. completely delete node from graph
-                    self.neighbours.pop(n1)
-                    self.all_nodes.discard(n1)
+                # ATTENTION: even if there are no neighbours left and a node is hence dangling (not reachable),
+                # the node must still be kept, since with the addition of start and goal nodes during a query
+                # the node might become reachable!
 
         remove_edge(neighbours_n1, node1, node2)
         remove_edge(neighbours_n2, node2, node1)
@@ -378,16 +377,9 @@ class DirectedHeuristicGraph(object):
             self.remove_undirected_edge(node1, node2)
 
     def make_clean(self):
-        # for shortest path computations all graph nodes should be unique and reachable
+        # for shortest path computations all graph nodes should be unique
         self.join_identical()
-        self.remove_dangling()
-
-    def remove_dangling(self):
-        # remove nodes with no neighbours
-        no_neighbours = set(filter(lambda n: len(self.neighbours.get(n, set())) == 0, self.get_all_nodes()))
-        for n in no_neighbours:
-            self.all_nodes.remove(n)
-            self.neighbours.pop(n, None)
+        # leave dangling nodes! (might become reachable by adding start and and goal node!)
 
     def join_identical(self):
         # join all nodes with the same coordinates,
@@ -399,7 +391,7 @@ class DirectedHeuristicGraph(object):
             nodes_to_check.difference_update(same_nodes)
             for n2 in same_nodes:
                 neighbours_n1 = self.neighbours[n1]
-                # print('removing node',n2)
+                print('removing duplicate node', n2)
                 neighbours_n2 = self.neighbours.pop(n2)
                 for n3 in neighbours_n2:
                     d = self.distances.pop((n2, n3))
@@ -409,6 +401,8 @@ class DirectedHeuristicGraph(object):
                     if n3 != n1 and n3 not in neighbours_n1:
                         # and add all the new edges to node 1
                         self.add_undirected_edge(n1, n3, d)
+
+                self.all_nodes.remove(n2)
 
     def modified_a_star(self, start, goal):
         """ implementation of the popular A* algorithm with optimisations for this special use case
