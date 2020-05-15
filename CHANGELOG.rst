@@ -8,7 +8,7 @@ Changelog
 * supporting only python 3.6+
 * fix #10: Memory leak in DirectedHeuristicGraph
 * fix BUG where extremities would be deleted from the visibility graph
-
+* using generators to refer to the polygon properties (vertices,...) of an environment (save memory and remove redundancy)
 
 todo copy deep
 TODO sphinx documentation

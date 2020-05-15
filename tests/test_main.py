@@ -4,6 +4,7 @@ from math import sqrt
 import pytest
 
 from extremitypathfinder.extremitypathfinder import PolygonEnvironment
+from extremitypathfinder.plotting import PlottingEnvironment
 
 # size_x, size_y, obstacle_iter
 GRID_ENV_PARAMS = (19, 10, [
@@ -230,7 +231,7 @@ class MainTest(unittest.TestCase):
         grid_env = PolygonEnvironment()
 
         grid_env.store_grid_world(*GRID_ENV_PARAMS, simplify=False, validate=False)
-        assert len(grid_env.all_extremities) == 17, 'extremities do not get detected correctly!'
+        assert len(list(grid_env.all_extremities)) == 17, 'extremities do not get detected correctly!'
         grid_env.prepare()
         # raise ValueError
         assert len(grid_env.graph.all_nodes) == 16, 'identical nodes should get joined in the graph!'

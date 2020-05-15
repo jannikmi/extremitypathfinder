@@ -2,10 +2,10 @@ from itertools import combinations
 
 import numpy as np
 
-from .helper_classes import AngleRepresentation, PolygonVertex
+from extremitypathfinder.helper_classes import AngleRepresentation, PolygonVertex
 
 
-# TODO numba precompilation of some parts possible?! do profiling first!
+# TODO numba precompilation of some parts possible?! do line speed profiling first! speed impact
 def inside_polygon(x, y, coords, border_value):
     # should return the border value for point equal to any polygon vertex
     # TODO overflow possible with large values when comparing slopes, change procedure

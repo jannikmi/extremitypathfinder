@@ -4,7 +4,7 @@ from os.path import abspath, join
 import matplotlib.pyplot as plt
 from matplotlib.patches import Polygon
 
-from .extremitypathfinder import PolygonEnvironment
+from extremitypathfinder.extremitypathfinder import PolygonEnvironment
 
 EXPORT_RESOLUTION = 200  # dpi
 EXPORT_SIZE_X = 19.0  # inch
@@ -17,8 +17,10 @@ POLYGON_SETTINGS = {
 }
 
 SHOW_PLOTS = False
-
 PLOTTING_DIR = 'all_plots'
+
+
+# TODO test plotting functionality
 
 
 def get_plot_name(file_name='plot'):

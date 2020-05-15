@@ -390,8 +390,8 @@ class DirectedHeuristicGraph(object):
             same_nodes = {n for n in nodes_to_check if np.allclose(coordinates1, n.coordinates)}
             nodes_to_check.difference_update(same_nodes)
             for n2 in same_nodes:
+                # print('removing duplicate node', n2)
                 neighbours_n1 = self.neighbours[n1]
-                print('removing duplicate node', n2)
                 neighbours_n2 = self.neighbours.pop(n2)
                 for n3 in neighbours_n2:
                     d = self.distances.pop((n2, n3))

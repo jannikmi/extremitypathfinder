@@ -1,11 +1,12 @@
 import pickle
 from copy import deepcopy
-from typing import List
+from typing import List, Iterable
 
 import numpy as np
 
-from .helper_classes import DirectedHeuristicGraph, Edge, Polygon, PolygonVertex, Vertex
-from .helper_fcts import check_data_requirements, convert_gridworld, find_within_range, inside_polygon, find_visible
+from extremitypathfinder.helper_classes import DirectedHeuristicGraph, Edge, Polygon, PolygonVertex, Vertex
+from extremitypathfinder.helper_fcts import check_data_requirements, convert_gridworld, find_within_range, \
+    inside_polygon, find_visible
 
 # TODO possible to allow polygon consisting of 2 vertices only(=barrier)? lots of functions need at least 3 vertices atm
 
@@ -29,21 +30,29 @@ class PolygonEnvironment:
     # class for keeping preloaded map for consecutive path queries
     boundary_polygon: Polygon = None
     holes: List[Polygon] = None
-
-    # TODO find way to not store separate list of all (already stored in the polygons)
-    all_edges: List[Edge] = None
-    all_extremities: List[PolygonVertex] = None
-
     prepared: bool = False
     graph: DirectedHeuristicGraph = None
     temp_graph: DirectedHeuristicGraph = None  # for storing and plotting the graph during a query
 
     @property
+    def polygons(self) -> Iterable[Polygon]:
+        yield self.boundary_polygon
+        yield from self.holes
+
+    @property
     def all_vertices(self) -> List[PolygonVertex]:
-        all_vertices = self.boundary_polygon.vertices.copy()
-        for hole in self.holes:
-            all_vertices += hole.vertices
-        return all_vertices
+        for p in self.polygons:
+            yield from p.vertices
+
+    @property
+    def all_extremities(self) -> Iterable[PolygonVertex]:
+        for p in self.polygons:
+            yield from p.extremities
+
+    @property
+    def all_edges(self) -> Iterable[Edge]:
+        for p in self.polygons:
+            yield from p.edges
 
     def store(self, boundary_coordinates, list_of_hole_coordinates, validate=False):
         self.prepared = False
@@ -55,14 +64,7 @@ class PolygonEnvironment:
 
         self.boundary_polygon = Polygon(boundary_coordinates, is_hole=False)
         # IMPORTANT: make a copy of the list instead of linking to the same list (python!)
-        self.all_edges = self.boundary_polygon.edges.copy()
-        self.all_extremities = self.boundary_polygon.extremities.copy()
-        self.holes = []
-        for coordinates in list_of_hole_coordinates:
-            hole_polygon = Polygon(coordinates, is_hole=True)
-            self.holes.append(hole_polygon)
-            self.all_extremities += hole_polygon.extremities
-            self.all_edges += hole_polygon.edges
+        self.holes = [Polygon(coordinates, is_hole=True) for coordinates in list_of_hole_coordinates]
 
     def store_grid_world(self, size_x: int, size_y: int, obstacle_iter: iter, simplify: bool = True, validate=False):
         """
@@ -92,10 +94,8 @@ class PolygonEnvironment:
         :param new_origin: the origin of the coordinate system to be shifted to
         :return: None
         """
-
-        self.boundary_polygon.translate(new_origin)
-        for hole in self.holes:
-            hole.translate(new_origin)
+        for p in self.polygons:
+            p.translate(new_origin)
 
     def prepare(self):
         """ precomputes a visibility graph optimized (reduced) for path planning
