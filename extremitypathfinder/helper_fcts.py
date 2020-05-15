@@ -466,7 +466,7 @@ def find_visible(vertex_candidates, edges_to_check):
     priority_edges = set()
     # goal: eliminating all vertices lying 'behind' any edge
     # TODO improvement in combination with priority: process edges roughly in sequence, but still allow jumps
-    # would follow closer edges more often which have a bigger chance to eliminate candidates -> speed up
+    #  would follow closer edges more often which have a bigger chance to eliminate candidates -> speed up
     while len(vertex_candidates) > 0 and len(edges_to_check) > 0:
         # check prioritized items first
         try:

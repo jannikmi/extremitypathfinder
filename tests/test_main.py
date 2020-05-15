@@ -153,15 +153,17 @@ class MainTest(unittest.TestCase):
             with pytest.raises(ValueError):
                 environment.find_shortest_path(start_coordinates, goal_coordinates)
 
+        print('testing if path and distance are correct:')
         for ((start_coordinates, goal_coordinates), expected_output) in PATH_TEST_DATA:
-            # test if path and distance are correct
-            # print(input, expected_output, fct(input))
             actual_output = environment.find_shortest_path(start_coordinates, goal_coordinates)
-
-            if actual_output != expected_output:
-                print('input: {} expected: {} got: {}'.format((start_coordinates, goal_coordinates), expected_output,
-                                                              actual_output))
-            assert actual_output == expected_output, 'algorithms produce unexpected results.'
+            correct_result = actual_output == expected_output
+            if correct_result:
+                status_str = 'OK'
+            else:
+                status_str = 'XX'
+            print(f'{status_str} input: {(start_coordinates, goal_coordinates)} ')
+            assert correct_result, \
+                f'unexpected result (path, length): got {actual_output} instead of {expected_output} '
 
         # when the deep copy mechanism works correctly
         # even after many queries the internal graph should have the same structure as before

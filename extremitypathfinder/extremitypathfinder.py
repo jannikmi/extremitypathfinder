@@ -4,7 +4,6 @@ from typing import List
 
 import numpy as np
 
-from .graph_search import modified_a_star
 from .helper_classes import DirectedHeuristicGraph, Edge, Polygon, PolygonVertex, Vertex
 from .helper_fcts import check_data_requirements, convert_gridworld, find_within_range, inside_polygon, find_visible
 
@@ -326,7 +325,7 @@ class PolygonEnvironment:
                 self.temp_graph.remove_multiple_undirected_edges(vertex, lie_in_front)
 
         # NOTE: exploiting property 2 from [1] here would be more expensive than beneficial
-        vertex_path, distance = modified_a_star(self.temp_graph, start_vertex, goal_vertex)
+        vertex_path, distance = self.temp_graph.modified_a_star(start_vertex, goal_vertex)
 
         if free_space_after:
             del self.temp_graph  # free the memory

@@ -8,6 +8,10 @@ Changelog
 * supporting only python 3.6+
 * fix #10: Memory leak in DirectedHeuristicGraph
 
+TODO sphinx documentation
+TODO api doc
+
+
 internal:
 
 * add sponsor button
