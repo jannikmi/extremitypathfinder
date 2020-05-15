@@ -1,8 +1,9 @@
-from typing import List
+from typing import List, Optional
 
 import numpy as np
 
-# placeholder for temporarily storing the vector representing the current origin
+# TODO
+# placeholder for temporarily storing the current origin
 origin = None
 
 
@@ -248,20 +249,26 @@ class Polygon(object):
 
 
 # TODO often empty sets in self.neighbours
-class DirectedHeuristicGraph:
-    distances: dict = {}
-    neighbours: dict = {}
-    all_nodes: set = set()
+class DirectedHeuristicGraph(object):
+    __slots__ = ['all_nodes', 'distances', 'goal_node', 'heuristic', 'neighbours']
 
-    # the heuristic must NEVER OVERESTIMATE the actual cost (here: actual shortest distance)
-    # <=> must always be lowest for node with the POSSIBLY lowest cost
-    # <=> heuristic is LOWER BOUND for the cost
-    # the heuristic here: distance to the goal node (is always the shortest possible distance!)
-    heuristic: dict = {}
-    goal_node: Vertex = None
+    def __init__(self):
+        self.distances: dict = {}
+        self.neighbours: dict = {}
+        self.all_nodes: set = set()
 
-    def __deepcopy__(self, memodict={}):
+        # the heuristic must NEVER OVERESTIMATE the actual cost (here: actual shortest distance)
+        # <=> must always be lowest for node with the POSSIBLY lowest cost
+        # <=> heuristic is LOWER BOUND for the cost
+        # the heuristic here: distance to the goal node (is always the shortest possible distance!)
+        self.heuristic: dict = {}
+        self.goal_node: Optional[Vertex] = None
+
+    # TODO
+    def __deepcopy__(self, memodict=None):
         # should return a copy with independent dicts, but not copy the stored vertex instances!
+        if memodict is None:
+            memodict = {}
         independent_copy = DirectedHeuristicGraph()
         independent_copy.distances = self.distances.copy()
         independent_copy.neighbours = {k: v.copy() for k, v in self.neighbours.items()}
@@ -282,6 +289,7 @@ class DirectedHeuristicGraph:
         return self.distances[(node1, node2)]
 
     def get_heuristic(self, node):
+        # TODO
         global origin  # use origin contains the current goal node
         # lazy evaluation:
         h = self.heuristic.get(node, None)
@@ -294,13 +302,13 @@ class DirectedHeuristicGraph:
     def set_goal_node(self, goal_node):
         assert goal_node in self.all_nodes  # has no outgoing edges -> no neighbours
         # IMPORTANT: while using heuristic graph (a star), do not change origin!
-        global origin
+        global origin  # TODO
         origin = goal_node  # use origin for temporally storing the goal node
         self.goal_node = goal_node
         # reset heuristic for all
         self.heuristic.clear()
 
-    def _existing_edges_from(self, node1):
+    def edges_from(self, node1):
         # optimisation:
         #   return the neighbours ordered after their cost estimate: distance+ heuristic (= current-next + next-goal)
         #   -> when the goal is reachable return it first (-> a star search terminates)
@@ -324,8 +332,6 @@ class DirectedHeuristicGraph:
         assert node1 != node2  # no self loops allowed!
         self.add_directed_edge(node1, node2, distance)
         self.add_directed_edge(node2, node1, distance)
-        self.all_nodes.add(node1)
-        self.all_nodes.add(node2)
 
     def add_multiple_undirected_edges(self, node1, node_distance_iter):
         for node2, distance in node_distance_iter:
@@ -337,30 +343,39 @@ class DirectedHeuristicGraph:
 
     def remove_undirected_edge(self, node1, node2):
         # should work even if edge does not exist yet
-        neigbours_n1 = self.neighbours.get(node1)
-        if neigbours_n1 is not None:
-            neigbours_n1.discard(node2)
-            self.distances.pop((node1, node2), None)
-            if len(neigbours_n1) == 0:
-                # no neighbours left. completely delete node from graph
-                self.neighbours.pop(node1)
-                self.all_nodes.discard(node1)
+        neighbours_n1 = self.neighbours.get(node1)
+        neighbours_n2 = self.neighbours.get(node2)
 
-        neigbours_n2 = self.neighbours.get(node2)
-        if neigbours_n2 is not None:
-            neigbours_n2.discard(node1)
-            self.distances.pop((node2, node1), None)
-            if len(neigbours_n2) == 0:
-                self.neighbours.pop(node2)
-                self.all_nodes.discard(node2)
+        def remove_edge(neighbours, n1, n2):
+            if neighbours is not None:
+                neighbours.discard(n2)
+                self.distances.pop((n1, n2), None)
+                if len(neighbours) == 0:
+                    # no neighbours left. completely delete node from graph
+                    self.neighbours.pop(n1)
+                    self.all_nodes.discard(n1)
+
+        remove_edge(neighbours_n1, node1, node2)
+        remove_edge(neighbours_n2, node2, node1)
 
     def remove_multiple_undirected_edges(self, node1, node2_iter):
         for node2 in node2_iter:
             self.remove_undirected_edge(node1, node2)
 
     def make_clean(self):
-        # join all nodes with the same coordinates
-        # this is required for a* to work. multiple nodes would otherwise have the same priority and coordinates
+        # for shortest path computations all graph nodes should be unique and reachable
+        self.join_identical()
+        self.remove_dangling()
+
+    def remove_dangling(self):
+        # remove nodes with no neighbours
+        no_neighbours = set(filter(lambda n: len(self.neighbours.get(n, set())) == 0, self.get_all_nodes()))
+        for n in no_neighbours:
+            self.all_nodes.remove(n)
+            self.neighbours.pop(n, None)
+
+    def join_identical(self):
+        # join all nodes with the same coordinates,
         nodes_to_check = self.get_all_nodes().copy()
         while len(nodes_to_check) > 1:
             n1 = nodes_to_check.pop()
@@ -379,9 +394,3 @@ class DirectedHeuristicGraph:
                     if n3 != n1 and n3 not in neighbours_n1:
                         # and add all the new edges to node 1
                         self.add_undirected_edge(n1, n3, d)
-
-        # remove nodes with no neighbours
-        no_neighbours = set(filter(lambda n: len(self.neighbours.get(n, set())) == 0, self.get_all_nodes()))
-        for n in no_neighbours:
-            self.all_nodes.remove(n)
-            self.neighbours.pop(n, None)

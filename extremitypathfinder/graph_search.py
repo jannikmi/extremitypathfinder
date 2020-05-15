@@ -1,5 +1,6 @@
 import heapq  # implementation of the heap queue algorithm, also known as the priority queue algorithm (binary tree)
 
+
 # modified sample code from https://www.redblobgames.com/pathfinding/a-star/
 
 
@@ -42,7 +43,7 @@ def modified_a_star(heuristic_graph, start, goal):
     :return: a tuple of the shortest path start to goal and its total length
     """
 
-    def put_in_queue(generator):
+    def enqueue_next_from(generator):
         try:
             # node, distance, cost estimate (= distance + heuristic = current-next + estimate(next-goal))
             next_n, dist, cost_estim = (next(generator))
@@ -56,10 +57,10 @@ def modified_a_star(heuristic_graph, start, goal):
     heuristic_graph.set_goal_node(goal)  # lazy update of the heuristic
 
     priority_queue = PriorityQueue()
-    neighbour_gen = heuristic_graph._existing_edges_from(start)
+    neighbour_gen = heuristic_graph.edges_from(start)
     cost_so_far = 0.0
     path = [start]
-    put_in_queue(neighbour_gen)
+    enqueue_next_from(neighbour_gen)
     visited_nodes = set()
 
     while not priority_queue.empty():
@@ -69,7 +70,7 @@ def modified_a_star(heuristic_graph, start, goal):
         # print('neighbours:', heuristic_graph.get_neighbours_of(current))
 
         # there could still be other neighbours left in this generator:
-        put_in_queue(neighbour_gen)
+        enqueue_next_from(neighbour_gen)
 
         if current in visited_nodes:
             # this node has already been visited. there is no need to consider
@@ -93,8 +94,8 @@ def modified_a_star(heuristic_graph, start, goal):
             return path, cost_so_far
 
         # add neighbours of the current node
-        neighbour_gen = heuristic_graph._existing_edges_from(current)
-        put_in_queue(neighbour_gen)
+        neighbour_gen = heuristic_graph.edges_from(current)
+        enqueue_next_from(neighbour_gen)
 
     # goal is not reachable
     return [], None

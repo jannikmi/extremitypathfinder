@@ -2,10 +2,11 @@ Changelog
 =========
 
 
-1.2.0 (TBA)
+1.2.0 (2020-05-15)
 ------------------
 
-supporting only python 3.6+
+* supporting only python 3.6+
+* fix #10: Memory leak in DirectedHeuristicGraph
 
 internal:
 
