@@ -125,7 +125,6 @@ class PolygonEnvironment:
         # and optimize graph further at construction time
         self.graph = DirectedHeuristicGraph()
         extremities_to_check = set(self.all_extremities)
-        print(extremities_to_check)
         # have to run for all (also last one!), because existing edges might get deleted every loop
         while len(extremities_to_check) > 0:
             query_extremity: PolygonVertex = extremities_to_check.pop()
@@ -212,6 +211,17 @@ class PolygonEnvironment:
         self.graph.make_clean()
         self.prepared = True
 
+    # make sure start and goal are within the boundary polygon and outside of all holes
+    def within_map(self, coords):
+        # within the boundary polygon and outside of all holes
+        x, y = coords
+        if not inside_polygon(x, y, self.boundary_polygon.coordinates, border_value=True):
+            return False
+        for hole in self.holes:
+            if inside_polygon(x, y, hole.coordinates, border_value=False):
+                return False
+        return True
+
     def find_shortest_path(self, start_coordinates, goal_coordinates, free_space_after=True):
         # path planning query:
         # make sure the map has been loaded and prepared
@@ -220,18 +230,7 @@ class PolygonEnvironment:
         if not self.prepared:
             self.prepare()
 
-        # make sure start and goal are within the boundary polygon and outside of all holes
-        def within_map(query_coords):
-            # within the boundary polygon and outside of all holes
-            x, y = query_coords
-            if not inside_polygon(x, y, self.boundary_polygon.coordinates, border_value=True):
-                return False
-            for hole in self.holes:
-                if inside_polygon(x, y, hole.coordinates, border_value=False):
-                    return False
-            return True
-
-        if not (within_map(start_coordinates) and within_map(goal_coordinates)):
+        if not (self.within_map(start_coordinates) and self.within_map(goal_coordinates)):
             raise ValueError('start or goal do not lie within the map')
 
         if start_coordinates == goal_coordinates:
@@ -273,6 +272,7 @@ class PolygonEnvironment:
         # IMPORTANT geometrical property of this problem: it is always shortest to directly reach a node
         #   instead of visiting other nodes first (there is never an advantage through reduced edge weight)
         # -> when goal is directly reachable, there can be no other shorter path to it. Terminate
+
         for v, d in visibles_n_distances_goal:
             if v == start_vertex:
                 return [start_coordinates, goal_coordinates], d

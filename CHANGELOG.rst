@@ -10,7 +10,9 @@ Changelog
 * fix BUG where extremities would be deleted from the visibility graph
 * using generators to refer to the polygon properties (vertices,...) of an environment (save memory and remove redundancy)
 
+
 todo copy deep
+todo docstrings
 TODO sphinx documentation
 TODO api doc
 

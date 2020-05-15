@@ -1,5 +1,6 @@
 import time
-from os.path import abspath, join
+from os import makedirs
+from os.path import abspath, exists, join
 
 import matplotlib.pyplot as plt
 from matplotlib.patches import Polygon
@@ -17,6 +18,7 @@ POLYGON_SETTINGS = {
 }
 
 SHOW_PLOTS = False
+# TODO avoid global variable
 PLOTTING_DIR = 'all_plots'
 
 
@@ -30,25 +32,15 @@ def get_plot_name(file_name='plot'):
 def export_plot(fig, file_name):
     fig.set_size_inches(EXPORT_SIZE_X, EXPORT_SIZE_Y, forward=True)
     plt.savefig(get_plot_name(file_name), dpi=EXPORT_RESOLUTION)
+    plt.close()
 
 
 def mark_points(vertex_iter, **kwargs):
-    xs = []
-    ys = []
-    if type(vertex_iter) == set:
-        for v in vertex_iter:
-            xs.append(v.coordinates[0])
-            ys.append(v.coordinates[1])
-    elif type(vertex_iter[0]) == tuple:
-        for x, y in vertex_iter:
-            xs.append(x)
-            ys.append(y)
-    else:
-        for v in vertex_iter:
-            xs.append(v.coordinates[0])
-            ys.append(v.coordinates[1])
-
-    plt.scatter(xs, ys, **kwargs)
+    try:
+        coordinates = [v.coordinates.tolist() for v in vertex_iter]
+    except AttributeError:
+        coordinates = [v for v in vertex_iter]
+    plt.scatter(*zip(*coordinates), **kwargs)
 
 
 def draw_edge(v1, v2, c, alpha, **kwargs):
@@ -170,8 +162,8 @@ def draw_graph(map, graph):
 
     for n in all_nodes:
         x, y = n.coordinates
-        neigbours = graph.get_neighbours_of(n)
-        for n2 in neigbours:
+        neighbours = graph.get_neighbours_of(n)
+        for n2 in neighbours:
             x2, y2 = n2.coordinates
             dx, dy = x2 - x, y2 - y
             plt.arrow(x, y, dx, dy, head_width=0.15, head_length=0.5, head_starts_at_zero=False, shape='full',
@@ -186,10 +178,12 @@ def draw_graph(map, graph):
 
 class PlottingEnvironment(PolygonEnvironment):
 
-    def __init__(self, plotting_dir='./plots/'):
+    def __init__(self, plotting_dir=PLOTTING_DIR):
         super().__init__()
         global PLOTTING_DIR
         PLOTTING_DIR = plotting_dir
+        if not exists(plotting_dir):
+            makedirs(plotting_dir)
 
     def store(self, *args, **kwargs):
         super().store(*args, **kwargs)
@@ -202,11 +196,12 @@ class PlottingEnvironment(PolygonEnvironment):
     def find_shortest_path(self, *args, **kwargs):
         # important to not delete the temp graph! for plotting
         vertex_path, distance = super().find_shortest_path(*args, free_space_after=False, **kwargs)
-        draw_graph(self, self.temp_graph)
-        draw_with_path(self, self.temp_graph, vertex_path)
-        draw_only_path(self, vertex_path)
 
-        del self.temp_graph  # free the memory
+        if self.temp_graph:  # in some cases (e.g. direct path possible) no graph is being created!
+            draw_graph(self, self.temp_graph)
+            draw_with_path(self, self.temp_graph, vertex_path)
+            draw_only_path(self, vertex_path)
+            del self.temp_graph  # free the memory
 
         # extract the coordinates from the path
         return vertex_path, distance

@@ -6,6 +6,19 @@ import pytest
 from extremitypathfinder.extremitypathfinder import PolygonEnvironment
 from extremitypathfinder.plotting import PlottingEnvironment
 
+# TODO
+# PLOT_TEST_RESULTS = True
+PLOT_TEST_RESULTS = False
+TEST_PLOT_OUTPUT_FOLDER = 'plots'
+
+if PLOT_TEST_RESULTS:
+    print('plotting test environment enabled.')
+    ENVIRONMENT_CLASS = PlottingEnvironment
+    CONSTRUCTION_KWARGS = {"plotting_dir": TEST_PLOT_OUTPUT_FOLDER}
+else:
+    ENVIRONMENT_CLASS = PolygonEnvironment
+    CONSTRUCTION_KWARGS = {}
+
 # size_x, size_y, obstacle_iter
 GRID_ENV_PARAMS = (19, 10, [
     # (x,y),
@@ -213,8 +226,9 @@ def try_test_cases(environment, test_cases):
         else:
             status_str = 'XX'
         print(f'{status_str} input: {(start_coordinates, goal_coordinates)} ')
-        assert correct_result, \
-            f'unexpected result (path, length): got {output} instead of {expected_output} '
+        if PLOT_TEST_RESULTS:
+            assert correct_result, \
+                f'unexpected result (path, length): got {output} instead of {expected_output} '
 
     print('testing if path and distance are correct:')
     for ((start_coordinates, goal_coordinates), expected_output) in test_cases:
@@ -228,7 +242,7 @@ def try_test_cases(environment, test_cases):
 class MainTest(unittest.TestCase):
 
     def test_fct(self):
-        grid_env = PolygonEnvironment()
+        grid_env = ENVIRONMENT_CLASS(**CONSTRUCTION_KWARGS)
 
         grid_env.store_grid_world(*GRID_ENV_PARAMS, simplify=False, validate=False)
         assert len(list(grid_env.all_extremities)) == 17, 'extremities do not get detected correctly!'
@@ -250,7 +264,7 @@ class MainTest(unittest.TestCase):
 
         nr_nodes_env1_old = len(grid_env.graph.all_nodes)
 
-        poly_env = PolygonEnvironment()
+        poly_env = ENVIRONMENT_CLASS(**CONSTRUCTION_KWARGS)
         poly_env.store(*POLY_ENV_PARAMS, validate=True)
         poly_env.prepare()
         nr_nodes_env2 = len(poly_env.graph.all_nodes)
@@ -264,7 +278,6 @@ class MainTest(unittest.TestCase):
             'different environments share the same graph object'
         assert grid_env.graph.all_nodes is not poly_env.graph.all_nodes, \
             'different environments share the same set of nodes'
-
 
         try_test_cases(poly_env, TEST_DATA_POLY_ENV)
 
