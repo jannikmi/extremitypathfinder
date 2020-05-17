@@ -1,4 +1,5 @@
 global-exclude *.py[cod]
+global-exclude *.coverage
 
 include CHANGELOG.rst
 include CONTRIBUTING.rst

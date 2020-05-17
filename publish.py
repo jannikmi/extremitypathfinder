@@ -1,7 +1,6 @@
 import os
 import re
 import sys
-from os import listdir
 from os.path import abspath, isfile, join, pardir
 
 """

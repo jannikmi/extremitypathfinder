@@ -12,7 +12,6 @@ setup(
     author='J. Michelfeit',
     author_email='python@michelfe.it',
     license='MIT licence',
-    license_file='LICENSE',
     url='https://github.com/MrMinimal64/extremitypathfinder',  # use the URL to the github repo
     project_urls={
         "Source Code": "https://github.com/MrMinimal64/extremitypathfinder",

@@ -5,6 +5,9 @@ tmp.py
 plots/
 venv/
 map.pickle
+TODOs.txt
+*.coverage
+
 *.bat
 
 
@@ -112,4 +115,3 @@ target/
 ## File-based project format:
 *.ipr
 *.iws
-
