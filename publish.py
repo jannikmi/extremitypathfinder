@@ -76,11 +76,11 @@ bandit ./timezonefinder/*.py
 
 PACKAGE = 'extremitypathfinder'
 VERSION_FILE = 'VERSION'
-
-# print('Enter virtual env name:')
-# virtual env has to be given!
-# VIRT_ENV_NAME = input()
 VIRT_ENV_NAME = 'pathEnv'
+VIRT_ENV_COMMAND = f'. ~/miniconda3/etc/profile.d/conda.sh; conda activate {VIRT_ENV_NAME}; '
+# TODO '36',
+PY_VERSION_IDS = ['37', '38']  # the supported python versions to create wheels for
+PYTHON_TAG = '.'.join([f'py{v}' for v in PY_VERSION_IDS])
 
 
 def get_version():
@@ -178,67 +178,42 @@ if __name__ == "__main__":
     print('the version number has been set to:', version)
     print('=====================')
 
-    routine(None,
-            'Maybe re-pin the test dependencies (requirements.txt) with pip-compile!'
-            ' Commands are written in the beginning of this script',
-            'Done.', 'Exit')
-    routine(None,
-            'Are all pinned dependencies written in setup.py and the Documentation?',
-            'OK. Continue',
-            'Exit')
-    routine(None, 'Are all (new) features documented?', 'OK. Continue', 'Exit')
-    routine(None, 'Remember to write a changelog now for version %s' % version, 'Done. Continue', 'Exit')
+    routine(None, 'Remember to properly specify all supported python versions in publish.py and setup.py')
+    routine(None, 'Maybe re-pin the test dependencies (requirements.txt) with pip-compile!'
+                  ' Commands are written in the beginning of this script')
+    routine(None, 'Have all pinned dependencies been listed in setup.py and the Documentation?', )
+    routine(None, 'Have all (new) features been documented?')
+    routine(None, f'Remember to write a changelog now for version {version}')
 
     print('___________')
     print('Running TESTS:')
 
-    virt_env_act_command = f'source activate {VIRT_ENV_NAME}; '
+    routine(f'{VIRT_ENV_COMMAND} rstcheck *.rst', 'checking syntax of all .rst files:', 'next: build check')
 
-    # routine(virt_env_act_command + "pip-compile requirements_tests.in;pip-sync",
-    #         'pinning the requirements.txt and bringing virtualEnv to exactly the specified state:', 'next: build check')
-
-    routine(virt_env_act_command + "rstcheck *.rst", 'checking syntax of all .rst files:', 'next: build check')
-
-    # TODO
-    # print('generating documentation now...')
-    # os.system('(cd ./docs && exec make html)')
-    # print('done.')
+    print('generating documentation now...')
+    os.system('(cd ./docs && exec make html)')
+    print('done.')
 
     # IMPORTANT: -r flag to rebuild tox virtual env
     # only when dependencies have changed!
     rebuild_flag = ''
-    print('when the dependencies (in requirements.txt) have changed enter 1 (-> rebuild tox)')
+    print('when the dependencies (in requirements_docs.txt) have changed enter 1 (-> rebuild tox)')
     try:
         inp = int(input())
         if inp == 1:
-            rebuild_flag = ' -r'
+            rebuild_flag = '-r'
     except ValueError:
         pass
 
-    # routine(virt_env_act_command + "tox" + rebuild_flag, 'checking syntax, codestyle and imports', 'continue')
-    routine(virt_env_act_command + "tox" + rebuild_flag + " -e codestyle",
-            'checking syntax, codestyle and imports', 'continue')
-    routine(virt_env_act_command + "tox" + rebuild_flag + " -e py37", 'build tests py3', 'continue')
-
+    routine(f'{VIRT_ENV_COMMAND} tox {rebuild_flag} -e codestyle', 'checking syntax, codestyle and imports',
+            'run tests')
+    routine(f'{VIRT_ENV_COMMAND} tox {rebuild_flag} -e py37', 'run tests')
     print('Tests finished.')
 
     routine(None,
             'Please commit your changes, push and wait if Travis tests build successfully. '
             'Only then merge them into the master.',
-            'Build successful. Publish and upload now.', 'Exit.')
-
-    # TODO do this automatically, problem are the commit messages (often the same as changelog)
-    # git commit --message
-    # git push dev
-
-    # TODO wait for Travis to finish positively
-
-    # if not in master
-
-    # TODO ask to push in master
-    # git merge ...
-
-    # TODO switching to master
+            'CI tests passed & merge into master complete. Build and upload now.')
 
     print('=================')
     print('PUBLISHING:')
@@ -246,7 +221,9 @@ if __name__ == "__main__":
     # routine("python3 setup.py sdist bdist_wheel upload", 'Uploading the package now.') # deprecated
     # new twine publishing routine:
     # https://packaging.python.org/tutorials/packaging-projects/
-    routine("python3 setup.py sdist bdist_wheel", 'building the package now.')
+    # delete the build folder before to get a fresh build
+    routine(f"rm -r -f build; python setup.py sdist bdist_wheel --python-tag {PYTHON_TAG}", 'building the package now.',
+            'build done. check the included files! test uploading.')
 
     path = abspath(join(__file__, pardir, 'dist'))
     all_archives_this_version = [f for f in os.listdir(path) if isfile(join(path, f)) and version_str in f]
@@ -254,10 +231,10 @@ if __name__ == "__main__":
     command = "twine upload --repository-url https://test.pypi.org/legacy/ " + ' '.join(paths2archives)
 
     # upload all archives of this version
-    routine(virt_env_act_command + command, 'testing if upload works.')
+    routine(VIRT_ENV_COMMAND + command, 'testing if upload works.')
 
-    command = "twine upload " + ' '.join(paths2archives)
-    routine(virt_env_act_command + command, 'real upload to PyPI.')
+    command = f"twine upload " + ' '.join(paths2archives)
+    routine(VIRT_ENV_COMMAND + command, 'real upload to PyPI.')
 
     # tag erstellen
     routine(None, 'Do you want to create a git release tag?', 'Yes', 'No')
@@ -270,6 +247,3 @@ if __name__ == "__main__":
 
     print('______________')
     print('Publishing Done.')
-    print("only when the upload didn't work: python3 setup.py bdist_wheel upload")
-    print('now run:')
-    print(f'sudo -H pip install {PACKAGE} --upgrade')

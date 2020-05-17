@@ -6,25 +6,30 @@
 #
 attrs==19.3.0             # via pytest
 coverage==5.0.3           # via pytest-cov
-docutils==0.16            # via -r requirements_tests.in
+cycler==0.10.0            # via matplotlib
+docutils==0.16            # via -r requirements_tests.in, rstcheck
 entrypoints==0.3          # via flake8
 flake8-commas==2.0.0      # via -r requirements_tests.in
 flake8==3.7.9             # via -r requirements_tests.in, flake8-commas
 importlib-metadata==1.5.0  # via pluggy, pytest
 isort==4.3.21             # via -r requirements_tests.in
+kiwisolver==1.2.0         # via matplotlib
+matplotlib==3.2.1         # via -r requirements_tests.in
 mccabe==0.6.1             # via flake8
 more-itertools==8.2.0     # via pytest
 multilint==4.1.0          # via -r requirements_tests.in
-numpy==1.18.1             # via -r requirements_tests.in
+numpy==1.18.1             # via -r requirements_tests.in, matplotlib
 packaging==20.3           # via pytest
 pluggy==0.13.1            # via pytest
 py==1.8.1                 # via pytest
 pycodestyle==2.5.0        # via flake8
 pyflakes==2.1.1           # via flake8
 pygments==2.6.1           # via -r requirements_tests.in
-pyparsing==2.4.6          # via packaging
+pyparsing==2.4.6          # via matplotlib, packaging
 pytest-cov==2.8.1         # via -r requirements_tests.in
 pytest==5.4.1             # via -r requirements_tests.in, pytest-cov
-six==1.14.0               # via packaging
+python-dateutil==2.8.1    # via matplotlib
+rstcheck==3.3.1           # via -r requirements_tests.in
+six==1.14.0               # via cycler, packaging, python-dateutil
 wcwidth==0.1.8            # via pytest
 zipp==3.1.0               # via importlib-metadata

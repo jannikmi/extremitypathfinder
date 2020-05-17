@@ -1,8 +1,10 @@
-from typing import List
+import heapq
+from typing import List, Optional
 
 import numpy as np
 
-# placeholder for temporarily storing the vector representing the current origin
+# TODO find a way to avoid global variable, wrap all in a different kind of 'coordinate system environment'?
+# placeholder for temporarily storing the current origin
 origin = None
 
 
@@ -70,19 +72,19 @@ class Vertex(object):
     __slots__ = ['coordinates', 'is_extremity', 'is_outdated', 'coordinates_translated', 'angle_representation',
                  'distance_to_origin']
 
-    def __gt__(self, other):
-        # ordering needed for priority queue. multiple vertices possibly have the same priority.
-        return id(self) > id(other)
-
     def __init__(self, coordinates):
         self.coordinates = np.array(coordinates)
-        self.is_extremity = False
+        self.is_extremity: bool = False
 
         # a container for temporally storing shifted coordinates
         self.is_outdated: bool = True
         self.coordinates_translated = None
-        self.angle_representation = None
-        self.distance_to_origin = None
+        self.angle_representation: Optional[AngleRepresentation] = None
+        self.distance_to_origin: float = 0.0
+
+    def __gt__(self, other):
+        # ordering needed for priority queue. multiple vertices possibly have the same priority.
+        return id(self) > id(other)
 
     def __str__(self):
         return str(self.coordinates)
@@ -134,10 +136,10 @@ class PolygonVertex(Vertex):
 
     def __init__(self, *args, **kwargs):
         super(PolygonVertex, self).__init__(*args, **kwargs)
-        self.edge1: Edge = None
-        self.edge2: Edge = None
-        self.neighbour1: PolygonVertex = None
-        self.neighbour2: PolygonVertex = None
+        self.edge1: Optional[Edge] = None
+        self.edge2: Optional[Edge] = None
+        self.neighbour1: Optional[PolygonVertex] = None
+        self.neighbour2: Optional[PolygonVertex] = None
 
     def get_neighbours(self):
         return self.neighbour1, self.neighbour2
@@ -247,21 +249,40 @@ class Polygon(object):
             vertex.mark_outdated()
 
 
+class PriorityQueue:
+    def __init__(self):
+        self.elements = []
+
+    def empty(self):
+        return len(self.elements) == 0
+
+    def put(self, item, priority):
+        heapq.heappush(self.elements, (priority, item))
+
+    def get(self):
+        return heapq.heappop(self.elements)[1]  # return only the item without the priority
+
+
 # TODO often empty sets in self.neighbours
-class DirectedHeuristicGraph:
-    distances: dict = {}
-    neighbours: dict = {}
-    all_nodes: set = set()
+class DirectedHeuristicGraph(object):
+    __slots__ = ['all_nodes', 'distances', 'goal_node', 'heuristic', 'neighbours']
 
-    # the heuristic must NEVER OVERESTIMATE the actual cost (here: actual shortest distance)
-    # <=> must always be lowest for node with the POSSIBLY lowest cost
-    # <=> heuristic is LOWER BOUND for the cost
-    # the heuristic here: distance to the goal node (is always the shortest possible distance!)
-    heuristic: dict = {}
-    goal_node: Vertex = None
+    def __init__(self):
+        self.distances: dict = {}
+        self.neighbours: dict = {}
+        self.all_nodes: set = set()
+        # TODO use same set as extremities of env, but different for copy!
 
-    def __deepcopy__(self, memodict={}):
-        # should return a copy with independent dicts, but not copy the stored vertex instances!
+        # the heuristic must NEVER OVERESTIMATE the actual cost (here: actual shortest distance)
+        # <=> must always be lowest for node with the POSSIBLY lowest cost
+        # <=> heuristic is LOWER BOUND for the cost
+        # the heuristic here: distance to the goal node (is always the shortest possible distance!)
+        self.heuristic: dict = {}
+        self.goal_node: Optional[Vertex] = None
+
+    def __deepcopy__(self, memodict=None):
+        # returns an independent copy (nodes can be added without changing the original graph),
+        # but without actually copying vertex instances!
         independent_copy = DirectedHeuristicGraph()
         independent_copy.distances = self.distances.copy()
         independent_copy.neighbours = {k: v.copy() for k, v in self.neighbours.items()}
@@ -300,7 +321,7 @@ class DirectedHeuristicGraph:
         # reset heuristic for all
         self.heuristic.clear()
 
-    def _existing_edges_from(self, node1):
+    def edges_from(self, node1):
         # optimisation:
         #   return the neighbours ordered after their cost estimate: distance+ heuristic (= current-next + next-goal)
         #   -> when the goal is reachable return it first (-> a star search terminates)
@@ -324,8 +345,6 @@ class DirectedHeuristicGraph:
         assert node1 != node2  # no self loops allowed!
         self.add_directed_edge(node1, node2, distance)
         self.add_directed_edge(node2, node1, distance)
-        self.all_nodes.add(node1)
-        self.all_nodes.add(node2)
 
     def add_multiple_undirected_edges(self, node1, node_distance_iter):
         for node2, distance in node_distance_iter:
@@ -335,32 +354,31 @@ class DirectedHeuristicGraph:
         for node2, distance in node_distance_iter:
             self.add_directed_edge(node1, node2, distance)
 
+    def remove_directed_edge(self, n1, n2):
+        neighbours = self.neighbours.get(n1)
+        if neighbours is not None:
+            neighbours.discard(n2)
+            self.distances.pop((n1, n2), None)
+            # ATTENTION: even if there are no neighbours left and a node is hence dangling (not reachable),
+            # the node must still be kept, since with the addition of start and goal nodes during a query
+            # the node might become reachable!
+
     def remove_undirected_edge(self, node1, node2):
         # should work even if edge does not exist yet
-        neigbours_n1 = self.neighbours.get(node1)
-        if neigbours_n1 is not None:
-            neigbours_n1.discard(node2)
-            self.distances.pop((node1, node2), None)
-            if len(neigbours_n1) == 0:
-                # no neighbours left. completely delete node from graph
-                self.neighbours.pop(node1)
-                self.all_nodes.discard(node1)
-
-        neigbours_n2 = self.neighbours.get(node2)
-        if neigbours_n2 is not None:
-            neigbours_n2.discard(node1)
-            self.distances.pop((node2, node1), None)
-            if len(neigbours_n2) == 0:
-                self.neighbours.pop(node2)
-                self.all_nodes.discard(node2)
+        self.remove_directed_edge(node1, node2)
+        self.remove_directed_edge(node2, node1)
 
     def remove_multiple_undirected_edges(self, node1, node2_iter):
         for node2 in node2_iter:
             self.remove_undirected_edge(node1, node2)
 
     def make_clean(self):
-        # join all nodes with the same coordinates
-        # this is required for a* to work. multiple nodes would otherwise have the same priority and coordinates
+        # for shortest path computations all graph nodes should be unique
+        self.join_identical()
+        # leave dangling nodes! (they might become reachable by adding start and and goal node!)
+
+    def join_identical(self):
+        # join all nodes with the same coordinates,
         nodes_to_check = self.get_all_nodes().copy()
         while len(nodes_to_check) > 1:
             n1 = nodes_to_check.pop()
@@ -368,8 +386,8 @@ class DirectedHeuristicGraph:
             same_nodes = {n for n in nodes_to_check if np.allclose(coordinates1, n.coordinates)}
             nodes_to_check.difference_update(same_nodes)
             for n2 in same_nodes:
+                # print('removing duplicate node', n2)
                 neighbours_n1 = self.neighbours[n1]
-                # print('removing node',n2)
                 neighbours_n2 = self.neighbours.pop(n2)
                 for n3 in neighbours_n2:
                     d = self.distances.pop((n2, n3))
@@ -380,8 +398,87 @@ class DirectedHeuristicGraph:
                         # and add all the new edges to node 1
                         self.add_undirected_edge(n1, n3, d)
 
-        # remove nodes with no neighbours
-        no_neighbours = set(filter(lambda n: len(self.neighbours.get(n, set())) == 0, self.get_all_nodes()))
-        for n in no_neighbours:
-            self.all_nodes.remove(n)
-            self.neighbours.pop(n, None)
+                self.all_nodes.remove(n2)
+
+    def modified_a_star(self, start, goal):
+        """ implementation of the popular A* algorithm with optimisations for this special use case
+
+        IMPORTANT: geometrical property of this problem (and hence also the extracted graph):
+        it is always shortest to directly reach a node instead of visiting other nodes first
+        (there is never an advantage through reduced edge weight)
+
+        this can be exploited in a lot of cases to make A* faster and terminate earlier than for general graphs:
+        -> when the goal is directly reachable, there can be no other shorter path to it. terminate.
+        -> there is no need to revisit nodes (path only gets longer)
+        -> not all neighbours of the current node have to be checked like in vanilla A* before continuing
+        to the next node.
+
+        Optimisation: keep one 'neighbour generator' open for every visited node,
+            that is yielding its neighbours starting with the one having the lowest cost estimate.
+            One then only has to store those generators in a priority queue
+            to always draw the generator with the neighbour having the lowest TOTAL cost estimate (lower bound) next.
+
+        modified sample code from https://www.redblobgames.com/pathfinding/a-star/
+
+        :param start: the vertex to start from
+        :param goal: the vertex to end at
+        :return: a tuple of the shortest path from start to goal and its total length
+        """
+
+        def enqueue_next_from(generator):
+            try:
+                # node, distance, cost estimate (= distance + heuristic = current-next + estimate(next-goal))
+                next_n, dist, cost_estim = (next(generator))
+                # the priority has to be the lower bound (=estimate) of the TOTAL cost!
+                # = cost_so_far + cost_estim  (= start-current + estimate(current-goal))
+                priority_queue.put((next_n, dist, generator, path, cost_so_far), cost_so_far + cost_estim)
+            except StopIteration:
+                # there is no neighbour left
+                pass
+
+        self.set_goal_node(goal)  # lazy update of the heuristic
+
+        priority_queue = PriorityQueue()
+        neighbour_gen = self.edges_from(start)
+        cost_so_far = 0.0
+        path = [start]
+        enqueue_next_from(neighbour_gen)
+        visited_nodes = set()
+
+        while not priority_queue.empty():
+            # always 'visit' the node with the current lowest total cost estimate
+            current, distance, neighbour_gen, path, cost_so_far = priority_queue.get()
+            # print('visiting:', current)
+            # print('neighbours:', heuristic_graph.get_neighbours_of(current))
+
+            # there could still be other neighbours left in this generator:
+            enqueue_next_from(neighbour_gen)
+
+            if current in visited_nodes:
+                # this node has already been visited. there is no need to consider
+                # path can only get longer by visiting other nodes first: new_cost is never < cost_so_far
+                continue
+
+            visited_nodes.add(current)
+            # NOTE: in contrast to vanilla A*,
+            # here the path and cost have to be stored separately for every open generator!
+            cost_so_far += distance
+            # IMPORTANT: use independent path lists
+            path = path.copy()
+            path.append(current)
+
+            if current == goal:
+                # since the goal node is the one with the lowest cost estimate
+                # because of the geometric property mentioned above there can be no other shortest path to the goal
+                # the algorithm can be terminated (regular a* would now still continue to all other neighbours first)
+                # optimisation: _exiting_edges_from() returns the goal node first if it is among the neighbours
+                # heuristic(goal) == 0
+                # print('reached goal node. terminating')
+                return path, cost_so_far
+
+            # add neighbours of the current node
+            neighbour_gen = self.edges_from(current)
+            enqueue_next_from(neighbour_gen)
+
+        # goal is not reachable
+        return [], None
