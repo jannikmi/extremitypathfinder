@@ -148,7 +148,7 @@ POLY_ENV_PARAMS = (
     # boundary_coordinates
     [(0.0, 0.0), (10.0, 0.0), (9.0, 5.0), (10.0, 10.0), (0.0, 10.0)],
     # list_of_holes
-    [[(3.0, 7.0), (5.0, 9.0), (4.6, 7.0), (5.0, 4.0), ], ]
+    [[(3.0, 7.0), (5.0, 9.0), (4.6, 7.0), (5.0, 4.0), ], ],
 )
 
 TEST_DATA_POLY_ENV = [
@@ -187,31 +187,6 @@ TEST_DATA_POLY_ENV = [
     # using a* graph search:
     # directly reachable through a single vertex (does not change distance!)
     (((9, 4), (9, 6)), ([(9, 4), (9, 5), (9, 6)], 2)),
-
-    # # If two Polygons have vertices with identical coordinates (this is allowed),
-    # #   paths through these vertices are theoretically possible!
-    # (((6.5, 5.5), (7.5, 6.5)), ([(6.5, 5.5), (7, 6), (7.5, 6.5)], sqrt(1 ** 2 + 1 ** 2))),
-    #
-    # # distance should stay the same even if multiple extremities lie on direct path
-    # # test if path is skipping passed extremities
-    # (((8, 4), (8, 8)), ([(8, 4), (8, 5), (8, 6), (8, 7), (8, 8)], 4)),
-    # (((8, 4), (8, 9)), ([(8, 4), (8, 5), (8, 6), (8, 7), (8, 8), (8, 9)], 5)),
-    #
-    # # regular examples
-    # (((0.5, 6), (18.5, 0.5)),
-    #  ([(0.5, 6.0), (5, 5), (6, 5), (7, 5), (8, 5), (17, 6), (18, 6), (18.5, 0.5)], 23.18783787537749)),
-    #
-    # (((0.5, 6), (9, 6)),
-    #  ([(0.5, 6.0), (5, 5), (6, 5), (7, 6), (8, 6), (9, 6)], 9.023985791019538)),
-    #
-    # (((0.5, 6), (18.5, 9)),
-    #  ([(0.5, 6.0), (5, 5), (6, 5), (7, 5), (8, 5), (18, 7), (18.5, 9.0)], 19.869364068640845)),
-    #
-    # (((6.9, 4), (7, 9)),
-    #  ([(6.9, 4.0), (7, 6), (8, 7), (8, 8), (7, 9)], 5.830925564196269)),
-    #
-    # (((6.5, 4), (7, 9)),
-    #  ([(6.5, 4.0), (7, 6), (8, 7), (8, 8), (7, 9)], 5.889979937555021)),
 ]
 
 
@@ -255,6 +230,7 @@ class MainTest(unittest.TestCase):
             with pytest.raises(ValueError):
                 grid_env.find_shortest_path(start_coordinates, goal_coordinates)
 
+        print('testing grid environment')
         try_test_cases(grid_env, TEST_DATA_GRID_ENV)
 
         # when the deep copy mechanism works correctly
@@ -266,10 +242,15 @@ class MainTest(unittest.TestCase):
 
         poly_env = ENVIRONMENT_CLASS(**CONSTRUCTION_KWARGS)
         poly_env.store(*POLY_ENV_PARAMS, validate=True)
+        NR_EXTR_POLY_ENV = 4
+        assert len(list(poly_env.all_extremities)) == NR_EXTR_POLY_ENV, \
+            f'the environment should detect all {NR_EXTR_POLY_ENV} extremities!'
         poly_env.prepare()
         nr_nodes_env2 = len(poly_env.graph.all_nodes)
-
-        assert nr_nodes_env2 == 4, 'grid_env should have 4 extremities!'
+        print(poly_env.graph.all_nodes)
+        print(list(poly_env.all_extremities))
+        assert nr_nodes_env2 == NR_EXTR_POLY_ENV, \
+            f'the visibility graph should store all {NR_EXTR_POLY_ENV} extremities!'
 
         nr_nodes_env1_new = len(grid_env.graph.all_nodes)
         assert nr_nodes_env1_new == nr_nodes_env1_old, \
@@ -279,10 +260,11 @@ class MainTest(unittest.TestCase):
         assert grid_env.graph.all_nodes is not poly_env.graph.all_nodes, \
             'different environments share the same set of nodes'
 
+        print('\ntesting polygon environment')
         try_test_cases(poly_env, TEST_DATA_POLY_ENV)
 
         # TODO test: When the paths should be blocked, use a single polygon with multiple identical
-        #   vertices instead (also allowed).
+        #   vertices instead (also allowed?! change data requirements in doc!).
 
         # TODO test graph construction
         # when two nodes have the same angle representation there should only be an edge to the closer node!

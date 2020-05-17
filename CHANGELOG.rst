@@ -2,23 +2,22 @@ Changelog
 =========
 
 
-1.2.0 (2020-05-15)
+TODO python 3.6 support. tests not passing so far only for this python version
+
+1.2.0 (2020-05-18)
 ------------------
 
-* supporting only python 3.6+
+* supporting only python 3.7+
 * fix #10: Memory leak in DirectedHeuristicGraph
-* fix BUG where extremities would be deleted from the visibility graph
+* fix BUG where "dangling" extremities in the visibility graph would be deleted
 * using generators to refer to the polygon properties (vertices,...) of an environment (save memory and remove redundancy)
-
-
-todo copy deep
-todo docstrings
-TODO sphinx documentation
-TODO api doc
-
+* enabled plotting the test results, at the same time this is testing the plotting functionality
+* added typing
 
 internal:
 
+* added sphinx documentation, included auto api documentation, improved docstrings
+* added contribution guidelines
 * add sponsor button
 * updated publishing routine
 * split up requirement files (basic, tests)
@@ -27,6 +26,7 @@ internal:
 * added coverage tests
 * added editorconfig
 * specify version in VERSION file
+* added new tests
 
 
 1.1.0 (2018-10-17)

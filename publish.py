@@ -78,7 +78,8 @@ PACKAGE = 'extremitypathfinder'
 VERSION_FILE = 'VERSION'
 VIRT_ENV_NAME = 'pathEnv'
 VIRT_ENV_COMMAND = f'. ~/miniconda3/etc/profile.d/conda.sh; conda activate {VIRT_ENV_NAME}; '
-PY_VERSION_IDS = ['36', '37', '38']  # the supported python versions to create wheels for
+# TODO '36',
+PY_VERSION_IDS = ['37', '38']  # the supported python versions to create wheels for
 PYTHON_TAG = '.'.join([f'py{v}' for v in PY_VERSION_IDS])
 
 
@@ -189,15 +190,14 @@ if __name__ == "__main__":
 
     routine(f'{VIRT_ENV_COMMAND} rstcheck *.rst', 'checking syntax of all .rst files:', 'next: build check')
 
-    # TODO
-    # print('generating documentation now...')
-    # os.system('(cd ./docs && exec make html)')
-    # print('done.')
+    print('generating documentation now...')
+    os.system('(cd ./docs && exec make html)')
+    print('done.')
 
     # IMPORTANT: -r flag to rebuild tox virtual env
     # only when dependencies have changed!
     rebuild_flag = ''
-    print('when the dependencies (in requirements.txt) have changed enter 1 (-> rebuild tox)')
+    print('when the dependencies (in requirements_docs.txt) have changed enter 1 (-> rebuild tox)')
     try:
         inp = int(input())
         if inp == 1:

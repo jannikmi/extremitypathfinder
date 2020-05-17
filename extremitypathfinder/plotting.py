@@ -22,9 +22,6 @@ SHOW_PLOTS = False
 PLOTTING_DIR = 'all_plots'
 
 
-# TODO test plotting functionality
-
-
 def get_plot_name(file_name='plot'):
     return abspath(join(PLOTTING_DIR, file_name + '_' + str(time.time())[:-7] + '.png'))
 

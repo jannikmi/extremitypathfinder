@@ -1,4 +1,5 @@
 from itertools import combinations
+from typing import List
 
 import numpy as np
 
@@ -179,11 +180,10 @@ def has_clockwise_numbering(coords):
     return False
 
 
-def check_data_requirements(boundary_coords, list_hole_coords):
-    # TODO test
-    # todo - polygons must not intersect each other
-    """
-    ensure that all the following conditions on the polygons are fulfilled:
+# TODO test
+# todo - polygons must not intersect each other
+def check_data_requirements(boundary_coords: np.ndarray, list_hole_coords: List[np.ndarray]):
+    """ ensures that all the following conditions on the polygons are fulfilled:
         - must at least contain 3 vertices
         - no consequent vertices with identical coordinates in the polygons! In general might have the same coordinates
         - a polygon must not have self intersections (intersections with other polygons are allowed)

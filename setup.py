@@ -41,7 +41,7 @@ setup(
                      'or grid environments based on visibility graphs.\n'
                      'Please check Github for the documentation with plots: '
                      'https://github.com/MrMinimal64/extremitypathfinder',
-    python_requires='>=3.6',
+    python_requires='>=3.7',
     install_requires=[
         'numpy>=1.16',
     ],

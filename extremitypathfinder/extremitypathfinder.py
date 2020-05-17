@@ -1,20 +1,23 @@
 import pickle
 from copy import deepcopy
-from typing import List, Iterable
+from typing import Iterable, List, Tuple, Union
 
 import numpy as np
 
 from extremitypathfinder.helper_classes import DirectedHeuristicGraph, Edge, Polygon, PolygonVertex, Vertex
-from extremitypathfinder.helper_fcts import check_data_requirements, convert_gridworld, find_within_range, \
-    inside_polygon, find_visible
+from extremitypathfinder.helper_fcts import (
+    check_data_requirements, convert_gridworld, find_visible, find_within_range, inside_polygon,
+)
 
 # TODO possible to allow polygon consisting of 2 vertices only(=barrier)? lots of functions need at least 3 vertices atm
 
-
-# Reference:
-#   [1] Vinther, Anders Strand-Holm, Magnus Strand-Holm Vinther, and Peyman Afshani.
-#   "Pathfinding in Two-dimensional Worlds"
-#   http://www.cs.au.dk/~gerth/advising/thesis/anders-strand-holm-vinther_magnus-strand-holm-vinther.pdf
+COORDINATE_TYPE = Tuple[float, float]
+PATH_TYPE = List[COORDINATE_TYPE]
+LENGTH_TYPE = float
+INPUT_NUMERICAL_TYPE = Union[float, int]
+INPUT_COORD_TYPE = Tuple[INPUT_NUMERICAL_TYPE, INPUT_NUMERICAL_TYPE]
+OBSTACLE_ITER_TYPE = Iterable[INPUT_COORD_TYPE]
+INPUT_COORD_LIST_TYPE = Union[np.ndarray, List]
 
 DEFAULT_PICKLE_NAME = 'environment.pickle'
 
@@ -26,8 +29,18 @@ def load_pickle(path=DEFAULT_PICKLE_NAME):
         return pickle.load(f)
 
 
+# TODO document parameters
 class PolygonEnvironment:
-    # class for keeping preloaded map for consecutive path queries
+    """ class allowing to use polygons to represent "2D environments" and use them for path finding.
+
+    keeps a "loaded" and prepared environment for consecutive path queries.
+    internally uses a visibility graph optimised for shortest path finding.
+    general approach and some optimisations theoretically described in:
+    [1] Vinther, Anders Strand-Holm, Magnus Strand-Holm Vinther, and Peyman Afshani.
+    "`Pathfinding in Two-dimensional Worlds
+    <https://www.cs.au.dk/~gerth/advising/thesis/anders-strand-holm-vinther_magnus-strand-holm-vinther.pdf>`__"
+    """
+
     boundary_polygon: Polygon = None
     holes: List[Polygon] = None
     prepared: bool = False
@@ -54,7 +67,24 @@ class PolygonEnvironment:
         for p in self.polygons:
             yield from p.edges
 
-    def store(self, boundary_coordinates, list_of_hole_coordinates, validate=False):
+    def store(self, boundary_coordinates: INPUT_COORD_LIST_TYPE, list_of_hole_coordinates: INPUT_COORD_LIST_TYPE,
+              validate: bool = False):
+        """ saves the passed input polygons in the environment
+
+        .. note:: the passed polygons must meet these requirements:
+
+            * given as numpy or python array of coordinate tuples: ``[(x1,y1), (x2,y2,)...]``
+            * no repetition of the first point at the end
+            * at least 3 vertices (no single points or lines allowed)
+            * no consequent vertices with identical coordinates in the polygons (same coordinates allowed)
+            * no self intersections
+            * no true intersections with other polygons, identical vertices allowed
+            * edge numbering has to follow these conventions: boundary polygon counter clockwise, holes clockwise
+
+        :param boundary_coordinates: array of coordinates with counter clockwise edge numbering
+        :param list_of_hole_coordinates: array of coordinates with clockwise edge numbering
+        :param validate: whether the requirements of the data should be tested
+        """
         self.prepared = False
         # 'loading the map
         boundary_coordinates = np.array(boundary_coordinates)
@@ -66,39 +96,41 @@ class PolygonEnvironment:
         # IMPORTANT: make a copy of the list instead of linking to the same list (python!)
         self.holes = [Polygon(coordinates, is_hole=True) for coordinates in list_of_hole_coordinates]
 
-    def store_grid_world(self, size_x: int, size_y: int, obstacle_iter: iter, simplify: bool = True, validate=False):
-        """
+    def store_grid_world(self, size_x: int, size_y: int, obstacle_iter: OBSTACLE_ITER_TYPE, simplify: bool = True,
+                         validate: bool = False):
+        """ convert a grid-like into a polygon environment and save it
+
         prerequisites: grid world must not have single non-obstacle cells which are surrounded by obstacles
         ("white cells in black surrounding" = useless for path planning)
+
         :param size_x: the horizontal grid world size
         :param size_y: the vertical grid world size
         :param obstacle_iter: an iterable of coordinate pairs (x,y) representing blocked grid cells (obstacles)
-        :param validate:
+        :param validate: whether the input should be validated
         :param simplify: whether the polygons should be simplified or not. reduces edge amount, allow diagonal edges
         """
         boundary_coordinates, list_of_hole_coordinates = convert_gridworld(size_x, size_y, obstacle_iter, simplify)
         self.store(boundary_coordinates, list_of_hole_coordinates, validate)
 
-    def export_pickle(self, path=DEFAULT_PICKLE_NAME):
+    def export_pickle(self, path: str = DEFAULT_PICKLE_NAME):
         print('storing map class in:', path)
         with open(path, 'wb') as f:
             pickle.dump(self, f)
         print('done.\n')
 
-    def translate(self, new_origin):
+    def translate(self, new_origin: Vertex):
         """ shifts the coordinate system to a new origin
 
         computing the angle representations, shifted coordinates and distances for all vertices
         respective to the query point (lazy!)
 
         :param new_origin: the origin of the coordinate system to be shifted to
-        :return: None
         """
         for p in self.polygons:
             p.translate(new_origin)
 
     def prepare(self):
-        """ precomputes a visibility graph optimized (reduced) for path planning
+        """ computes a visibility graph optimized (=reduced) for path planning and stores it
 
         computes all directly reachable extremities based on visibility and their distance to each other
 
@@ -111,10 +143,6 @@ class PolygonEnvironment:
             pre computing the shortest paths between all directly reachable extremities
             and storing them in the graph would not be an advantage, because then the graph is fully connected
             a star would visit every node in the graph at least once (-> disadvantage!).
-
-        :return: None
-
-
         """
 
         if self.prepared:
@@ -127,12 +155,11 @@ class PolygonEnvironment:
         extremities_to_check = set(self.all_extremities)
         # have to run for all (also last one!), because existing edges might get deleted every loop
         while len(extremities_to_check) > 0:
-            query_extremity: PolygonVertex = extremities_to_check.pop()
             # extremities are always visible to each other (bi-directional relation -> undirected graph)
             #  -> do not check extremities which have been checked already
             #  (would only give the same result when algorithms are correct)
             # the extremity itself must not be checked when looking for visible neighbours
-
+            query_extremity: PolygonVertex = extremities_to_check.pop()
             self.translate(new_origin=query_extremity)
 
             visible_vertices = set()
@@ -212,8 +239,13 @@ class PolygonEnvironment:
         self.prepared = True
 
     # make sure start and goal are within the boundary polygon and outside of all holes
-    def within_map(self, coords):
-        # within the boundary polygon and outside of all holes
+    def within_map(self, coords: INPUT_COORD_TYPE):
+        """ checks if the given coordinates lie within the boundary polygon and outside of all holes
+
+        :param coords: numerical tuple representing coordinates
+        :return: whether the given coordinate is a valid query point
+        """
+        #
         x, y = coords
         if not inside_polygon(x, y, self.boundary_polygon.coordinates, border_value=True):
             return False
@@ -222,7 +254,16 @@ class PolygonEnvironment:
                 return False
         return True
 
-    def find_shortest_path(self, start_coordinates, goal_coordinates, free_space_after=True):
+    def find_shortest_path(self, start_coordinates: INPUT_COORD_TYPE, goal_coordinates: INPUT_COORD_TYPE,
+                           free_space_after: bool = True) -> Tuple[PATH_TYPE, LENGTH_TYPE]:
+        """ computes the shortest path and its length between start and goal node
+
+        :param start_coordinates: a (x,y) coordinate tuple representing the start node
+        :param goal_coordinates:  a (x,y) coordinate tuple representing the goal node
+        :param free_space_after: whether the created temporary search graph self.temp_graph
+            should be deleted after the query
+        :return: a tuple of shortest path and its length
+        """
         # path planning query:
         # make sure the map has been loaded and prepared
         if self.boundary_polygon is None:
@@ -264,7 +305,7 @@ class PolygonEnvironment:
             # The goal node does not have any neighbours. Hence there is not possible path to the goal.
             return [], None
 
-        # create temporary graph
+        # create temporary graph TODO make more performant, avoid real copy
         # DirectedHeuristicGraph implements __deepcopy__() to not change the original precomputed self.graph
         # but to still not create real copies of vertex instances!
         self.temp_graph = deepcopy(self.graph)
@@ -299,7 +340,7 @@ class PolygonEnvironment:
         # IMPORTANT: when a query point happens to coincide with an extremity, edges to the (visible) extremities
         #  in front MUST be added to the graph! Handled by always introducing new (non extremity, non polygon) vertices.
 
-        # for every extremity that is visible from either goal or stat
+        # for every extremity that is visible from either goal or start
         # NOTE: edges are undirected! self.temp_graph.get_neighbours_of(start_vertex) == set()
         # neighbours_start = self.temp_graph.get_neighbours_of(start_vertex)
         neighbours_start = {n for n, d in visibles_n_distances_start}
