@@ -82,6 +82,17 @@ ______
     path, length = environment.find_shortest_path(start_coordinates, goal_coordinates)
 
 
+If any start and goal point should be accepted without checking if they lie within the map, set ``verify=False``.
+This is required if points lie really close to polygon edges and
+"point in polygon" algorithms might return an unexpected result due to rounding errors.
+
+.. code-block:: python
+
+    path, length = environment.find_shortest_path(start_coordinates, goal_coordinates, verify=False)
+
+
+
+
 
 Converting and storing a grid world:
 ____________________________________
@@ -134,7 +145,7 @@ it can be better to use A* right away (implemented in ``graph_search.py``).
 
 
 Cache and import the environment:
-______________________________________________
+__________________________________
 
 
 .. code-block:: python

@@ -255,13 +255,15 @@ class PolygonEnvironment:
         return True
 
     def find_shortest_path(self, start_coordinates: INPUT_COORD_TYPE, goal_coordinates: INPUT_COORD_TYPE,
-                           free_space_after: bool = True) -> Tuple[PATH_TYPE, LENGTH_TYPE]:
+                           free_space_after: bool = True, verify: bool = True) -> Tuple[PATH_TYPE, LENGTH_TYPE]:
         """ computes the shortest path and its length between start and goal node
 
         :param start_coordinates: a (x,y) coordinate tuple representing the start node
         :param goal_coordinates:  a (x,y) coordinate tuple representing the goal node
         :param free_space_after: whether the created temporary search graph self.temp_graph
             should be deleted after the query
+        :param verify: whether it should be checked if start and goal points really lie inside the environment.
+         if points close to or on polygon edges should be accepted as valid input, set this to ``False``.
         :return: a tuple of shortest path and its length
         """
         # path planning query:
@@ -271,7 +273,7 @@ class PolygonEnvironment:
         if not self.prepared:
             self.prepare()
 
-        if not (self.within_map(start_coordinates) and self.within_map(goal_coordinates)):
+        if verify and not (self.within_map(start_coordinates) and self.within_map(goal_coordinates)):
             raise ValueError('start or goal do not lie within the map')
 
         if start_coordinates == goal_coordinates:
