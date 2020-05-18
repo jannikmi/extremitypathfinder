@@ -4,6 +4,14 @@ Changelog
 
 TODO python 3.6 support. tests not passing so far only for this python version
 
+
+1.3.0 (2020-05-19)
+------------------
+
+* FIX #11: added option ``verify`` to ``find_shortest_path()`` for skipping the 'within map' test for goal and start points
+
+
+
 1.2.0 (2020-05-18)
 ------------------
 

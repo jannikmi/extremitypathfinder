@@ -36,10 +36,9 @@ setup(
         'Topic :: Scientific/Engineering',
         'Topic :: Scientific/Engineering :: Artificial Intelligence',
     ],
-    long_description='Python package for fast geometric shortest path computation in 2D multi-polygon '
-                     'or grid environments based on visibility graphs.\n'
-                     'Please check Github for the documentation with plots: '
-                     'https://github.com/MrMinimal64/extremitypathfinder',
+    long_description='python package for fast geometric shortest path computation in 2D multi-polygon '
+                     'or grid environments based on visibility graphs.'
+                     'Please refer to the `documentation <https://extremitypathfinder.readthedocs.io/en/latest/>`__.',
     python_requires='>=3.7',
     install_requires=[
         'numpy>=1.16',
