@@ -161,5 +161,15 @@ Plotting:
 _________
 
 
-Check the code in ``plotting.py``.
+The class ``PlottingEnvironment`` automatically generates plots for every step in the path finding process:
 
+.. code-block:: python
+
+    from extremitypathfinder.plotting import PlottingEnvironment
+    environment = PlottingEnvironment(plotting_dir='path/to/plots')
+    environment.store(boundary_coordinates, list_of_holes, validate=True)
+    environment.prepare()
+    path, distance = environment.find_shortest_path(start, end)
+
+
+Other functions in ``plotting.py`` can be utilised to plot specific parts of

@@ -195,6 +195,7 @@ def check_data_requirements(boundary_coords: np.ndarray, list_hole_coords: List[
     :return:
     """
 
+    # TODO verbose error messages
     assert boundary_coords.shape[0] >= 3
     assert boundary_coords.shape[1] == 2
     assert no_identical_consequent_vertices(boundary_coords)

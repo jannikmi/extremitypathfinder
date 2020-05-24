@@ -58,7 +58,7 @@ tox -r -e py37
 tox -r -e py37-numba
 
 automatically update imports: isort -rc .
-dont use for example.py
+dont use for playground.py
 
 
 Use the Makefile to build the docs, like so:

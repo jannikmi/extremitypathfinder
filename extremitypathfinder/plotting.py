@@ -37,7 +37,9 @@ def mark_points(vertex_iter, **kwargs):
         coordinates = [v.coordinates.tolist() for v in vertex_iter]
     except AttributeError:
         coordinates = [v for v in vertex_iter]
-    plt.scatter(*zip(*coordinates), **kwargs)
+    coords_zipped = list(zip(*coordinates))
+    if coords_zipped:  # there might be no vertices at all
+        plt.scatter(*coords_zipped, **kwargs)
 
 
 def draw_edge(v1, v2, c, alpha, **kwargs):
