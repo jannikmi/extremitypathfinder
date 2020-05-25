@@ -150,34 +150,23 @@ def no_self_intersection(coords):
 
 
 def has_clockwise_numbering(coords):
-    # approach: when numbering is clockwise:
-    # at least the majority of averaged points of all consequent point triplets lie...
-    #  ... inside the polygon when the second point is an extremity
-    #  ... else outside
+    """ tests if a polygon has clockwise vertex numbering
 
-    threshold = round(len(coords) / 2)
-    positive_tests = 0
+    approach: Sum over the edges, (x2 − x1)(y2 + y1). If the result is positive the curve is clockwise.
+    from:
+    https://stackoverflow.com/questions/1165647/how-to-determine-if-a-list-of-polygon-points-are-in-clockwise-order
 
-    p1 = coords[-2]
-    p2 = coords[-1]
-    for p3 in coords:
-        x, y = (p1 + p2 + p3) / 3.0
-        result = inside_polygon(x, y, np.array([p1, p2, p3]), border_value=True)
-        if (AngleRepresentation(p3 - p2).value - AngleRepresentation(p1 - p2).value) % 4.0 <= 2.0:
-            # p2 would be considered to be an extremity if the numbering was correct
-            if result:
-                positive_tests += 1
-                if positive_tests >= threshold:
-                    return True
-        elif not result:
-            positive_tests += 1
-            if positive_tests >= threshold:
-                return True
-
+    :param coords: the list of (x,y) coordinates representing the polygon to be tested
+    :return: true if the polygon has been given in clockwise numbering
+    """
+    total_sum = 0.0
+    p1 = coords[-1]
+    for p2 in coords:
+        x1, y1 = p1
+        x2, y2 = p2
+        total_sum += (x2 - x1) * (y2 + y1)
         p1 = p2
-        p2 = p3
-
-    return False
+    return total_sum > 0
 
 
 # TODO test

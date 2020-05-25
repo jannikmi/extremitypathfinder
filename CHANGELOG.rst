@@ -5,6 +5,15 @@ Changelog
 TODO python 3.6 support. tests not passing so far only for this python version
 
 
+
+
+1.4.0 (2020-05-25)
+------------------
+
+* BUGFIX: fix clockwise polygon numbering test (for input data validation, mentioned in #12)
+
+
+
 1.3.0 (2020-05-19)
 ------------------
 
