@@ -152,7 +152,7 @@ __________________________________
 
     environment.export_pickle(path='./pickle_file.pickle')
 
-    from extremitypathfinder import load_pickle
+    from extremitypathfinder.extremitypathfinder import load_pickle
     environment = load_pickle(path='./pickle_file.pickle')
 
 
