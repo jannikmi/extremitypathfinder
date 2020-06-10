@@ -84,6 +84,8 @@ class PolygonEnvironment:
         :param boundary_coordinates: array of coordinates with counter clockwise edge numbering
         :param list_of_hole_coordinates: array of coordinates with clockwise edge numbering
         :param validate: whether the requirements of the data should be tested
+
+        :raises AssertionError: when validate=True and the input is invalid.
         """
         self.prepared = False
         # 'loading the map

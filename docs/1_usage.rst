@@ -51,7 +51,7 @@ Ensure that all the following conditions on the polygons are fulfilled:
     list_of_holes = [[(3.0, 7.0), (5.0, 9.0), (4.5, 7.0), (5.0, 4.0), ], ]
     environment.store(boundary_coordinates, list_of_holes, validate=False)
 
-**BETA**: Pass ``validate=True`` in order to check the condition on the data.
+**BETA**: Pass ``validate=True`` in order to check the condition on the data. Raises an ``AssertionError`` if the input is invalid.
 
 **NOTE**: If two Polygons have vertices with identical coordinates (this is allowed), paths through these vertices are theoretically possible!
 When the paths should be blocked, use a single polygon with multiple identical vertices instead (also allowed).
