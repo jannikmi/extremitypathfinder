@@ -250,13 +250,13 @@ class Polygon(object):
 
 
 class SearchState(object):
-    __slots__ = ['node', 'distance', 'neighbour_generator', 'path', 'cost_so_far', 'priority']
+    __slots__ = ['node', 'distance', 'neighbours', 'path', 'cost_so_far', 'priority']
 
     def __init__(self, node, distance, neighbour_generator, path, cost_so_far, cost_estim):
         self.node = node
         self.distance = distance
         # TODO
-        self.neighbour_generator = neighbour_generator
+        self.neighbours = neighbour_generator
         self.path = path
         self.cost_so_far: float = cost_so_far
         # the priority has to be the lower bound (=estimate/"heuristic") of the TOTAL cost!
@@ -279,7 +279,7 @@ class SearchStateQueue(object):
 
     def get(self):
         s = heapq.heappop(self.heap_elements)
-        return s.node, s.neighbour_generator, s.distance, s.path, s.cost_so_far
+        return s.node, s.neighbours, s.distance, s.path, s.cost_so_far
 
 
 # TODO often empty sets in self.neighbours
@@ -350,7 +350,7 @@ class DirectedHeuristicGraph(object):
             [(node2, distance, distance + self.get_heuristic(node2)) for node2, distance in zip(neighbours, distances)],
             key=lambda x: x[2])
 
-        # yield node, distance, cost= distance + heuristic
+        # yield node, distance, cost_estimate= distance + heuristic
         yield from out_sorted
 
     def add_directed_edge(self, node1, node2, distance):
@@ -439,19 +439,27 @@ class DirectedHeuristicGraph(object):
 
         modified sample code from https://www.redblobgames.com/pathfinding/a-star/
 
+        Terminology:
+        search progress: start -> last -> current -> goal (nodes)
+        heuristic: lower bound of the distance from current to goal
+        distance: from last to current
+        cost_estimate: distance + heuristic, used to prioritise the neighbours to check
+        cost_so_far: length of the path from start to last node
+        priority: cost_so_far + cost_estimate, used to prioritise all possible search states (<- sorting of heap queue!)
+
         :param start: the vertex to start from
         :param goal: the vertex to end at
-        :return: a tuple of the shortest path from start to goal and its total length
+        :return: a tuple of the shortest path from start to goal and its total length.
+            ([], None) if there is no possible path.
         """
 
-        def enqueue_next_from():
+        def enqueue_neighbours():
             try:
                 next_node, distance, cost_estim = next(neighbours)
             except StopIteration:
                 # there is no neighbour left
                 return
             state = SearchState(next_node, distance, neighbours, path, cost_so_far, cost_estim)
-            # cost estimate (= distance + heuristic = current-next + estimate(next-goal))
             search_state_queue.put(state)
 
         self.set_goal_node(goal)  # lazy update of the heuristic
@@ -461,18 +469,17 @@ class DirectedHeuristicGraph(object):
         neighbours = self.neighbours_of(current_node)
         cost_so_far = 0.0
         path = [start]
-        enqueue_next_from()
+        enqueue_neighbours()
         visited_nodes = set()
 
         while not search_state_queue.is_empty():
-            # always 'visit' the node with the current lowest total cost estimate
+            # always 'visit' the node with the current lowest estimated TOTAL cost (not! heuristic)
             current_node, neighbours, distance, path, cost_so_far = search_state_queue.get()
-            # print('visiting:', current_state.current)
-            # print('neighbours:', heuristic_graph.get_neighbours_of(current_state.current))
+            # print('visiting:', current_node)
+            # print('neighbours:', heuristic_graph.get_neighbours_of(current_node))
 
-            # TODO
             # there could still be other neighbours left in this generator:
-            enqueue_next_from()
+            enqueue_neighbours()
 
             if current_node in visited_nodes:
                 # this node has already been visited. there is no need to consider
@@ -498,7 +505,7 @@ class DirectedHeuristicGraph(object):
 
             # also consider the neighbours of the current node
             neighbours = self.neighbours_of(current_node)
-            enqueue_next_from()
+            enqueue_neighbours()
 
         # goal is not reachable
         return [], None

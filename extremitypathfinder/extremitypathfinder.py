@@ -1,6 +1,6 @@
 import pickle
 from copy import deepcopy
-from typing import Iterable, List, Tuple, Union
+from typing import Iterable, List, Tuple, Union,Optional
 
 import numpy as np
 
@@ -13,7 +13,7 @@ from extremitypathfinder.helper_fcts import (
 
 COORDINATE_TYPE = Tuple[float, float]
 PATH_TYPE = List[COORDINATE_TYPE]
-LENGTH_TYPE = float
+LENGTH_TYPE = Optional[float]
 INPUT_NUMERICAL_TYPE = Union[float, int]
 INPUT_COORD_TYPE = Tuple[INPUT_NUMERICAL_TYPE, INPUT_NUMERICAL_TYPE]
 OBSTACLE_ITER_TYPE = Iterable[INPUT_COORD_TYPE]
@@ -264,7 +264,7 @@ class PolygonEnvironment:
             should be deleted after the query
         :param verify: whether it should be checked if start and goal points really lie inside the environment.
          if points close to or on polygon edges should be accepted as valid input, set this to ``False``.
-        :return: a tuple of shortest path and its length
+        :return: a tuple of shortest path and its length. ([], None) if there is no possible path.
         """
         # path planning query:
         # make sure the map has been loaded and prepared
