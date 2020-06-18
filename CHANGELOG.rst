@@ -6,6 +6,11 @@ TODO python 3.6 support. tests not passing so far only for this python version
 
 
 
+1.5.0 (2020-06-18)
+------------------
+
+* BUGFIX: fix #16. introduce unique ordering of A* search heap queue with custom class ``SearchState`` (internal)
+
 
 1.4.0 (2020-05-25)
 ------------------
