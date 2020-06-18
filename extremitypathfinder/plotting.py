@@ -121,7 +121,7 @@ def draw_with_path(map, temp_graph, vertex_path):
     # additionally draw:
     # new edges yellow
     if start in temp_graph.get_all_nodes():
-        for n2, d in temp_graph.edges_from(start):
+        for n2, d in temp_graph.neighbours_of(start):
             draw_edge(start, n2, c='y', alpha=0.7)
 
     all_nodes = temp_graph.get_all_nodes()
