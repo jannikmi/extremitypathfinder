@@ -1,5 +1,5 @@
 import heapq
-from typing import List, Optional, Set, Dict
+from typing import Dict, List, Optional, Set
 
 import numpy as np
 

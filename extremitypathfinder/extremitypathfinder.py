@@ -1,6 +1,6 @@
 import pickle
 from copy import deepcopy
-from typing import Iterable, List, Tuple, Union,Optional
+from typing import Iterable, List, Optional, Tuple, Union
 
 import numpy as np
 
