@@ -3,8 +3,12 @@
 About
 =====
 
-.. image:: https://travis-ci.org/MrMinimal64/extremitypathfinder.svg?branch=master
+.. image:: https://api.travis-ci.org/MrMinimal64/extremitypathfinder.svg?branch=master
     :target: https://travis-ci.org/MrMinimal64/extremitypathfinder
+
+.. image:: https://readthedocs.org/projects/extremitypathfinder/badge/?version=latest
+    :alt: documentation status
+    :target: https://extremitypathfinder.readthedocs.io/en/latest/?badge=latest
 
 .. image:: https://img.shields.io/pypi/wheel/extremitypathfinder.svg
     :target: https://pypi.python.org/pypi/extremitypathfinder
