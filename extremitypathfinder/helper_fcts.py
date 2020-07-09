@@ -189,7 +189,7 @@ def check_data_requirements(boundary_coords: np.ndarray, list_hole_coords: List[
     if not boundary_coords.shape[1] == 2:
         raise TypeError('Error message...')
     if not no_identical_consequent_vertices(boundary_coords):
-        raise ValueError('Consequent must not be identical.')
+        raise ValueError('Consequent vertices must not be identical.')
     if not no_self_intersection(boundary_coords):
         raise ValueError('Coordenates can not intersect.')
     if has_clockwise_numbering(boundary_coords):
