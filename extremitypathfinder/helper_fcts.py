@@ -63,8 +63,9 @@ def inside_polygon(x, y, coords, border_value):
 def no_identical_consequent_vertices(coords):
     p1 = coords[-1]
     for p2 in coords:
-        # TODO adjust allowed difference epsilon
-        assert not np.allclose(p1, p2)
+        # TODO adjust allowed difference: rtol, atol
+        if np.allclose(p1, p2):
+            return False
         p1 = p2
 
     return True
@@ -151,11 +152,9 @@ def no_self_intersection(coords):
 
 def has_clockwise_numbering(coords):
     """ tests if a polygon has clockwise vertex numbering
-
     approach: Sum over the edges, (x2 − x1)(y2 + y1). If the result is positive the curve is clockwise.
     from:
     https://stackoverflow.com/questions/1165647/how-to-determine-if-a-list-of-polygon-points-are-in-clockwise-order
-
     :param coords: the list of (x,y) coordinates representing the polygon to be tested
     :return: true if the polygon has been given in clockwise numbering
     """
@@ -169,13 +168,27 @@ def has_clockwise_numbering(coords):
     return total_sum > 0
 
 
-# TODO test
-# todo - polygons must not intersect each other
-def check_data_requirements(boundary_coords: np.ndarray, list_hole_coords: List[np.ndarray]):
+def check_polygon(polygon):
     """ ensures that all the following conditions on the polygons are fulfilled:
         - must at least contain 3 vertices
         - no consequent vertices with identical coordinates in the polygons! In general might have the same coordinates
         - a polygon must not have self intersections (intersections with other polygons are allowed)
+    """
+    if not polygon.shape[0] >= 3:
+        raise TypeError('Given polygons must at least contain 3 vertices.')
+    if not polygon.shape[1] == 2:
+        raise TypeError('Each point of a polygon must consist of two values (x,y).')
+    if not no_identical_consequent_vertices(polygon):
+        raise ValueError('Consequent vertices of a polynomial must not be identical.')
+    if not no_self_intersection(polygon):
+        raise ValueError('A polygon must not intersect itself.')
+
+
+# TODO test
+# todo - polygons must not intersect each other
+def check_data_requirements(boundary_coords: np.ndarray, list_hole_coords: List[np.ndarray]):
+    """ ensures that all the following conditions on the polygons are fulfilled:
+        - basic polygon requirements (s. above)
         - edge numbering has to follow this convention (for easier computations):
             * outer boundary polygon: counter clockwise
             * holes: clockwise
@@ -183,22 +196,15 @@ def check_data_requirements(boundary_coords: np.ndarray, list_hole_coords: List[
     :param list_hole_coords:
     :return:
     """
-
-    # TODO verbose error messages
-    assert boundary_coords.shape[0] >= 3
-    assert boundary_coords.shape[1] == 2
-    assert no_identical_consequent_vertices(boundary_coords)
-    assert no_self_intersection(boundary_coords)
-    assert not has_clockwise_numbering(boundary_coords)
-
+    check_polygon(boundary_coords)
+    if has_clockwise_numbering(boundary_coords):
+        raise ValueError('Vertex numbering of the boundary polygon must be counter clockwise.')
     for hole_coords in list_hole_coords:
-        assert hole_coords.shape[0] >= 3
-        assert hole_coords.shape[1] == 2
-        assert no_identical_consequent_vertices(hole_coords)
-        assert no_self_intersection(hole_coords)
-        assert has_clockwise_numbering(hole_coords)
+        check_polygon(hole_coords)
+        if not has_clockwise_numbering(hole_coords):
+            raise ValueError('Vertex numbering of hole polygon must be clockwise.')
 
-    # TODO rectification
+    # TODO data rectification
 
 
 def find_within_range(repr1, repr2, repr_diff, vertex_set, angle_range_less_180, equal_repr_allowed):
@@ -440,11 +446,9 @@ def find_visible(vertex_candidates, edges_to_check):
     query_vertex: a vertex for which the visibility to the vertices should be checked.
         also non extremity vertices, polygon vertices and vertices with the same coordinates are allowed.
         query point also might lie directly on an edge! (angle = 180deg)
-
     :param vertex_candidates: the set of all vertices which should be checked for visibility.
         IMPORTANT: is being manipulated, so has to be a copy!
         IMPORTANT: must not contain the query vertex!
-
     :param edges_to_check: the set of edges which determine visibility
     :return: a set of tuples of all vertices visible from the query vertex and the corresponding distance
     """
