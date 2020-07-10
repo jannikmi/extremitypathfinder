@@ -10,6 +10,9 @@ TODO python 3.6 support. tests not passing so far only for this python version
 
 * ``TypeError`` and ``ValueError`` are being raised instead of ``AssertionError`` in case of invalid input parameters with ``validate=True``
 
+TODO document
+
+
 1.5.0 (2020-06-18)
 ------------------
 
