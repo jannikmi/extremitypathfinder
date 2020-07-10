@@ -14,7 +14,7 @@ def inside_polygon(x, y, coords, border_value):
         if np.all(c == [x, y]):
             return border_value
 
-    # and if the point polygon lies on any polygon edge
+    # and if the point p lies on any polygon edge
     p = np.array([x, y])
     p1 = coords[-1, :]
     for p2 in coords[:]:
@@ -36,7 +36,7 @@ def inside_polygon(x, y, coords, border_value):
                 # only crossings "right" of the point should be counted
                 x1GEx = x <= x1
                 x2GEx = x <= x2
-                # compare the slope of the line [p1-p2] and [polygon-p2]
+                # compare the slope of the line [p1-p2] and [p-p2]
                 # depending on the position of p2 this determines whether the polygon edge is right or left of the point
                 # to avoid expensive division the divisors (of the slope dy/dx) are brought to the other side
                 # ( dy/dx > a  ==  dy > a * dx )
