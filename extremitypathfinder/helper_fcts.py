@@ -14,7 +14,7 @@ def inside_polygon(x, y, coords, border_value):
         if np.all(c == [x, y]):
             return border_value
 
-    # and if the point p lies on any polygon edge
+    # and if the point polygon lies on any polygon edge
     p = np.array([x, y])
     p1 = coords[-1, :]
     for p2 in coords[:]:
@@ -36,7 +36,7 @@ def inside_polygon(x, y, coords, border_value):
                 # only crossings "right" of the point should be counted
                 x1GEx = x <= x1
                 x2GEx = x <= x2
-                # compare the slope of the line [p1-p2] and [p-p2]
+                # compare the slope of the line [p1-p2] and [polygon-p2]
                 # depending on the position of p2 this determines whether the polygon edge is right or left of the point
                 # to avoid expensive division the divisors (of the slope dy/dx) are brought to the other side
                 # ( dy/dx > a  ==  dy > a * dx )
@@ -63,7 +63,7 @@ def inside_polygon(x, y, coords, border_value):
 def no_identical_consequent_vertices(coords):
     p1 = coords[-1]
     for p2 in coords:
-        # TODO adjust allowed difference epsilon
+        # TODO adjust allowed difference: rtol, atol
         if np.allclose(p1, p2):
             return False
         p1 = p2
@@ -168,13 +168,27 @@ def has_clockwise_numbering(coords):
     return total_sum > 0
 
 
-# TODO test
-# todo - polygons must not intersect each other
-def check_data_requirements(boundary_coords: np.ndarray, list_hole_coords: List[np.ndarray]):
+def check_polygon(polygon):
     """ ensures that all the following conditions on the polygons are fulfilled:
         - must at least contain 3 vertices
         - no consequent vertices with identical coordinates in the polygons! In general might have the same coordinates
         - a polygon must not have self intersections (intersections with other polygons are allowed)
+    """
+    if not polygon.shape[0] >= 3:
+        raise TypeError('Given polygons must at least contain 3 vertices.')
+    if not polygon.shape[1] == 2:
+        raise TypeError('Each point of a polygon must consist of two values (x,y).')
+    if not no_identical_consequent_vertices(polygon):
+        raise ValueError('Consequent vertices of a polynomial must not be identical.')
+    if not no_self_intersection(polygon):
+        raise ValueError('A polygon must not intersect itself.')
+
+
+# TODO test
+# todo - polygons must not intersect each other
+def check_data_requirements(boundary_coords: np.ndarray, list_hole_coords: List[np.ndarray]):
+    """ ensures that all the following conditions on the polygons are fulfilled:
+        - basic polygon requirements (s. above)
         - edge numbering has to follow this convention (for easier computations):
             * outer boundary polygon: counter clockwise
             * holes: clockwise
@@ -182,26 +196,15 @@ def check_data_requirements(boundary_coords: np.ndarray, list_hole_coords: List[
     :param list_hole_coords:
     :return:
     """
-
-    # TODO verbose error messages
-    if not boundary_coords.shape[0] >= 3:
-        raise TypeError('Error message...')
-    if not boundary_coords.shape[1] == 2:
-        raise TypeError('Error message...')
-    if not no_identical_consequent_vertices(boundary_coords):
-        raise ValueError('Consequent vertices must not be identical.')
-    if not no_self_intersection(boundary_coords):
-        raise ValueError('Coordenates can not intersect.')
+    check_polygon(boundary_coords)
     if has_clockwise_numbering(boundary_coords):
-        raise ValueError('Numbering can not be clockwise.')
+        raise ValueError('Vertex numbering of the boundary polygon must be counter clockwise.')
     for hole_coords in list_hole_coords:
-        assert hole_coords.shape[0] >= 3
-        assert hole_coords.shape[1] == 2
-        assert no_identical_consequent_vertices(hole_coords)
-        assert no_self_intersection(hole_coords)
-        assert has_clockwise_numbering(hole_coords)
+        check_polygon(hole_coords)
+        if not has_clockwise_numbering(hole_coords):
+            raise ValueError('Vertex numbering of hole polygon must be clockwise.')
 
-    # TODO rectification
+    # TODO data rectification
 
 
 def find_within_range(repr1, repr2, repr_diff, vertex_set, angle_range_less_180, equal_repr_allowed):
