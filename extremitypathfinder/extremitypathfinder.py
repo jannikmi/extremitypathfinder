@@ -162,6 +162,10 @@ class PolygonEnvironment:
             #  (would only give the same result when algorithms are correct)
             # the extremity itself must not be checked when looking for visible neighbours
             query_extremity: PolygonVertex = extremities_to_check.pop()
+            # only extremities that are within the map are visible to other extremities
+            if not self.within_map(query_extremity.coordinates):
+                continue
+
             self.translate(new_origin=query_extremity)
 
             visible_vertices = set()
@@ -171,19 +175,7 @@ class PolygonEnvironment:
                 {c for c in candidate_extremities if c.get_angle_representation() is None})
 
             # these vertices all belong to a polygon
-            # direct neighbours of the query vertex are visible
-            # neighbouring vertices are reachable with the distance equal to the edge length
             n1, n2 = query_extremity.get_neighbours()
-            try:
-                candidate_extremities.remove(n1)
-                visible_vertices.add((n1, n1.get_distance_to_origin()))
-            except KeyError:
-                pass
-            try:
-                candidate_extremities.remove(n2)
-                visible_vertices.add((n2, n2.get_distance_to_origin()))
-            except KeyError:
-                pass
 
             # even though candidate_extremities might be empty now
             # must not skip to next loop here, because existing graph edges might get deleted here!
@@ -325,7 +317,8 @@ class PolygonEnvironment:
             # add unidirectional edges to the temporary graph
             # add edges in the direction: extremity (v) -> goal
             # TODO: improvement: add edges last, after filtering them. instead of deleting edges
-            self.temp_graph.add_directed_edge(v, goal_vertex, d)
+            if self.within_map(v.coordinates):
+                self.temp_graph.add_directed_edge(v, goal_vertex, d)
 
         self.translate(new_origin=start_vertex)  # do before checking angle representations!
         # the visibility of only the graphs nodes have to be checked
