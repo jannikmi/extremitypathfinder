@@ -158,8 +158,11 @@ class PolygonEnvironment:
         # preprocessing the map
         # construct graph of visible (=directly reachable) extremities
         # and optimize graph further at construction time
-        self.graph = DirectedHeuristicGraph()
         extremities_to_check = set(self.all_extremities)
+        # NOTE: initialise the graph with all extremities.
+        #   even if a node has no edges (visibility to other extremities), it should still be included!
+        self.graph = DirectedHeuristicGraph(extremities_to_check)
+
         # have to run for all (also last one!), because existing edges might get deleted every loop
         while len(extremities_to_check) > 0:
             # extremities are always visible to each other (bi-directional relation -> undirected graph)

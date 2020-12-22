@@ -290,10 +290,14 @@ class SearchStateQueue(object):
 class DirectedHeuristicGraph(object):
     __slots__ = ['all_nodes', 'distances', 'goal_node', 'heuristic', 'neighbours']
 
-    def __init__(self):
+    def __init__(self, all_nodes: Optional[Set[Vertex]] = None):
         self.distances: Dict = {}
         self.neighbours: Dict = {}
-        self.all_nodes: Set[Vertex] = set()
+
+        if all_nodes is None:
+            all_nodes = set()
+        self.all_nodes: Set[Vertex] = all_nodes
+
         # TODO use same set as extremities of env, but different for copy!
 
         # the heuristic must NEVER OVERESTIMATE the actual cost (here: actual shortest distance)

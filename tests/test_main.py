@@ -266,10 +266,9 @@ class MainTest(unittest.TestCase):
             f'the environment should detect all {NR_EXTR_POLY_ENV} extremities!'
         poly_env.prepare()
         nr_nodes_env2 = len(poly_env.graph.all_nodes)
-        print(poly_env.graph.all_nodes)
-        print(list(poly_env.all_extremities))
         assert nr_nodes_env2 == NR_EXTR_POLY_ENV, \
-            f'the visibility graph should store all {NR_EXTR_POLY_ENV} extremities!'
+            f'the visibility graph should store all {NR_EXTR_POLY_ENV} extremities {list(poly_env.all_extremities)}!' \
+            f'\n found: {poly_env.graph.all_nodes}'
 
         nr_nodes_env1_new = len(grid_env.graph.all_nodes)
         assert nr_nodes_env1_new == nr_nodes_env1_old, \

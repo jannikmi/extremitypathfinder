@@ -9,6 +9,7 @@ TODO python 3.6 support. tests not passing so far only for this python version
 ------------------
 
 * IMPROVEMENT: different polygons may now intersect each other. thanks to `Georg Hess <https://github.com/georghess>`__!
+* BUGFIX: fixed a bug that caused "dangling" extremities in the graph to be left out
 * ``TypeError`` and ``ValueError`` are being raised instead of ``AssertionError`` in case of invalid input parameters with ``validate=True``
 
 
