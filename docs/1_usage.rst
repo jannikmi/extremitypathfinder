@@ -25,7 +25,7 @@ Create a new instance of the :ref:`PolygonEnvironment class <env>` to allow fast
 
 
 Store environment:
-__________________
+------------------
 
 
 **Required data format:**
@@ -61,7 +61,7 @@ When the paths should be blocked, use a single polygon with multiple identical v
 
 
 Preprocessing:
-______________
+--------------
 
 computes the :ref:`visibility graph  <algorithm>` of the environment once.
 
@@ -72,7 +72,7 @@ computes the :ref:`visibility graph  <algorithm>` of the environment once.
 
 
 Query:
-______
+------
 
 
 .. code-block:: python
@@ -95,7 +95,7 @@ This is required if points lie really close to polygon edges and
 
 
 Converting and storing a grid world:
-____________________________________
+------------------------------------
 
 
 .. code-block:: python
@@ -145,7 +145,7 @@ it can be better to use A* right away (implemented in ``graph_search.py``).
 
 
 Cache and import the environment:
-__________________________________
+---------------------------------
 
 
 .. code-block:: python
@@ -158,7 +158,7 @@ __________________________________
 
 
 Plotting:
-_________
+---------
 
 
 The class ``PlottingEnvironment`` automatically generates plots for every step in the path finding process:
