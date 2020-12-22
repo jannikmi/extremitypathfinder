@@ -225,3 +225,9 @@ Paper about Lee's algorithm: http://www.dav.ee/papers/Visibility_Graph_Algorithm
 C implementation of Lee's algorithm: https://github.com/davetcoleman/visibility_graph
 
 
+Acknowledgements
+----------------
+
+Thanks to:
+
+`Georg Hess <https://github.com/georghess>`__ for improving the package in order to allow intersecting polygons.
