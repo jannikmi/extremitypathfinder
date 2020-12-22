@@ -26,7 +26,7 @@ About
 python package for fast geometric shortest path computation in 2D multi-polygon or grid environments based on visibility graphs.
 
 
-.. image:: _static/grid_graph_path_plot.png
+.. image:: _static/title_demo_plot.png
 
 
 Also see:

@@ -25,7 +25,7 @@ extremitypathfinder
 python package for fast geometric shortest path computation in 2D multi-polygon or grid environments based on visibility graphs.
 
 
-.. image:: ./docs/_static/grid_graph_path_plot.png
+.. image:: ./docs/_static/title_demo_plot.png
 
 
 Quick Guide:
