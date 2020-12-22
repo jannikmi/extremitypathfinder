@@ -46,6 +46,7 @@ class PolygonEnvironment:
     prepared: bool = False
     graph: DirectedHeuristicGraph = None
     temp_graph: DirectedHeuristicGraph = None  # for storing and plotting the graph during a query
+    _all_extremities: Optional[Iterable[PolygonVertex]] = None
 
     @property
     def polygons(self) -> Iterable[Polygon]:
@@ -59,8 +60,12 @@ class PolygonEnvironment:
 
     @property
     def all_extremities(self) -> Iterable[PolygonVertex]:
-        for p in self.polygons:
-            yield from p.extremities
+        if self._all_extremities is None:
+            self._all_extremities = set()
+            for p in self.polygons:
+                # only extremities that are actually within the map should be considered
+                self._all_extremities |= set(filter(lambda e: self.within_map(e.coordinates), p.extremities))
+        return self._all_extremities
 
     @property
     def all_edges(self) -> Iterable[Edge]:
@@ -132,9 +137,9 @@ class PolygonEnvironment:
             p.translate(new_origin)
 
     def prepare(self):
-        """ computes a visibility graph optimized (=reduced) for path planning and stores it
+        """ Computes a visibility graph optimized (=reduced) for path planning and stores it
 
-        computes all directly reachable extremities based on visibility and their distance to each other
+        Computes all directly reachable extremities based on visibility and their distance to each other
 
         .. note::
             multiple polygon vertices might have identical coordinates.
@@ -162,9 +167,6 @@ class PolygonEnvironment:
             #  (would only give the same result when algorithms are correct)
             # the extremity itself must not be checked when looking for visible neighbours
             query_extremity: PolygonVertex = extremities_to_check.pop()
-            # only extremities that are within the map are visible to other extremities
-            if not self.within_map(query_extremity.coordinates):
-                continue
 
             self.translate(new_origin=query_extremity)
 
@@ -176,9 +178,7 @@ class PolygonEnvironment:
 
             # these vertices all belong to a polygon
             n1, n2 = query_extremity.get_neighbours()
-
-            # even though candidate_extremities might be empty now
-            # must not skip to next loop here, because existing graph edges might get deleted here!
+            # ATTENTION: polygons may intersect -> neighbouring extremities must NOT be visible from each other!
 
             # eliminate all vertices 'behind' the query point from the candidate set
             # since the query vertex is an extremity the 'outer' angle is < 180 degree
@@ -317,8 +317,7 @@ class PolygonEnvironment:
             # add unidirectional edges to the temporary graph
             # add edges in the direction: extremity (v) -> goal
             # TODO: improvement: add edges last, after filtering them. instead of deleting edges
-            if self.within_map(v.coordinates):
-                self.temp_graph.add_directed_edge(v, goal_vertex, d)
+            self.temp_graph.add_directed_edge(v, goal_vertex, d)
 
         self.translate(new_origin=start_vertex)  # do before checking angle representations!
         # the visibility of only the graphs nodes have to be checked
