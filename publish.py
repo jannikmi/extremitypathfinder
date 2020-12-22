@@ -26,7 +26,10 @@ documentation generation:
 conda install sphinx
 https://docs.readthedocs.io/en/stable/intro/getting-started-with-sphinx.html
 
+pip install sphinx_rtd_theme
+
 Use the Makefile to build the docs, like so:
+cd ./docs
 make html
 
 

@@ -51,13 +51,22 @@ Ensure that all the following conditions on the polygons are fulfilled:
     list_of_holes = [[(3.0, 7.0), (5.0, 9.0), (4.5, 7.0), (5.0, 4.0), ], ]
     environment.store(boundary_coordinates, list_of_holes, validate=False)
 
-**BETA**: Pass ``validate=True`` in order to check the condition on the data. Raises an ``AssertionError`` if the input is invalid.
 
-**NOTE**: If two Polygons have vertices with identical coordinates (this is allowed), paths through these vertices are theoretically possible!
-When the paths should be blocked, use a single polygon with multiple identical vertices instead (also allowed).
+.. note::
+
+    Pass ``validate=True`` in order to check the condition on the data.
+    Raises ``TypeError`` if the input has the wrong type and ``ValueError`` if the input is invalid.
 
 
-.. TODO visualisation plot
+.. note::
+
+    If two Polygons have vertices with identical coordinates (this is allowed), paths through these vertices are theoretically possible!
+    When the paths should be blocked, use a single polygon with multiple identical vertices instead (also allowed).
+
+
+.. figure:: _static/map_plot.png
+
+    polygon environment with extremities marked in red
 
 
 Preprocessing
@@ -69,6 +78,10 @@ computes the :ref:`visibility graph  <algorithm>` of the environment once.
 
     environment.prepare()
 
+
+.. figure:: _static/prepared_map_plot.png
+
+    polygon environment with optimised visibility graph overlay in red
 
 
 Query
@@ -91,6 +104,9 @@ This is required if points lie really close to polygon edges and
     path, length = environment.find_shortest_path(start_coordinates, goal_coordinates, verify=False)
 
 
+.. figure:: _static/graph_path_plot.png
+
+    polygon environment with optimised visibility graph overlay. visualised edges added to the visibility graph in yellow, found shortest path in green.
 
 
 
@@ -172,4 +188,4 @@ The class ``PlottingEnvironment`` automatically generates plots for every step i
     path, distance = environment.find_shortest_path(start, end)
 
 
-Other functions in ``plotting.py`` can be utilised to plot specific parts of
+Other functions in ``plotting.py`` can be utilised to plot specific parts of an environment (extremities, edges, ...)

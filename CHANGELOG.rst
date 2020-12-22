@@ -5,13 +5,12 @@ Changelog
 TODO python 3.6 support. tests not passing so far only for this python version
 
 
-2.0.0 (tba)
+2.0.0 (2020-12-22)
 ------------------
 
 * different polygons may now intersect each other. thanks to `Georg Hess <https://github.com/georghess>`__!
 * ``TypeError`` and ``ValueError`` are being raised instead of ``AssertionError`` in case of invalid input parameters with ``validate=True``
 
-TODO document
 
 
 1.5.0 (2020-06-18)
