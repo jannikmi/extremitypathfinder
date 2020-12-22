@@ -296,7 +296,7 @@ class DirectedHeuristicGraph(object):
 
         if all_nodes is None:
             all_nodes = set()
-        self.all_nodes: Set[Vertex] = all_nodes.copy() # independent copy required!
+        self.all_nodes: Set[Vertex] = all_nodes.copy()  # independent copy required!
 
         # TODO use same set as extremities of env, but different for copy!
 
