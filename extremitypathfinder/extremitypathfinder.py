@@ -83,7 +83,6 @@ class PolygonEnvironment:
             * at least 3 vertices (no single points or lines allowed)
             * no consequent vertices with identical coordinates in the polygons (same coordinates allowed)
             * no self intersections
-            * no true intersections with other polygons, identical vertices allowed
             * edge numbering has to follow these conventions: boundary polygon counter clockwise, holes clockwise
 
         :param boundary_coordinates: array of coordinates with counter clockwise edge numbering
@@ -93,7 +92,7 @@ class PolygonEnvironment:
         :raises AssertionError: when validate=True and the input is invalid.
         """
         self.prepared = False
-        # 'loading the map
+        # loading the map
         boundary_coordinates = np.array(boundary_coordinates)
         list_of_hole_coordinates = [np.array(hole_coords) for hole_coords in list_of_hole_coordinates]
         if validate:
@@ -136,7 +135,7 @@ class PolygonEnvironment:
         for p in self.polygons:
             p.translate(new_origin)
 
-    def prepare(self):
+    def prepare(self):  # TODO include in storing functions?
         """ Computes a visibility graph optimized (=reduced) for path planning and stores it
 
         Computes all directly reachable extremities based on visibility and their distance to each other
