@@ -24,8 +24,8 @@ Create a new instance of the :ref:`PolygonEnvironment class <env>` to allow fast
 
 
 
-Store environment:
-------------------
+Store environment
+-----------------
 
 
 **Required data format:**
@@ -60,8 +60,8 @@ When the paths should be blocked, use a single polygon with multiple identical v
 .. TODO visualisation plot
 
 
-Preprocessing:
---------------
+Preprocessing
+-------------
 
 computes the :ref:`visibility graph  <algorithm>` of the environment once.
 
@@ -71,8 +71,8 @@ computes the :ref:`visibility graph  <algorithm>` of the environment once.
 
 
 
-Query:
-------
+Query
+-----
 
 
 .. code-block:: python
@@ -94,8 +94,8 @@ This is required if points lie really close to polygon edges and
 
 
 
-Converting and storing a grid world:
-------------------------------------
+Converting and storing a grid world
+-----------------------------------
 
 
 .. code-block:: python
@@ -144,8 +144,8 @@ in "chessboard-like grid worlds" (many small obstacles have a lot of extremities
 it can be better to use A* right away (implemented in ``graph_search.py``).
 
 
-Cache and import the environment:
----------------------------------
+Cache and import the environment
+--------------------------------
 
 
 .. code-block:: python
@@ -157,8 +157,8 @@ Cache and import the environment:
 
 
 
-Plotting:
----------
+Plotting
+--------
 
 
 The class ``PlottingEnvironment`` automatically generates plots for every step in the path finding process:
