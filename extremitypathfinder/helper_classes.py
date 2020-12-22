@@ -1,10 +1,11 @@
 import heapq
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Optional, Set, Iterable
 
 import numpy as np
 
 # TODO find a way to avoid global variable, wrap all in a different kind of 'coordinate system environment'?
-# placeholder for temporarily storing the current origin
+# problem: lazy evaluation, passing the origin every time is not an option
+# placeholder for temporarily storing the origin of the current coordinate system
 origin = None
 
 
@@ -77,10 +78,12 @@ class Vertex(object):
         self.is_extremity: bool = False
 
         # a container for temporally storing shifted coordinates
-        self.is_outdated: bool = True
         self.coordinates_translated = None
         self.angle_representation: Optional[AngleRepresentation] = None
         self.distance_to_origin: float = 0.0
+
+        # for lazy evaluation: often the angle representations dont have to be computed for every vertex!
+        self.is_outdated: bool = True
 
     def __gt__(self, other):
         # ordering needed for priority queue. multiple vertices possibly have the same priority.
@@ -106,7 +109,6 @@ class Vertex(object):
 
         self.is_outdated = False
 
-    # lazy evaluation
     def get_coordinates_translated(self):
         if self.is_outdated:
             self.evaluate()
@@ -173,16 +175,13 @@ class Edge(object):
 
 
 class Polygon(object):
-    __slots__ = ['vertices', 'edges', 'extremities', 'coordinates',
-                 # 'is_hole', 'length',
-                 ]
+    __slots__ = ['vertices', 'edges', 'coordinates', 'is_hole', '_extremities']
 
     def __init__(self, coordinate_list, is_hole):
         # store just the coordinates separately from the vertices in the format suiting the inside_polygon() function
         self.coordinates = np.array(coordinate_list)
 
-        # self.is_hole: bool = is_hole
-        # self.length: int = len(coordinate_list)
+        self.is_hole: bool = is_hole
 
         if len(coordinate_list) < 3:
             raise ValueError('This is not a valid polygon:', coordinate_list, '# edges:', len(coordinate_list))
@@ -199,48 +198,53 @@ class Polygon(object):
             self.edges.append(edge)
             vertex1 = vertex2
 
-        def find_extremities():
-            """
-            identify all protruding points = vertices with an inside angle of > 180 degree ('extremities')
-            expected edge numbering:
-                outer boundary polygon: counter clockwise
-                holes: clockwise
-            :return:
-            """
-            self.extremities = []
-            # extremity_indices = []
-            # extremity_index = -1
-            v1 = self.vertices[-2]
-            p1 = v1.coordinates
-            v2 = self.vertices[-1]
-            p2 = v2.coordinates
+        self._extremities: Optional[List[PolygonVertex]] = None
 
-            for v3 in self.vertices:
+    def _find_extremities(self):
+        """
+        identify all protruding points = vertices with an inside angle of > 180 degree ('extremities')
+        expected edge numbering:
+            outer boundary polygon: counter clockwise
+            holes: clockwise
+        :return:
+        """
+        self._extremities = []
+        # extremity_indices = []
+        # extremity_index = -1
+        v1 = self.vertices[-2]
+        p1 = v1.coordinates
+        v2 = self.vertices[-1]
+        p2 = v2.coordinates
 
-                p3 = v3.coordinates
-                # since consequent vertices are not permitted to be equal,
-                #   the angle representation of the difference is well defined
-                if (AngleRepresentation(p3 - p2).value - AngleRepresentation(p1 - p2).value) % 4 < 2.0:
-                    # basic idea:
-                    #   - translate the coordinate system to have p2 as origin
-                    #   - compute the angle representations of both vectors representing the edges
-                    #   - "rotate" the coordinate system (equal to deducting) so that the p1p2 representation is 0
-                    #   - check in which quadrant the p2p3 representation lies
-                    # %4 because the quadrant has to be in [0,1,2,3] (representation in [0:4[)
-                    # if the representation lies within quadrant 0 or 1 (<2.0), the inside angle
-                    #   (for boundary polygon inside, for holes outside) between p1p2p3 is > 180 degree
-                    # then p2 = extremity
-                    v2.declare_extremity()
-                    self.extremities.append(v2)
+        for v3 in self.vertices:
 
-                # move to the next point
-                # vertex1=vertex2
-                v2 = v3
-                p1 = p2
-                p2 = p3
+            p3 = v3.coordinates
+            # since consequent vertices are not permitted to be equal,
+            #   the angle representation of the difference is well defined
+            if (AngleRepresentation(p3 - p2).value - AngleRepresentation(p1 - p2).value) % 4 < 2.0:
+                # basic idea:
+                #   - translate the coordinate system to have p2 as origin
+                #   - compute the angle representations of both vectors representing the edges
+                #   - "rotate" the coordinate system (equal to deducting) so that the p1p2 representation is 0
+                #   - check in which quadrant the p2p3 representation lies
+                # %4 because the quadrant has to be in [0,1,2,3] (representation in [0:4[)
+                # if the representation lies within quadrant 0 or 1 (<2.0), the inside angle
+                #   (for boundary polygon inside, for holes outside) between p1p2p3 is > 180 degree
+                # then p2 = extremity
+                v2.declare_extremity()
+                self._extremities.append(v2)
 
-        self.extremities: List[PolygonVertex] = None
-        find_extremities()
+            # move to the next point
+            # vertex1=vertex2
+            v2 = v3
+            p1 = p2
+            p2 = p3
+
+    @property
+    def extremities(self) -> Iterable[PolygonVertex]:
+        if self._extremities is None:
+            self._find_extremities()
+        return self._extremities
 
     def translate(self, new_origin: Vertex):
         global origin
