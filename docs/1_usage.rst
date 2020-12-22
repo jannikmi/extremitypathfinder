@@ -35,8 +35,8 @@ Ensure that all the following conditions on the polygons are fulfilled:
 - the first point is NOT repeated at the end
 - must at least contain 3 vertices
 - no consequent vertices with identical coordinates in the polygons (same coordinates in general are allowed)
-- a polygon must not have self intersections
-- polygons must not intersect each other
+- a polygon must NOT have self intersections
+- different polygons may intersect each other
 - edge numbering has to follow this convention (for easier computations):
     - outer boundary polygon: counter clockwise
     - holes: clockwise
