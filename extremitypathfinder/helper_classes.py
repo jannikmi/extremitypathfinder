@@ -90,7 +90,7 @@ class Vertex(object):
         return id(self) > id(other)
 
     def __str__(self):
-        return str(self.coordinates)
+        return str(tuple(self.coordinates))
 
     def __repr__(self):
         return self.__str__()
@@ -296,7 +296,7 @@ class DirectedHeuristicGraph(object):
 
         if all_nodes is None:
             all_nodes = set()
-        self.all_nodes: Set[Vertex] = all_nodes
+        self.all_nodes: Set[Vertex] = all_nodes.copy() # independent copy required!
 
         # TODO use same set as extremities of env, but different for copy!
 

@@ -1,6 +1,6 @@
 import pickle
 from copy import deepcopy
-from typing import Iterable, List, Optional, Tuple, Union
+from typing import Iterable, List, Optional, Tuple, Union, Set
 
 import numpy as np
 
@@ -46,7 +46,7 @@ class PolygonEnvironment:
     prepared: bool = False
     graph: DirectedHeuristicGraph = None
     temp_graph: DirectedHeuristicGraph = None  # for storing and plotting the graph during a query
-    _all_extremities: Optional[Iterable[PolygonVertex]] = None
+    _all_extremities: Optional[Set[PolygonVertex]] = None
 
     @property
     def polygons(self) -> Iterable[Polygon]:
@@ -59,7 +59,7 @@ class PolygonEnvironment:
             yield from p.vertices
 
     @property
-    def all_extremities(self) -> Iterable[PolygonVertex]:
+    def all_extremities(self) -> Set[PolygonVertex]:
         if self._all_extremities is None:
             self._all_extremities = set()
             for p in self.polygons:
@@ -158,10 +158,11 @@ class PolygonEnvironment:
         # preprocessing the map
         # construct graph of visible (=directly reachable) extremities
         # and optimize graph further at construction time
-        extremities_to_check = set(self.all_extremities)
         # NOTE: initialise the graph with all extremities.
         #   even if a node has no edges (visibility to other extremities), it should still be included!
-        self.graph = DirectedHeuristicGraph(extremities_to_check)
+        self.graph = DirectedHeuristicGraph(self.all_extremities)
+
+        extremities_to_check = self.all_extremities.copy()
 
         # have to run for all (also last one!), because existing edges might get deleted every loop
         while len(extremities_to_check) > 0:
