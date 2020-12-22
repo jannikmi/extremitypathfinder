@@ -24,8 +24,8 @@ Create a new instance of the :ref:`PolygonEnvironment class <env>` to allow fast
 
 
 
-Store environment:
-__________________
+Store environment
+-----------------
 
 
 **Required data format:**
@@ -35,8 +35,8 @@ Ensure that all the following conditions on the polygons are fulfilled:
 - the first point is NOT repeated at the end
 - must at least contain 3 vertices
 - no consequent vertices with identical coordinates in the polygons (same coordinates in general are allowed)
-- a polygon must not have self intersections
-- polygons must not intersect each other
+- a polygon must NOT have self intersections
+- different polygons may intersect each other
 - edge numbering has to follow this convention (for easier computations):
     - outer boundary polygon: counter clockwise
     - holes: clockwise
@@ -60,8 +60,8 @@ When the paths should be blocked, use a single polygon with multiple identical v
 .. TODO visualisation plot
 
 
-Preprocessing:
-______________
+Preprocessing
+-------------
 
 computes the :ref:`visibility graph  <algorithm>` of the environment once.
 
@@ -71,8 +71,8 @@ computes the :ref:`visibility graph  <algorithm>` of the environment once.
 
 
 
-Query:
-______
+Query
+-----
 
 
 .. code-block:: python
@@ -94,8 +94,8 @@ This is required if points lie really close to polygon edges and
 
 
 
-Converting and storing a grid world:
-____________________________________
+Converting and storing a grid world
+-----------------------------------
 
 
 .. code-block:: python
@@ -144,8 +144,8 @@ in "chessboard-like grid worlds" (many small obstacles have a lot of extremities
 it can be better to use A* right away (implemented in ``graph_search.py``).
 
 
-Cache and import the environment:
-__________________________________
+Cache and import the environment
+--------------------------------
 
 
 .. code-block:: python
@@ -157,8 +157,8 @@ __________________________________
 
 
 
-Plotting:
-_________
+Plotting
+--------
 
 
 The class ``PlottingEnvironment`` automatically generates plots for every step in the path finding process:

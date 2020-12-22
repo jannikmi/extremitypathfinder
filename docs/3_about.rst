@@ -26,7 +26,7 @@ About
 python package for fast geometric shortest path computation in 2D multi-polygon or grid environments based on visibility graphs.
 
 
-.. image:: _static/grid_graph_path_plot.png
+.. image:: _static/title_demo_plot.png
 
 
 Also see:
@@ -225,3 +225,9 @@ Paper about Lee's algorithm: http://www.dav.ee/papers/Visibility_Graph_Algorithm
 C implementation of Lee's algorithm: https://github.com/davetcoleman/visibility_graph
 
 
+Acknowledgements
+----------------
+
+Thanks to:
+
+`Georg Hess <https://github.com/georghess>`__ for improving the package in order to allow intersecting polygons.

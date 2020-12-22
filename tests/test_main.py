@@ -189,6 +189,25 @@ TEST_DATA_POLY_ENV = [
     (((9, 4), (9, 6)), ([(9, 4), (9, 5), (9, 6)], 2)),
 ]
 
+OVERLAP_POLY_ENV_PARAMS = (
+    # boundary_coordinates
+    [(9.5, 10.5), (25.5, 10.5), (25.5, 0.5), (49.5, 0.5), (49.5, 49.5), (0.5, 49.5), (0.5, 16.5), (9.5, 16.5),
+     (9.5, 45.5), (15.5, 45.5), (15.5, 30.5), (35.5, 30.5), (35.5, 14.5), (0.5, 14.5), (0.5, 0.5), (9.5, 0.5)],
+    # list_of_holes
+    [[(40.5, 4.5), (29.5, 4.5), (29.5, 15.0), (40.5, 15.0), ],
+     [(45.40990195143968, 14.5), (44.59009804856032, 14.5), (43.39009804883972, 20.5), (46.60990195116028, 20.5), ],
+     [(40.5, 34.5), (24.5, 34.5), (24.5, 40.5), (40.5, 40.5), ],
+     [(31.5, 5.390098048839718), (31.5, 10.909901951439679), (42.5, 13.109901951160282), (42.5, 7.590098048560321), ],
+     ],
+)
+
+TEST_DATA_OVERLAP_POLY_ENV = [
+    # ((start,goal),(path,distance))
+    (((1, 1), (5, 20)), ([(1, 1), (9.5, 10.5), (25.5, 10.5), (29.5, 4.5), (40.5, 4.5), (42.5, 7.590098048560321),
+                          (42.5, 13.109901951160282), (35.5, 30.5), (24.5, 34.5), (15.5, 45.5), (9.5, 45.5), (5, 20)],
+                         132.71677685197986)),
+]
+
 
 def try_test_cases(environment, test_cases):
     def validate(start_coordinates, goal_coordinates, expected_output):
@@ -270,6 +289,13 @@ class MainTest(unittest.TestCase):
         # when two nodes have the same angle representation there should only be an edge to the closer node!
         # test if property 1 is being properly exploited
         # (extremities lying in front of each other need not be connected)
+
+    def test_overlapping_polygon(self):
+        overlap_poly_env = ENVIRONMENT_CLASS(**CONSTRUCTION_KWARGS)
+        overlap_poly_env.store(*OVERLAP_POLY_ENV_PARAMS)
+        overlap_poly_env.prepare()
+        print('\ntesting polygon environment with overlapping polygons')
+        try_test_cases(overlap_poly_env, TEST_DATA_OVERLAP_POLY_ENV)
 
 
 if __name__ == '__main__':
