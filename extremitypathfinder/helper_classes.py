@@ -1,5 +1,5 @@
 import heapq
-from typing import Dict, List, Optional, Set, Iterable
+from typing import Dict, List, Optional, Set
 
 import numpy as np
 
@@ -241,7 +241,7 @@ class Polygon(object):
             p2 = p3
 
     @property
-    def extremities(self) -> Iterable[PolygonVertex]:
+    def extremities(self) -> List[PolygonVertex]:
         if self._extremities is None:
             self._find_extremities()
         return self._extremities
