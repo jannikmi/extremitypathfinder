@@ -208,13 +208,31 @@ TEST_DATA_OVERLAP_POLY_ENV = [
                          132.71677685197986)),
 ]
 
+SEPARATED_ENV = (
+    [(5, 5), (-5, 5), (-5, -5), (5, -5)],
+    [[(-5.1, 1), (-5.1, 2), (5.1, 2), (5.1, 1)]],  # intersecting polygons -> no path possible
+    # [[(-5, 1), (-5, 2), (5, 2), (5, 1)]], # hole lies on the edges -> path possible
+)
+
+TEST_DATA_SEPARATE_ENV = [
+    # ((start,goal),(path,distance))
+    (((0, 0), (0, 4)), ([], None)),  # unreachable
+]
+
+
+# ((start,goal),(path,distance))
+
 
 def try_test_cases(environment, test_cases):
     def validate(start_coordinates, goal_coordinates, expected_output):
         output = environment.find_shortest_path(start_coordinates, goal_coordinates)
         path, length = output
+        assert type(path) is list
         expected_path, expected_length = expected_output
-        correct_result = path == expected_path and length == pytest.approx(expected_length)
+        if expected_length is None:
+            correct_result = length is None and path == expected_path
+        else:
+            correct_result = path == expected_path and length == pytest.approx(expected_length)
         if correct_result:
             status_str = 'OK'
         else:
@@ -295,6 +313,13 @@ class MainTest(unittest.TestCase):
         overlap_poly_env.prepare()
         print('\ntesting polygon environment with overlapping polygons')
         try_test_cases(overlap_poly_env, TEST_DATA_OVERLAP_POLY_ENV)
+
+    def test_separated_environment(self):
+        env = ENVIRONMENT_CLASS(**CONSTRUCTION_KWARGS)
+        env.store(*SEPARATED_ENV)
+        env.prepare()
+        print('\ntesting polygon environment with two separated areas')
+        try_test_cases(env, TEST_DATA_SEPARATE_ENV)
 
 
 if __name__ == '__main__':

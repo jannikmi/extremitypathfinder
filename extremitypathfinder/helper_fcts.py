@@ -562,12 +562,7 @@ def find_visible(vertex_candidates, edges_to_check):
             vertex_candidates.difference_update(vertices_behind)
             continue
 
-        # if the candidate is closer than both edge vertices it surely lies in front (
-        min_distance = min(v1.get_distance_to_origin(), v2.get_distance_to_origin())
-        vertices_in_front = set(
-            filter(lambda extr: extr.get_distance_to_origin() < min_distance, vertices_to_check))
-        # they do not have to be checked (safes computation)
-        vertices_to_check.difference_update(vertices_in_front)
+        vertices_in_front = set()  # used for increasing the priority of "closer" edges
 
         # for all remaining vertices v it has to be tested if the line segment from query point (=origin) to v
         #    has an intersection with the current edge p1---p2
