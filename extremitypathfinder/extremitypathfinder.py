@@ -269,9 +269,10 @@ class PolygonEnvironment:
         if not self.prepared:
             self.prepare()
 
-        if verify and not (self.within_map(start_coordinates) and self.within_map(goal_coordinates)):
-            raise ValueError('start or goal do not lie within the map')
-
+        if verify and not self.within_map(start_coordinates):
+            raise ValueError('start point does not lie within the map')
+        if verify and not self.within_map(goal_coordinates):
+            raise ValueError('goal point does not lie within the map')
         if start_coordinates == goal_coordinates:
             # start and goal are identical and can be reached instantly
             return [start_coordinates, goal_coordinates], 0.0
@@ -296,6 +297,7 @@ class PolygonEnvironment:
         # (they also cause errors in the algorithms, because their angle repr is not defined!)
         candidates = set(filter(lambda n: n.get_angle_representation() is not None, self.graph.get_all_nodes()))
         # IMPORTANT: check if the start node is visible from the goal node!
+        # NOTE: all edges are being checked, it is computationally faster to compute all visibilities in one go
         candidates.add(start_vertex)
 
         visibles_n_distances_goal = find_visible(candidates, edges_to_check=set(self.all_edges))
