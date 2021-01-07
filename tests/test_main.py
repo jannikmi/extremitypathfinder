@@ -232,7 +232,6 @@ def try_test_cases(environment, test_cases):
         if expected_length is None:
             correct_result = length is None and path == expected_path
         else:
-            assert type(length) is float
             correct_result = path == expected_path and length == pytest.approx(expected_length)
         if correct_result:
             status_str = 'OK'
