@@ -7,8 +7,8 @@ from extremitypathfinder.extremitypathfinder import PolygonEnvironment
 from extremitypathfinder.plotting import PlottingEnvironment
 
 # TODO
-PLOT_TEST_RESULTS = True
-# PLOT_TEST_RESULTS = False
+# PLOT_TEST_RESULTS = True
+PLOT_TEST_RESULTS = False
 TEST_PLOT_OUTPUT_FOLDER = 'plots'
 
 if PLOT_TEST_RESULTS:
@@ -210,7 +210,7 @@ TEST_DATA_OVERLAP_POLY_ENV = [
 
 SEPARATED_ENV = (
     [(5, 5), (-5, 5), (-5, -5), (5, -5)],
-    [[(-5.1, 1), (-5.1, 2), (5.1, 2), (5.1, 1)]], # intersecting polygons -> no path possible
+    [[(-5.1, 1), (-5.1, 2), (5.1, 2), (5.1, 1)]],  # intersecting polygons -> no path possible
     # [[(-5, 1), (-5, 2), (5, 2), (5, 1)]], # hole lies on the edges -> path possible
 )
 

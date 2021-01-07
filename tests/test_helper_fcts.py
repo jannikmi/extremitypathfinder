@@ -7,6 +7,7 @@ from extremitypathfinder.helper_fcts import has_clockwise_numbering, inside_poly
 from helpers import proto_test_case
 
 
+# TODO test find_visible(), ...
 # TODO test invalid data detection
 class HelperFctsTest(unittest.TestCase):
 

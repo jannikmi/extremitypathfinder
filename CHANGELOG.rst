@@ -5,6 +5,14 @@ Changelog
 TODO python 3.6 support. tests not passing so far only for this python version
 
 
+
+2.1.0 (2021-01-07)
+------------------
+
+IMPORTANT BUGFIX: in some cases the visibility computation was faulty (fix #23)
+
+* added new test case
+
 2.0.0 (2020-12-22)
 ------------------
 
