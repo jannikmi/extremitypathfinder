@@ -2,6 +2,7 @@ from itertools import combinations
 from typing import List
 
 import numpy as np
+import json
 
 from extremitypathfinder.helper_classes import AngleRepresentation, PolygonVertex
 
@@ -618,4 +619,5 @@ def find_visible(vertex_candidates, edges_to_check):
 
 
 def read_json(json_file):
-    return("batatinha")
+    json_loaded = json.load(open(json_file, "r"))
+    print(json_loaded)

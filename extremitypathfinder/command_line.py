@@ -13,4 +13,4 @@ def main():
 
     args = parser.parse_args()
     print(args)
-    print(read_json("file"))
+    print(read_json("specs.json"))
