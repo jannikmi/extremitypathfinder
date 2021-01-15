@@ -357,8 +357,9 @@ def convert_gridworld(size_x: int, size_y: int, obstacle_iter: iter, simplify: b
         # left_vect = directions[(forward_index - 1) % 4]
         just_turned = True
 
-        # follow the border between obstacles and free cells ("wall") until one reaches the start position again
-        while 1:
+        # follow the border between obstacles and free cells ("wall") until one
+        # reaches the start position again
+        while True:
             # left has to be checked first
             # do not check if just turned left or right (-> the left is blocked for sure)
             # left_pos = current_pos + left_vect
@@ -521,8 +522,13 @@ def find_visible(vertex_candidates, edges_to_check):
             # all the candidates between the two vertices v1 v2 are not visible for sure
             # candidates with the same representation should not be deleted, because they can be visible!
             vertex_candidates.difference_update(
-                find_within_range(repr1, repr2, repr_diff, vertex_candidates, angle_range_less_180=range_less_180,
-                                  equal_repr_allowed=False))
+                find_within_range(
+                    repr1,
+                    repr2,
+                    repr_diff,
+                    vertex_candidates,
+                    angle_range_less_180=range_less_180,
+                    equal_repr_allowed=False))
             continue
 
         # case: a 'regular' edge
@@ -545,15 +551,23 @@ def find_visible(vertex_candidates, edges_to_check):
         #   is always < 180deg when the edge is not running through the query point (=180 deg)
         #  candidates with the same representation as v1 or v2 should be considered.
         #   they can be visible, but should be ruled out if they lie behind any edge!
-        vertices_to_check = find_within_range(repr1, repr2, repr_diff, vertices_to_check, angle_range_less_180=True,
-                                              equal_repr_allowed=True)
+        vertices_to_check = find_within_range(
+            repr1,
+            repr2,
+            repr_diff,
+            vertices_to_check,
+            angle_range_less_180=True,
+            equal_repr_allowed=True)
         if len(vertices_to_check) == 0:
             continue
 
         # if a candidate is farther away from the query point than both vertices of the edge,
         #    it surely lies behind the edge
         max_distance = max(v1.get_distance_to_origin(), v2.get_distance_to_origin())
-        vertices_behind = set(filter(lambda extr: extr.get_distance_to_origin() > max_distance, vertices_to_check))
+        vertices_behind = set(
+            filter(
+                lambda extr: extr.get_distance_to_origin() > max_distance,
+                vertices_to_check))
         # they do not have to be checked, no intersection computation necessary
         # TODO improvement: increase the neighbouring edges' priorities when there were extremities behind
         vertices_to_check.difference_update(vertices_behind)
@@ -591,7 +605,7 @@ def find_visible(vertex_candidates, edges_to_check):
         # TODO test speed impact
         for e in vertices_in_front:
             # only add the neighbour edges to the priority set if they still have to be checked!
-            if type(e) == PolygonVertex:
+            if isinstance(e, PolygonVertex):
                 # only vertices belonging to polygons have neighbours
                 priority_edges.update(edges_to_check.intersection({e.edge1, e.edge2}))
 
@@ -601,3 +615,7 @@ def find_visible(vertex_candidates, edges_to_check):
 
     # return a set of tuples: (vertex, distance)
     return {(e, e.get_distance_to_origin()) for e in visible_vertices}
+
+
+def read_json(json_file):
+    return("batatinha")
