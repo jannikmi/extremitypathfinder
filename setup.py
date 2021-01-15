@@ -43,4 +43,7 @@ setup(
     install_requires=[
         'numpy>=1.16',
     ],
+    entry_points={
+        'console_scripts': ['extremitypathfinder=extremitypathfinder.command_line:main'],
+    }
 )
