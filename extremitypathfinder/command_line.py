@@ -11,6 +11,5 @@ def main():
     parser.add_argument("start", type=float, help="start coordinates for search")
     parser.add_argument("goal", type=float, help="goal coordinates for search")
 
-    args = parser.parse_args()
-    print(args)
-    print(read_json("specs.json"))
+    parsed_args = parser.parse_args()
+    print(read_json(parsed_args.json_file))

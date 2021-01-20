@@ -619,5 +619,22 @@ def find_visible(vertex_candidates, edges_to_check):
 
 
 def read_json(json_file):
-    json_loaded = json.load(open(json_file, "r"))
-    print(json_loaded)
+    with open(json_file, "r") as json_file:
+        json_data = json_file.read()
+    
+    json_loaded = json.loads(json_data)
+    
+    boundary_coordinates = json_loaded["boundaries"]
+    holes_coordinates = json_loaded["holes"]
+    
+    print(json_loaded["boundaries"])
+    print(json_loaded["holes"])
+    
+    print(type(json_loaded["boundaries"]))
+    print(type(json_loaded["holes"]))
+
+    for boundary in boundary_coordinates:
+        print(boundary)
+
+    for hole in holes_coordinates:
+        print(hole)
