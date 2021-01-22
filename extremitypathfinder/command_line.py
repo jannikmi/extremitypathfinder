@@ -12,4 +12,4 @@ def main():
     parser.add_argument("goal", type=float, help="goal coordinates for search")
 
     parsed_args = parser.parse_args()
-    print(read_json(parsed_args.json_file))
+    read_json(parsed_args.json_file)
