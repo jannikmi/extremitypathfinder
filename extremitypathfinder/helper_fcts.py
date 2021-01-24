@@ -619,22 +619,54 @@ def find_visible(vertex_candidates, edges_to_check):
 
 
 def read_json(json_file):
+    # Get data from input file
     with open(json_file, "r") as json_file:
         json_data = json_file.read()
     
-    json_loaded = json.loads(json_data)
-    
-    boundary_coordinates = json_loaded["boundaries"]
-    holes_coordinates = json_loaded["holes"]
-    
-    print(json_loaded["boundaries"])
-    print(json_loaded["holes"])
-    
-    print(type(json_loaded["boundaries"]))
-    print(type(json_loaded["holes"]))
+    # Flag for error handling
+    boundaries_ok = False
 
-    for boundary in boundary_coordinates:
-        print(boundary)
+    try:
+        # Parse JSON
+        json_loaded = json.loads(json_data)
+        
+        # List of coordinates that form the boundary
+        boundary_coordinates = []
 
-    for hole in holes_coordinates:
-        print(hole)
+        # Get each tuple from the JSON data and store in the list
+        for coordinate_pair in eval(json_loaded["boundaries"][0]):
+            boundary_coordinates.append(coordinate_pair)
+
+        # No error on processing boundaries
+        boundaries_ok = True
+
+        # List of holes
+        list_of_holes = []
+
+        # Get each hole from the JSON data
+        for hole_string in json_loaded["holes"]:
+            # List of coordinates that form the hole
+            hole = []
+            # Get each tuple from the JSON data and store in the list
+            for coordinate_pair in eval(hole_string):
+                hole.append(coordinate_pair)
+            # Store hole in the list
+            list_of_holes.append(hole)
+
+    # If fail to decode JSON
+    except json.JSONDecodeError as e:
+        print("Error while decoding JSON file:")
+        print(str(e))
+        exit()
+
+    # If fail to parse boundary or hole
+    except SyntaxError:
+        if(boundaries_ok):
+            error_string = "hole"
+        else:
+            error_string = "boundary"
+        print("Invalid {} string.".format(error_string))
+        exit()
+
+    # Returns parsed data from JSON file
+    return(boundary_coordinates, list_of_holes)
