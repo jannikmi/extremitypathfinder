@@ -1,8 +1,8 @@
+import json
 from itertools import combinations
 from typing import List
 
 import numpy as np
-import json
 
 from extremitypathfinder.helper_classes import AngleRepresentation, PolygonVertex
 
@@ -639,14 +639,14 @@ def read_json(json_file):
     # Get data from input file
     with open(json_file, "r") as json_file:
         json_data = json_file.read()
-    
+
     # Flag for error handling
     boundaries_ok = False
 
     try:
         # Parse JSON
         json_loaded = json.loads(json_data)
-        
+
         # List of coordinates that form the boundary
         boundary_coordinates = []
 
@@ -680,7 +680,7 @@ def read_json(json_file):
         print("Error while decoding JSON file:")
         print(str(e))
         exit()
-    
+
     # If fail to parse boundary or hole
     except SyntaxError:
         if(boundaries_ok):

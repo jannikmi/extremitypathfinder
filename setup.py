@@ -45,5 +45,5 @@ setup(
     ],
     entry_points={
         'console_scripts': ['extremitypathfinder=extremitypathfinder.command_line:main'],
-    }
+    },
 )

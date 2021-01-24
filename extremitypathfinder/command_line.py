@@ -1,10 +1,10 @@
 import argparse
 
-from extremitypathfinder import PolygonEnvironment
-from extremitypathfinder.plotting import PlottingEnvironment
 from extremitypathfinder.helper_fcts import read_json
+from extremitypathfinder.plotting import PlottingEnvironment
 
 environment = PlottingEnvironment()
+
 
 def main():
     parser = argparse.ArgumentParser(description="")
@@ -30,4 +30,3 @@ def main():
     environment.store(list_of_boundaries, list_of_holes, validate=False)
     environment.prepare()
     path, distance = environment.find_shortest_path(start_coordinates, goal_coordinates)
-
