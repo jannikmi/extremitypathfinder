@@ -619,6 +619,23 @@ def find_visible(vertex_candidates, edges_to_check):
 
 
 def read_json(json_file):
+    """
+    Parse data from a JSON file and save as lists of tuples for both boundary and holes.
+    The JSON file must have 2 keys: boundary and holes.
+    The value assigned to the boundary key must be a list containing a single string.
+    The value assigned to the holes key must be a list containing one or more strings, each
+    defining a separate hole.
+    The strings contains the coordinates that form the polygon being described.
+    Example: ./input.json
+
+    {
+    "boundary":["(0.0, 0.0), (10.0, 0.0),(9.0, 5.0), (10.0, 10.0), (0.0, 10.0)"],
+    "holes":["(3.0, 7.0), (5.0, 9.0), (4.5, 7.0), (5.0, 4.0)",
+             "(1.0, 2.0), (2.0, 2.0), (2.0, 1.0), (1.0, 1.0)"]
+    }
+    :param json_file: The input json file
+    :return: The parsed lists of boundaries and holes
+    """
     # Get data from input file
     with open(json_file, "r") as json_file:
         json_data = json_file.read()
@@ -634,7 +651,7 @@ def read_json(json_file):
         boundary_coordinates = []
 
         # Get each tuple from the JSON data and store in the list
-        for coordinate_pair in eval(json_loaded["boundaries"][0]):
+        for coordinate_pair in eval(json_loaded["boundary"][0]):
             boundary_coordinates.append(coordinate_pair)
 
         # No error on processing boundaries
@@ -653,12 +670,17 @@ def read_json(json_file):
             # Store hole in the list
             list_of_holes.append(hole)
 
+    # If a key is not found in JSON file
+    except KeyError as e:
+        print("Error while decoding JSON file: Key {} not found!".format(e))
+        exit()
+
     # If fail to decode JSON
     except json.JSONDecodeError as e:
         print("Error while decoding JSON file:")
         print(str(e))
         exit()
-
+    
     # If fail to parse boundary or hole
     except SyntaxError:
         if(boundaries_ok):
