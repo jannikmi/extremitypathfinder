@@ -91,7 +91,7 @@ class HelperFctsTest(unittest.TestCase):
         proto_test_case(data, clockwise_test_fct)
 
     def test_read_json(self):
-        path2json_file = abspath(join(pardir, "example.json"))
+        path2json_file = abspath(join(__file__, pardir, pardir, "example.json"))
         boundary_coordinates, list_of_holes = read_json(path2json_file)
         assert len(boundary_coordinates) == 5
         assert len(boundary_coordinates[0]) == 2
