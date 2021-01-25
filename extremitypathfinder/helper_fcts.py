@@ -5,9 +5,10 @@ from typing import List
 import numpy as np
 
 from extremitypathfinder.helper_classes import AngleRepresentation, PolygonVertex
-
-
 # TODO numba precompilation of some parts possible?! do line speed profiling first! speed impact
+from extremitypathfinder.global_settings import HOLES_JSON_KEY, BOUNDARY_JSON_KEY
+
+
 def inside_polygon(x, y, coords, border_value):
     # should return the border value for point equal to any polygon vertex
     # TODO overflow possible with large values when comparing slopes, change procedure
@@ -618,77 +619,32 @@ def find_visible(vertex_candidates, edges_to_check):
     return {(e, e.get_distance_to_origin()) for e in visible_vertices}
 
 
-def read_json(json_file):
+def try_extraction(json_data, key):
+    try:
+        extracted_data = json_data[key]
+    except KeyError as e:
+        raise ValueError(f"The expected key {key} was not found in the JSON file:\n{e}")
+    return extracted_data
+
+
+def convert2polygon(json_list):
+    return [tuple(coord_pair_list) for coord_pair_list in json_list]
+
+
+def read_json(path2json_file):
     """
     Parse data from a JSON file and save as lists of tuples for both boundary and holes.
-    The JSON file must have 2 keys: boundary and holes.
-    The value assigned to the boundary key must be a list containing a single string.
-    The value assigned to the holes key must be a list containing one or more strings, each
-    defining a separate hole.
-    The strings contains the coordinates that form the polygon being described.
-    Example: ./input.json
+    NOTE: The format of the JSON file is explained in the command line script (argparse definition)
 
-    {
-    "boundary":["(0.0, 0.0), (10.0, 0.0),(9.0, 5.0), (10.0, 10.0), (0.0, 10.0)"],
-    "holes":["(3.0, 7.0), (5.0, 9.0), (4.5, 7.0), (5.0, 4.0)",
-             "(1.0, 2.0), (2.0, 2.0), (2.0, 1.0), (1.0, 1.0)"]
-    }
-    :param json_file: The input json file
+    :param path2json_file: The path to the input json file
     :return: The parsed lists of boundaries and holes
     """
-    # Get data from input file
-    with open(json_file, "r") as json_file:
+    # parse data from the input file
+    with open(path2json_file, "r") as json_file:
         json_data = json_file.read()
-
-    # Flag for error handling
-    boundaries_ok = False
-
-    try:
-        # Parse JSON
-        json_loaded = json.loads(json_data)
-
-        # List of coordinates that form the boundary
-        boundary_coordinates = []
-
-        # Get each tuple from the JSON data and store in the list
-        for coordinate_pair in eval(json_loaded["boundary"][0]):
-            boundary_coordinates.append(coordinate_pair)
-
-        # No error on processing boundaries
-        boundaries_ok = True
-
-        # List of holes
-        list_of_holes = []
-
-        # Get each hole from the JSON data
-        for hole_string in json_loaded["holes"]:
-            # List of coordinates that form the hole
-            hole = []
-            # Get each tuple from the JSON data and store in the list
-            for coordinate_pair in eval(hole_string):
-                hole.append(coordinate_pair)
-            # Store hole in the list
-            list_of_holes.append(hole)
-
-    # If a key is not found in JSON file
-    except KeyError as e:
-        print("Error while decoding JSON file: Key {} not found!".format(e))
-        exit()
-
-    # If fail to decode JSON
-    except json.JSONDecodeError as e:
-        print("Error while decoding JSON file:")
-        print(str(e))
-        exit()
-
-    # If fail to parse boundary or hole
-    except SyntaxError:
-        if(boundaries_ok):
-            error_string = "hole"
-        else:
-            error_string = "boundary"
-        print("Invalid {} string.".format(error_string))
-        exit()
-
-    # Returns parsed data from JSON file
-    return(boundary_coordinates, list_of_holes)
+    json_loaded = json.loads(json_data)
+    boundary_data = try_extraction(json_loaded, BOUNDARY_JSON_KEY)
+    holes_data = try_extraction(json_loaded, HOLES_JSON_KEY)
+    boundary_coordinates = convert2polygon(boundary_data)
+    list_of_holes = [convert2polygon(hole_data) for hole_data in holes_data]
+    return boundary_coordinates, list_of_holes
