@@ -1,6 +1,6 @@
 import pickle
 from copy import deepcopy
-from typing import Iterable, List, Optional, Set, Tuple, Union
+from typing import Iterable, List, Optional, Set, Tuple
 
 import numpy as np
 
@@ -10,16 +10,8 @@ from extremitypathfinder.helper_fcts import (
 )
 
 # TODO possible to allow polygon consisting of 2 vertices only(=barrier)? lots of functions need at least 3 vertices atm
-
-COORDINATE_TYPE = Tuple[float, float]
-PATH_TYPE = List[COORDINATE_TYPE]
-LENGTH_TYPE = Optional[float]
-INPUT_NUMERICAL_TYPE = Union[float, int]
-INPUT_COORD_TYPE = Tuple[INPUT_NUMERICAL_TYPE, INPUT_NUMERICAL_TYPE]
-OBSTACLE_ITER_TYPE = Iterable[INPUT_COORD_TYPE]
-INPUT_COORD_LIST_TYPE = Union[np.ndarray, List]
-
-DEFAULT_PICKLE_NAME = 'environment.pickle'
+from global_settings import PATH_TYPE, LENGTH_TYPE, INPUT_COORD_TYPE, OBSTACLE_ITER_TYPE, INPUT_COORD_LIST_TYPE, \
+    DEFAULT_PICKLE_NAME
 
 
 # is not a helper function to make it an importable part of the package
