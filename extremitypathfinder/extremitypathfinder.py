@@ -10,8 +10,8 @@ from extremitypathfinder.helper_fcts import (
 )
 
 # TODO possible to allow polygon consisting of 2 vertices only(=barrier)? lots of functions need at least 3 vertices atm
-from global_settings import PATH_TYPE, LENGTH_TYPE, INPUT_COORD_TYPE, OBSTACLE_ITER_TYPE, INPUT_COORD_LIST_TYPE, \
-    DEFAULT_PICKLE_NAME
+from extremitypathfinder.global_settings import PATH_TYPE, LENGTH_TYPE, INPUT_COORD_TYPE, OBSTACLE_ITER_TYPE, \
+    INPUT_COORD_LIST_TYPE, DEFAULT_PICKLE_NAME
 
 
 # is not a helper function to make it an importable part of the package
