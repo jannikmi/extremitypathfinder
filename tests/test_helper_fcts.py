@@ -1,10 +1,12 @@
 import unittest
+from os.path import pardir, abspath, join
 
 import numpy as np
-
-from extremitypathfinder.helper_classes import AngleRepresentation
-from extremitypathfinder.helper_fcts import has_clockwise_numbering, inside_polygon
 from helpers import proto_test_case
+
+from extremitypathfinder import PolygonEnvironment
+from extremitypathfinder.helper_classes import AngleRepresentation
+from extremitypathfinder.helper_fcts import has_clockwise_numbering, inside_polygon, read_json
 
 
 # TODO test find_visible(), ...
@@ -87,6 +89,18 @@ class HelperFctsTest(unittest.TestCase):
 
         ]
         proto_test_case(data, clockwise_test_fct)
+
+    def test_read_json(self):
+        path2json_file = abspath(join(pardir, "example.json"))
+        boundary_coordinates, list_of_holes = read_json(path2json_file)
+        assert len(boundary_coordinates) == 5
+        assert len(boundary_coordinates[0]) == 2
+        assert len(list_of_holes) == 2
+        first_hole = list_of_holes[0]
+        assert len(first_hole) == 4
+        assert len(first_hole[0]) == 2
+        environment = PolygonEnvironment()
+        environment.store(boundary_coordinates, list_of_holes, validate=True)
 
 
 # TODO test if relation is really bidirectional (y in find_visible(x,y) <=> x in find_visible(y,x))
