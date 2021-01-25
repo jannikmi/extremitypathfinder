@@ -189,3 +189,28 @@ The class ``PlottingEnvironment`` automatically generates plots for every step i
 
 
 Other functions in ``plotting.py`` can be utilised to plot specific parts of an environment (extremities, edges, ...)
+
+
+
+Calling extremitypathfinder from the command line
+---------------------------------------------
+
+A command line script is being installed as part of this package.
+
+**Command Line Syntax**:
+
+::
+
+    extremitypathfinder <path2json_file> -s <start> -g <goal>
+
+The ``<start>`` and ``<goal>`` arguments must be passed as two separate float values.
+
+**Example**:
+
+::
+
+    extremitypathfinder ./example.json -s 2.5 3.2 -g 7.9 6.8
+
+This returns ``[(2.5, 3.2), (5.0, 4.0), (7.9, 6.8)] 6.656009823830612``
+
+Please note that this might be significantly slower than using the package directly from within python.
