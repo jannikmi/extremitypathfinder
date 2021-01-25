@@ -2,13 +2,12 @@ import unittest
 
 import numpy as np
 import pytest
+from helpers import proto_test_case
 
 from extremitypathfinder.helper_classes import AngleRepresentation
-from helpers import proto_test_case
 
 
 class HelperClassesTest(unittest.TestCase):
-
     def test_angle_repr(self):
         with pytest.raises(ValueError):
             AngleRepresentation(np.array([0.0, 0.0]))
@@ -64,7 +63,6 @@ class HelperClassesTest(unittest.TestCase):
             ([0.0, 1.0], 1.0),
             ([-1.0, 0.0], 2.0),
             ([0.0, -1.0], 3.0),
-
             ([2.0, 0.0], 0.0),
             ([0.0, 2.0], 1.0),
             ([-2.0, 0.0], 2.0),
@@ -74,7 +72,7 @@ class HelperClassesTest(unittest.TestCase):
         proto_test_case(data, value_test_fct)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     suite = unittest.TestLoader().loadTestsFromTestCase(HelperClassesTest)
     unittest.TextTestRunner(verbosity=2).run(suite)
     # unittest.main()

@@ -1,3 +1,3 @@
 from .extremitypathfinder import PolygonEnvironment
 
-__all__ = ('PolygonEnvironment',)
+__all__ = ("PolygonEnvironment",)

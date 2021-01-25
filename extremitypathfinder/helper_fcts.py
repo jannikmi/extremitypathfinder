@@ -4,9 +4,9 @@ from typing import List
 
 import numpy as np
 
-from extremitypathfinder.helper_classes import AngleRepresentation, PolygonVertex
 # TODO numba precompilation of some parts possible?! do line speed profiling first! speed impact
-from extremitypathfinder.global_settings import HOLES_JSON_KEY, BOUNDARY_JSON_KEY
+from extremitypathfinder.global_settings import BOUNDARY_JSON_KEY, HOLES_JSON_KEY
+from extremitypathfinder.helper_classes import AngleRepresentation, PolygonVertex
 
 
 def inside_polygon(x, y, coords, border_value):
@@ -20,7 +20,10 @@ def inside_polygon(x, y, coords, border_value):
     p = np.array([x, y])
     p1 = coords[-1, :]
     for p2 in coords[:]:
-        if abs((AngleRepresentation(p1 - p).value - AngleRepresentation(p2 - p).value)) == 2.0:
+        if (
+            abs((AngleRepresentation(p1 - p).value - AngleRepresentation(p2 - p).value))
+            == 2.0
+        ):
             return border_value
         p1 = p2
 
@@ -42,7 +45,9 @@ def inside_polygon(x, y, coords, border_value):
                 # depending on the position of p2 this determines whether the polygon edge is right or left of the point
                 # to avoid expensive division the divisors (of the slope dy/dx) are brought to the other side
                 # ( dy/dx > a  ==  dy > a * dx )
-                if (x1GEx and x2GEx) or ((x1GEx or x2GEx) and (y2 - y) * (x2 - x1) <= (y2 - y1) * (x2 - x)):
+                if (x1GEx and x2GEx) or (
+                    (x1GEx or x2GEx) and (y2 - y) * (x2 - x1) <= (y2 - y1) * (x2 - x)
+                ):
                     contained = not contained
 
         else:
@@ -52,7 +57,9 @@ def inside_polygon(x, y, coords, border_value):
                 # only crossings "right" of the point should be counted
                 x1GEx = x <= x1
                 x2GEx = x <= x2
-                if (x1GEx and x2GEx) or ((x1GEx or x2GEx) and (y2 - y) * (x2 - x1) >= (y2 - y1) * (x2 - x)):
+                if (x1GEx and x2GEx) or (
+                    (x1GEx or x2GEx) and (y2 - y) * (x2 - x1) >= (y2 - y1) * (x2 - x)
+                ):
                     contained = not contained
 
         y1 = y2
@@ -153,7 +160,7 @@ def no_self_intersection(coords):
 
 
 def has_clockwise_numbering(coords):
-    """ tests if a polygon has clockwise vertex numbering
+    """tests if a polygon has clockwise vertex numbering
     approach: Sum over the edges, (x2 − x1)(y2 + y1). If the result is positive the curve is clockwise.
     from:
     https://stackoverflow.com/questions/1165647/how-to-determine-if-a-list-of-polygon-points-are-in-clockwise-order
@@ -171,25 +178,27 @@ def has_clockwise_numbering(coords):
 
 
 def check_polygon(polygon):
-    """ ensures that all the following conditions on the polygons are fulfilled:
-        - must at least contain 3 vertices
-        - no consequent vertices with identical coordinates in the polygons! In general might have the same coordinates
-        - a polygon must not have self intersections (intersections with other polygons are allowed)
+    """ensures that all the following conditions on the polygons are fulfilled:
+    - must at least contain 3 vertices
+    - no consequent vertices with identical coordinates in the polygons! In general might have the same coordinates
+    - a polygon must not have self intersections (intersections with other polygons are allowed)
     """
     if not polygon.shape[0] >= 3:
-        raise TypeError('Given polygons must at least contain 3 vertices.')
+        raise TypeError("Given polygons must at least contain 3 vertices.")
     if not polygon.shape[1] == 2:
-        raise TypeError('Each point of a polygon must consist of two values (x,y).')
+        raise TypeError("Each point of a polygon must consist of two values (x,y).")
     if not no_identical_consequent_vertices(polygon):
-        raise ValueError('Consequent vertices of a polynomial must not be identical.')
+        raise ValueError("Consequent vertices of a polynomial must not be identical.")
     if not no_self_intersection(polygon):
-        raise ValueError('A polygon must not intersect itself.')
+        raise ValueError("A polygon must not intersect itself.")
 
 
 # TODO test
 # todo - polygons must not intersect each other
-def check_data_requirements(boundary_coords: np.ndarray, list_hole_coords: List[np.ndarray]):
-    """ ensures that all the following conditions on the polygons are fulfilled:
+def check_data_requirements(
+    boundary_coords: np.ndarray, list_hole_coords: List[np.ndarray]
+):
+    """ensures that all the following conditions on the polygons are fulfilled:
         - basic polygon requirements (s. above)
         - edge numbering has to follow this convention (for easier computations):
             * outer boundary polygon: counter clockwise
@@ -200,16 +209,20 @@ def check_data_requirements(boundary_coords: np.ndarray, list_hole_coords: List[
     """
     check_polygon(boundary_coords)
     if has_clockwise_numbering(boundary_coords):
-        raise ValueError('Vertex numbering of the boundary polygon must be counter clockwise.')
+        raise ValueError(
+            "Vertex numbering of the boundary polygon must be counter clockwise."
+        )
     for hole_coords in list_hole_coords:
         check_polygon(hole_coords)
         if not has_clockwise_numbering(hole_coords):
-            raise ValueError('Vertex numbering of hole polygon must be clockwise.')
+            raise ValueError("Vertex numbering of hole polygon must be clockwise.")
 
     # TODO data rectification
 
 
-def find_within_range(repr1, repr2, repr_diff, vertex_set, angle_range_less_180, equal_repr_allowed):
+def find_within_range(
+    repr1, repr2, repr_diff, vertex_set, angle_range_less_180, equal_repr_allowed
+):
     """
     filters out all vertices whose representation lies within the range between
       the two given angle representations
@@ -288,7 +301,9 @@ def find_within_range(repr1, repr2, repr_diff, vertex_set, angle_range_less_180,
     return set(filter(filter_fct, vertex_set))
 
 
-def convert_gridworld(size_x: int, size_y: int, obstacle_iter: iter, simplify: bool = True) -> (list, list):
+def convert_gridworld(
+    size_x: int, size_y: int, obstacle_iter: iter, simplify: bool = True
+) -> (list, list):
     """
     prerequisites: grid world must not have non-obstacle cells which are surrounded by obstacles
     ("single white cell in black surrounding" = useless for path planning)
@@ -306,7 +321,10 @@ def convert_gridworld(size_x: int, size_y: int, obstacle_iter: iter, simplify: b
 
     if len(obstacle_iter) == 0:
         # there are no obstacles. return just the simple boundary rectangle
-        return [np.array(x, y) for x, y in [(0, 0), (size_x, 0), (size_x, size_y), (0, size_y)]], []
+        return [
+            np.array(x, y)
+            for x, y in [(0, 0), (size_x, 0), (size_x, size_y), (0, size_y)]
+        ], []
 
     # convert (x,y) into np.arrays
     # obstacle_iter = [np.array(o) for o in obstacle_iter]
@@ -365,7 +383,9 @@ def convert_gridworld(size_x: int, size_y: int, obstacle_iter: iter, simplify: b
             # left has to be checked first
             # do not check if just turned left or right (-> the left is blocked for sure)
             # left_pos = current_pos + left_vect
-            if not (just_turned or boundary_detect_fct(current_pos + directions[left_index])):
+            if not (
+                just_turned or boundary_detect_fct(current_pos + directions[left_index])
+            ):
                 # print('< turn left')
                 forward_index = left_index
                 left_index = (forward_index - 1) % 4
@@ -410,7 +430,9 @@ def convert_gridworld(size_x: int, size_y: int, obstacle_iter: iter, simplify: b
     start_pos = find_start(start_pos=(0, 0), boundary_detect_fct=is_unblocked)
     # print(start_pos+directions[3])
     # raise ValueError
-    boundary_edges = construct_polygon(start_pos, boundary_detect_fct=is_blocked, cntr_clockwise_wanted=True)
+    boundary_edges = construct_polygon(
+        start_pos, boundary_detect_fct=is_blocked, cntr_clockwise_wanted=True
+    )
 
     if simplify:
         # TODO
@@ -420,18 +442,28 @@ def convert_gridworld(size_x: int, size_y: int, obstacle_iter: iter, simplify: b
     # just the obstacles inside the boundary polygon are part of holes
     # shift coordinates by +(0.5,0.5) for correct detection
     # the border value does not matter here
-    unchecked_obstacles = [o for o in obstacle_iter if
-                           inside_polygon(o[0] + 0.5, o[1] + 0.5, boundary_edges, border_value=True)]
+    unchecked_obstacles = [
+        o
+        for o in obstacle_iter
+        if inside_polygon(o[0] + 0.5, o[1] + 0.5, boundary_edges, border_value=True)
+    ]
 
     hole_list = []
     while len(unchecked_obstacles) > 0:
-        start_pos = find_start(start_pos=(0, 0), boundary_detect_fct=pos_in_iter, iter=unchecked_obstacles)
-        hole = construct_polygon(start_pos, boundary_detect_fct=is_unblocked, cntr_clockwise_wanted=False)
+        start_pos = find_start(
+            start_pos=(0, 0), boundary_detect_fct=pos_in_iter, iter=unchecked_obstacles
+        )
+        hole = construct_polygon(
+            start_pos, boundary_detect_fct=is_unblocked, cntr_clockwise_wanted=False
+        )
 
         # detect which of the obstacles still do not belong to any hole:
         # delete the obstacles which are included in the just constructed hole
-        unchecked_obstacles = [o for o in unchecked_obstacles if
-                               not inside_polygon(o[0] + 0.5, o[1] + 0.5, hole, border_value=True)]
+        unchecked_obstacles = [
+            o
+            for o in unchecked_obstacles
+            if not inside_polygon(o[0] + 0.5, o[1] + 0.5, hole, border_value=True)
+        ]
 
         if simplify:
             # TODO
@@ -530,7 +562,9 @@ def find_visible(vertex_candidates, edges_to_check):
                     repr_diff,
                     vertex_candidates,
                     angle_range_less_180=range_less_180,
-                    equal_repr_allowed=False))
+                    equal_repr_allowed=False,
+                )
+            )
             continue
 
         # case: a 'regular' edge
@@ -559,7 +593,8 @@ def find_visible(vertex_candidates, edges_to_check):
             repr_diff,
             vertices_to_check,
             angle_range_less_180=True,
-            equal_repr_allowed=True)
+            equal_repr_allowed=True,
+        )
         if len(vertices_to_check) == 0:
             continue
 
@@ -569,7 +604,9 @@ def find_visible(vertex_candidates, edges_to_check):
         vertices_behind = set(
             filter(
                 lambda extr: extr.get_distance_to_origin() > max_distance,
-                vertices_to_check))
+                vertices_to_check,
+            )
+        )
         # they do not have to be checked, no intersection computation necessary
         # TODO improvement: increase the neighbouring edges' priorities when there were extremities behind
         vertices_to_check.difference_update(vertices_behind)
