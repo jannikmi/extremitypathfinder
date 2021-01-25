@@ -20,6 +20,7 @@ Create a new instance of the :ref:`PolygonEnvironment class <env>` to allow fast
 .. code-block:: python
 
     from extremitypathfinder import PolygonEnvironment
+
     environment = PolygonEnvironment()
 
 
@@ -48,7 +49,14 @@ Ensure that all the following conditions on the polygons are fulfilled:
     boundary_coordinates = [(0.0, 0.0), (10.0, 0.0), (9.0, 5.0), (10.0, 10.0), (0.0, 10.0)]
 
     # clockwise numbering!
-    list_of_holes = [[(3.0, 7.0), (5.0, 9.0), (4.5, 7.0), (5.0, 4.0), ], ]
+    list_of_holes = [
+        [
+            (3.0, 7.0),
+            (5.0, 9.0),
+            (4.5, 7.0),
+            (5.0, 4.0),
+        ],
+    ]
     environment.store(boundary_coordinates, list_of_holes, validate=False)
 
 
@@ -101,7 +109,9 @@ This is required if points lie really close to polygon edges and
 
 .. code-block:: python
 
-    path, length = environment.find_shortest_path(start_coordinates, goal_coordinates, verify=False)
+    path, length = environment.find_shortest_path(
+        start_coordinates, goal_coordinates, verify=False
+    )
 
 
 .. figure:: _static/graph_path_plot.png
@@ -117,35 +127,33 @@ Converting and storing a grid world
 .. code-block:: python
 
     size_x, size_y = 19, 10
-    obstacle_iter = [# (x,y),
+    obstacle_iter = [  # (x,y),
         # obstacles changing boundary
         (0, 1),
         (1, 1),
         (2, 1),
         (3, 1),
-
         (17, 9),
         (17, 8),
         (17, 7),
-
         (17, 5),
         (17, 4),
         (17, 3),
         (17, 2),
         (17, 1),
         (17, 0),
-
         # hole 1
         (5, 5),
         (5, 6),
         (6, 6),
         (6, 7),
         (7, 7),
-
         # hole 2
         (7, 5),
     ]
-    environment.store_grid_world(size_x, size_y, obstacle_iter, simplify=False, validate=False)
+    environment.store_grid_world(
+        size_x, size_y, obstacle_iter, simplify=False, validate=False
+    )
 
 
 
@@ -166,10 +174,11 @@ Cache and import the environment
 
 .. code-block:: python
 
-    environment.export_pickle(path='./pickle_file.pickle')
+    environment.export_pickle(path="./pickle_file.pickle")
 
     from extremitypathfinder.extremitypathfinder import load_pickle
-    environment = load_pickle(path='./pickle_file.pickle')
+
+    environment = load_pickle(path="./pickle_file.pickle")
 
 
 
@@ -182,7 +191,8 @@ The class ``PlottingEnvironment`` automatically generates plots for every step i
 .. code-block:: python
 
     from extremitypathfinder.plotting import PlottingEnvironment
-    environment = PlottingEnvironment(plotting_dir='path/to/plots')
+
+    environment = PlottingEnvironment(plotting_dir="path/to/plots")
     environment.store(boundary_coordinates, list_of_holes, validate=True)
     environment.prepare()
     path, distance = environment.find_shortest_path(start, end)
