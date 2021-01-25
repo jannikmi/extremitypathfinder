@@ -6,6 +6,7 @@ include CONTRIBUTING.rst
 include LICENSE
 include README.rst
 include VERSION
+include example.json
 
 recursive-include tests *.py
 
