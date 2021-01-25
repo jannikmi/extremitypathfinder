@@ -36,7 +36,7 @@ def mark_points(vertex_iter, **kwargs):
     try:
         coordinates = [v.coordinates.tolist() for v in vertex_iter]
     except AttributeError:
-        coordinates = [v for v in vertex_iter]
+        coordinates = list(vertex_iter)
     coords_zipped = list(zip(*coordinates))
     if coords_zipped:  # there might be no vertices at all
         plt.scatter(*coords_zipped, **kwargs)
@@ -133,7 +133,7 @@ def draw_with_path(map, temp_graph, vertex_path):
     # additionally draw:
     # new edges yellow
     if start in temp_graph.get_all_nodes():
-        for n2, d in temp_graph.neighbours_of(start):
+        for n2, _d in temp_graph.neighbours_of(start):
             draw_edge(start, n2, c="y", alpha=0.7)
 
     all_nodes = temp_graph.get_all_nodes()

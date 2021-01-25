@@ -374,13 +374,12 @@ class DirectedHeuristicGraph(object):
         #   -> when the goal is reachable return it first (-> a star search terminates)
         neighbours = self.get_neighbours_of(node1)
         distances = [self.get_distance(node1, n) for n in neighbours]
-        out_sorted = sorted(
-            [
-                (node2, distance, distance + self.get_heuristic(node2))
-                for node2, distance in zip(neighbours, distances)
-            ],
-            key=lambda x: x[2],
-        )
+
+        def entry_generator(neighbours, distances):
+            for node2, distance in zip(neighbours, distances):
+                yield node2, distance, distance + self.get_heuristic(node2)
+
+        out_sorted = sorted(entry_generator(neighbours, distances), key=lambda x: x[2])
 
         # yield node, distance, cost_estimate= distance + heuristic
         yield from out_sorted

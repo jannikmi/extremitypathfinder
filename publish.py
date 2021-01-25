@@ -271,7 +271,7 @@ if __name__ == "__main__":
     # upload all archives of this version
     routine(VIRT_ENV_COMMAND + command, "testing if upload works.")
 
-    command = f"twine upload " + " ".join(paths2archives)
+    command = "twine upload " + " ".join(paths2archives)
     routine(VIRT_ENV_COMMAND + command, "real upload to PyPI.")
 
     # tag erstellen

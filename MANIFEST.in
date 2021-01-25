@@ -7,6 +7,15 @@ include LICENSE
 include README.rst
 include VERSION
 include example.json
+include tox.ini
+include runtests.py
+include .editorconfig
+
+
+include *.in
+include *.txt
+include *.yaml
+include *.yml
 
 recursive-include tests *.py
 
