@@ -4,6 +4,11 @@ Changelog
 
 TODO python 3.6 support. tests not passing so far only for this python version
 
+2.2.0  (2021-01-25)
+-------------------
+
+* Included a command line interface
+* Improved testing routines and codestyle
 
 
 2.1.0 (2021-01-07)
