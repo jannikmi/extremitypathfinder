@@ -21,7 +21,7 @@ def inside_polygon(x, y, coords, border_value):
     p1 = coords[-1, :]
     for p2 in coords[:]:
         if (
-            abs((AngleRepresentation(p1 - p).value - AngleRepresentation(p2 - p).value))
+            abs(AngleRepresentation(p1 - p).value - AngleRepresentation(p2 - p).value)
             == 2.0
         ):
             return border_value

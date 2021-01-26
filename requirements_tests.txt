@@ -27,15 +27,15 @@ pluggy==0.13.1            # via pytest
 py==1.8.1                 # via pytest
 pygments==2.6.1           # via sphinx
 pyparsing==2.4.6          # via matplotlib, packaging
-pytest-cov==2.8.1         # via -r requirements_tests.in
 pytest==5.4.1             # via -r requirements_tests.in, pytest-cov
+pytest-cov==2.8.1         # via -r requirements_tests.in
 python-dateutil==2.8.1    # via matplotlib
 pytz==2020.5              # via babel
 requests==2.25.1          # via sphinx
 six==1.14.0               # via cycler, packaging, python-dateutil
 snowballstemmer==2.1.0    # via sphinx
-sphinx-rtd-theme==0.5.1   # via -r requirements_tests.in
 sphinx==3.4.3             # via sphinx-rtd-theme
+sphinx-rtd-theme==0.5.1   # via -r requirements_tests.in
 sphinxcontrib-applehelp==1.0.2  # via sphinx
 sphinxcontrib-devhelp==1.0.2  # via sphinx
 sphinxcontrib-htmlhelp==1.0.3  # via sphinx

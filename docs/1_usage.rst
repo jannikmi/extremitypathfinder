@@ -203,7 +203,7 @@ Other functions in ``plotting.py`` can be utilised to plot specific parts of an 
 
 
 Calling extremitypathfinder from the command line
----------------------------------------------
+-------------------------------------------------
 
 A command line script is being installed as part of this package.
 

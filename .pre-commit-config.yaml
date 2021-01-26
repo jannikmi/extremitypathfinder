@@ -17,7 +17,7 @@ repos:
             -   id: name-tests-test
             -   id: check-docstring-first
             -   id: requirements-txt-fixer
-#            -   id: detect-aws-credentials
+            #            -   id: detect-aws-credentials
             -   id: detect-private-key
 
     -   repo: https://github.com/pycqa/isort
@@ -41,27 +41,28 @@ repos:
         rev: 3.8.4
         hooks:
             -   id: flake8
+                args: ['--ignore','W503'] # line break before binary operator
                 additional_dependencies:
-                - flake8-bugbear
-                - flake8-comprehensions
-                - flake8-tidy-imports
+                    - flake8-bugbear
+                    - flake8-comprehensions
+                    - flake8-tidy-imports
 
-    - repo: https://github.com/mgedmin/check-manifest
-      rev: "0.46"
-      hooks:
-      - id: check-manifest
-        args: ["--no-build-isolation", "--ignore", "*.png,.travis/*,docs/*,build_n_install.py,publish.py"]
+    -   repo: https://github.com/mgedmin/check-manifest
+        rev: "0.46"
+        hooks:
+            -   id: check-manifest
+                args: [ "--no-build-isolation", "--ignore", "*.png,.travis/*,docs/*,build_n_install.py,publish.py" ]
 
-# TODO sphinx check
-#    -   repo: https://github.com/myint/rstcheck
-#        rev: 'v3.3.1'
-#        hooks:
-#        -   id: rstcheck
+    # TODO sphinx check
+    #    -   repo: https://github.com/myint/rstcheck
+    #        rev: 'v3.3.1'
+    #        hooks:
+    #        -   id: rstcheck
 
     -   repo: https://github.com/asottile/pyupgrade
         rev: v2.7.4
         hooks:
-        -   id: pyupgrade
+            -   id: pyupgrade
 
 #    # very detailed linting:
 #    -   repo: https://github.com/pycqa/pylint
