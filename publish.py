@@ -14,9 +14,10 @@ conda install twine
 conda install black
 conda install -c conda-forge pre-commit
 
-# TODO
+PRE COMMIT COMMANDS
 pre-commit run --all-files
 pre-commit run <hook_id>
+pre-commit autoupdate
 
 pip install rstcheck pip-tools
 
@@ -231,11 +232,6 @@ if __name__ == "__main__":
     except ValueError:
         pass
 
-    routine(
-        f"{VIRT_ENV_COMMAND} tox {rebuild_flag} -e codestyle",
-        "checking syntax, codestyle and imports",
-        "run tests",
-    )
     routine(f"{VIRT_ENV_COMMAND} tox {rebuild_flag} -e py37", "run tests")
     print("Tests finished.")
 
