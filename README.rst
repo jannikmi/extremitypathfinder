@@ -13,6 +13,10 @@ extremitypathfinder
 .. image:: https://img.shields.io/pypi/wheel/extremitypathfinder.svg
     :target: https://pypi.python.org/pypi/extremitypathfinder
 
+.. image:: https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white
+   :target: https://github.com/pre-commit/pre-commit
+   :alt: pre-commit
+
 .. image:: https://pepy.tech/badge/extremitypathfinder
     :alt: Total PyPI downloads
     :target: https://pepy.tech/project/extremitypathfinder
@@ -21,6 +25,8 @@ extremitypathfinder
     :alt: latest version on PyPI
     :target: https://pypi.python.org/pypi/extremitypathfinder
 
+.. image:: https://img.shields.io/badge/code%20style-black-000000.svg
+    :target: https://github.com/psf/black
 
 python package for fast geometric shortest path computation in 2D multi-polygon or grid environments based on visibility graphs.
 
@@ -39,11 +45,19 @@ Quick Guide:
 .. code-block:: python
 
     from extremitypathfinder import PolygonEnvironment
+
     environment = PolygonEnvironment()
     # counter clockwise vertex numbering!
     boundary_coordinates = [(0.0, 0.0), (10.0, 0.0), (9.0, 5.0), (10.0, 10.0), (0.0, 10.0)]
     # clockwise numbering!
-    list_of_holes = [[(3.0, 7.0), (5.0, 9.0), (4.5, 7.0), (5.0, 4.0), ], ]
+    list_of_holes = [
+        [
+            (3.0, 7.0),
+            (5.0, 9.0),
+            (4.5, 7.0),
+            (5.0, 4.0),
+        ],
+    ]
     environment.store(boundary_coordinates, list_of_holes, validate=False)
     environment.prepare()
     start_coordinates = (4.5, 1.0)

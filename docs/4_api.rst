@@ -13,6 +13,3 @@ API documentation
 PolygonEnvironment
 ------------------
 .. autoclass:: PolygonEnvironment
-
-
-

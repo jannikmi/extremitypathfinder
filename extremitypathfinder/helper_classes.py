@@ -29,16 +29,17 @@ class AngleRepresentation(object):
     with (0,0)' being the vector representing the origin
 
     """
+
     # prevent dynamic attribute assignment (-> safe memory)
     # __slots__ = ['quadrant', 'angle_measure', 'value']
-    __slots__ = ['value']
+    __slots__ = ["value"]
 
     def __init__(self, np_vector):
         # 2D vector: (dx, dy) = np_vector
         norm = np.linalg.norm(np_vector)
         if norm == 0.0:
             # make sure norm is not 0!
-            raise ValueError('received null vector:', np_vector, norm)
+            raise ValueError("received null vector:", np_vector, norm)
 
         dx_positive = np_vector[0] >= 0
         dy_positive = np_vector[1] >= 0
@@ -70,8 +71,14 @@ class AngleRepresentation(object):
 
 class Vertex(object):
     # defining static attributes on class to safe memory
-    __slots__ = ['coordinates', 'is_extremity', 'is_outdated', 'coordinates_translated', 'angle_representation',
-                 'distance_to_origin']
+    __slots__ = [
+        "coordinates",
+        "is_extremity",
+        "is_outdated",
+        "coordinates_translated",
+        "angle_representation",
+        "distance_to_origin",
+    ]
 
     def __init__(self, coordinates):
         self.coordinates = np.array(coordinates)
@@ -134,7 +141,7 @@ class Vertex(object):
 class PolygonVertex(Vertex):
     # __slots__ declared in parents are available in child classes. However, child subclasses will get a __dict__
     # and __weakref__ unless they also define __slots__ (which should only contain names of any additional slots).
-    __slots__ = ['edge1', 'edge2', 'neighbour1', 'neighbour2']
+    __slots__ = ["edge1", "edge2", "neighbour1", "neighbour2"]
 
     def __init__(self, *args, **kwargs):
         super(PolygonVertex, self).__init__(*args, **kwargs)
@@ -161,21 +168,21 @@ class PolygonVertex(Vertex):
 
 
 class Edge(object):
-    __slots__ = ['vertex1', 'vertex2']
+    __slots__ = ["vertex1", "vertex2"]
 
     def __init__(self, vertex1, vertex2):
         self.vertex1: PolygonVertex = vertex1
         self.vertex2: PolygonVertex = vertex2
 
     def __str__(self):
-        return self.vertex1.__str__() + '-->' + self.vertex2.__str__()
+        return self.vertex1.__str__() + "-->" + self.vertex2.__str__()
 
     def __repr__(self):
         return self.__str__()
 
 
 class Polygon(object):
-    __slots__ = ['vertices', 'edges', 'coordinates', 'is_hole', '_extremities']
+    __slots__ = ["vertices", "edges", "coordinates", "is_hole", "_extremities"]
 
     def __init__(self, coordinate_list, is_hole):
         # store just the coordinates separately from the vertices in the format suiting the inside_polygon() function
@@ -184,9 +191,16 @@ class Polygon(object):
         self.is_hole: bool = is_hole
 
         if len(coordinate_list) < 3:
-            raise ValueError('This is not a valid polygon:', coordinate_list, '# edges:', len(coordinate_list))
+            raise ValueError(
+                "This is not a valid polygon:",
+                coordinate_list,
+                "# edges:",
+                len(coordinate_list),
+            )
 
-        self.vertices: List[PolygonVertex] = [PolygonVertex(coordinate) for coordinate in coordinate_list]
+        self.vertices: List[PolygonVertex] = [
+            PolygonVertex(coordinate) for coordinate in coordinate_list
+        ]
 
         self.edges: List[Edge] = []
         vertex1 = self.vertices[-1]
@@ -221,7 +235,9 @@ class Polygon(object):
             p3 = v3.coordinates
             # since consequent vertices are not permitted to be equal,
             #   the angle representation of the difference is well defined
-            if (AngleRepresentation(p3 - p2).value - AngleRepresentation(p1 - p2).value) % 4 < 2.0:
+            if (
+                AngleRepresentation(p3 - p2).value - AngleRepresentation(p1 - p2).value
+            ) % 4 < 2.0:
                 # basic idea:
                 #   - translate the coordinate system to have p2 as origin
                 #   - compute the angle representations of both vectors representing the edges
@@ -254,9 +270,11 @@ class Polygon(object):
 
 
 class SearchState(object):
-    __slots__ = ['node', 'distance', 'neighbours', 'path', 'cost_so_far', 'priority']
+    __slots__ = ["node", "distance", "neighbours", "path", "cost_so_far", "priority"]
 
-    def __init__(self, node, distance, neighbour_generator, path, cost_so_far, cost_estim):
+    def __init__(
+        self, node, distance, neighbour_generator, path, cost_so_far, cost_estim
+    ):
         self.node = node
         self.distance = distance
         # TODO
@@ -267,7 +285,9 @@ class SearchState(object):
         # = cost_so_far + cost_estim  (= start-current + estimate(current-goal))
         self.priority: float = cost_so_far + cost_estim
 
-    def __lt__(self, other):  # defines an ordering -> items can be stored in a sorted heap
+    def __lt__(
+        self, other
+    ):  # defines an ordering -> items can be stored in a sorted heap
         return self.priority < other.priority
 
 
@@ -288,7 +308,7 @@ class SearchStateQueue(object):
 
 # TODO often empty sets in self.neighbours
 class DirectedHeuristicGraph(object):
-    __slots__ = ['all_nodes', 'distances', 'goal_node', 'heuristic', 'neighbours']
+    __slots__ = ["all_nodes", "distances", "goal_node", "heuristic", "neighbours"]
 
     def __init__(self, all_nodes: Optional[Set[Vertex]] = None):
         self.distances: Dict = {}
@@ -354,9 +374,12 @@ class DirectedHeuristicGraph(object):
         #   -> when the goal is reachable return it first (-> a star search terminates)
         neighbours = self.get_neighbours_of(node1)
         distances = [self.get_distance(node1, n) for n in neighbours]
-        out_sorted = sorted(
-            [(node2, distance, distance + self.get_heuristic(node2)) for node2, distance in zip(neighbours, distances)],
-            key=lambda x: x[2])
+
+        def entry_generator(neighbours, distances):
+            for node2, distance in zip(neighbours, distances):
+                yield node2, distance, distance + self.get_heuristic(node2)
+
+        out_sorted = sorted(entry_generator(neighbours, distances), key=lambda x: x[2])
 
         # yield node, distance, cost_estimate= distance + heuristic
         yield from out_sorted
@@ -410,7 +433,9 @@ class DirectedHeuristicGraph(object):
         while len(nodes_to_check) > 1:
             n1 = nodes_to_check.pop()
             coordinates1 = n1.coordinates
-            same_nodes = {n for n in nodes_to_check if np.allclose(coordinates1, n.coordinates)}
+            same_nodes = {
+                n for n in nodes_to_check if np.allclose(coordinates1, n.coordinates)
+            }
             nodes_to_check.difference_update(same_nodes)
             for n2 in same_nodes:
                 # print('removing duplicate node', n2)
@@ -428,7 +453,7 @@ class DirectedHeuristicGraph(object):
                 self.all_nodes.remove(n2)
 
     def modified_a_star(self, start: Vertex, goal: Vertex):
-        """ implementation of the popular A* algorithm with optimisations for this special use case
+        """implementation of the popular A* algorithm with optimisations for this special use case
 
         IMPORTANT: geometrical property of this problem (and hence also the extracted graph):
         it is always shortest to directly reach a node instead of visiting other nodes first
@@ -467,7 +492,9 @@ class DirectedHeuristicGraph(object):
             except StopIteration:
                 # there is no neighbour left
                 return
-            state = SearchState(next_node, distance, neighbours, path, cost_so_far, cost_estim)
+            state = SearchState(
+                next_node, distance, neighbours, path, cost_so_far, cost_estim
+            )
             search_state_queue.put(state)
 
         self.set_goal_node(goal)  # lazy update of the heuristic
@@ -482,7 +509,13 @@ class DirectedHeuristicGraph(object):
 
         while not search_state_queue.is_empty():
             # always 'visit' the node with the current lowest estimated TOTAL cost (not! heuristic)
-            current_node, neighbours, distance, path, cost_so_far = search_state_queue.get()
+            (
+                current_node,
+                neighbours,
+                distance,
+                path,
+                cost_so_far,
+            ) = search_state_queue.get()
             # print('visiting:', current_node)
             # print('neighbours:', heuristic_graph.get_neighbours_of(current_node))
 

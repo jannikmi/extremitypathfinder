@@ -4,6 +4,11 @@ Changelog
 
 TODO python 3.6 support. tests not passing so far only for this python version
 
+2.2.0  (2021-01-25)
+-------------------
+
+* Included a command line interface
+* Improved testing routines and codestyle
 
 
 2.1.0 (2021-01-07)
@@ -18,7 +23,7 @@ IMPORTANT BUGFIX: in some cases the visibility computation was faulty (fix #23)
 
 * IMPROVEMENT: Different polygons may now intersect each other. Thanks to `Georg Hess <https://github.com/georghess>`__!
 * BUGFIX: Fixed a bug that caused "dangling" extremities in the graph to be left out
-* ``TypeError`` and ``ValueError`` are being raised instead of ``AssertionError`` in case of invalid input parameters with ``validate=True``. Thanks to `Andrew Costello <https://github.com/Andrewsyl>`__! 
+* ``TypeError`` and ``ValueError`` are being raised instead of ``AssertionError`` in case of invalid input parameters with ``validate=True``. Thanks to `Andrew Costello <https://github.com/Andrewsyl>`__!
 
 1.5.0 (2020-06-18)
 ------------------
@@ -83,4 +88,3 @@ internal:
 ------------------
 
 * birth of this package
-
