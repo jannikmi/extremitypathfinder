@@ -237,3 +237,4 @@ Acknowledgements
 Thanks to:
 
 `Georg Hess <https://github.com/georghess>`__ for improving the package in order to allow intersecting polygons.
+`Ivan Doria <https://github.com/idoria75 >`__ for adding the command line interface.
