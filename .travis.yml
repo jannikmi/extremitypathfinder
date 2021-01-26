@@ -7,9 +7,6 @@ matrix:
     include:
         # has to be the same py version specified in tox.ini
 
-        -   python: 3.7
-            env: TOXENV=codestyle
-
 #        -   python: 3.6
 #            env: TOXENV=py36
         -   python: 3.7
