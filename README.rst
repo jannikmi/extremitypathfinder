@@ -3,8 +3,8 @@ extremitypathfinder
 ===================
 
 
-.. image:: https://api.travis-ci.org/MrMinimal64/extremitypathfinder.svg?branch=master
-    :target: https://travis-ci.org/MrMinimal64/extremitypathfinder
+.. image:: https://api.travis-ci.org/jannikmi/extremitypathfinder.svg?branch=master
+    :target: https://travis-ci.org/jannikmi/extremitypathfinder
 
 .. image:: https://readthedocs.org/projects/extremitypathfinder/badge/?version=latest
     :alt: documentation status
@@ -69,5 +69,5 @@ For more refer to the `documentation <https://extremitypathfinder.readthedocs.io
 
 
 Also see:
-`GitHub <https://github.com/MrMinimal64/extremitypathfinder>`__,
+`GitHub <https://github.com/jannikmi/extremitypathfinder>`__,
 `PyPI <https://pypi.python.org/pypi/extremitypathfinder/>`__

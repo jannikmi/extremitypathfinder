@@ -3,8 +3,8 @@
 About
 =====
 
-.. image:: https://api.travis-ci.org/MrMinimal64/extremitypathfinder.svg?branch=master
-    :target: https://travis-ci.org/MrMinimal64/extremitypathfinder
+.. image:: https://api.travis-ci.org/jannikmi/extremitypathfinder.svg?branch=master
+    :target: https://travis-ci.org/jannikmi/extremitypathfinder
 
 .. image:: https://readthedocs.org/projects/extremitypathfinder/badge/?version=latest
     :alt: documentation status
@@ -36,7 +36,7 @@ python package for fast geometric shortest path computation in 2D multi-polygon 
 
 
 Also see:
-`GitHub <https://github.com/MrMinimal64/extremitypathfinder>`__,
+`GitHub <https://github.com/jannikmi/extremitypathfinder>`__,
 `PyPI <https://pypi.python.org/pypi/extremitypathfinder/>`__
 
 
@@ -44,7 +44,7 @@ License
 -------
 
 ``extremitypathfinder`` is distributed under the terms of the MIT license
-(see `LICENSE <https://github.com/MrMinimal64/extremitypathfinder/blob/master/LICENSE>`__).
+(see `LICENSE <https://github.com/jannikmi/extremitypathfinder/blob/master/LICENSE>`__).
 
 
 Basic Idea

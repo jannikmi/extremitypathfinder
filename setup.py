@@ -9,14 +9,14 @@ setup(
     # version: in VERSION file https://packaging.python.org/guides/single-sourcing-package-version/
     # With this approach you must make sure that the VERSION file is included in all your source
     # and binary distributions (e.g. add include VERSION to your MANIFEST.in).
-    author="J. Michelfeit",
+    author="Jannik Michelfeit",
     author_email="python@michelfe.it",
     license="MIT licence",
-    url="https://github.com/MrMinimal64/extremitypathfinder",  # use the URL to the github repo
+    url="https://github.com/jannikmi/extremitypathfinder",  # use the URL to the github repo
     project_urls={
-        "Source Code": "https://github.com/MrMinimal64/extremitypathfinder",
-        "Documentation": "https://github.com/MrMinimal64/extremitypathfinder/blob/master/README.rst",
-        "Changelog": "https://github.com/MrMinimal64/extremitypathfinder/blob/master/CHANGELOG.rst",
+        "Source Code": "https://github.com/jannikmi/extremitypathfinder",
+        "Documentation": "https://github.com/jannikmi/extremitypathfinder/blob/master/README.rst",
+        "Changelog": "https://github.com/jannikmi/extremitypathfinder/blob/master/CHANGELOG.rst",
     },
     keywords="path-planning path-finding shortest-path visibility graph visibility-graph polygon"
     "robotics navigation offline ",
