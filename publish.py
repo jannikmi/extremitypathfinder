@@ -167,6 +167,7 @@ if __name__ == "__main__":
     except ValueError:
         pass
 
+    os.system("pre-commit autoupdate")
     routine("pre-commit run --all-files", "running all pre-commit hooks")
 
     old_version = get_version()
