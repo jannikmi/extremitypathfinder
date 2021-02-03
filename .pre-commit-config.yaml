@@ -9,7 +9,7 @@ repos:
             -   id: check-yaml
             -   id: check-added-large-files
             -   id: check-case-conflict
-            #            -   id: check-executables-have-shebangs
+#            -   id: check-executables-have-shebangs
             -   id: check-json
             -   id: pretty-format-json
                 args: [ "--autofix" ]
@@ -41,6 +41,7 @@ repos:
         rev: 3.8.4
         hooks:
             -   id: flake8
+                exclude: "docs/"
                 args: ['--ignore','W503'] # line break before binary operator
                 additional_dependencies:
                     - flake8-bugbear
@@ -51,7 +52,7 @@ repos:
         rev: "0.46"
         hooks:
             -   id: check-manifest
-                args: [ "--no-build-isolation", "--ignore", "*.png,.travis/*,docs/*,build_n_install.py,publish.py" ]
+                args: [ "--no-build-isolation", "--ignore", "*.png,.travis/*,docs/*,build_n_install.py,publish.py,readthedocs.yml" ]
 
     # TODO sphinx check
     #    -   repo: https://github.com/myint/rstcheck
@@ -60,7 +61,7 @@ repos:
     #        -   id: rstcheck
 
     -   repo: https://github.com/asottile/pyupgrade
-        rev: v2.7.4
+        rev: v2.9.0
         hooks:
             -   id: pyupgrade
 
