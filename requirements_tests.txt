@@ -22,7 +22,7 @@ matplotlib==3.3.3         # via -r requirements_tests.in
 more-itertools==8.2.0     # via pytest
 numpy==1.18.1             # via -r requirements_tests.in, matplotlib
 packaging==20.3           # via pytest, sphinx
-pillow==8.1.0             # via matplotlib
+pillow==8.1.2             # via -r requirements_tests.in, matplotlib
 pluggy==0.13.1            # via pytest
 py==1.8.1                 # via pytest
 pygments==2.6.1           # via sphinx
