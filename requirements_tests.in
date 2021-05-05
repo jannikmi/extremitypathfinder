@@ -6,7 +6,12 @@ sphinx_rtd_theme
 
 numpy>=1.16
 matplotlib
-pillow>=8.1.1 # dependency of matplotlib, fix vulnerability
 
 pytest
 pytest-cov
+
+# fix vulnerabilities:
+py>=1.10.0
+pygments>=2.7.4
+urllib3>=1.26.4
+jinja2>=2.11.3
