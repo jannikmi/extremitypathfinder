@@ -44,7 +44,7 @@ packaging==20.3
     # via
     #   pytest
     #   sphinx
-pillow==8.1.2
+pillow==9.0.1
     # via matplotlib
 pluggy==0.13.1
     # via pytest
