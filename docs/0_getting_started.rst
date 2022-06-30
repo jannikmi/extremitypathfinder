@@ -20,7 +20,7 @@ Installation with pip:
 Dependencies
 ------------
 
-(``python3.6+``),``numpy``
+(``python3.6+``), ``numpy``
 
 
 
