@@ -195,6 +195,10 @@ def draw_graph(map, graph):
 
 
 class PlottingEnvironment(PolygonEnvironment):
+    """Extends PolygonEnvironment. In addition to the base functionality it
+    plots graphs of the polygons, the visibility graph and the computed path.
+    Stores all graphs in the folder defined by plotting_dir parameter."""
+
     def __init__(self, plotting_dir=PLOTTING_DIR):
         super().__init__()
         global PLOTTING_DIR
@@ -203,14 +207,17 @@ class PlottingEnvironment(PolygonEnvironment):
             makedirs(plotting_dir)
 
     def store(self, *args, **kwargs):
+        """In addition to storing, also plots a graph of the input polygons."""
         super().store(*args, **kwargs)
         draw_loaded_map(self)
 
     def prepare(self):
+        """Also draws a prepared map with the computed visibility graph."""
         super().prepare()
         draw_prepared_map(self)
 
     def find_shortest_path(self, *args, **kwargs):
+        """Also draws the computed shortest path."""
         # important to not delete the temp graph! for plotting
         vertex_path, distance = super().find_shortest_path(*args, free_space_after=False, **kwargs)
 
