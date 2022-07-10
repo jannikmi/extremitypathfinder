@@ -94,24 +94,24 @@ TEST_DATA_GRID_ENV = [
     (((5, 5), (5, 7)), ([(5, 5), (5, 7)], 2.0)),
     # should have direct connection to all visible extremities! connected in graph
     (((6, 8), (5, 7)), ([(6, 8), (5, 7)], sqrt(2))),
-    (((4, 1), (5, 7)), ([(4, 1), (5, 7)], sqrt(1 ** 2 + 6 ** 2))),
+    (((4, 1), (5, 7)), ([(4, 1), (5, 7)], sqrt(1**2 + 6**2))),
     # should have direct connection to all visible extremities! even if not connected in graph!
-    (((4, 2), (5, 7)), ([(4, 2), (5, 7)], sqrt(1 ** 2 + 5 ** 2))),
+    (((4, 2), (5, 7)), ([(4, 2), (5, 7)], sqrt(1**2 + 5**2))),
     # mix of edges and vertices, directly visible
-    (((2, 2), (5, 7)), ([(2, 2), (5, 7)], sqrt(3 ** 2 + 5 ** 2))),
+    (((2, 2), (5, 7)), ([(2, 2), (5, 7)], sqrt(3**2 + 5**2))),
     # also regular points should have direct connection to all visible extremities!
-    (((10, 3), (17, 6)), ([(10, 3), (17, 6)], sqrt(7 ** 2 + 3 ** 2))),
-    (((10, 3), (8, 8)), ([(10, 3), (8, 8)], sqrt(2 ** 2 + 5 ** 2))),
+    (((10, 3), (17, 6)), ([(10, 3), (17, 6)], sqrt(7**2 + 3**2))),
+    (((10, 3), (8, 8)), ([(10, 3), (8, 8)], sqrt(2**2 + 5**2))),
     # even if the query point lies in front of an extremity! (test if new query vertices are being created!)
-    (((10, 3), (8, 5)), ([(10, 3), (8, 5)], sqrt(2 ** 2 + 2 ** 2))),
+    (((10, 3), (8, 5)), ([(10, 3), (8, 5)], sqrt(2**2 + 2**2))),
     # using a* graph search:
     # directly reachable through a single vertex (does not change distance!)
-    (((5, 1), (3, 3)), ([(5, 1), (4, 2), (3, 3)], sqrt(2 ** 2 + 2 ** 2))),
+    (((5, 1), (3, 3)), ([(5, 1), (4, 2), (3, 3)], sqrt(2**2 + 2**2))),
     # If two Polygons have vertices with identical coordinates (this is allowed),
     #   paths through these vertices are theoretically possible!
     (
         ((6.5, 5.5), (7.5, 6.5)),
-        ([(6.5, 5.5), (7, 6), (7.5, 6.5)], sqrt(1 ** 2 + 1 ** 2)),
+        ([(6.5, 5.5), (7, 6), (7.5, 6.5)], sqrt(1**2 + 1**2)),
     ),
     # distance should stay the same even if multiple extremities lie on direct path
     # test if path is skipping passed extremities
@@ -175,7 +175,7 @@ TEST_DATA_POLY_ENV = [
     (((1, 0), (5, 0)), ([(1, 0), (5, 0)], 4.0)),  # both
     # on edge of hole
     (((4, 8), (3, 8)), ([(4, 8), (3, 8)], 1.0)),
-    (((4, 8), (4.1, 8.1)), ([(4, 8), (4.1, 8.1)], sqrt(2 * (0.1 ** 2)))),  # both
+    (((4, 8), (4.1, 8.1)), ([(4, 8), (4.1, 8.1)], sqrt(2 * (0.1**2)))),  # both
     # on vertex
     (((9, 5), (8, 5)), ([(9, 5), (8, 5)], 1.0)),
     # on vertex of hole
@@ -183,11 +183,11 @@ TEST_DATA_POLY_ENV = [
     # on two vertices
     # coinciding with edge (direct neighbour)
     (((3, 7), (5, 9)), ([(3, 7), (5, 9)], sqrt(8))),
-    (((4.6, 7), (5, 9)), ([(4.6, 7), (5, 9)], sqrt((0.4 ** 2) + (2 ** 2)))),
+    (((4.6, 7), (5, 9)), ([(4.6, 7), (5, 9)], sqrt((0.4**2) + (2**2)))),
     # should have direct connection to all visible extremities! connected in graph
     (((5, 4), (5, 9)), ([(5, 4), (5, 9)], 5)),
     # should have a direct connection to all visible extremities! even if not connected in graph!
-    (((9, 5), (5, 9)), ([(9, 5), (5, 9)], sqrt(2 * (4 ** 2)))),
+    (((9, 5), (5, 9)), ([(9, 5), (5, 9)], sqrt(2 * (4**2)))),
     # using a* graph search:
     # directly reachable through a single vertex (does not change distance!)
     (((9, 4), (9, 6)), ([(9, 4), (9, 5), (9, 6)], 2)),
@@ -268,9 +268,7 @@ TEST_DATA_OVERLAP_POLY_ENV = [
 
 SEPARATED_ENV = (
     [(5, 5), (-5, 5), (-5, -5), (5, -5)],
-    [
-        [(-5.1, 1), (-5.1, 2), (5.1, 2), (5.1, 1)]
-    ],  # intersecting polygons -> no path possible
+    [[(-5.1, 1), (-5.1, 2), (5.1, 2), (5.1, 1)]],  # intersecting polygons -> no path possible
     # [[(-5, 1), (-5, 2), (5, 2), (5, 1)]], # hole lies on the edges -> path possible
 )
 
@@ -292,18 +290,14 @@ def try_test_cases(environment, test_cases):
         if expected_length is None:
             correct_result = length is None and path == expected_path
         else:
-            correct_result = path == expected_path and length == pytest.approx(
-                expected_length
-            )
+            correct_result = path == expected_path and length == pytest.approx(expected_length)
         if correct_result:
             status_str = "OK"
         else:
             status_str = "XX"
         print(f"{status_str} input: {(start_coordinates, goal_coordinates)} ")
         if PLOT_TEST_RESULTS:
-            assert (
-                correct_result
-            ), f"unexpected result (path, length): got {output} instead of {expected_output} "
+            assert correct_result, f"unexpected result (path, length): got {output} instead of {expected_output} "
 
     print("testing if path and distance are correct:")
     for ((start_coordinates, goal_coordinates), expected_output) in test_cases:
@@ -319,14 +313,10 @@ class MainTest(unittest.TestCase):
         grid_env = ENVIRONMENT_CLASS(**CONSTRUCTION_KWARGS)
 
         grid_env.store_grid_world(*GRID_ENV_PARAMS, simplify=False, validate=False)
-        assert (
-            len(list(grid_env.all_extremities)) == 17
-        ), "extremities do not get detected correctly!"
+        assert len(list(grid_env.all_extremities)) == 17, "extremities do not get detected correctly!"
         grid_env.prepare()
         # raise ValueError
-        assert (
-            len(grid_env.graph.all_nodes) == 16
-        ), "identical nodes should get joined in the graph!"
+        assert len(grid_env.graph.all_nodes) == 16, "identical nodes should get joined in the graph!"
 
         # test if points outside the map are being rejected
         for start_coordinates, goal_coordinates in INVALID_DESTINATION_DATA:
@@ -339,9 +329,7 @@ class MainTest(unittest.TestCase):
         # when the deep copy mechanism works correctly
         # even after many queries the internal graph should have the same structure as before
         # otherwise the temporarily added vertices during a query stay stored
-        assert (
-            len(grid_env.graph.all_nodes) == 16
-        ), "the graph should stay unchanged by shortest path queries!"
+        assert len(grid_env.graph.all_nodes) == 16, "the graph should stay unchanged by shortest path queries!"
 
         nr_nodes_env1_old = len(grid_env.graph.all_nodes)
 
@@ -362,9 +350,7 @@ class MainTest(unittest.TestCase):
         assert (
             nr_nodes_env1_new == nr_nodes_env1_old
         ), "node amount of an grid_env should not change by creating another grid_env!"
-        assert (
-            grid_env.graph is not poly_env.graph
-        ), "different environments share the same graph object"
+        assert grid_env.graph is not poly_env.graph, "different environments share the same graph object"
         assert (
             grid_env.graph.all_nodes is not poly_env.graph.all_nodes
         ), "different environments share the same set of nodes"

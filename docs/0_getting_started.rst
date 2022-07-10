@@ -10,7 +10,8 @@ Installation
 
 Installation with pip:
 
-::
+
+.. code-block:: console
 
     pip install extremitypathfinder
 

@@ -6,11 +6,7 @@ from helpers import proto_test_case
 
 from extremitypathfinder import PolygonEnvironment
 from extremitypathfinder.helper_classes import AngleRepresentation
-from extremitypathfinder.helper_fcts import (
-    has_clockwise_numbering,
-    inside_polygon,
-    read_json,
-)
+from extremitypathfinder.helper_fcts import has_clockwise_numbering, inside_polygon, read_json
 
 
 # TODO test find_visible(), ...
@@ -39,9 +35,7 @@ class HelperFctsTest(unittest.TestCase):
         for border_value in [True, False]:
 
             def test_fct(input):
-                polygon_test_case = np.array(
-                    [(-1.0, -1.0), (1.0, -1.0), (1.0, 1.0), (-1.0, 1.0)]
-                )
+                polygon_test_case = np.array([(-1.0, -1.0), (1.0, -1.0), (1.0, 1.0), (-1.0, 1.0)])
                 x, y = input
 
                 return inside_polygon(x, y, polygon_test_case, border_value)

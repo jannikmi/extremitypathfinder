@@ -13,13 +13,7 @@ from extremitypathfinder.global_settings import (
     OBSTACLE_ITER_TYPE,
     PATH_TYPE,
 )
-from extremitypathfinder.helper_classes import (
-    DirectedHeuristicGraph,
-    Edge,
-    Polygon,
-    PolygonVertex,
-    Vertex,
-)
+from extremitypathfinder.helper_classes import DirectedHeuristicGraph, Edge, Polygon, PolygonVertex, Vertex
 from extremitypathfinder.helper_fcts import (
     check_data_requirements,
     convert_gridworld,
@@ -52,9 +46,7 @@ class PolygonEnvironment:
     holes: List[Polygon] = None
     prepared: bool = False
     graph: DirectedHeuristicGraph = None
-    temp_graph: DirectedHeuristicGraph = (
-        None  # for storing and plotting the graph during a query
-    )
+    temp_graph: DirectedHeuristicGraph = None  # for storing and plotting the graph during a query
     _all_extremities: Optional[Set[PolygonVertex]] = None
 
     @property
@@ -73,9 +65,7 @@ class PolygonEnvironment:
             self._all_extremities = set()
             for p in self.polygons:
                 # only extremities that are actually within the map should be considered
-                self._all_extremities |= set(
-                    filter(lambda e: self.within_map(e.coordinates), p.extremities)
-                )
+                self._all_extremities |= set(filter(lambda e: self.within_map(e.coordinates), p.extremities))
         return self._all_extremities
 
     @property
@@ -109,18 +99,13 @@ class PolygonEnvironment:
         self.prepared = False
         # loading the map
         boundary_coordinates = np.array(boundary_coordinates)
-        list_of_hole_coordinates = [
-            np.array(hole_coords) for hole_coords in list_of_hole_coordinates
-        ]
+        list_of_hole_coordinates = [np.array(hole_coords) for hole_coords in list_of_hole_coordinates]
         if validate:
             check_data_requirements(boundary_coordinates, list_of_hole_coordinates)
 
         self.boundary_polygon = Polygon(boundary_coordinates, is_hole=False)
         # IMPORTANT: make a copy of the list instead of linking to the same list (python!)
-        self.holes = [
-            Polygon(coordinates, is_hole=True)
-            for coordinates in list_of_hole_coordinates
-        ]
+        self.holes = [Polygon(coordinates, is_hole=True) for coordinates in list_of_hole_coordinates]
 
     def store_grid_world(
         self,
@@ -141,9 +126,7 @@ class PolygonEnvironment:
         :param validate: whether the input should be validated
         :param simplify: whether the polygons should be simplified or not. reduces edge amount, allow diagonal edges
         """
-        boundary_coordinates, list_of_hole_coordinates = convert_gridworld(
-            size_x, size_y, obstacle_iter, simplify
-        )
+        boundary_coordinates, list_of_hole_coordinates = convert_gridworld(size_x, size_y, obstacle_iter, simplify)
         self.store(boundary_coordinates, list_of_hole_coordinates, validate)
 
     def export_pickle(self, path: str = DEFAULT_PICKLE_NAME):
@@ -180,9 +163,7 @@ class PolygonEnvironment:
         """
 
         if self.prepared:
-            raise ValueError(
-                "this environment is already prepared. load new polygons first."
-            )
+            raise ValueError("this environment is already prepared. load new polygons first.")
 
         # preprocessing the map
         # construct graph of visible (=directly reachable) extremities
@@ -207,11 +188,7 @@ class PolygonEnvironment:
             candidate_extremities = extremities_to_check.copy()
             # remove the extremities with the same coordinates as the query extremity
             candidate_extremities.difference_update(
-                {
-                    c
-                    for c in candidate_extremities
-                    if c.get_angle_representation() is None
-                }
+                {c for c in candidate_extremities if c.get_angle_representation() is None}
             )
 
             # these vertices all belong to a polygon
@@ -296,9 +273,7 @@ class PolygonEnvironment:
         """
         #
         x, y = coords
-        if not inside_polygon(
-            x, y, self.boundary_polygon.coordinates, border_value=True
-        ):
+        if not inside_polygon(x, y, self.boundary_polygon.coordinates, border_value=True):
             return False
         for hole in self.holes:
             if inside_polygon(x, y, hole.coordinates, border_value=False):
@@ -347,9 +322,7 @@ class PolygonEnvironment:
         goal_vertex = Vertex(goal_coordinates)
 
         # check the goal node first (earlier termination possible)
-        self.translate(
-            new_origin=goal_vertex
-        )  # do before checking angle representations!
+        self.translate(new_origin=goal_vertex)  # do before checking angle representations!
         # IMPORTANT: manually translate the start vertex, because it is not part of any polygon
         #   and hence does not get translated automatically
         start_vertex.mark_outdated()
@@ -367,9 +340,7 @@ class PolygonEnvironment:
         # NOTE: all edges are being checked, it is computationally faster to compute all visibilities in one go
         candidates.add(start_vertex)
 
-        visibles_n_distances_goal = find_visible(
-            candidates, edges_to_check=set(self.all_edges)
-        )
+        visibles_n_distances_goal = find_visible(candidates, edges_to_check=set(self.all_edges))
         if len(visibles_n_distances_goal) == 0:
             # The goal node does not have any neighbours. Hence there is not possible path to the goal.
             return [], None
@@ -391,9 +362,7 @@ class PolygonEnvironment:
             # add edges in the direction: extremity (v) -> goal
             self.temp_graph.add_directed_edge(v, goal_vertex, d)
 
-        self.translate(
-            new_origin=start_vertex
-        )  # do before checking angle representations!
+        self.translate(new_origin=start_vertex)  # do before checking angle representations!
         # the visibility of only the graphs nodes have to be checked
         # the goal node does not have to be considered, because of the earlier check
         candidates = set(
@@ -402,17 +371,13 @@ class PolygonEnvironment:
                 self.graph.get_all_nodes(),
             )
         )
-        visibles_n_distances_start = find_visible(
-            candidates, edges_to_check=set(self.all_edges)
-        )
+        visibles_n_distances_start = find_visible(candidates, edges_to_check=set(self.all_edges))
         if len(visibles_n_distances_start) == 0:
             # The start node does not have any neighbours. Hence there is not possible path to the goal.
             return [], None
 
         # add edges in the direction: start -> extremity
-        self.temp_graph.add_multiple_directed_edges(
-            start_vertex, visibles_n_distances_start
-        )
+        self.temp_graph.add_multiple_directed_edges(start_vertex, visibles_n_distances_start)
 
         # also here unnecessary edges in the graph can be deleted when start or goal lie in front of visible extremities
         # IMPORTANT: when a query point happens to coincide with an extremity, edges to the (visible) extremities
@@ -460,9 +425,7 @@ class PolygonEnvironment:
                 self.temp_graph.remove_multiple_undirected_edges(vertex, lie_in_front)
 
         # NOTE: exploiting property 2 from [1] here would be more expensive than beneficial
-        vertex_path, distance = self.temp_graph.modified_a_star(
-            start_vertex, goal_vertex
-        )
+        vertex_path, distance = self.temp_graph.modified_a_star(start_vertex, goal_vertex)
 
         if free_space_after:
             del self.temp_graph  # free the memory

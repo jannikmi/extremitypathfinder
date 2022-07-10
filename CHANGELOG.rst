@@ -2,7 +2,11 @@ Changelog
 =========
 
 
-TODO python 3.6 support. tests not passing so far only for this python version
+2.2.1 (2022-07-10)
+-------------------
+
+* packaging completely based on pyproject.toml (poetry)
+* CI/CD: automatic publishing based on GitHub Actions
 
 2.2.0  (2021-01-25)
 -------------------

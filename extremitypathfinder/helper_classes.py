@@ -198,9 +198,7 @@ class Polygon(object):
                 len(coordinate_list),
             )
 
-        self.vertices: List[PolygonVertex] = [
-            PolygonVertex(coordinate) for coordinate in coordinate_list
-        ]
+        self.vertices: List[PolygonVertex] = [PolygonVertex(coordinate) for coordinate in coordinate_list]
 
         self.edges: List[Edge] = []
         vertex1 = self.vertices[-1]
@@ -235,9 +233,7 @@ class Polygon(object):
             p3 = v3.coordinates
             # since consequent vertices are not permitted to be equal,
             #   the angle representation of the difference is well defined
-            if (
-                AngleRepresentation(p3 - p2).value - AngleRepresentation(p1 - p2).value
-            ) % 4 < 2.0:
+            if (AngleRepresentation(p3 - p2).value - AngleRepresentation(p1 - p2).value) % 4 < 2.0:
                 # basic idea:
                 #   - translate the coordinate system to have p2 as origin
                 #   - compute the angle representations of both vectors representing the edges
@@ -272,9 +268,7 @@ class Polygon(object):
 class SearchState(object):
     __slots__ = ["node", "distance", "neighbours", "path", "cost_so_far", "priority"]
 
-    def __init__(
-        self, node, distance, neighbour_generator, path, cost_so_far, cost_estim
-    ):
+    def __init__(self, node, distance, neighbour_generator, path, cost_so_far, cost_estim):
         self.node = node
         self.distance = distance
         # TODO
@@ -285,9 +279,7 @@ class SearchState(object):
         # = cost_so_far + cost_estim  (= start-current + estimate(current-goal))
         self.priority: float = cost_so_far + cost_estim
 
-    def __lt__(
-        self, other
-    ):  # defines an ordering -> items can be stored in a sorted heap
+    def __lt__(self, other):  # defines an ordering -> items can be stored in a sorted heap
         return self.priority < other.priority
 
 
@@ -433,9 +425,7 @@ class DirectedHeuristicGraph(object):
         while len(nodes_to_check) > 1:
             n1 = nodes_to_check.pop()
             coordinates1 = n1.coordinates
-            same_nodes = {
-                n for n in nodes_to_check if np.allclose(coordinates1, n.coordinates)
-            }
+            same_nodes = {n for n in nodes_to_check if np.allclose(coordinates1, n.coordinates)}
             nodes_to_check.difference_update(same_nodes)
             for n2 in same_nodes:
                 # print('removing duplicate node', n2)
@@ -492,9 +482,7 @@ class DirectedHeuristicGraph(object):
             except StopIteration:
                 # there is no neighbour left
                 return
-            state = SearchState(
-                next_node, distance, neighbours, path, cost_so_far, cost_estim
-            )
+            state = SearchState(next_node, distance, neighbours, path, cost_so_far, cost_estim)
             search_state_queue.put(state)
 
         self.set_goal_node(goal)  # lazy update of the heuristic
