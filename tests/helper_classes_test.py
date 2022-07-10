@@ -56,7 +56,7 @@ class HelperClassesTest(unittest.TestCase):
         # angle %360!
         #     rep(p1) > rep(p2) <=> angle(p1) > angle(p2)
         #     rep(p1) = rep(p2) <=> angle(p1) = angle(p2)
-        # repr value in [0.0 : 4.0[
+        # repr value in [0.0 : 4.0]
 
         def value_test_fct(input):
             np_2D_coord_vector = np.array(input)
