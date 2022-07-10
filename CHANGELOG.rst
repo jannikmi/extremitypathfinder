@@ -1,6 +1,11 @@
 Changelog
 =========
 
+2.2.2 (2022-07-10)
+-------------------
+
+* minor improvement in the visibility graph computation: if a candidate point is closer to the query point than both vertices of an edge, it surely lies in front of that edge -> skip actually checking point visibility for this edge
+
 
 2.2.1 (2022-07-10)
 -------------------
