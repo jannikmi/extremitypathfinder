@@ -212,13 +212,9 @@ class PlottingEnvironment(PolygonEnvironment):
 
     def find_shortest_path(self, *args, **kwargs):
         # important to not delete the temp graph! for plotting
-        vertex_path, distance = super().find_shortest_path(
-            *args, free_space_after=False, **kwargs
-        )
+        vertex_path, distance = super().find_shortest_path(*args, free_space_after=False, **kwargs)
 
-        if (
-            self.temp_graph
-        ):  # in some cases (e.g. direct path possible) no graph is being created!
+        if self.temp_graph:  # in some cases (e.g. direct path possible) no graph is being created!
             draw_graph(self, self.temp_graph)
             draw_with_path(self, self.temp_graph, vertex_path)
             draw_only_path(self, vertex_path)
