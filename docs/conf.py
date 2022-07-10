@@ -12,6 +12,7 @@
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 
 import os
+import subprocess
 import sys
 
 # Get the project root dir, which is the parent dir of this
@@ -25,19 +26,17 @@ sys.path.insert(0, os.path.join(project_root))
 
 import extremitypathfinder  # needed for auto document, ATTENTION: must then be installed during online build!
 
+print(extremitypathfinder)
+
 # -- Project information -----------------------------------------------------
 
 project = "extremitypathfinder"
 copyright = "2018, Jannik Michelfeit"
 author = "Jannik Michelfeit"
 
-
-def get_version():
-    return open(os.path.join(project_root, "VERSION")).read()
-
-
 # The full version, including alpha/beta/rc tags.
-release = get_version()
+release = subprocess.getoutput("poetry version -s")
+print("release version:", release)
 
 # -- General configuration ---------------------------------------------------
 
