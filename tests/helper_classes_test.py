@@ -4,7 +4,11 @@ import numpy as np
 import pytest
 from helpers import proto_test_case
 
-from extremitypathfinder.helper_classes import AngleRepresentation, Vertex
+from extremitypathfinder.helper_classes import (
+    AngleRepresentation,
+    Vertex,
+    Polygon,
+)
 from extremitypathfinder import helper_classes
 
 
@@ -115,6 +119,37 @@ class HelperClassesTest(unittest.TestCase):
             return Vertex(input).get_distance_to_origin()
 
         proto_test_case(data, dist_to_origin_test_fct)
+
+    def test_polygon_bad_input(self):
+        with pytest.raises(ValueError) as err:
+            Polygon([(0, 0), (1, 1)], is_hole=False)
+        assert 'not a valid polygon' in str(err)
+
+    def test_polygon_extremities(self):
+        data = [
+            ([
+                (0, 0),
+                (10, 0),
+                (9, 5),
+                (10, 10),
+                (0, 10),
+            ], [(9, 5)]),
+            ([
+                (0, 0),
+                (-2, -2),
+                (-3, -2.5),
+                (-3, -4),
+                (2, -3),
+                (1, 2.5),
+                (0, -1),
+            ], [(0, -1), (-2, -2)])
+        ]
+
+        def find_extremities_test_fct(input):
+            extremities = Polygon(input, is_hole=False).extremities
+            return [tuple(e.coordinates) for e in extremities]
+
+        proto_test_case(data, find_extremities_test_fct)
 
 
 if __name__ == "__main__":
