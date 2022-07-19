@@ -4,15 +4,10 @@ import numpy as np
 import pytest
 from helpers import proto_test_case
 
-from extremitypathfinder.helper_classes import (
-    AngleRepresentation,
-    Vertex,
-    Polygon,
-)
 from extremitypathfinder import helper_classes
+from extremitypathfinder.helper_classes import AngleRepresentation, Polygon, Vertex
 
-
-helper_classes.origin = Vertex((-5., -5.))
+helper_classes.origin = Vertex((-5.0, -5.0))
 
 
 class HelperClassesTest(unittest.TestCase):
@@ -81,11 +76,11 @@ class HelperClassesTest(unittest.TestCase):
 
     def test_vertex_translation(self):
         data = [
-            ([1., 1.], [6., 6.]),
-            ([0., 0.], [5., 5.]),
-            ([-12., -3.], [-7., 2.]),
-            ([-4., 5.], [1., 10.]),
-            ([3., -2.], [8., 3.]),
+            ([1.0, 1.0], [6.0, 6.0]),
+            ([0.0, 0.0], [5.0, 5.0]),
+            ([-12.0, -3.0], [-7.0, 2.0]),
+            ([-4.0, 5.0], [1.0, 10.0]),
+            ([3.0, -2.0], [8.0, 3.0]),
         ]
 
         def translation_test_fct(input):
@@ -95,10 +90,10 @@ class HelperClassesTest(unittest.TestCase):
 
     def test_vertex_angle_repr(self):
         data = [
-            ([0., -5.], 0.),
-            ([-5., 0.], 1.),
-            ([-6., -5.], 2.),
-            ([-5., -6.], 3.),
+            ([0.0, -5.0], 0.0),
+            ([-5.0, 0.0], 1.0),
+            ([-6.0, -5.0], 2.0),
+            ([-5.0, -6.0], 3.0),
         ]
 
         def angle_repr_test_fct(input):
@@ -108,11 +103,11 @@ class HelperClassesTest(unittest.TestCase):
 
     def test_vertex_distance_to_origin(self):
         data = [
-            ([0., 0.], np.sqrt(50)),
-            ([-5., 0.], 5.),
-            ([0., -5], 5.),
-            ([-3., -2.], np.sqrt(13)),
-            ([2., 5.], np.sqrt(149)),
+            ([0.0, 0.0], np.sqrt(50)),
+            ([-5.0, 0.0], 5.0),
+            ([0.0, -5], 5.0),
+            ([-3.0, -2.0], np.sqrt(13)),
+            ([2.0, 5.0], np.sqrt(149)),
         ]
 
         def dist_to_origin_test_fct(input):
@@ -123,26 +118,32 @@ class HelperClassesTest(unittest.TestCase):
     def test_polygon_bad_input(self):
         with pytest.raises(ValueError) as err:
             Polygon([(0, 0), (1, 1)], is_hole=False)
-        assert 'not a valid polygon' in str(err)
+        assert "not a valid polygon" in str(err)
 
     def test_polygon_extremities(self):
         data = [
-            ([
-                (0, 0),
-                (10, 0),
-                (9, 5),
-                (10, 10),
-                (0, 10),
-            ], [(9, 5)]),
-            ([
-                (0, 0),
-                (-2, -2),
-                (-3, -2.5),
-                (-3, -4),
-                (2, -3),
-                (1, 2.5),
-                (0, -1),
-            ], [(0, -1), (-2, -2)])
+            (
+                [
+                    (0, 0),
+                    (10, 0),
+                    (9, 5),
+                    (10, 10),
+                    (0, 10),
+                ],
+                [(9, 5)],
+            ),
+            (
+                [
+                    (0, 0),
+                    (-2, -2),
+                    (-3, -2.5),
+                    (-3, -4),
+                    (2, -3),
+                    (1, 2.5),
+                    (0, -1),
+                ],
+                [(0, -1), (-2, -2)],
+            ),
         ]
 
         def find_extremities_test_fct(input):
