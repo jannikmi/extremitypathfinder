@@ -1,0 +1,56 @@
+[tool.poetry]
+name = "extremitypathfinder"
+version = "2.2.2"
+license = "MIT"
+readme = "README.rst"
+repository = "https://github.com/jannikmi/extremitypathfinder"
+homepage = "https://extremitypathfinder.readthedocs.io/en/latest/"
+documentation = "https://extremitypathfinder.readthedocs.io/en/latest/"
+keywords = ["path-planning", "path-finding", "shortest-path", "visibility", "graph", "polygon", "grid", "map", "robotics", "navigation", "offline"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Information Technology",
+    "Intended Audience :: Science/Research",
+    "Natural Language :: English",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Education",
+    "Topic :: Games/Entertainment"
+]
+description = "python package implementing a multivariate Horner scheme for efficiently evaluating multivariate polynomials"
+authors = ["jannikmi <github@michelfe.it>"]
+include = [
+    ".editorconfig",
+    ".pre-commit-config.yaml",
+    "CHANGELOG.rst",
+    "CONTRIBUTING.rst",
+    "LICENSE",
+    "Makefile",
+    "README.rst",
+    "tox.ini",
+    "tests/*.py",
+    "example.json",
+]
+#exclude = ["my_package/excluded.py"]
+
+[tool.poetry.scripts]
+extremitypathfinder = "extremitypathfinder.command_line:main"
+
+[tool.poetry.dependencies]
+python = "^3.8"
+numpy = "^1.22"
+
+[tool.poetry.dev-dependencies]
+pytest = "^6.2.5"
+tox = "^3.24.4"
+pre-commit = "^2.15.0"
+# docs
+Sphinx = "^4.3.1"
+sphinx-rtd-theme = "^1.0.0"
+matplotlib = "^3.5.2"
+
+[build-system]
+requires = ["poetry-core>=1.0.7", "poetry==1.1.11"]
+build-backend = "poetry.core.masonry.api"

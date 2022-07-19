@@ -1,8 +1,17 @@
 Changelog
 =========
 
+2.2.2 (2022-07-10)
+-------------------
 
-TODO python 3.6 support. tests not passing so far only for this python version
+* minor improvement in the visibility graph computation: if a candidate point is closer to the query point than both vertices of an edge, it surely lies in front of that edge -> skip actually checking point visibility for this edge
+
+
+2.2.1 (2022-07-10)
+-------------------
+
+* packaging completely based on pyproject.toml (poetry)
+* CI/CD: automatic publishing based on GitHub Actions
 
 2.2.0  (2021-01-25)
 -------------------
