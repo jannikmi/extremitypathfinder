@@ -462,6 +462,7 @@ def find_visible(vertex_candidates, edges_to_check):
     if len(vertex_candidates) == 0:
         return visible_vertices
 
+    # used for increasing the priority of "closer" edges
     priority_edges = set()
     # goal: eliminating all vertices lying 'behind' any edge
     # TODO improvement in combination with priority: process edges roughly in sequence, but still allow jumps
@@ -569,26 +570,19 @@ def find_visible(vertex_candidates, edges_to_check):
         if len(vertices_to_check) == 0:
             continue
 
+        # if a candidate is farther away from the query point than both vertices of the edge,
+        #   it surely lies behind the edge
+        # ATTENTION: even if a candidate is closer to the query point than both vertices of the edge,
+        #   it still needs to be checked!
         v1_dist = v1.get_distance_to_origin()
         v2_dist = v2.get_distance_to_origin()
-
-        # if a candidate is farther away from the query point than both vertices of the edge,
-        #    it surely lies behind the edge
         max_distance = max(v1_dist, v2_dist)
         vertices_behind = {v for v in vertices_to_check if v.get_distance_to_origin() > max_distance}
-
         # they do not have to be checked, no intersection computation necessary
         # TODO improvement: increase the neighbouring edges' priorities when there were extremities behind
         vertices_to_check.difference_update(vertices_behind)
 
-        # if a candidate is closer to the query point than both vertices of the edge,
-        # it surely lies in front of the edge -> doesn't need to be checked
-        # Edge case: vertices directly on the edge are allowed (not eliminated)! -> also skip equally distant points
-        min_distance = min(v1_dist, v2_dist)
-        # used for increasing the priority of "closer" edges
-        vertices_in_front = {v for v in vertices_to_check if v.get_distance_to_origin() <= min_distance}
-        vertices_to_check.difference_update(vertices_in_front)
-
+        vertices_in_front = set()
         # for all remaining vertices v it has to be tested if the line segment from query point (=origin) to v
         #    has an intersection with the current edge p1---p2
         p1 = v1.get_coordinates_translated()
@@ -609,10 +603,10 @@ def find_visible(vertex_candidates, edges_to_check):
         # (prioritize them)
         # they lie in front and hence will eliminate other vertices faster
         # the fewer vertex candidates remain, the faster the procedure
-        # TODO improvement: increase priority every time and draw highest priority items
+        # TODO possible improvement: increase priority every time and draw highest priority items
         #   but this involves sorting (expensive for large polygons!)
         #   idea: work with a list of sets, add new set for higher priority, no real sorting, but still managing!
-        # TODO test speed impact
+        #   test speed impact.
         for e in vertices_in_front:
             # only add the neighbour edges to the priority set if they still have to be checked!
             if isinstance(e, PolygonVertex):
