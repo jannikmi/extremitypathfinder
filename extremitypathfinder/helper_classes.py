@@ -1,5 +1,5 @@
 import heapq
-from typing import Dict, List, Optional, Set
+from typing import Dict, Iterable, List, Optional, Set
 
 import numpy as np
 
@@ -302,13 +302,13 @@ class SearchStateQueue(object):
 class DirectedHeuristicGraph(object):
     __slots__ = ["all_nodes", "distances", "goal_node", "heuristic", "neighbours"]
 
-    def __init__(self, all_nodes: Optional[Set[Vertex]] = None):
+    def __init__(self, all_nodes: Optional[Iterable[Vertex]] = None):
         self.distances: Dict = {}
         self.neighbours: Dict = {}
 
         if all_nodes is None:
             all_nodes = set()
-        self.all_nodes: Set[Vertex] = all_nodes.copy()  # independent copy required!
+        self.all_nodes: Set[Vertex] = set(all_nodes)  # independent copy required!
 
         # TODO use same set as extremities of env, but different for copy!
 

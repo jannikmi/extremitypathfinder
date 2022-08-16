@@ -1,6 +1,7 @@
+import itertools
 import pickle
 from copy import deepcopy
-from typing import Iterable, List, Optional, Set, Tuple
+from typing import Iterable, List, Optional, Tuple
 
 import numpy as np
 
@@ -47,7 +48,7 @@ class PolygonEnvironment:
     prepared: bool = False
     graph: DirectedHeuristicGraph = None
     temp_graph: DirectedHeuristicGraph = None  # for storing and plotting the graph during a query
-    _all_extremities: Optional[Set[PolygonVertex]] = None
+    _all_extremities: Optional[List[PolygonVertex]] = None
 
     @property
     def polygons(self) -> Iterable[Polygon]:
@@ -60,14 +61,12 @@ class PolygonEnvironment:
             yield from p.vertices
 
     @property
-    def all_extremities(self) -> Set[PolygonVertex]:
+    def all_extremities(self) -> List[PolygonVertex]:
         if self._all_extremities is None:
-            extremities = set()
-            for p in self.polygons:
-                extremities |= set(p.extremities)
-
+            poly_extremities = iter(p.extremities for p in self.polygons)
+            extremities_chained = itertools.chain(*poly_extremities)
             # only consider extremities that are actually within the map
-            extremities = set(filter(lambda e: self.within_map(e.coordinates), extremities))
+            extremities = list(filter(lambda e: self.within_map(e.coordinates), extremities_chained))
             self._all_extremities = extremities
         return self._all_extremities
 
@@ -175,7 +174,10 @@ class PolygonEnvironment:
         #   even if a node has no edges (visibility to other extremities), it should still be included!
         self.graph = DirectedHeuristicGraph(self.all_extremities)
 
-        extremities_to_check = self.all_extremities.copy()
+        extremities_to_check = set(self.all_extremities)
+
+        # nr_extremities = len(self.all_extremities)
+        # angle_representations = np.full((nr_extremities, nr_extremities), np.nan)
 
         # have to run for all (also last one!), because existing edges might get deleted every loop
         while len(extremities_to_check) > 0:
