@@ -59,7 +59,7 @@ repos:
         additional_dependencies: [ numpy, poetry==1.1.11 ]
 
   - repo: https://github.com/asottile/pyupgrade
-    rev: v2.36.0
+    rev: v2.37.3
     hooks:
       - id: pyupgrade
 
