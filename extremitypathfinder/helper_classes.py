@@ -6,12 +6,13 @@ import numpy as np
 # TODO find a way to avoid global variable, wrap all in a different kind of 'coordinate system environment'?
 # problem: lazy evaluation, passing the origin every time is not an option
 # placeholder for temporarily storing the origin of the current coordinate system
+
 origin = None
 
 
-class AngleRepresentation(object):
-    """
-    a class automatically computing a representation for the angle from the origin to a given vector
+def compute_angle_repr_inner(np_vector: np.ndarray) -> float:
+    """computing representation for the angle from the origin to a given vector
+
     value in [0.0 : 4.0[
     every quadrant contains angle measures from 0.0 to 1.0
     there are 4 quadrants (counter clockwise numbering)
@@ -28,39 +29,46 @@ class AngleRepresentation(object):
     angle(p): counter clockwise angle between the two line segments (0,0)'--(1,0)' and (0,0)'--p
     with (0,0)' being the vector representing the origin
 
+    :param np_vector:
+    :return:
     """
+    # 2D vector: (dx, dy) = np_vector
+    dx, dy = np_vector
+    dx_positive = dx >= 0
+    dy_positive = dy >= 0
 
+    if dx_positive and dy_positive:
+        quadrant = 0.0
+        angle_measure = dy
+
+    elif not dx_positive and dy_positive:
+        quadrant = 1.0
+        angle_measure = -dx
+
+    elif not dx_positive and not dy_positive:
+        quadrant = 2.0
+        angle_measure = -dy
+
+    else:
+        quadrant = 3.0
+        angle_measure = dx
+
+    norm = np.linalg.norm(np_vector, ord=2)
+    if norm == 0.0:
+        # make sure norm is not 0!
+        raise ValueError("received null vector:", np_vector, norm)
+    # normalise angle measure to [0; 1]
+    angle_measure /= norm
+    return quadrant + angle_measure
+
+
+class AngleRepresentation(object):
     # prevent dynamic attribute assignment (-> safe memory)
     # __slots__ = ['quadrant', 'angle_measure', 'value']
     __slots__ = ["value"]
 
     def __init__(self, np_vector):
-        # 2D vector: (dx, dy) = np_vector
-        norm = np.linalg.norm(np_vector)
-        if norm == 0.0:
-            # make sure norm is not 0!
-            raise ValueError("received null vector:", np_vector, norm)
-
-        dx_positive = np_vector[0] >= 0
-        dy_positive = np_vector[1] >= 0
-
-        if dx_positive and dy_positive:
-            quadrant = 0.0
-            angle_measure = np_vector[1] / norm
-
-        elif not dx_positive and dy_positive:
-            quadrant = 1.0
-            angle_measure = -np_vector[0] / norm
-
-        elif not dx_positive and not dy_positive:
-            quadrant = 2.0
-            angle_measure = -np_vector[1] / norm
-
-        else:
-            quadrant = 3.0
-            angle_measure = np_vector[0] / norm
-
-        self.value = quadrant + angle_measure
+        self.value = compute_angle_repr_inner(np_vector)
 
     def __str__(self):
         return str(self.value)
@@ -136,6 +144,21 @@ class Vertex(object):
 
     def mark_outdated(self):
         self.is_outdated = True
+
+
+def compute_angle_repr(v1: Vertex, v2: Vertex) -> Optional[float]:
+    diff_vect = v2.coordinates - v1.coordinates
+    if np.all(diff_vect == 0.0):
+        return None
+    return compute_angle_repr_inner(diff_vect)
+
+
+def angle_rep_inverse(repr: Optional[float]) -> Optional[float]:
+    if repr is None:
+        repr_inv = None
+    else:
+        repr_inv = (repr + 2.0) % 4.0
+    return repr_inv
 
 
 class PolygonVertex(Vertex):

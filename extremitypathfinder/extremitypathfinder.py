@@ -1,11 +1,13 @@
 import itertools
 import pickle
 from copy import deepcopy
-from typing import Iterable, List, Optional, Tuple
+from typing import Iterable, Iterator, List, Optional, Tuple
 
 import numpy as np
 
 # TODO possible to allow polygon consisting of 2 vertices only(=barrier)? lots of functions need at least 3 vertices atm
+import pytest
+
 from extremitypathfinder.global_settings import (
     DEFAULT_PICKLE_NAME,
     INPUT_COORD_LIST_TYPE,
@@ -14,7 +16,15 @@ from extremitypathfinder.global_settings import (
     OBSTACLE_ITER_TYPE,
     PATH_TYPE,
 )
-from extremitypathfinder.helper_classes import DirectedHeuristicGraph, Edge, Polygon, PolygonVertex, Vertex
+from extremitypathfinder.helper_classes import (
+    DirectedHeuristicGraph,
+    Edge,
+    Polygon,
+    PolygonVertex,
+    Vertex,
+    angle_rep_inverse,
+    compute_angle_repr,
+)
 from extremitypathfinder.helper_fcts import (
     check_data_requirements,
     convert_gridworld,
@@ -56,7 +66,7 @@ class PolygonEnvironment:
         yield from self.holes
 
     @property
-    def all_vertices(self) -> List[PolygonVertex]:
+    def all_vertices(self) -> Iterator[PolygonVertex]:
         for p in self.polygons:
             yield from p.vertices
 
@@ -172,12 +182,34 @@ class PolygonEnvironment:
         # and optimize graph further at construction time
         # NOTE: initialise the graph with all extremities.
         #   even if a node has no edges (visibility to other extremities), it should still be included!
-        self.graph = DirectedHeuristicGraph(self.all_extremities)
+        extremities = self.all_extremities
+        self.graph = DirectedHeuristicGraph(extremities)
 
-        extremities_to_check = set(self.all_extremities)
+        extremities_to_check = set(extremities)
 
-        # nr_extremities = len(self.all_extremities)
-        # angle_representations = np.full((nr_extremities, nr_extremities), np.nan)
+        vertices = list(self.all_vertices)
+        nr_vertices = len(vertices)
+
+        # TODO sparse matrix
+        angle_representations = np.full((nr_vertices, nr_vertices), np.nan)
+
+        def get_angle_representation(v1: PolygonVertex, v2: PolygonVertex) -> float:
+            i1 = vertices.index(v1)
+            i2 = vertices.index(v2)
+            repr = angle_representations[i1, i2]
+
+            # lazy initalisation: compute on demand only
+            if np.isnan(repr):  # attention: repr == np.nan does not match!
+                repr = compute_angle_repr(v1, v2)
+                angle_representations[i1, i2] = repr
+                # make use of symmetry: rotate 180 deg
+                angle_representations[i2, i1] = angle_rep_inverse(repr)
+
+            assert repr is None or not np.isnan(repr)
+            return repr
+
+        def angle_repr_is_none(v1: PolygonVertex, v2: PolygonVertex) -> bool:
+            return get_angle_representation(v1, v2) is None
 
         # have to run for all (also last one!), because existing edges might get deleted every loop
         while len(extremities_to_check) > 0:
@@ -206,8 +238,11 @@ class PolygonEnvironment:
             # all vertices between the angle of the two neighbouring edges ('outer side')
             #   are not visible (no candidates!)
             # ATTENTION: vertices with the same angle representation might be visible and must NOT be deleted!
-            repr1 = n1.get_angle_representation()
-            repr2 = n2.get_angle_representation()
+            repr1 = get_angle_representation(query_extremity, n1)
+            repr1_ = n1.get_angle_representation()
+            if repr1 != pytest.approx(repr1_):
+                raise ValueError
+            repr2 = get_angle_representation(query_extremity, n2)
             repr_diff = abs(repr1 - repr2)
             candidate_extremities.difference_update(
                 find_within_range(
@@ -232,8 +267,8 @@ class PolygonEnvironment:
             # When a query point (start/goal) happens to be an extremity, edges to the (visible) extremities in front
             # MUST be added to the graph!
             # Find extremities which fulfill this condition for the given query extremity
-            repr1 = (repr1 + 2.0) % 4.0  # rotate 180 deg
-            repr2 = (repr2 + 2.0) % 4.0
+            repr1 = angle_rep_inverse(repr1)
+            repr2 = angle_rep_inverse(repr2)
             # IMPORTANT: the true angle diff does not change, but the repr diff does! compute again
             repr_diff = abs(repr1 - repr2)
             # IMPORTANT: check all extremities here, not just current candidates
@@ -245,6 +280,7 @@ class PolygonEnvironment:
                     self.all_extremities,
                 )
             )
+            # temp_candidates = {e for e in extremities if not angle_repr_is_none(query_extremity, e)}
             lie_in_front = find_within_range(
                 repr1,
                 repr2,

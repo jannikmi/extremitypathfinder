@@ -6,7 +6,7 @@ import numpy as np
 
 # TODO numba precompilation of some parts possible?! do line speed profiling first! speed impact
 from extremitypathfinder.global_settings import BOUNDARY_JSON_KEY, HOLES_JSON_KEY
-from extremitypathfinder.helper_classes import AngleRepresentation, PolygonVertex
+from extremitypathfinder.helper_classes import PolygonVertex, compute_angle_repr_inner
 
 
 def inside_polygon(x, y, coords, border_value):
@@ -20,7 +20,9 @@ def inside_polygon(x, y, coords, border_value):
     p = np.array([x, y])
     p1 = coords[-1, :]
     for p2 in coords[:]:
-        if abs(AngleRepresentation(p1 - p).value - AngleRepresentation(p2 - p).value) == 2.0:
+        rep_p1_p = compute_angle_repr_inner(p1 - p)
+        rep_p2_p = compute_angle_repr_inner(p2 - p)
+        if abs(rep_p1_p - rep_p2_p) == 2.0:
             return border_value
         p1 = p2
 
