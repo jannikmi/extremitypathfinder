@@ -211,7 +211,7 @@ def check_data_requirements(boundary_coords: np.ndarray, list_hole_coords: List[
     # TODO data rectification
 
 
-def find_within_range(repr1, repr2, repr_diff, vertex_set, angle_range_less_180, equal_repr_allowed):
+def find_within_range(repr1: float, repr2: float, vertex_set, angle_range_less_180, equal_repr_allowed):
     """
     filters out all vertices whose representation lies within the range between
       the two given angle representations
@@ -219,75 +219,52 @@ def find_within_range(repr1, repr2, repr_diff, vertex_set, angle_range_less_180,
       - query angle (range) is < 180deg or not (>= 180deg)
     :param repr1:
     :param repr2:
-    :param repr_diff: abs(repr1-repr2)
     :param vertex_set:
     :param angle_range_less_180: whether the angle between repr1 and repr2 is < 180 deg
     :param equal_repr_allowed: whether vertices with the same representation should also be returned
     :return:
     """
-
     if len(vertex_set) == 0:
         return vertex_set
 
+    repr_diff = abs(repr1 - repr2)
     if repr_diff == 0.0:
         return set()
 
-    min_repr_val = min(repr1, repr2)
-    max_repr_val = max(repr1, repr2)  # = min_angle + angle_diff
+    min_repr = min(repr1, repr2)
+    max_repr = max(repr1, repr2)  # = min_angle + angle_diff
 
-    def lies_within(vertex):
-        # vertices with the same representation will not NOT be returned!
-        return min_repr_val < vertex.get_angle_representation() < max_repr_val
+    def repr_within(r):
+        # Note: vertices with the same representation will not NOT be returned!
+        return min_repr < r < max_repr
 
-    def lies_within_eq(vertex):
-        # vertices with the same representation will be returned!
-        return min_repr_val <= vertex.get_angle_representation() <= max_repr_val
-
+    # depending on the angle the included range is clockwise or anti-clockwise
+    # (from min_repr to max_val or the other way around)
     # when the range contains the 0.0 value (transition from 3.99... -> 0.0)
     # it is easier to check if a representation does NOT lie within this range
-    # -> filter_fct = not_within
-    def not_within(vertex):
-        # vertices with the same representation will NOT be returned!
-        return not (min_repr_val <= vertex.get_angle_representation() <= max_repr_val)
+    # -> invert filter condition
+    # special case: angle == 180deg
+    on_line_inv = repr_diff == 2.0 and repr1 >= repr2
+    # which range to filter is determined by the order of the points
+    # since the polygons follow a numbering convention,
+    # the 'left' side of p1-p2 always lies inside the map
+    # -> filter out everything on the right side (='outside')
+    inversion_condition = on_line_inv or ((repr_diff < 2.0) ^ angle_range_less_180)
 
-    def not_within_eq(vertex):
-        # vertices with the same representation will be returned!
-        return not (min_repr_val < vertex.get_angle_representation() < max_repr_val)
+    def within_filter_func(r: float) -> bool:
+        repr_eq = r == min_repr or r == max_repr
+        if repr_eq and equal_repr_allowed:
+            return True
+        if repr_eq and not equal_repr_allowed:
+            return False
 
-    if equal_repr_allowed:
-        lies_within_fct = lies_within_eq
-        not_within_fct = not_within_eq
-    else:
-        lies_within_fct = lies_within
-        not_within_fct = not_within
+        res = repr_within(r)
+        if inversion_condition:
+            res = not res
+        return res
 
-    if repr_diff < 2.0:
-        # angle < 180 deg
-        if angle_range_less_180:
-            filter_fct = lies_within_fct
-        else:
-            # the actual range to search is from min_val to max_val, but clockwise!
-            filter_fct = not_within_fct
-
-    elif repr_diff == 2.0:
-        # angle == 180deg
-        # which range to filter is determined by the order of the points
-        # since the polygons follow a numbering convention,
-        # the 'left' side of p1-p2 always lies inside the map
-        # -> filter out everything on the right side (='outside')
-        if repr1 < repr2:
-            filter_fct = lies_within_fct
-        else:
-            filter_fct = not_within_fct
-
-    else:
-        # angle > 180deg
-        if angle_range_less_180:
-            filter_fct = not_within_fct
-        else:
-            filter_fct = lies_within_fct
-
-    return set(filter(filter_fct, vertex_set))
+    vertices_within = {v for v in vertex_set if within_filter_func(v.get_angle_representation())}
+    return vertices_within
 
 
 def convert_gridworld(size_x: int, size_y: int, obstacle_iter: iter, simplify: bool = True) -> (list, list):
@@ -516,6 +493,7 @@ def find_visible(vertex_candidates, edges_to_check):
         if lies_on_edge:
             # when the query vertex lies on an edge (or vertex) no behind/in front checks must be performed!
             # the neighbouring edges are visible for sure
+            # attention: only add to visible set if vertex was a candidate!
             try:
                 vertex_candidates.remove(v1)
                 visible_vertices.add(v1)
@@ -529,16 +507,14 @@ def find_visible(vertex_candidates, edges_to_check):
 
             # all the candidates between the two vertices v1 v2 are not visible for sure
             # candidates with the same representation should not be deleted, because they can be visible!
-            vertex_candidates.difference_update(
-                find_within_range(
-                    repr1,
-                    repr2,
-                    repr_diff,
-                    vertex_candidates,
-                    angle_range_less_180=range_less_180,
-                    equal_repr_allowed=False,
-                )
+            invisible_candidates = find_within_range(
+                repr1,
+                repr2,
+                vertex_candidates,
+                angle_range_less_180=range_less_180,
+                equal_repr_allowed=False,
             )
+            vertex_candidates.difference_update(invisible_candidates)
             continue
 
         # case: a 'regular' edge
@@ -564,7 +540,6 @@ def find_visible(vertex_candidates, edges_to_check):
         vertices_to_check = find_within_range(
             repr1,
             repr2,
-            repr_diff,
             vertices_to_check,
             angle_range_less_180=True,
             equal_repr_allowed=True,

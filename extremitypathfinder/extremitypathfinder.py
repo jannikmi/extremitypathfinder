@@ -190,7 +190,7 @@ class PolygonEnvironment:
         vertices = list(self.all_vertices)
         nr_vertices = len(vertices)
 
-        # TODO sparse matrix
+        # TODO sparse matrix. problematic: default value is 0.0
         angle_representations = np.full((nr_vertices, nr_vertices), np.nan)
 
         def get_angle_representation(v1: PolygonVertex, v2: PolygonVertex) -> float:
@@ -208,8 +208,8 @@ class PolygonEnvironment:
             assert repr is None or not np.isnan(repr)
             return repr
 
-        def angle_repr_is_none(v1: PolygonVertex, v2: PolygonVertex) -> bool:
-            return get_angle_representation(v1, v2) is None
+        def angle_repr_not_none(v1: PolygonVertex, v2: PolygonVertex) -> bool:
+            return get_angle_representation(v1, v2) is not None
 
         # have to run for all (also last one!), because existing edges might get deleted every loop
         while len(extremities_to_check) > 0:
@@ -238,22 +238,19 @@ class PolygonEnvironment:
             # all vertices between the angle of the two neighbouring edges ('outer side')
             #   are not visible (no candidates!)
             # ATTENTION: vertices with the same angle representation might be visible and must NOT be deleted!
-            repr1 = get_angle_representation(query_extremity, n1)
+            n1_repr = get_angle_representation(query_extremity, n1)
             repr1_ = n1.get_angle_representation()
-            if repr1 != pytest.approx(repr1_):
+            if n1_repr != pytest.approx(repr1_):
                 raise ValueError
-            repr2 = get_angle_representation(query_extremity, n2)
-            repr_diff = abs(repr1 - repr2)
-            candidate_extremities.difference_update(
-                find_within_range(
-                    repr1,
-                    repr2,
-                    repr_diff,
-                    candidate_extremities,
-                    angle_range_less_180=True,
-                    equal_repr_allowed=False,
-                )
+            n2_repr = get_angle_representation(query_extremity, n2)
+            candidates_behind_edge = find_within_range(
+                n1_repr,
+                n2_repr,
+                candidate_extremities,
+                angle_range_less_180=True,
+                equal_repr_allowed=False,
             )
+            candidate_extremities.difference_update(candidates_behind_edge)
 
             # as shown in [1, Ch. II 4.4.2 "Property One"]: Starting from any point lying "in front of" an extremity e,
             # such that both adjacent edges are visible, one will never visit e, because everything is
@@ -267,24 +264,15 @@ class PolygonEnvironment:
             # When a query point (start/goal) happens to be an extremity, edges to the (visible) extremities in front
             # MUST be added to the graph!
             # Find extremities which fulfill this condition for the given query extremity
-            repr1 = angle_rep_inverse(repr1)
-            repr2 = angle_rep_inverse(repr2)
-            # IMPORTANT: the true angle diff does not change, but the repr diff does! compute again
-            repr_diff = abs(repr1 - repr2)
+            n1_repr = angle_rep_inverse(n1_repr)
+            n2_repr = angle_rep_inverse(n2_repr)
             # IMPORTANT: check all extremities here, not just current candidates
             # do not check extremities with equal coordinates (also query extremity itself!)
             #   and with the same angle representation (those edges must not get deleted from graph!)
-            temp_candidates = set(
-                filter(
-                    lambda e: e.get_angle_representation() is not None,
-                    self.all_extremities,
-                )
-            )
-            # temp_candidates = {e for e in extremities if not angle_repr_is_none(query_extremity, e)}
+            temp_candidates = {e for e in extremities if angle_repr_not_none(query_extremity, e)}
             lie_in_front = find_within_range(
-                repr1,
-                repr2,
-                repr_diff,
+                n1_repr,
+                n2_repr,
                 temp_candidates,
                 angle_range_less_180=True,
                 equal_repr_allowed=False,
@@ -449,16 +437,14 @@ class PolygonEnvironment:
                 goal_vertex.mark_outdated()
 
                 n1, n2 = vertex.get_neighbours()
-                repr1 = (n1.get_angle_representation() + 2.0) % 4.0  # rotated 180 deg
-                repr2 = (n2.get_angle_representation() + 2.0) % 4.0
-                repr_diff = abs(repr1 - repr2)
+                repr1 = angle_rep_inverse(n1.get_angle_representation())  # rotated 180 deg
+                repr2 = angle_rep_inverse(n2.get_angle_representation())
 
                 # IMPORTANT: special case:
                 # here the nodes must stay connected if they have the same angle representation!
                 lie_in_front = find_within_range(
                     repr1,
                     repr2,
-                    repr_diff,
                     temp_candidates,
                     angle_range_less_180=True,
                     equal_repr_allowed=False,
