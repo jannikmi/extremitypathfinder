@@ -29,6 +29,7 @@ from extremitypathfinder.helper_fcts import (
     convert_gridworld,
     find_visible,
     find_within_range,
+    find_within_range2,
     get_angle_representation,
     inside_polygon,
 )
@@ -252,15 +253,27 @@ class PolygonEnvironment:
             n2_repr = get_repr(idx, idx_n2)
 
             # TODO
-            candidates = {vertices[i] for i in candidate_idxs}
-            candidates_behind_edge = find_within_range(
+            idx_behind = find_within_range2(
                 n1_repr,
                 n2_repr,
-                candidates,
+                candidate_idxs,
+                angle_representations,
+                vertices,
+                idx,
                 angle_range_less_180=True,
                 equal_repr_allowed=False,
             )
-            candidates.difference_update(candidates_behind_edge)
+            candidate_idxs.difference_update(idx_behind)
+
+            candidates = {vertices[i] for i in candidate_idxs}
+            # candidates_behind_edge = find_within_range(
+            #     n1_repr,
+            #     n2_repr,
+            #     candidates,
+            #     angle_range_less_180=True,
+            #     equal_repr_allowed=False,
+            # )
+            # candidates.difference_update(candidates_behind_edge)
 
             # as shown in [1, Ch. II 4.4.2 "Property One"]: Starting from any point lying "in front of" an extremity e,
             # such that both adjacent edges are visible, one will never visit e, because everything is
@@ -279,25 +292,32 @@ class PolygonEnvironment:
             # IMPORTANT: check all extremities here, not just current candidates
             # do not check extremities with equal coordinates (also query extremity itself!)
             #   and with the same angle representation (those edges must not get deleted from graph!)
-            temp_candidates = {vertices[i] for i in extremity_indices if get_repr(idx, i) is not None}
-            lie_in_front = find_within_range(
+            temp_idxs = {i for i in extremity_indices if get_repr(idx, i) is not None}
+            lie_in_front_idx = find_within_range2(
                 n1_repr,
                 n2_repr,
-                temp_candidates,
+                temp_idxs,
+                angle_representations,
+                vertices,
+                idx,
                 angle_range_less_180=True,
                 equal_repr_allowed=False,
             )
             # "thin out" the graph -> optimisation
             # already existing edges in the graph to the extremities in front have to be removed
+            # TODO graph: do not use vertices
+            lie_in_front = {vertices[i] for i in lie_in_front_idx}
             self.graph.remove_multiple_undirected_edges(query_extremity, lie_in_front)
-            # do not consider when looking for visible extremities (NOTE: they might actually be visible!)
-            candidates.difference_update(lie_in_front)
+            # do not consider when looking for visible extremities, even if they are actually be visible
+            candidate_idxs.difference_update(idx_behind)
 
             # all edges except the neighbouring edges (handled above!) have to be checked
             edges_to_check = set(self.all_edges)
             edges_to_check.remove(query_extremity.edge1)
             edges_to_check.remove(query_extremity.edge2)
 
+            # TODO graph: do not use vertices
+            candidates = {vertices[i] for i in candidate_idxs}
             visible_vertices.update(find_visible(candidates, edges_to_check))
             self.graph.add_multiple_undirected_edges(query_extremity, visible_vertices)
 
@@ -310,7 +330,7 @@ class PolygonEnvironment:
         :param coords: numerical tuple representing coordinates
         :return: whether the given coordinate is a valid query point
         """
-        #
+
         x, y = coords
         if not inside_polygon(x, y, self.boundary_polygon.coordinates, border_value=True):
             return False
