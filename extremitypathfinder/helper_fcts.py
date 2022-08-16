@@ -6,7 +6,12 @@ import numpy as np
 
 # TODO numba precompilation of some parts possible?! do line speed profiling first! speed impact
 from extremitypathfinder.global_settings import BOUNDARY_JSON_KEY, HOLES_JSON_KEY
-from extremitypathfinder.helper_classes import PolygonVertex, compute_angle_repr_inner
+from extremitypathfinder.helper_classes import (
+    PolygonVertex,
+    angle_rep_inverse,
+    compute_angle_repr,
+    compute_angle_repr_inner,
+)
 
 
 def inside_polygon(x, y, coords, border_value):
@@ -209,6 +214,25 @@ def check_data_requirements(boundary_coords: np.ndarray, list_hole_coords: List[
             raise ValueError("Vertex numbering of hole polygon must be clockwise.")
 
     # TODO data rectification
+
+
+def get_angle_representation(i1: int, i2: int, repr_matrix: np.ndarray, vertices: List["PolygonVertex"]) -> float:
+    repr = repr_matrix[i1, i2]
+
+    # lazy initalisation: compute on demand only
+    if np.isnan(repr):  # attention: repr == np.nan does not match!
+        v1 = vertices[i1]
+        v2 = vertices[i2]
+        repr = compute_angle_repr(v1, v2)
+        repr_matrix[i1, i2] = repr
+
+        # TODO not required. only triangle required?!
+        # make use of symmetry: rotate 180 deg
+        repr_matrix[i2, i1] = angle_rep_inverse(repr)
+
+    # TODO
+    assert repr is None or not np.isnan(repr)
+    return repr
 
 
 def find_within_range(repr1: float, repr2: float, vertex_set, angle_range_less_180, equal_repr_allowed):

@@ -23,13 +23,13 @@ from extremitypathfinder.helper_classes import (
     PolygonVertex,
     Vertex,
     angle_rep_inverse,
-    compute_angle_repr,
 )
 from extremitypathfinder.helper_fcts import (
     check_data_requirements,
     convert_gridworld,
     find_visible,
     find_within_range,
+    get_angle_representation,
     inside_polygon,
 )
 
@@ -205,26 +205,8 @@ class PolygonEnvironment:
         # TODO sparse matrix. problematic: default value is 0.0
         angle_representations = np.full((nr_vertices, nr_vertices), np.nan)
 
-        def get_angle_representation(i1: int, i2: int) -> float:
-            repr = angle_representations[i1, i2]
-
-            # lazy initalisation: compute on demand only
-            if np.isnan(repr):  # attention: repr == np.nan does not match!
-                v1 = vertices[i1]
-                v2 = vertices[i2]
-                repr = compute_angle_repr(v1, v2)
-                angle_representations[i1, i2] = repr
-
-                # TODO not required. only triangle required?!
-                # make use of symmetry: rotate 180 deg
-                angle_representations[i2, i1] = angle_rep_inverse(repr)
-
-            # TODO
-            assert repr is None or not np.isnan(repr)
-            return repr
-
-        def angle_repr_is_none(i1: int, i2: int) -> bool:
-            return get_angle_representation(i1, i2) is None
+        def get_repr(i1, i2):
+            return get_angle_representation(i1, i2, angle_representations, vertices)
 
         # have to run for all (also last one!), because existing edges might get deleted every loop
         while len(extremity_indices) > 0:
@@ -241,12 +223,12 @@ class PolygonEnvironment:
 
             visible_vertices = set()
 
-            candidate_idxs = extremity_indices.copy()  # independent copy
-            # remove the extremities with the same coordinates as the query extremity
+            # only consider extremities with coordinates different from the query extremity
+            # (angle representation not None)
+            candidate_idxs = {i for i in extremity_indices if get_repr(idx, i) is not None}
             # candidates.difference_update(
             #     {c for c in candidates if get_angle_representation(idx, c) is None}
             # )
-            candidate_idxs.difference_update({i for i in candidate_idxs if angle_repr_is_none(idx, i)})
 
             # these vertices all belong to a polygon
             n1, n2 = query_extremity.get_neighbours()
@@ -260,14 +242,14 @@ class PolygonEnvironment:
             # all vertices between the angle of the two neighbouring edges ('outer side')
             #   are not visible (no candidates!)
             # ATTENTION: vertices with the same angle representation might be visible and must NOT be deleted!
-            n1_repr = get_angle_representation(idx, idx_n1)
+            n1_repr = get_repr(idx, idx_n1)
 
             # TODO
             repr1_ = n1.get_angle_representation()
             if n1_repr != pytest.approx(repr1_):
                 raise ValueError
 
-            n2_repr = get_angle_representation(idx, idx_n2)
+            n2_repr = get_repr(idx, idx_n2)
 
             # TODO
             candidates = {vertices[i] for i in candidate_idxs}
@@ -297,7 +279,7 @@ class PolygonEnvironment:
             # IMPORTANT: check all extremities here, not just current candidates
             # do not check extremities with equal coordinates (also query extremity itself!)
             #   and with the same angle representation (those edges must not get deleted from graph!)
-            temp_candidates = {vertices[i] for i in extremity_indices if not angle_repr_is_none(idx, i)}
+            temp_candidates = {vertices[i] for i in extremity_indices if get_repr(idx, i) is not None}
             lie_in_front = find_within_range(
                 n1_repr,
                 n2_repr,
