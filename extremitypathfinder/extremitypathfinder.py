@@ -28,6 +28,7 @@ from extremitypathfinder.helper_fcts import (
     check_data_requirements,
     convert_gridworld,
     find_visible,
+    find_visible2,
     find_within_range,
     find_within_range2,
     get_angle_representation,
@@ -90,9 +91,8 @@ class PolygonEnvironment:
         # return self._all_extremities
 
     @property
-    def all_edges(self) -> Iterable[Edge]:
-        for p in self.polygons:
-            yield from p.edges
+    def all_edges(self) -> Set[Edge]:
+        return set(itertools.chain(*iter(p.edges for p in self.polygons)))
 
     def store(
         self,
@@ -222,8 +222,6 @@ class PolygonEnvironment:
 
             self.translate(new_origin=query_extremity)
 
-            visible_vertices = set()
-
             # only consider extremities with coordinates different from the query extremity
             # (angle representation not None)
             candidate_idxs = {i for i in extremity_indices if get_repr(idx, i) is not None}
@@ -265,16 +263,6 @@ class PolygonEnvironment:
             )
             candidate_idxs.difference_update(idx_behind)
 
-            candidates = {vertices[i] for i in candidate_idxs}
-            # candidates_behind_edge = find_within_range(
-            #     n1_repr,
-            #     n2_repr,
-            #     candidates,
-            #     angle_range_less_180=True,
-            #     equal_repr_allowed=False,
-            # )
-            # candidates.difference_update(candidates_behind_edge)
-
             # as shown in [1, Ch. II 4.4.2 "Property One"]: Starting from any point lying "in front of" an extremity e,
             # such that both adjacent edges are visible, one will never visit e, because everything is
             # reachable on a shorter path without e (except e itself).
@@ -305,20 +293,17 @@ class PolygonEnvironment:
             )
             # "thin out" the graph -> optimisation
             # already existing edges in the graph to the extremities in front have to be removed
-            # TODO graph: do not use vertices
+            # TODO graph: also use indices instead of vertices
             lie_in_front = {vertices[i] for i in lie_in_front_idx}
             self.graph.remove_multiple_undirected_edges(query_extremity, lie_in_front)
             # do not consider when looking for visible extremities, even if they are actually be visible
             candidate_idxs.difference_update(idx_behind)
 
             # all edges except the neighbouring edges (handled above!) have to be checked
-            edges_to_check = set(self.all_edges)
+            edges_to_check = self.all_edges
             edges_to_check.remove(query_extremity.edge1)
             edges_to_check.remove(query_extremity.edge2)
-
-            # TODO graph: do not use vertices
-            candidates = {vertices[i] for i in candidate_idxs}
-            visible_vertices.update(find_visible(candidates, edges_to_check))
+            visible_vertices = find_visible2(candidate_idxs, angle_representations, vertices, idx, edges_to_check)
             self.graph.add_multiple_undirected_edges(query_extremity, visible_vertices)
 
         self.graph.make_clean()  # join all nodes with the same coordinates
@@ -399,7 +384,8 @@ class PolygonEnvironment:
         # NOTE: all edges are being checked, it is computationally faster to compute all visibilities in one go
         candidates.add(start_vertex)
 
-        visibles_n_distances_goal = find_visible(candidates, edges_to_check=set(self.all_edges))
+        # TODO use new variant
+        visibles_n_distances_goal = find_visible(candidates, edges_to_check=self.all_edges)
         if len(visibles_n_distances_goal) == 0:
             # The goal node does not have any neighbours. Hence there is not possible path to the goal.
             return [], None
@@ -430,7 +416,9 @@ class PolygonEnvironment:
                 self.graph.get_all_nodes(),
             )
         )
-        visibles_n_distances_start = find_visible(candidates, edges_to_check=set(self.all_edges))
+
+        # TODO use new variant
+        visibles_n_distances_start = find_visible(candidates, edges_to_check=self.all_edges)
         if len(visibles_n_distances_start) == 0:
             # The start node does not have any neighbours. Hence there is not possible path to the goal.
             return [], None
