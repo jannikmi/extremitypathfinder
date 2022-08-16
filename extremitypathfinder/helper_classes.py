@@ -243,7 +243,7 @@ class Polygon(object):
             holes: clockwise
         :return:
         """
-        self._extremities = []
+        extremities = []
         # extremity_indices = []
         # extremity_index = -1
         v1 = self.vertices[-2]
@@ -252,11 +252,14 @@ class Polygon(object):
         p2 = v2.coordinates
 
         for v3 in self.vertices:
-
             p3 = v3.coordinates
             # since consequent vertices are not permitted to be equal,
             #   the angle representation of the difference is well defined
-            if (AngleRepresentation(p3 - p2).value - AngleRepresentation(p1 - p2).value) % 4 < 2.0:
+            diff_p3_p2 = p3 - p2
+            # TODO optimise
+            diff_p1_p2 = p1 - p2
+
+            if (AngleRepresentation(diff_p3_p2).value - AngleRepresentation(diff_p1_p2).value) % 4 < 2.0:
                 # basic idea:
                 #   - translate the coordinate system to have p2 as origin
                 #   - compute the angle representations of both vectors representing the edges
@@ -267,13 +270,17 @@ class Polygon(object):
                 #   (for boundary polygon inside, for holes outside) between p1p2p3 is > 180 degree
                 # then p2 = extremity
                 v2.declare_extremity()
-                self._extremities.append(v2)
+                extremities.append(v2)
 
             # move to the next point
             # vertex1=vertex2
-            v2 = v3
+            # TODO optimise
+            diff_p1_p2 = diff_p3_p2
             p1 = p2
+            v2 = v3
             p2 = p3
+
+        self._extremities = extremities
 
     @property
     def extremities(self) -> List[PolygonVertex]:

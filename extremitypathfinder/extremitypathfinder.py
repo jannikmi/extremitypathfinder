@@ -1,7 +1,7 @@
 import itertools
 import pickle
 from copy import deepcopy
-from typing import Iterable, Iterator, List, Optional, Tuple
+from typing import Iterable, List, Optional, Set, Tuple
 
 import numpy as np
 
@@ -59,6 +59,7 @@ class PolygonEnvironment:
     graph: DirectedHeuristicGraph = None
     temp_graph: DirectedHeuristicGraph = None  # for storing and plotting the graph during a query
     _all_extremities: Optional[List[PolygonVertex]] = None
+    _all_vertices: Optional[List[PolygonVertex]] = None
 
     @property
     def polygons(self) -> Iterable[Polygon]:
@@ -66,19 +67,26 @@ class PolygonEnvironment:
         yield from self.holes
 
     @property
-    def all_vertices(self) -> Iterator[PolygonVertex]:
+    def all_vertices(self) -> List[PolygonVertex]:
+        if self._all_vertices is None:
+            self._all_vertices = list(itertools.chain(*iter(p.vertices for p in self.polygons)))
+        return self._all_vertices
+
+    @property
+    def extremity_indices(self) -> Set[int]:
+        # TODO refactor
         for p in self.polygons:
-            yield from p.vertices
+            p._find_extremities()
+        # Attention: only consider extremities that are actually within the map
+        return {idx for idx, v in enumerate(self.all_vertices) if v.is_extremity and self.within_map(v.coordinates)}
 
     @property
     def all_extremities(self) -> List[PolygonVertex]:
-        if self._all_extremities is None:
-            poly_extremities = iter(p.extremities for p in self.polygons)
-            extremities_chained = itertools.chain(*poly_extremities)
-            # only consider extremities that are actually within the map
-            extremities = list(filter(lambda e: self.within_map(e.coordinates), extremities_chained))
-            self._all_extremities = extremities
-        return self._all_extremities
+        return [self.all_vertices[i] for i in self.extremity_indices]
+
+        # TODO
+        # if self._all_extremities is None:
+        # return self._all_extremities
 
     @property
     def all_edges(self) -> Iterable[Edge]:
@@ -185,51 +193,65 @@ class PolygonEnvironment:
         extremities = self.all_extremities
         self.graph = DirectedHeuristicGraph(extremities)
 
-        extremities_to_check = set(extremities)
+        # extremities_to_check = set(extremities)
 
-        vertices = list(self.all_vertices)
+        vertices = self.all_vertices
         nr_vertices = len(vertices)
+        extremity_indices = self.extremity_indices
+
+        if len(extremity_indices) != len(extremities):
+            raise ValueError
 
         # TODO sparse matrix. problematic: default value is 0.0
         angle_representations = np.full((nr_vertices, nr_vertices), np.nan)
 
-        def get_angle_representation(v1: PolygonVertex, v2: PolygonVertex) -> float:
-            i1 = vertices.index(v1)
-            i2 = vertices.index(v2)
+        def get_angle_representation(i1: int, i2: int) -> float:
             repr = angle_representations[i1, i2]
 
             # lazy initalisation: compute on demand only
             if np.isnan(repr):  # attention: repr == np.nan does not match!
+                v1 = vertices[i1]
+                v2 = vertices[i2]
                 repr = compute_angle_repr(v1, v2)
                 angle_representations[i1, i2] = repr
+
+                # TODO not required. only triangle required?!
                 # make use of symmetry: rotate 180 deg
                 angle_representations[i2, i1] = angle_rep_inverse(repr)
 
+            # TODO
             assert repr is None or not np.isnan(repr)
             return repr
 
-        def angle_repr_not_none(v1: PolygonVertex, v2: PolygonVertex) -> bool:
-            return get_angle_representation(v1, v2) is not None
+        def angle_repr_is_none(i1: int, i2: int) -> bool:
+            return get_angle_representation(i1, i2) is None
 
         # have to run for all (also last one!), because existing edges might get deleted every loop
-        while len(extremities_to_check) > 0:
+        while len(extremity_indices) > 0:
+            # while len(extremities_to_check) > 0:
             # extremities are always visible to each other (bi-directional relation -> undirected graph)
             #  -> do not check extremities which have been checked already
             #  (would only give the same result when algorithms are correct)
             # the extremity itself must not be checked when looking for visible neighbours
-            query_extremity: PolygonVertex = extremities_to_check.pop()
+            # query_extremity: PolygonVertex = extremities_to_check.pop()
+            idx = extremity_indices.pop()
+            query_extremity = vertices[idx]
 
             self.translate(new_origin=query_extremity)
 
             visible_vertices = set()
-            candidate_extremities = extremities_to_check.copy()
+
+            candidate_idxs = extremity_indices.copy()  # independent copy
             # remove the extremities with the same coordinates as the query extremity
-            candidate_extremities.difference_update(
-                {c for c in candidate_extremities if c.get_angle_representation() is None}
-            )
+            # candidates.difference_update(
+            #     {c for c in candidates if get_angle_representation(idx, c) is None}
+            # )
+            candidate_idxs.difference_update({i for i in candidate_idxs if angle_repr_is_none(idx, i)})
 
             # these vertices all belong to a polygon
             n1, n2 = query_extremity.get_neighbours()
+            idx_n1 = vertices.index(n1)
+            idx_n2 = vertices.index(n2)
             # ATTENTION: polygons may intersect -> neighbouring extremities must NOT be visible from each other!
 
             # eliminate all vertices 'behind' the query point from the candidate set
@@ -238,19 +260,25 @@ class PolygonEnvironment:
             # all vertices between the angle of the two neighbouring edges ('outer side')
             #   are not visible (no candidates!)
             # ATTENTION: vertices with the same angle representation might be visible and must NOT be deleted!
-            n1_repr = get_angle_representation(query_extremity, n1)
+            n1_repr = get_angle_representation(idx, idx_n1)
+
+            # TODO
             repr1_ = n1.get_angle_representation()
             if n1_repr != pytest.approx(repr1_):
                 raise ValueError
-            n2_repr = get_angle_representation(query_extremity, n2)
+
+            n2_repr = get_angle_representation(idx, idx_n2)
+
+            # TODO
+            candidates = {vertices[i] for i in candidate_idxs}
             candidates_behind_edge = find_within_range(
                 n1_repr,
                 n2_repr,
-                candidate_extremities,
+                candidates,
                 angle_range_less_180=True,
                 equal_repr_allowed=False,
             )
-            candidate_extremities.difference_update(candidates_behind_edge)
+            candidates.difference_update(candidates_behind_edge)
 
             # as shown in [1, Ch. II 4.4.2 "Property One"]: Starting from any point lying "in front of" an extremity e,
             # such that both adjacent edges are visible, one will never visit e, because everything is
@@ -269,7 +297,7 @@ class PolygonEnvironment:
             # IMPORTANT: check all extremities here, not just current candidates
             # do not check extremities with equal coordinates (also query extremity itself!)
             #   and with the same angle representation (those edges must not get deleted from graph!)
-            temp_candidates = {e for e in extremities if angle_repr_not_none(query_extremity, e)}
+            temp_candidates = {vertices[i] for i in extremity_indices if not angle_repr_is_none(idx, i)}
             lie_in_front = find_within_range(
                 n1_repr,
                 n2_repr,
@@ -281,14 +309,14 @@ class PolygonEnvironment:
             # already existing edges in the graph to the extremities in front have to be removed
             self.graph.remove_multiple_undirected_edges(query_extremity, lie_in_front)
             # do not consider when looking for visible extremities (NOTE: they might actually be visible!)
-            candidate_extremities.difference_update(lie_in_front)
+            candidates.difference_update(lie_in_front)
 
             # all edges except the neighbouring edges (handled above!) have to be checked
             edges_to_check = set(self.all_edges)
             edges_to_check.remove(query_extremity.edge1)
             edges_to_check.remove(query_extremity.edge2)
 
-            visible_vertices.update(find_visible(candidate_extremities, edges_to_check))
+            visible_vertices.update(find_visible(candidates, edges_to_check))
             self.graph.add_multiple_undirected_edges(query_extremity, visible_vertices)
 
         self.graph.make_clean()  # join all nodes with the same coordinates

@@ -344,9 +344,11 @@ class MainTest(unittest.TestCase):
         grid_env = ENVIRONMENT_CLASS(**CONSTRUCTION_KWARGS)
 
         grid_env.store_grid_world(*GRID_ENV_PARAMS, simplify=False, validate=False)
-        assert len(list(grid_env.all_extremities)) == 17, "extremities do not get detected correctly!"
+        nr_extremities = len(list(grid_env.all_extremities))
+        assert nr_extremities == 17, "extremities do not get detected correctly!"
         grid_env.prepare()
-        assert len(grid_env.graph.all_nodes) == 16, "identical nodes should get joined in the graph!"
+        nr_graph_nodes = len(grid_env.graph.all_nodes)
+        assert nr_graph_nodes == 16, "identical nodes should get joined in the graph!"
 
         # test if points outside the map are being rejected
         for start_coordinates, goal_coordinates in INVALID_DESTINATION_DATA:
