@@ -62,10 +62,13 @@ class PolygonEnvironment:
     @property
     def all_extremities(self) -> Set[PolygonVertex]:
         if self._all_extremities is None:
-            self._all_extremities = set()
+            extremities = set()
             for p in self.polygons:
-                # only extremities that are actually within the map should be considered
-                self._all_extremities |= set(filter(lambda e: self.within_map(e.coordinates), p.extremities))
+                extremities |= set(p.extremities)
+
+            # only consider extremities that are actually within the map
+            extremities = set(filter(lambda e: self.within_map(e.coordinates), extremities))
+            self._all_extremities = extremities
         return self._all_extremities
 
     @property
