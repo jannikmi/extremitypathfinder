@@ -144,6 +144,21 @@ TEST_DATA_GRID_ENV = [
         ((6.5, 4), (7, 9)),
         ([(6.5, 4.0), (7, 6), (8, 7), (8, 8), (7, 9)], 5.889979937555021),
     ),
+    # symmetric around the lower boundary obstacle
+    (
+        ((0.5, 0.5), (0.5, 2.5)),
+        ([(0.5, 0.5), (4, 1), (4, 2), (0.5, 2.5)], 8.071067811865476),
+    ),
+    # symmetric around the lower right boundary obstacle
+    (
+        ((16.5, 0.5), (18.5, 0.5)),
+        ([(16.5, 0.5), (17, 6), (18, 6), (18.5, 0.5)], 12.045361017187261),
+    ),
+    # symmetric around the top right boundary obstacle
+    (
+        ((16.5, 9.5), (18.5, 9.5)),
+        ([(16.5, 9.5), (17, 7), (18, 7), (18.5, 9.5)], 6.0990195135927845),
+    ),
 ]
 
 POLY_ENV_PARAMS = (
@@ -191,6 +206,12 @@ TEST_DATA_POLY_ENV = [
     # using a* graph search:
     # directly reachable through a single vertex (does not change distance!)
     (((9, 4), (9, 6)), ([(9, 4), (9, 5), (9, 6)], 2)),
+    # slightly indented, path must go through right boundary extremity
+    (((9.1, 4), (9.1, 6)), ([(9.1, 4.0), (9.0, 5.0), (9.1, 6.0)], 2.009975124224178)),
+    # path must go through lower hole extremity
+    (((4, 4.5), (6, 4.5)), ([(4.0, 4.5), (5.0, 4.0), (6.0, 4.5)], 2.23606797749979)),
+    # path must go through top hole extremity
+    (((4, 8.5), (6, 8.5)), ([(4.0, 8.5), (5.0, 9.0), (6.0, 8.5)], 2.23606797749979)),
 ]
 
 OVERLAP_POLY_ENV_PARAMS = (
@@ -296,8 +317,7 @@ def try_test_cases(environment, test_cases):
         else:
             status_str = "XX"
         print(f"{status_str} input: {(start_coordinates, goal_coordinates)} ")
-        if PLOT_TEST_RESULTS:
-            assert correct_result, f"unexpected result (path, length): got {output} instead of {expected_output} "
+        assert correct_result, f"unexpected result (path, length): got {output} instead of {expected_output} "
 
     print("testing if path and distance are correct:")
     for ((start_coordinates, goal_coordinates), expected_output) in test_cases:
@@ -309,13 +329,12 @@ def try_test_cases(environment, test_cases):
 
 
 class MainTest(unittest.TestCase):
-    def test_fct(self):
+    def test_grid_env(self):
         grid_env = ENVIRONMENT_CLASS(**CONSTRUCTION_KWARGS)
 
         grid_env.store_grid_world(*GRID_ENV_PARAMS, simplify=False, validate=False)
         assert len(list(grid_env.all_extremities)) == 17, "extremities do not get detected correctly!"
         grid_env.prepare()
-        # raise ValueError
         assert len(grid_env.graph.all_nodes) == 16, "identical nodes should get joined in the graph!"
 
         # test if points outside the map are being rejected
@@ -333,6 +352,7 @@ class MainTest(unittest.TestCase):
 
         nr_nodes_env1_old = len(grid_env.graph.all_nodes)
 
+    def test_poly_env(self):
         poly_env = ENVIRONMENT_CLASS(**CONSTRUCTION_KWARGS)
         poly_env.store(*POLY_ENV_PARAMS, validate=True)
         NR_EXTR_POLY_ENV = 4
@@ -346,14 +366,14 @@ class MainTest(unittest.TestCase):
             f"\n found: {poly_env.graph.all_nodes}"
         )
 
-        nr_nodes_env1_new = len(grid_env.graph.all_nodes)
-        assert (
-            nr_nodes_env1_new == nr_nodes_env1_old
-        ), "node amount of an grid_env should not change by creating another grid_env!"
-        assert grid_env.graph is not poly_env.graph, "different environments share the same graph object"
-        assert (
-            grid_env.graph.all_nodes is not poly_env.graph.all_nodes
-        ), "different environments share the same set of nodes"
+        # nr_nodes_env1_new = len(grid_env.graph.all_nodes)
+        # assert (
+        #     nr_nodes_env1_new == nr_nodes_env1_old
+        # ), "node amount of an grid_env should not change by creating another grid_env!"
+        # assert grid_env.graph is not poly_env.graph, "different environments share the same graph object"
+        # assert (
+        #     grid_env.graph.all_nodes is not poly_env.graph.all_nodes
+        # ), "different environments share the same set of nodes"
 
         print("\ntesting polygon environment")
         try_test_cases(poly_env, TEST_DATA_POLY_ENV)
