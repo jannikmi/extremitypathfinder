@@ -549,8 +549,8 @@ class PolygonEnvironment:
         #     _ = 1
 
         # visible_vertex2dist_map = {vertices[i]: get_distance_to_origin(coords_origin, i) for i in visible_idxs}
-        visibles_n_distances_goal = {(vertices[i], vert_idx2dist[i]) for i in visible_idxs}
-        # visibles_n_distances_goal = {(vertices[i], vert_idx2dist[i]) for i in visible_idxs_}
+        # visibles_n_distances_goal = {(vertices[i], vert_idx2dist[i]) for i in visible_idxs}
+        visibles_n_distances_goal = {(vertices[i], vert_idx2dist[i]) for i in visible_idxs_}
 
         if len(visibles_n_distances_goal) == 0:
             # The goal node does not have any neighbours. Hence there is not possible path to the goal.
@@ -606,8 +606,8 @@ class PolygonEnvironment:
             return [], None
 
         # add edges in the direction: start -> extremity
-        # visibles_n_distances_map = {i: vert_idx2dist[i] for i in visible_idxs}
-        visibles_n_distances_map = {vertices.index(v): d for v, d in visibles_n_distances_start}
+        visibles_n_distances_map = {i: vert_idx2dist[i] for i in visible_idxs}
+        # visibles_n_distances_map = {vertices.index(v): d for v, d in visibles_n_distances_start}
         if idx_start in visible_idxs:
             raise ValueError
         temp_graph.add_multiple_directed_edges(idx_start, visibles_n_distances_map)

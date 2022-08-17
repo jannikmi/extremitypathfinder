@@ -869,10 +869,7 @@ def find_visible2(
     # all edges have been checked
     # all remaining vertices were not concealed behind any edge and hence are visible
     visible_idxs.update(cand_idxs)
-
-    # TODO?!
-    # return clean_visible_idxs(visible_idxs, cand_idx2repr_full, vert_idx2dist)
-    return visible_idxs
+    return clean_visible_idxs(visible_idxs, vert_idx2repr, vert_idx2dist)
 
 
 def clean_visible_idxs(
@@ -882,23 +879,26 @@ def clean_visible_idxs(
     if len(visible_idxs) == 0:
         return visible_idxs
 
-    visible_idxs_clean = set()
+    cleaned = set()
     visible_idxs_sorted = sorted(visible_idxs, key=lambda i: cand_idx2repr[i])
     min_dist = np.inf
-    rep_prev = cand_idx2repr[visible_idxs_sorted[0]]
+    first_idx = visible_idxs_sorted[0]
+    rep_prev = cand_idx2repr[first_idx]
     selected_idx = 0
     for i in visible_idxs_sorted:
         rep = cand_idx2repr[i]
         if rep != rep_prev:
-            visible_idxs_clean.add(selected_idx)
+            cleaned.add(selected_idx)
             min_dist = np.inf
             rep_prev = rep
 
-        if vert_idx2dist[i] < min_dist:
+        dist = vert_idx2dist[i]
+        if dist < min_dist:
             selected_idx = i
+            min_dist = dist
 
-    visible_idxs_clean.add(selected_idx)
-    return visible_idxs_clean
+    cleaned.add(selected_idx)
+    return cleaned
 
 
 def try_extraction(json_data, key):
