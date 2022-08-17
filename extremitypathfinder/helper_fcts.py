@@ -1,6 +1,6 @@
 import json
 from itertools import combinations
-from typing import List, Set
+from typing import List, Set, Tuple
 
 import numpy as np
 
@@ -698,10 +698,10 @@ def find_visible2(
     angle_representations: np.ndarray,
     vertices: List["PolygonVertex"],
     coords: np.ndarray,
-    edge_idxs: np.ndarray,
-    neighbour_idxs: np.ndarray,
+    vertex_edge_idxs: np.ndarray,
+    edge_vertex_idxs: np.ndarray,
     origin_idx: int,
-    edges_to_check: Set,
+    edge_idxs2check: Set[int],
 ):
     """
     query_vertex: a vertex for which the visibility to the vertices should be checked.
@@ -719,9 +719,6 @@ def find_visible2(
 
     coords_origin = coords[origin_idx]
 
-    nr_edges = neighbour_idxs.shape[0]
-    edge_idxs2check = set(range(nr_edges))
-
     def get_coordinates_translated(i: int) -> np.ndarray:
         coords_v = coords[i]
         return coords_v - coords_origin
@@ -733,56 +730,56 @@ def find_visible2(
     def get_repr(i: int) -> float:
         return get_angle_representation(origin_idx, i, angle_representations, coords)
 
+    def get_neighbours(i: int) -> Tuple[int, int]:
+        edge_idx1, edge_idx2 = vertex_edge_idxs[i]
+        neigh_idx1, i2_ = edge_vertex_idxs[edge_idx1]
+        i1_, neigh_idx2 = edge_vertex_idxs[edge_idx2]
+        # TODO
+        assert i2_ == i2_
+        return neigh_idx1, neigh_idx2
+
     def is_extremity(i: int) -> bool:
         return extremity_mask[i]
 
     # goal: eliminating all vertices lying 'behind' any edge
-    while len(edges_to_check) > 0 and len(candidate_idxs) > 0:
-
-        # TODO use indices only
-        edge = edges_to_check.pop()
-        v1, v2 = edge.vertex1, edge.vertex2
-        idx_v1 = vertices.index(v1)
-        idx_v2 = vertices.index(v2)
-
-        # edge_idx = edge_idxs2check.pop()
-        # idx_v1, idx_v2 = neighbour_idxs[edge_idx]
-        # v1 = vertices[idx_v1]
-        # v2 = vertices[idx_v2]
+    while len(edge_idxs2check) > 0 and len(candidate_idxs) > 0:
+        edge_idx = edge_idxs2check.pop()
+        idx_v1, idx_v2 = edge_vertex_idxs[edge_idx]
 
         lies_on_edge = False
         range_less_180 = False
 
         if get_distance_to_origin(idx_v1) == 0.0:
-            # vertex1 has the same coordinates as the query vertex -> on the edge
+            # vertex1 of the edge has the same coordinates as the query vertex
+            # -> the origin lies on the edge
             lies_on_edge = True
-            # (but does not belong to the same polygon, not identical!)
+            # (note: not identical, does not belong to the same polygon!)
             # mark this vertex as not visible (would otherwise add 0 distance edge in the graph)
             candidate_idxs.discard(idx_v1)
 
-            # its angle representation is not defined (no line segment from vertex1 to query vertex!)
+            # no points lie truly "behind" this edge as there is no "direction of sight" defined
+            # <-> angle representation/range undefined for just this single edge
+            # however if one considers the point neighbouring in the other direction (<-> two edges)
+            # these two neighbouring edges define an invisible angle range
+            # -> simply move the pointer
+            idx_v1, idx_v2 = get_neighbours(idx_v1)
             range_less_180 = is_extremity(idx_v1)
-            # do not check the other neighbouring edge of vertex1 in the future
-            e1 = v1.edge1
-            edges_to_check.discard(e1)
-            edge_idx1, _ = edge_idxs[idx_v1]
+
+            # do not check the other neighbouring edge of vertex1 in the future (has been considered already)
+            edge_idx1, _ = vertex_edge_idxs[idx_v1]
             edge_idxs2check.discard(edge_idx1)
-            # everything between its two neighbouring edges is not visible for sure
-            v1, v2 = v1.get_neighbours()
-            idx_v1 = vertices.index(v1)
-            idx_v2 = vertices.index(v2)
 
         elif get_distance_to_origin(idx_v2) == 0.0:
+            # same for vertex2 of the edge
+            # NOTE: it is unsupported that v1 as well as v2 have the same coordinates as the query vertex
+            # (edge with length 0)
             lies_on_edge = True
             candidate_idxs.discard(idx_v2)
             range_less_180 = is_extremity(idx_v2)
-            e1 = v2.edge2
-            edges_to_check.discard(e1)
-            _, edge_idx2 = edge_idxs[idx_v2]
+            _, edge_idx2 = vertex_edge_idxs[idx_v2]
             edge_idxs2check.discard(edge_idx2)
-            v1, v2 = v2.get_neighbours()
-            idx_v1 = vertices.index(v1)
-            idx_v2 = vertices.index(v2)
+
+            idx_v1, idx_v2 = get_neighbours(idx_v2)
 
         repr1 = get_repr(idx_v1)
         repr2 = get_repr(idx_v2)
@@ -874,7 +871,6 @@ def find_visible2(
 
     # all edges have been checked
     # all remaining vertices were not concealed behind any edge and hence are visible
-
     visible_idxs.update(candidate_idxs)
 
     # return a set of tuples: (vertex, distance)

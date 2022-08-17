@@ -215,12 +215,14 @@ class PolygonEnvironment:
         coordinates = np.stack([v.coordinates for v in vertices])
 
         # TODO more performant way of computing
-        edges = list(self.all_edges)
+        all_edges = list(self.all_edges)
         # TODO better name
-        edge_idxs = np.stack([(edges.index(v.edge1), edges.index(v.edge2)) for v in vertices])
+        vertex_edge_idxs = np.stack([(all_edges.index(v.edge1), all_edges.index(v.edge2)) for v in vertices])
         # TODO sparse matrix. problematic: default value is 0.0
         angle_representations = np.full((nr_vertices, nr_vertices), np.nan)
-        neighbour_idxs = np.stack([(vertices.index(edge.vertex1), vertices.index(edge.vertex2)) for edge in edges])
+        edge_vertex_idxs = np.stack(
+            [(vertices.index(edge.vertex1), vertices.index(edge.vertex2)) for edge in all_edges]
+        )
 
         if len(extremity_indices) != len(extremities):
             raise ValueError
@@ -235,11 +237,11 @@ class PolygonEnvironment:
             #  -> do not check extremities which have been checked already
             #  (would only give the same result when algorithms are correct)
             # the extremity itself must not be checked when looking for visible neighbours
-            # query_extremity: PolygonVertex = extremities_to_check.pop()
+            # origin_extremity: PolygonVertex = extremities_to_check.pop()
             origin_idx = extremity_indices.pop()
-            query_extremity = vertices[origin_idx]
+            origin_extremity = vertices[origin_idx]
 
-            # self.translate(new_origin=query_extremity)
+            # self.translate(new_origin=origin_extremity)
 
             # only consider extremities with coordinates different from the query extremity
             # (angle representation not None)
@@ -249,7 +251,7 @@ class PolygonEnvironment:
             # )
 
             # these vertices all belong to a polygon
-            n1, n2 = query_extremity.get_neighbours()
+            n1, n2 = origin_extremity.get_neighbours()
             idx_n1 = vertices.index(n1)
             idx_n2 = vertices.index(n2)
             # ATTENTION: polygons may intersect -> neighbouring extremities must NOT be visible from each other!
@@ -311,26 +313,29 @@ class PolygonEnvironment:
             # already existing edges in the graph to the extremities in front have to be removed
             # TODO graph: also use indices instead of vertices
             lie_in_front = {vertices[i] for i in lie_in_front_idx}
-            self.graph.remove_multiple_undirected_edges(query_extremity, lie_in_front)
+            self.graph.remove_multiple_undirected_edges(origin_extremity, lie_in_front)
             # do not consider when looking for visible extremities, even if they are actually be visible
             candidate_idxs.difference_update(idx_behind)
 
             # all edges except the neighbouring edges (handled above!) have to be checked
-            edges_to_check = self.all_edges
-            edges_to_check.remove(query_extremity.edge1)
-            edges_to_check.remove(query_extremity.edge2)
+            nr_edges = len(all_edges)
+            edge_idxs2check = set(range(nr_edges))
+            edge1_idx, edge2_idx = vertex_edge_idxs[origin_idx]
+            edge_idxs2check.remove(edge1_idx)
+            edge_idxs2check.remove(edge2_idx)
+
             visible_vertices = find_visible2(
                 candidate_idxs,
                 extremity_mask,
                 angle_representations,
                 vertices,
                 coordinates,
-                edge_idxs,
-                neighbour_idxs,
+                vertex_edge_idxs,
+                edge_vertex_idxs,
                 origin_idx,
-                edges_to_check,
+                edge_idxs2check,
             )
-            self.graph.add_multiple_undirected_edges(query_extremity, visible_vertices)
+            self.graph.add_multiple_undirected_edges(origin_extremity, visible_vertices)
 
         self.graph.make_clean()  # join all nodes with the same coordinates
         self.prepared = True
