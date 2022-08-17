@@ -1,6 +1,6 @@
 import json
 from itertools import combinations
-from typing import List, Set, Tuple
+from typing import Dict, List, Set, Tuple
 
 import numpy as np
 
@@ -296,10 +296,7 @@ def find_within_range(repr1: float, repr2: float, vertex_set, angle_range_less_1
 def find_within_range2(
     repr1: float,
     repr2: float,
-    candidate_idx: Set[int],
-    angle_representations: np.ndarray,
-    coords: np.ndarray,
-    origin_idx: int,
+    idx2repr: Dict[int, float],
     angle_range_less_180: bool,
     equal_repr_allowed: bool,
 ) -> Set[int]:
@@ -315,7 +312,7 @@ def find_within_range2(
     :param equal_repr_allowed: whether vertices with the same representation should also be returned
     :return:
     """
-    if len(candidate_idx) == 0:
+    if len(idx2repr) == 0:
         return set()
 
     repr_diff = abs(repr1 - repr2)
@@ -354,11 +351,8 @@ def find_within_range2(
             res = not res
         return res
 
-    def get_repr(i1, i2):
-        return get_angle_representation(i1, i2, angle_representations, coords)
-
-    idx_within = {idx for idx in candidate_idx if within_filter_func(get_repr(origin_idx, idx))}
-    return idx_within
+    idxs_within = {i for i, r in idx2repr.items() if within_filter_func(r)}
+    return idxs_within
 
 
 def convert_gridworld(size_x: int, size_y: int, obstacle_iter: iter, simplify: bool = True) -> (list, list):
@@ -807,13 +801,11 @@ def find_visible2(
 
             # all the candidates between the two vertices v1 v2 are not visible for sure
             # candidates with the same representation should not be deleted, because they can be visible!
+            idx2repr = {i: get_repr(i) for i in candidate_idxs}
             invisible_candidate_idxs = find_within_range2(
                 repr1,
                 repr2,
-                candidate_idxs,
-                angle_representations,
-                coords,
-                origin_idx,
+                idx2repr,
                 angle_range_less_180=range_less_180,
                 equal_repr_allowed=False,
             )
@@ -835,13 +827,11 @@ def find_visible2(
         #   is always < 180deg when the edge is not running through the query point (=180 deg)
         #  candidates with the same representation as v1 or v2 should be considered.
         #   they can be visible, but should be ruled out if they lie behind any edge!
+        idx2repr = {i: get_repr(i) for i in idxs2check}
         idxs2check = find_within_range2(
             repr1,
             repr2,
-            idxs2check,
-            angle_representations,
-            coords,
-            origin_idx,
+            idx2repr,
             angle_range_less_180=True,
             equal_repr_allowed=True,
         )

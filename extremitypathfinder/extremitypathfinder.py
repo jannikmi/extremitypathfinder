@@ -263,23 +263,17 @@ class PolygonEnvironment:
             #   are not visible (no candidates!)
             # ATTENTION: vertices with the same angle representation might be visible and must NOT be deleted!
             n1_repr = get_repr(origin_idx, idx_n1)
-
-            # TODO
-
             n2_repr = get_repr(origin_idx, idx_n2)
 
-            # TODO
-            idx_behind = find_within_range2(
+            idx2repr = {i: get_repr(origin_idx, i) for i in candidate_idxs}
+            idxs_behind = find_within_range2(
                 n1_repr,
                 n2_repr,
-                candidate_idxs,
-                angle_representations,
-                coordinates,
-                origin_idx,
+                idx2repr,
                 angle_range_less_180=True,
                 equal_repr_allowed=False,
             )
-            candidate_idxs.difference_update(idx_behind)
+            candidate_idxs.difference_update(idxs_behind)
 
             # as shown in [1, Ch. II 4.4.2 "Property One"]: Starting from any point lying "in front of" an extremity e,
             # such that both adjacent edges are visible, one will never visit e, because everything is
@@ -293,19 +287,16 @@ class PolygonEnvironment:
             # When a query point (start/goal) happens to be an extremity, edges to the (visible) extremities in front
             # MUST be added to the graph!
             # Find extremities which fulfill this condition for the given query extremity
-            n1_repr = angle_rep_inverse(n1_repr)
-            n2_repr = angle_rep_inverse(n2_repr)
+            n1_repr_inv = angle_rep_inverse(n1_repr)
+            n2_repr_inv = angle_rep_inverse(n2_repr)
             # IMPORTANT: check all extremities here, not just current candidates
             # do not check extremities with equal coordinates (also query extremity itself!)
             #   and with the same angle representation (those edges must not get deleted from graph!)
-            temp_idxs = {i for i in extremity_indices if get_repr(origin_idx, i) is not None}
+            idx2repr = {i: get_repr(origin_idx, i) for i in extremity_indices if get_repr(origin_idx, i) is not None}
             lie_in_front_idx = find_within_range2(
-                n1_repr,
-                n2_repr,
-                temp_idxs,
-                angle_representations,
-                coordinates,
-                origin_idx,
+                n1_repr_inv,
+                n2_repr_inv,
+                idx2repr,
                 angle_range_less_180=True,
                 equal_repr_allowed=False,
             )
@@ -315,7 +306,7 @@ class PolygonEnvironment:
             lie_in_front = {vertices[i] for i in lie_in_front_idx}
             self.graph.remove_multiple_undirected_edges(origin_extremity, lie_in_front)
             # do not consider when looking for visible extremities, even if they are actually be visible
-            candidate_idxs.difference_update(idx_behind)
+            candidate_idxs.difference_update(idxs_behind)
 
             # all edges except the neighbouring edges (handled above!) have to be checked
             nr_edges = len(all_edges)
