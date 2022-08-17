@@ -5,9 +5,6 @@ from typing import Iterable, List, Optional, Set, Tuple
 
 import numpy as np
 
-# TODO possible to allow polygon consisting of 2 vertices only(=barrier)? lots of functions need at least 3 vertices atm
-import pytest
-
 from extremitypathfinder.global_settings import (
     DEFAULT_PICKLE_NAME,
     INPUT_COORD_LIST_TYPE,
@@ -34,6 +31,8 @@ from extremitypathfinder.helper_fcts import (
     get_angle_representation,
     inside_polygon,
 )
+
+# TODO possible to allow polygon consisting of 2 vertices only(=barrier)? lots of functions need at least 3 vertices atm
 
 
 # is not a helper function to make it an importable part of the package
@@ -182,7 +181,6 @@ class PolygonEnvironment:
             and storing them in the graph would not be an advantage, because then the graph is fully connected.
             A star would visit every node in the graph at least once (-> disadvantage!).
         """
-
         if self.prepared:
             raise ValueError("this environment is already prepared. load new polygons first.")
 
@@ -193,21 +191,29 @@ class PolygonEnvironment:
         #   even if a node has no edges (visibility to other extremities), it should still be included!
         extremities = self.all_extremities
         self.graph = DirectedHeuristicGraph(extremities)
+        nr_extremities = len(extremities)
+        if nr_extremities == 0:
+            return
 
-        # extremities_to_check = set(extremities)
+            # extremities_to_check = set(extremities)
 
         vertices = self.all_vertices
         nr_vertices = len(vertices)
         extremity_indices = self.extremity_indices
+        coordinates = np.stack([v.coordinates for v in vertices])
+
+        # TODO more performant way of computing
+        edges = list(self.all_edges)
+        edge_idxs = np.stack([(edges.index(e.edge1), edges.index(e.edge2)) for e in extremities])
+        # TODO sparse matrix. problematic: default value is 0.0
+        angle_representations = np.full((nr_vertices, nr_vertices), np.nan)
+        neighbour_idxs = np.stack([(vertices.index(edge.vertex1), vertices.index(edge.vertex2)) for edge in edges])
 
         if len(extremity_indices) != len(extremities):
             raise ValueError
 
-        # TODO sparse matrix. problematic: default value is 0.0
-        angle_representations = np.full((nr_vertices, nr_vertices), np.nan)
-
         def get_repr(i1, i2):
-            return get_angle_representation(i1, i2, angle_representations, vertices)
+            return get_angle_representation(i1, i2, angle_representations, coordinates)
 
         # have to run for all (also last one!), because existing edges might get deleted every loop
         while len(extremity_indices) > 0:
@@ -217,14 +223,14 @@ class PolygonEnvironment:
             #  (would only give the same result when algorithms are correct)
             # the extremity itself must not be checked when looking for visible neighbours
             # query_extremity: PolygonVertex = extremities_to_check.pop()
-            idx = extremity_indices.pop()
-            query_extremity = vertices[idx]
+            origin_idx = extremity_indices.pop()
+            query_extremity = vertices[origin_idx]
 
-            self.translate(new_origin=query_extremity)
+            # self.translate(new_origin=query_extremity)
 
             # only consider extremities with coordinates different from the query extremity
             # (angle representation not None)
-            candidate_idxs = {i for i in extremity_indices if get_repr(idx, i) is not None}
+            candidate_idxs = {i for i in extremity_indices if get_repr(origin_idx, i) is not None}
             # candidates.difference_update(
             #     {c for c in candidates if get_angle_representation(idx, c) is None}
             # )
@@ -241,14 +247,11 @@ class PolygonEnvironment:
             # all vertices between the angle of the two neighbouring edges ('outer side')
             #   are not visible (no candidates!)
             # ATTENTION: vertices with the same angle representation might be visible and must NOT be deleted!
-            n1_repr = get_repr(idx, idx_n1)
+            n1_repr = get_repr(origin_idx, idx_n1)
 
             # TODO
-            repr1_ = n1.get_angle_representation()
-            if n1_repr != pytest.approx(repr1_):
-                raise ValueError
 
-            n2_repr = get_repr(idx, idx_n2)
+            n2_repr = get_repr(origin_idx, idx_n2)
 
             # TODO
             idx_behind = find_within_range2(
@@ -256,8 +259,8 @@ class PolygonEnvironment:
                 n2_repr,
                 candidate_idxs,
                 angle_representations,
-                vertices,
-                idx,
+                coordinates,
+                origin_idx,
                 angle_range_less_180=True,
                 equal_repr_allowed=False,
             )
@@ -280,14 +283,14 @@ class PolygonEnvironment:
             # IMPORTANT: check all extremities here, not just current candidates
             # do not check extremities with equal coordinates (also query extremity itself!)
             #   and with the same angle representation (those edges must not get deleted from graph!)
-            temp_idxs = {i for i in extremity_indices if get_repr(idx, i) is not None}
+            temp_idxs = {i for i in extremity_indices if get_repr(origin_idx, i) is not None}
             lie_in_front_idx = find_within_range2(
                 n1_repr,
                 n2_repr,
                 temp_idxs,
                 angle_representations,
-                vertices,
-                idx,
+                coordinates,
+                origin_idx,
                 angle_range_less_180=True,
                 equal_repr_allowed=False,
             )
@@ -303,7 +306,16 @@ class PolygonEnvironment:
             edges_to_check = self.all_edges
             edges_to_check.remove(query_extremity.edge1)
             edges_to_check.remove(query_extremity.edge2)
-            visible_vertices = find_visible2(candidate_idxs, angle_representations, vertices, idx, edges_to_check)
+            visible_vertices = find_visible2(
+                candidate_idxs,
+                angle_representations,
+                vertices,
+                coordinates,
+                edge_idxs,
+                neighbour_idxs,
+                origin_idx,
+                edges_to_check,
+            )
             self.graph.add_multiple_undirected_edges(query_extremity, visible_vertices)
 
         self.graph.make_clean()  # join all nodes with the same coordinates

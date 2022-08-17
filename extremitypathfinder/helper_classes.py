@@ -146,8 +146,8 @@ class Vertex(object):
         self.is_outdated = True
 
 
-def compute_angle_repr(v1: Vertex, v2: Vertex) -> Optional[float]:
-    diff_vect = v2.coordinates - v1.coordinates
+def compute_angle_repr(coords_v1: np.ndarray, coords_v2: np.ndarray) -> Optional[float]:
+    diff_vect = coords_v2 - coords_v1
     if np.all(diff_vect == 0.0):
         return None
     return compute_angle_repr_inner(diff_vect)

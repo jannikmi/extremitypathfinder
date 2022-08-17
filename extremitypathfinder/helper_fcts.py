@@ -5,6 +5,8 @@ from typing import List, Set
 import numpy as np
 
 # TODO numba precompilation of some parts possible?! do line speed profiling first! speed impact
+import numpy.linalg
+
 from extremitypathfinder.global_settings import BOUNDARY_JSON_KEY, HOLES_JSON_KEY
 from extremitypathfinder.helper_classes import (
     PolygonVertex,
@@ -216,19 +218,19 @@ def check_data_requirements(boundary_coords: np.ndarray, list_hole_coords: List[
     # TODO data rectification
 
 
-def get_angle_representation(i1: int, i2: int, repr_matrix: np.ndarray, vertices: List["PolygonVertex"]) -> float:
-    repr = repr_matrix[i1, i2]
+def get_angle_representation(idx_origin: int, idx_v: int, repr_matrix: np.ndarray, coordinates: np.ndarray) -> float:
+    repr = repr_matrix[idx_origin, idx_v]
 
     # lazy initalisation: compute on demand only
     if np.isnan(repr):  # attention: repr == np.nan does not match!
-        v1 = vertices[i1]
-        v2 = vertices[i2]
-        repr = compute_angle_repr(v1, v2)
-        repr_matrix[i1, i2] = repr
+        coords_origin = coordinates[idx_origin]
+        coords_v = coordinates[idx_v]
+        repr = compute_angle_repr(coords_origin, coords_v)
+        repr_matrix[idx_origin, idx_v] = repr
 
         # TODO not required. only triangle required?!
         # make use of symmetry: rotate 180 deg
-        repr_matrix[i2, i1] = angle_rep_inverse(repr)
+        repr_matrix[idx_v, idx_origin] = angle_rep_inverse(repr)
 
     # TODO
     assert repr is None or not np.isnan(repr)
@@ -296,7 +298,7 @@ def find_within_range2(
     repr2: float,
     candidate_idx: Set[int],
     angle_representations: np.ndarray,
-    vertices: List["PolygonVertex"],
+    coords: np.ndarray,
     origin_idx: int,
     angle_range_less_180: bool,
     equal_repr_allowed: bool,
@@ -353,7 +355,7 @@ def find_within_range2(
         return res
 
     def get_repr(i1, i2):
-        return get_angle_representation(i1, i2, angle_representations, vertices)
+        return get_angle_representation(i1, i2, angle_representations, coords)
 
     idx_within = {idx for idx in candidate_idx if within_filter_func(get_repr(origin_idx, idx))}
     return idx_within
@@ -694,6 +696,9 @@ def find_visible2(
     candidate_idxs: Set[int],
     angle_representations: np.ndarray,
     vertices: List["PolygonVertex"],
+    coords: np.ndarray,
+    edge_idxs: np.ndarray,
+    neighbour_idxs: np.ndarray,
     origin_idx: int,
     edges_to_check: Set,
 ):
@@ -711,11 +716,21 @@ def find_visible2(
     if len(candidate_idxs) == 0:
         return visible_idxs
 
-    origin_vertex = vertices[origin_idx]
+    coords_origin = coords[origin_idx]
 
-    # TODO use
-    def get_distance_to_origin(v: "PolygonVertex") -> float:
-        return np.linalg.norm(v.coordinates - origin_vertex.coordinates, ord=2)
+    # nr_edges = neighbour_idxs.shape[0]
+    # edge_idxs2check = set(range(nr_edges))
+
+    def get_coordinates_translated(i: int) -> np.ndarray:
+        coords_v = coords[i]
+        return coords_v - coords_origin
+
+    def get_distance_to_origin(i: int) -> float:
+        coords = get_coordinates_translated(i)
+        return np.linalg.norm(coords, ord=2)
+
+    def get_repr(i: int) -> float:
+        return get_angle_representation(origin_idx, i, angle_representations, coords)
 
     # goal: eliminating all vertices lying 'behind' any edge
     while len(edges_to_check) > 0 and len(candidate_idxs) > 0:
@@ -729,7 +744,9 @@ def find_visible2(
         idx_v1 = vertices.index(v1)
         idx_v2 = vertices.index(v2)
 
-        if get_distance_to_origin(v1) == 0.0:
+        # idx_v1, idx_v2 = neighbour_idxs[edge_idx]
+
+        if get_distance_to_origin(idx_v1) == 0.0:
             # vertex1 has the same coordinates as the query vertex -> on the edge
             lies_on_edge = True
             # (but does not belong to the same polygon, not identical!)
@@ -746,7 +763,7 @@ def find_visible2(
             idx_v1 = vertices.index(v1)
             idx_v2 = vertices.index(v2)
 
-        elif get_distance_to_origin(v2) == 0.0:
+        elif get_distance_to_origin(idx_v2) == 0.0:
             lies_on_edge = True
             candidate_idxs.discard(idx_v2)
             range_less_180 = v2.is_extremity
@@ -755,9 +772,6 @@ def find_visible2(
             v1, v2 = v2.get_neighbours()
             idx_v1 = vertices.index(v1)
             idx_v2 = vertices.index(v2)
-
-        def get_repr(i2):
-            return get_angle_representation(origin_idx, i2, angle_representations, vertices)
 
         repr1 = get_repr(idx_v1)
         repr2 = get_repr(idx_v2)
@@ -790,7 +804,7 @@ def find_visible2(
                 repr2,
                 candidate_idxs,
                 angle_representations,
-                vertices,
+                coords,
                 origin_idx,
                 angle_range_less_180=range_less_180,
                 equal_repr_allowed=False,
@@ -818,7 +832,7 @@ def find_visible2(
             repr2,
             idxs2check,
             angle_representations,
-            vertices,
+            coords,
             origin_idx,
             angle_range_less_180=True,
             equal_repr_allowed=True,
@@ -828,21 +842,19 @@ def find_visible2(
         #   it surely lies behind the edge
         # ATTENTION: even if a candidate is closer to the query point than both vertices of the edge,
         #   it still needs to be checked!
-        # TODO use only indices
-        v1_dist = get_distance_to_origin(v1)
-        v2_dist = get_distance_to_origin(v2)
+        v1_dist = get_distance_to_origin(idx_v1)
+        v2_dist = get_distance_to_origin(idx_v2)
         max_distance = max(v1_dist, v2_dist)
         idxs_behind = set()
         # for all remaining vertices v it has to be tested if the line segment from query point (=origin) to v
         #    has an intersection with the current edge p1---p2
-        p1 = v1.get_coordinates_translated()
-        p2 = v2.get_coordinates_translated()
+        p1 = get_coordinates_translated(idx_v1)
+        p2 = get_coordinates_translated(idx_v2)
         for idx in idxs2check:
-            v = vertices[idx]
-            idx = vertices.index(v)
-            further_away = get_distance_to_origin(v) > max_distance
-            v_coords = v.get_coordinates_translated()
-            if further_away or lies_behind(p1, p2, v_coords):
+            if get_repr(idx) is None:
+                continue
+            further_away = get_distance_to_origin(idx) > max_distance
+            if further_away or lies_behind(p1, p2, get_coordinates_translated(idx)):
                 idxs_behind.add(idx)
             # vertex lies in front of this edge
 
@@ -853,10 +865,9 @@ def find_visible2(
     # all remaining vertices were not concealed behind any edge and hence are visible
 
     visible_idxs.update(candidate_idxs)
-    visible_vertices = {vertices[i] for i in visible_idxs}
 
     # return a set of tuples: (vertex, distance)
-    return {(e, e.get_distance_to_origin()) for e in visible_vertices}
+    return {(vertices[i], get_distance_to_origin(i)) for i in visible_idxs}
 
 
 def try_extraction(json_data, key):
