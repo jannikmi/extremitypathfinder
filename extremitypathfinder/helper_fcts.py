@@ -718,8 +718,8 @@ def find_visible2(
 
     coords_origin = coords[origin_idx]
 
-    # nr_edges = neighbour_idxs.shape[0]
-    # edge_idxs2check = set(range(nr_edges))
+    nr_edges = neighbour_idxs.shape[0]
+    edge_idxs2check = set(range(nr_edges))
 
     def get_coordinates_translated(i: int) -> np.ndarray:
         coords_v = coords[i]
@@ -734,17 +734,20 @@ def find_visible2(
 
     # goal: eliminating all vertices lying 'behind' any edge
     while len(edges_to_check) > 0 and len(candidate_idxs) > 0:
-        edge = edges_to_check.pop()
-
-        lies_on_edge = False
-        range_less_180 = False
 
         # TODO use indices only
+        edge = edges_to_check.pop()
         v1, v2 = edge.vertex1, edge.vertex2
         idx_v1 = vertices.index(v1)
         idx_v2 = vertices.index(v2)
 
+        # edge_idx = edge_idxs2check.pop()
         # idx_v1, idx_v2 = neighbour_idxs[edge_idx]
+        # v1 = vertices[idx_v1]
+        # v2 = vertices[idx_v2]
+
+        lies_on_edge = False
+        range_less_180 = False
 
         if get_distance_to_origin(idx_v1) == 0.0:
             # vertex1 has the same coordinates as the query vertex -> on the edge
@@ -758,6 +761,8 @@ def find_visible2(
             # do not check the other neighbouring edge of vertex1 in the future
             e1 = v1.edge1
             edges_to_check.discard(e1)
+            edge_idx1, _ = edge_idxs[idx_v1]
+            edge_idxs2check.discard(edge_idx1)
             # everything between its two neighbouring edges is not visible for sure
             v1, v2 = v1.get_neighbours()
             idx_v1 = vertices.index(v1)
@@ -769,6 +774,8 @@ def find_visible2(
             range_less_180 = v2.is_extremity
             e1 = v2.edge2
             edges_to_check.discard(e1)
+            _, edge_idx2 = edge_idxs[idx_v2]
+            edge_idxs2check.discard(edge_idx2)
             v1, v2 = v2.get_neighbours()
             idx_v1 = vertices.index(v1)
             idx_v2 = vertices.index(v2)

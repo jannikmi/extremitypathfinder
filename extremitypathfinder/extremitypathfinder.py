@@ -204,7 +204,8 @@ class PolygonEnvironment:
 
         # TODO more performant way of computing
         edges = list(self.all_edges)
-        edge_idxs = np.stack([(edges.index(e.edge1), edges.index(e.edge2)) for e in extremities])
+        # TODO better name
+        edge_idxs = np.stack([(edges.index(v.edge1), edges.index(v.edge2)) for v in vertices])
         # TODO sparse matrix. problematic: default value is 0.0
         angle_representations = np.full((nr_vertices, nr_vertices), np.nan)
         neighbour_idxs = np.stack([(vertices.index(edge.vertex1), vertices.index(edge.vertex2)) for edge in edges])
