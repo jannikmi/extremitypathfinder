@@ -1,6 +1,18 @@
 Changelog
 =========
 
+2.2.4 (2022-xx)
+-------------------
+
+internal:
+
+* added test cases
+
+
+TODO remove separate prepare step?!
+
+
+
 2.2.3 (2022-10-11)
 -------------------
 

@@ -3,6 +3,7 @@ from os import makedirs
 from os.path import abspath, exists, join
 
 import matplotlib.pyplot as plt
+import numpy as np
 from matplotlib.patches import Polygon
 
 from extremitypathfinder.extremitypathfinder import PolygonEnvironment
@@ -68,8 +69,8 @@ def draw_boundaries(map, ax):
 def draw_internal_graph(map, ax):
     graph = map.graph
     for start_idx, all_goal_idxs in graph.get_neighbours():
-        start = graph.coords[start_idx]
-        all_goals = [graph.coords[i] for i in all_goal_idxs]
+        start = graph.coord_map[start_idx]
+        all_goals = [graph.coord_map[i] for i in all_goal_idxs]
         for goal in all_goals:
             draw_edge(start, goal, c="red", alpha=0.2, linewidth=2)
 
@@ -91,13 +92,14 @@ def set_limits(map, ax):
 
 def draw_path(vertex_path):
     # start, path and goal in green
-    if vertex_path:
-        mark_points(vertex_path, c="g", alpha=0.9, s=50)
-        mark_points([vertex_path[0], vertex_path[-1]], c="g", s=100)
-        v1 = vertex_path[0]
-        for v2 in vertex_path[1:]:
-            draw_edge(v1, v2, c="g", alpha=1.0)
-            v1 = v2
+    if not vertex_path:
+        return
+    mark_points(vertex_path, c="g", alpha=0.9, s=50)
+    mark_points([vertex_path[0], vertex_path[-1]], c="g", s=100)
+    v1 = vertex_path[0]
+    for v2 in vertex_path[1:]:
+        draw_edge(v1, v2, c="g", alpha=1.0)
+        v1 = v2
 
 
 def draw_loaded_map(map):
@@ -124,23 +126,36 @@ def draw_prepared_map(map):
 def draw_with_path(map, temp_graph, vertex_path):
     fig, ax = plt.subplots()
 
-    start, goal = vertex_path[0], vertex_path[-1]
+    coords_map = temp_graph.coord_map
+    coords = coords_map.values()
+    all_nodes = temp_graph.all_nodes
     draw_boundaries(map, ax)
     draw_internal_graph(map, ax)
     set_limits(map, ax)
 
-    # additionally draw:
-    # new edges yellow
-    if start in temp_graph.get_all_nodes():
-        for n2, _d in temp_graph.neighbours_of(start):
-            draw_edge(start, n2, c="y", alpha=0.7)
+    if len(vertex_path) > 0:
+        # additionally draw:
+        # new edges yellow
+        start, goal = vertex_path[0], vertex_path[-1]
+        goal_idx = None
+        start_idx = None
+        for i, c in enumerate(coords):
+            if np.array_equal(c, goal):
+                goal_idx = i
+            if np.array_equal(c, start):
+                start_idx = i
 
-    all_nodes = temp_graph.get_all_nodes()
-    if goal in all_nodes:
-        # edges only run towards goal
-        for n1 in all_nodes:
-            if goal in temp_graph.get_neighbours_of(n1):
-                draw_edge(n1, goal, c="y", alpha=0.7)
+        if start_idx is not None:
+            for n_idx in temp_graph.neighbours[start_idx]:
+                n = coords_map[n_idx]
+                draw_edge(start, n, c="y", alpha=0.7)
+
+        if goal_idx is not None:
+            # edges only run towards goal
+            for n_idx in all_nodes:
+                if goal_idx in temp_graph.get_neighbours_of(n_idx):
+                    n = coords_map[n_idx]
+                    draw_edge(n, goal, c="y", alpha=0.7)
 
     # start, path and goal in green
     draw_path(vertex_path)
@@ -150,12 +165,13 @@ def draw_with_path(map, temp_graph, vertex_path):
         plt.show()
 
 
-def draw_only_path(map, vertex_path):
+def draw_only_path(map, vertex_path, start_coordinates, goal_coordinates):
     fig, ax = plt.subplots()
 
     draw_boundaries(map, ax)
     set_limits(map, ax)
     draw_path(vertex_path)
+    mark_points([start_coordinates, goal_coordinates], c="g", s=100)
 
     export_plot(fig, "path_plot")
     if SHOW_PLOTS:
@@ -166,14 +182,14 @@ def draw_graph(map, graph):
     fig, ax = plt.subplots()
 
     all_node_idxs = graph.get_all_nodes()
-    all_nodes = [graph.coords[i] for i in all_node_idxs]
+    all_nodes = [graph.coord_map[i] for i in all_node_idxs]
     mark_points(all_nodes, c="black", s=30)
 
     for i in all_node_idxs:
-        x, y = graph.coords[i]
+        x, y = graph.coord_map[i]
         neighbour_idxs = graph.get_neighbours_of(i)
         for n2_idx in neighbour_idxs:
-            x2, y2 = graph.coords[n2_idx]
+            x2, y2 = graph.coord_map[n2_idx]
             dx, dy = x2 - x, y2 - y
             plt.arrow(
                 x,
@@ -216,15 +232,17 @@ class PlottingEnvironment(PolygonEnvironment):
         super().prepare()
         draw_prepared_map(self)
 
-    def find_shortest_path(self, *args, **kwargs):
+    def find_shortest_path(self, start_coordinates, goal_coordinates, *args, **kwargs):
         """Also draws the computed shortest path."""
         # important to not delete the temp graph! for plotting
-        vertex_path, distance = super().find_shortest_path(*args, free_space_after=False, **kwargs)
+        vertex_path, distance = super().find_shortest_path(
+            start_coordinates, goal_coordinates, *args, free_space_after=False, **kwargs
+        )
 
+        draw_only_path(self, vertex_path, start_coordinates, goal_coordinates)
         if self.temp_graph:  # in some cases (e.g. direct path possible) no graph is being created!
             draw_graph(self, self.temp_graph)
             draw_with_path(self, self.temp_graph, vertex_path)
-            draw_only_path(self, vertex_path)
             del self.temp_graph  # free the memory
 
         # extract the coordinates from the path

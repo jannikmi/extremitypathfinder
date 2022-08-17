@@ -338,19 +338,19 @@ NodeId = int
 
 # TODO often empty sets in self.neighbours
 class DirectedHeuristicGraph(object):
-    __slots__ = ["all_nodes", "distances", "goal_coords", "heuristic", "neighbours", "coords"]
+    __slots__ = ["all_nodes", "distances", "goal_coords", "heuristic", "neighbours", "coord_map"]
 
-    def __init__(self, coords: Optional[Dict[NodeId, np.ndarray]] = None):
+    def __init__(self, coord_map: Optional[Dict[NodeId, np.ndarray]] = None):
         self.distances: Dict[Tuple[NodeId, NodeId], float] = {}
         self.neighbours: Dict[NodeId, Set[NodeId]] = {}
 
-        if coords is None:
+        if coord_map is None:
             all_nodes = set()
         else:
-            all_nodes = set(coords.keys())
+            all_nodes = set(coord_map.keys())
 
         self.all_nodes: Set[NodeId] = set(all_nodes)  # independent copy required!
-        self.coords: Dict[NodeId, np.ndarray] = coords
+        self.coord_map: Dict[NodeId, np.ndarray] = coord_map
 
         # TODO use same set as extremities of env, but different for copy!
 
@@ -388,11 +388,11 @@ class DirectedHeuristicGraph(object):
         h = self.heuristic.get(node, None)
         if h is None:
             # has been reset, compute again
-            h = get_distance_to_origin(self.goal_coords, self.coords[node])
+            h = get_distance_to_origin(self.goal_coords, self.coord_map[node])
             self.heuristic[node] = h
         return h
 
-    def neighbours_of(self, node1: NodeId) -> Iterator[NodeId]:
+    def gen_neighbours_and_dist(self, node1: NodeId) -> Iterator[Tuple[NodeId, float, float]]:
         # optimisation:
         #   return the neighbours ordered after their cost estimate: distance+ heuristic (= current-next + next-goal)
         #   -> when the goal is reachable return it first (-> a star search terminates)
@@ -451,28 +451,34 @@ class DirectedHeuristicGraph(object):
         self.join_identical()
         # leave dangling nodes! (they might become reachable by adding start and and goal node!)
 
-    def join_identical(self):
+    def join_identical(self) -> Dict[NodeId, NodeId]:
         # join all nodes with the same coordinates,
         nodes_to_check = self.all_nodes.copy()
+        merged_id_map = {}
         while len(nodes_to_check) > 1:
             n1 = nodes_to_check.pop()
-            coordinates1 = self.coords[n1]
-            same_nodes = {n for n in nodes_to_check if np.allclose(coordinates1, self.coords[n])}
+            coordinates1 = self.coord_map[n1]
+            same_nodes = {n for n in nodes_to_check if np.allclose(coordinates1, self.coord_map[n])}
             nodes_to_check.difference_update(same_nodes)
             for n2 in same_nodes:
-                # print('removing duplicate node', n2)
-                neighbours_n1 = self.neighbours[n1]
-                neighbours_n2 = self.neighbours.pop(n2)
-                for n3 in neighbours_n2:
-                    d = self.distances.pop((n2, n3))
-                    self.distances.pop((n3, n2))
-                    self.neighbours[n3].remove(n2)
-                    # do not allow self loops!
-                    if n3 != n1 and n3 not in neighbours_n1:
-                        # and add all the new edges to node 1
-                        self.add_undirected_edge(n1, n3, d)
+                self.merge_nodes(n1, n2)
+                merged_id_map[n2] = n1  # mapping from -> to
 
-                self.all_nodes.remove(n2)
+        return merged_id_map
+
+    def merge_nodes(self, n1: NodeId, n2: NodeId):
+        # print('removing duplicate node', n2)
+        neighbours_n1 = self.neighbours[n1]
+        neighbours_n2 = self.neighbours.pop(n2, {})
+        for n3 in neighbours_n2:
+            d = self.distances.pop((n2, n3))
+            self.distances.pop((n3, n2), None)
+            self.neighbours[n3].discard(n2)
+            # do not allow self loops!
+            if n3 != n1 and n3 not in neighbours_n1:
+                # and add all the new edges to node 1
+                self.add_undirected_edge(n1, n3, d)
+        self.all_nodes.remove(n2)
 
     def modified_a_star(self, start: int, goal: int, goal_coords: np.ndarray) -> Tuple[List[int], Optional[float]]:
         """implementation of the popular A* algorithm with optimisations for this special use case
@@ -508,7 +514,7 @@ class DirectedHeuristicGraph(object):
             ([], None) if there is no possible path.
         """
 
-        def enqueue_neighbours():
+        def enqueue(neighbours: Iterator):
             try:
                 next_node, distance, cost_estim = next(neighbours)
             except StopIteration:
@@ -521,10 +527,10 @@ class DirectedHeuristicGraph(object):
 
         search_state_queue = SearchStateQueue()
         current_node = start
-        neighbours = self.neighbours_of(current_node)
+        neighbours = self.gen_neighbours_and_dist(current_node)
         cost_so_far = 0.0
         path = [start]
-        enqueue_neighbours()
+        enqueue(neighbours)
         visited_nodes = set()
 
         while not search_state_queue.is_empty():
@@ -540,7 +546,7 @@ class DirectedHeuristicGraph(object):
             # print('neighbours:', heuristic_graph.get_neighbours_of(current_node))
 
             # there could still be other neighbours left in this generator:
-            enqueue_neighbours()
+            enqueue(neighbours)
 
             if current_node in visited_nodes:
                 # this node has already been visited. there is no need to consider
@@ -565,8 +571,8 @@ class DirectedHeuristicGraph(object):
                 return path, cost_so_far
 
             # also consider the neighbours of the current node
-            neighbours = self.neighbours_of(current_node)
-            enqueue_neighbours()
+            neighbours = self.gen_neighbours_and_dist(current_node)
+            enqueue(neighbours)
 
         # goal is not reachable
         return [], None

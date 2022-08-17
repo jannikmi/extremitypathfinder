@@ -293,7 +293,9 @@ def find_within_range(repr1: float, repr2: float, vertex_set, angle_range_less_1
             res = not res
         return res
 
-    vertices_within = {v for v in vertex_set if within_filter_func(v.get_angle_representation())}
+    vertex2rep = {v: v.get_angle_representation() for v in vertex_set}
+    vertex2rep = {v: r for v, r in vertex2rep.items() if r is not None}
+    vertices_within = {v for v, r in vertex2rep.items() if within_filter_func(r)}
     return vertices_within
 
 
@@ -697,8 +699,9 @@ def find_visible2(
     edge_vertex_idxs: np.ndarray,
     edge_idxs2check: Set[int],
     coords_origin: np.ndarray,
-    cand_idx2repr: Dict[int, float],
+    vert_idx2repr: Dict[int, float],
     vert_idx2dist: Dict[int, float],
+    cand_idxs: Set[int],
 ) -> Set[int]:
     """
     query_vertex: a vertex for which the visibility to the vertices should be checked.
@@ -710,9 +713,10 @@ def find_visible2(
     :param edges_to_check: the set of edges which determine visibility
     :return: a set of tuples of all vertices visible from the query vertex and the corresponding distance
     """
-    visible_idxs = set()
-    if len(cand_idx2repr) == 0:
-        return visible_idxs
+    # cand_idx2repr = cand_idx2repr_full.copy()
+
+    if len(cand_idxs) == 0:
+        return cand_idxs
 
     # TODO reuse
     def get_coordinates_translated(i: int) -> np.ndarray:
@@ -721,11 +725,9 @@ def find_visible2(
 
     def get_distance_to_origin(i: int) -> float:
         return vert_idx2dist[i]
-        # coords = get_coordinates_translated(i)
-        # return np.linalg.norm(coords, ord=2)
 
     def get_repr(i: int) -> float:
-        return get_angle_repr(coords_origin, coords[i])
+        return vert_idx2repr[i]
 
     def get_neighbours(i: int) -> Tuple[int, int]:
         edge_idx1, edge_idx2 = vertex_edge_idxs[i]
@@ -736,21 +738,24 @@ def find_visible2(
     def is_extremity(i: int) -> bool:
         return extremity_mask[i]
 
+    visible_idxs = set()
     # goal: eliminating all vertices lying 'behind' any edge
-    while len(edge_idxs2check) > 0 and len(cand_idx2repr) > 0:
+    while len(edge_idxs2check) > 0 and len(cand_idxs) > 0:
         edge_idx = edge_idxs2check.pop()
         idx_v1, idx_v2 = edge_vertex_idxs[edge_idx]
 
+        v1_dist = get_distance_to_origin(idx_v1)
+        v2_dist = get_distance_to_origin(idx_v2)
         lies_on_edge = False
         range_less_180 = False
 
-        if get_distance_to_origin(idx_v1) == 0.0:
+        if v1_dist == 0.0:
             # vertex1 of the edge has the same coordinates as the query vertex
             # -> the origin lies on the edge
             lies_on_edge = True
             # (note: not identical, does not belong to the same polygon!)
             # mark this vertex as not visible (would otherwise add 0 distance edge in the graph)
-            cand_idx2repr.pop(idx_v1, None)
+            cand_idxs.discard(idx_v1)
 
             # no points lie truly "behind" this edge as there is no "direction of sight" defined
             # <-> angle representation/range undefined for just this single edge
@@ -758,28 +763,31 @@ def find_visible2(
             # these two neighbouring edges define an invisible angle range
             # -> simply move the pointer
             idx_v1, idx_v2 = get_neighbours(idx_v1)
+            v1_dist = get_distance_to_origin(idx_v1)
+            v2_dist = get_distance_to_origin(idx_v2)
             range_less_180 = is_extremity(idx_v1)
 
             # do not check the other neighbouring edge of vertex1 in the future (has been considered already)
             edge_idx1, _ = vertex_edge_idxs[idx_v1]
             edge_idxs2check.discard(edge_idx1)
 
-        elif get_distance_to_origin(idx_v2) == 0.0:
+        elif v2_dist == 0.0:
             # same for vertex2 of the edge
             # NOTE: it is unsupported that v1 as well as v2 have the same coordinates as the query vertex
             # (edge with length 0)
             lies_on_edge = True
-            cand_idx2repr.pop(idx_v2, None)
-
+            cand_idxs.discard(idx_v2)
+            idx_v1, idx_v2 = get_neighbours(idx_v2)
+            v1_dist = get_distance_to_origin(idx_v1)
+            v2_dist = get_distance_to_origin(idx_v2)
             range_less_180 = is_extremity(idx_v2)
             _, edge_idx2 = vertex_edge_idxs[idx_v2]
             edge_idxs2check.discard(edge_idx2)
 
-            idx_v1, idx_v2 = get_neighbours(idx_v2)
-
         repr1 = get_repr(idx_v1)
         repr2 = get_repr(idx_v2)
-
+        if repr2 is None or repr1 is None:
+            raise ValueError
         repr_diff = abs(repr1 - repr2)
 
         if repr_diff == 2.0:
@@ -791,18 +799,19 @@ def find_visible2(
             # the neighbouring edges are visible for sure
             # attention: only add to visible set if vertex was a candidate!
             try:
-                cand_idx2repr.pop(idx_v1)
+                cand_idxs.remove(idx_v1)
                 visible_idxs.add(idx_v1)
             except KeyError:
                 pass
             try:
-                cand_idx2repr.pop(idx_v2)
+                cand_idxs.remove(idx_v2)
                 visible_idxs.add(idx_v2)
             except KeyError:
                 pass
 
             # all the candidates between the two vertices v1 v2 are not visible for sure
-            # candidates with the same representation should not be deleted, because they can be visible!
+            # candidates with the same representation must not be deleted, because they can be visible!
+            cand_idx2repr = {i: vert_idx2repr[i] for i in cand_idxs}
             invisible_candidate_idxs = find_within_range2(
                 repr1,
                 repr2,
@@ -817,11 +826,11 @@ def find_visible2(
         # case: a 'regular' edge
         # eliminate all candidates which are blocked by the edge
         # that means inside the angle range spanned by the edge and actually behind it
-        idx2repr_tmp = cand_idx2repr.copy()
+        cand_idxs_tmp = cand_idxs.copy()
         # the vertices belonging to the edge itself (its vertices) must not be checked.
         # use discard() instead of remove() to not raise an error (they might not be candidates)
-        idx2repr_tmp.pop(idx_v1, None)
-        idx2repr_tmp.pop(idx_v2, None)
+        cand_idxs_tmp.discard(idx_v1)
+        cand_idxs_tmp.discard(idx_v2)
 
         # for all candidate edges check if there are any candidate vertices (besides the ones belonging to the edge)
         #   within this angle range
@@ -829,16 +838,15 @@ def find_visible2(
         #   is always < 180deg when the edge is not running through the query point (=180 deg)
         #  candidates with the same representation as v1 or v2 should be considered.
         #   they can be visible, but should be ruled out if they lie behind any edge!
+        idx2repr = {i: vert_idx2repr[i] for i in cand_idxs_tmp}
         idxs2check = find_within_range2(
             repr1,
             repr2,
-            idx2repr_tmp,
+            idx2repr,
             angle_range_less_180=True,
             equal_repr_allowed=True,
         )
 
-        v1_dist = get_distance_to_origin(idx_v1)
-        v2_dist = get_distance_to_origin(idx_v2)
         max_distance = max(v1_dist, v2_dist)
         idxs_behind = set()
         # for all remaining vertices v it has to be tested if the line segment from query point (=origin) to v
@@ -856,16 +864,41 @@ def find_visible2(
             # vertex lies in front of this edge
 
         # vertices behind any edge are not visible
-        for i in idxs_behind:
-            # TOD Try without default value
-            cand_idx2repr.pop(i, None)
+        cand_idxs.difference_update(idxs_behind)
 
     # all edges have been checked
     # all remaining vertices were not concealed behind any edge and hence are visible
-    candidate_idxs = cand_idx2repr.keys()
-    visible_idxs.update(candidate_idxs)
+    visible_idxs.update(cand_idxs)
 
+    # TODO?!
+    # return clean_visible_idxs(visible_idxs, cand_idx2repr_full, vert_idx2dist)
     return visible_idxs
+
+
+def clean_visible_idxs(
+    visible_idxs: Set[int], cand_idx2repr: Dict[int, float], vert_idx2dist: Dict[int, float]
+) -> Set[int]:
+    # in case some vertices have the same representation, only return (link) the closest vertex
+    if len(visible_idxs) == 0:
+        return visible_idxs
+
+    visible_idxs_clean = set()
+    visible_idxs_sorted = sorted(visible_idxs, key=lambda i: cand_idx2repr[i])
+    min_dist = np.inf
+    rep_prev = cand_idx2repr[visible_idxs_sorted[0]]
+    selected_idx = 0
+    for i in visible_idxs_sorted:
+        rep = cand_idx2repr[i]
+        if rep != rep_prev:
+            visible_idxs_clean.add(selected_idx)
+            min_dist = np.inf
+            rep_prev = rep
+
+        if vert_idx2dist[i] < min_dist:
+            selected_idx = i
+
+    visible_idxs_clean.add(selected_idx)
+    return visible_idxs_clean
 
 
 def try_extraction(json_data, key):
