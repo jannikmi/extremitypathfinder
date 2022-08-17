@@ -74,12 +74,23 @@ class PolygonEnvironment:
         return self._all_vertices
 
     @property
+    def nr_vertices(self) -> int:
+        return len(self.all_vertices)
+
+    @property
     def extremity_indices(self) -> Set[int]:
         # TODO refactor
         for p in self.polygons:
             p._find_extremities()
         # Attention: only consider extremities that are actually within the map
         return {idx for idx, v in enumerate(self.all_vertices) if v.is_extremity and self.within_map(v.coordinates)}
+
+    @property
+    def extremity_mask(self) -> np.ndarray:
+        mask = np.full(self.nr_vertices, False, dtype=bool)
+        for i in self.extremity_indices:
+            mask[i] = True
+        return mask
 
     @property
     def all_extremities(self) -> List[PolygonVertex]:
@@ -200,6 +211,7 @@ class PolygonEnvironment:
         vertices = self.all_vertices
         nr_vertices = len(vertices)
         extremity_indices = self.extremity_indices
+        extremity_mask = self.extremity_mask
         coordinates = np.stack([v.coordinates for v in vertices])
 
         # TODO more performant way of computing
@@ -309,6 +321,7 @@ class PolygonEnvironment:
             edges_to_check.remove(query_extremity.edge2)
             visible_vertices = find_visible2(
                 candidate_idxs,
+                extremity_mask,
                 angle_representations,
                 vertices,
                 coordinates,

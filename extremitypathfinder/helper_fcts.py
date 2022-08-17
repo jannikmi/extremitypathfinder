@@ -694,6 +694,7 @@ def find_visible(vertex_candidates, edges_to_check):
 
 def find_visible2(
     candidate_idxs: Set[int],
+    extremity_mask: np.ndarray,
     angle_representations: np.ndarray,
     vertices: List["PolygonVertex"],
     coords: np.ndarray,
@@ -732,6 +733,9 @@ def find_visible2(
     def get_repr(i: int) -> float:
         return get_angle_representation(origin_idx, i, angle_representations, coords)
 
+    def is_extremity(i: int) -> bool:
+        return extremity_mask[i]
+
     # goal: eliminating all vertices lying 'behind' any edge
     while len(edges_to_check) > 0 and len(candidate_idxs) > 0:
 
@@ -757,7 +761,7 @@ def find_visible2(
             candidate_idxs.discard(idx_v1)
 
             # its angle representation is not defined (no line segment from vertex1 to query vertex!)
-            range_less_180 = v1.is_extremity
+            range_less_180 = is_extremity(idx_v1)
             # do not check the other neighbouring edge of vertex1 in the future
             e1 = v1.edge1
             edges_to_check.discard(e1)
@@ -771,7 +775,7 @@ def find_visible2(
         elif get_distance_to_origin(idx_v2) == 0.0:
             lies_on_edge = True
             candidate_idxs.discard(idx_v2)
-            range_less_180 = v2.is_extremity
+            range_less_180 = is_extremity(idx_v2)
             e1 = v2.edge2
             edges_to_check.discard(e1)
             _, edge_idx2 = edge_idxs[idx_v2]
