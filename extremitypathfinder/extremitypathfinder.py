@@ -28,7 +28,7 @@ from extremitypathfinder.helper_fcts import (
     find_visible2,
     find_within_range,
     find_within_range2,
-    get_angle_representation,
+    get_angle_repr,
     inside_polygon,
 )
 
@@ -227,8 +227,9 @@ class PolygonEnvironment:
             raise ValueError
 
         # TODO reuse
-        def get_repr(i1, i2):
-            return get_angle_representation(i1, i2, angle_representations, coords)
+        def get_repr(idx_origin, i):
+            coords_origin = coords[idx_origin]
+            return get_angle_repr(coords_origin, i, angle_representations, coords)
 
         def get_neighbours(i: int) -> Tuple[int, int]:
             edge_idx1, edge_idx2 = vertex_edge_idxs[i]
@@ -259,6 +260,9 @@ class PolygonEnvironment:
             # ATTENTION: vertices with the same angle representation might be visible and must NOT be deleted!
             n1_repr = get_repr(origin_idx, idx_n1)
             n2_repr = get_repr(origin_idx, idx_n2)
+
+            # TODO lazy init? same as angle repr
+            vert_idx2dist = {i: get_distance_to_origin(origin_idx, i) for i in range(nr_vertices)}
 
             idx2repr = {i: get_repr(origin_idx, i) for i in extremity_indices}
             # only consider extremities with coords different from the query extremity
@@ -323,7 +327,7 @@ class PolygonEnvironment:
             # do not consider points lying in front when looking for visible extremities,
             # even if they are actually be visible
             # do not consider points found to lie behind
-            extr_candidates = {i for i in idx2repr.keys() if i not in lie_in_front_idx and i not in idxs_behind}
+            idx2repr = {i: r for i, r in idx2repr.items() if i not in lie_in_front_idx and i not in idxs_behind}
 
             # all edges have to be checked, except the 2 neighbouring edges (handled above!)
             nr_edges = len(all_edges)
@@ -331,16 +335,17 @@ class PolygonEnvironment:
             edge1_idx, edge2_idx = vertex_edge_idxs[origin_idx]
             edge_idxs2check.remove(edge1_idx)
             edge_idxs2check.remove(edge2_idx)
-            # TODO reutrn only idx
+            coords_origin = coords[origin_idx]
             visible_idxs = find_visible2(
-                extr_candidates,
                 extremity_mask,
                 angle_representations,
                 coords,
                 vertex_edge_idxs,
                 edge_vertex_idxs,
-                origin_idx,
                 edge_idxs2check,
+                coords_origin,
+                idx2repr,
+                vert_idx2dist,
             )
 
             # TODO graph: also use indices instead of vertices
