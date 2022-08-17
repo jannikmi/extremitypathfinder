@@ -345,7 +345,7 @@ class MainTest(unittest.TestCase):
         grid_env = ENVIRONMENT_CLASS(**CONSTRUCTION_KWARGS)
 
         grid_env.store_grid_world(*GRID_ENV_PARAMS, simplify=False, validate=False)
-        nr_extremities = len(list(grid_env.all_extremities))
+        nr_extremities = len(grid_env.all_extremities)
         assert nr_extremities == 17, "extremities do not get detected correctly!"
         grid_env.prepare()
         nr_graph_nodes = len(grid_env.graph.all_nodes)

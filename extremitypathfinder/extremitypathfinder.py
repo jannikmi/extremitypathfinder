@@ -1,7 +1,7 @@
 import itertools
 import pickle
 from copy import deepcopy
-from typing import Iterable, List, Optional, Set, Tuple
+from typing import Iterable, List, Optional, Tuple
 
 import numpy as np
 
@@ -74,16 +74,30 @@ class PolygonEnvironment:
         return self._all_vertices
 
     @property
+    def coords(self) -> np.ndarray:
+        return np.stack([v.coordinates for v in self.all_vertices])
+
+    @property
+    def vertex_edge_idxs(self) -> np.ndarray:
+        all_edges = self.all_edges
+        return np.stack([(all_edges.index(v.edge1), all_edges.index(v.edge2)) for v in self.all_vertices])
+
+    @property
+    def edge_vertex_idxs(self) -> np.ndarray:
+        vertices = self.all_vertices
+        return np.stack([(vertices.index(edge.vertex1), vertices.index(edge.vertex2)) for edge in self.all_edges])
+
+    @property
     def nr_vertices(self) -> int:
         return len(self.all_vertices)
 
     @property
-    def extremity_indices(self) -> Set[int]:
+    def extremity_indices(self) -> List[int]:
         # TODO refactor
         for p in self.polygons:
             p._find_extremities()
         # Attention: only consider extremities that are actually within the map
-        return {idx for idx, v in enumerate(self.all_vertices) if v.is_extremity and self.within_map(v.coordinates)}
+        return [idx for idx, v in enumerate(self.all_vertices) if v.is_extremity and self.within_map(v.coordinates)]
 
     @property
     def extremity_mask(self) -> np.ndarray:
@@ -95,14 +109,13 @@ class PolygonEnvironment:
     @property
     def all_extremities(self) -> List[PolygonVertex]:
         return [self.all_vertices[i] for i in self.extremity_indices]
-
         # TODO
         # if self._all_extremities is None:
         # return self._all_extremities
 
     @property
-    def all_edges(self) -> Set[Edge]:
-        return set(itertools.chain(*iter(p.edges for p in self.polygons)))
+    def all_edges(self) -> List[Edge]:
+        return list(itertools.chain(*iter(p.edges for p in self.polygons)))
 
     def store(
         self,
@@ -183,7 +196,7 @@ class PolygonEnvironment:
         Computes all directly reachable extremities based on visibility and their distance to each other
 
         .. note::
-            Multiple polygon vertices might have identical coords.
+            Multiple polygon vertices might have identical coords_rel.
             They must be treated as distinct vertices here, since their attached edges determine visibility.
             In the created graph however, these nodes must be merged at the end to avoid ambiguities!
 
@@ -207,21 +220,19 @@ class PolygonEnvironment:
             self.graph = DirectedHeuristicGraph(extremities)
             return
 
+        # TODO pre computation and storage of all
         vertices = self.all_vertices
-        nr_vertices = len(vertices)
+        nr_vertices = self.nr_vertices
         extremity_indices = self.extremity_indices
         extremity_mask = self.extremity_mask
-
         # TODO more performant way of computing
-        all_edges = list(self.all_edges)
-        graph = DirectedHeuristicGraph(extremities)
-        coords = np.stack([v.coordinates for v in vertices])
-        vertex_edge_idxs = np.stack([(all_edges.index(v.edge1), all_edges.index(v.edge2)) for v in vertices])
+        all_edges = self.all_edges
+        coords = self.coords
+        vertex_edge_idxs = self.vertex_edge_idxs
+        edge_vertex_idxs = self.edge_vertex_idxs
+
         # TODO sparse matrix. problematic: default value is 0.0
-        angle_representations = np.full((nr_vertices, nr_vertices), np.nan)
-        edge_vertex_idxs = np.stack(
-            [(vertices.index(edge.vertex1), vertices.index(edge.vertex2)) for edge in all_edges]
-        )
+        # angle_representations = np.full((nr_vertices, nr_vertices), np.nan)
 
         if len(extremity_indices) != len(extremities):
             raise ValueError
@@ -229,7 +240,7 @@ class PolygonEnvironment:
         # TODO reuse
         def get_repr(idx_origin, i):
             coords_origin = coords[idx_origin]
-            return get_angle_repr(coords_origin, i, angle_representations, coords)
+            return get_angle_repr(coords_origin, coords[i])
 
         def get_neighbours(i: int) -> Tuple[int, int]:
             edge_idx1, edge_idx2 = vertex_edge_idxs[i]
@@ -237,16 +248,16 @@ class PolygonEnvironment:
             neigh_idx2 = edge_vertex_idxs[edge_idx2, 1]
             return neigh_idx1, neigh_idx2
 
-        def get_coordinates_translated(orig_idx: int, i: int) -> np.ndarray:
+        def get_relative_coords(orig_idx: int, i: int) -> np.ndarray:
             coords_origin = coords[orig_idx]
             coords_v = coords[i]
             return coords_v - coords_origin
 
         def get_distance_to_origin(orig_idx: int, i: int) -> float:
-            coords = get_coordinates_translated(orig_idx, i)
-            return np.linalg.norm(coords, ord=2)
+            coords_rel = get_relative_coords(orig_idx, i)
+            return np.linalg.norm(coords_rel, ord=2)
 
-        extremity_indices = list(extremity_indices)
+        graph = DirectedHeuristicGraph(extremities)
         # TODO use orig_ptr
         for _orig_ptr, origin_idx in enumerate(extremity_indices):
             # vertices all belong to a polygon
@@ -265,7 +276,7 @@ class PolygonEnvironment:
             vert_idx2dist = {i: get_distance_to_origin(origin_idx, i) for i in range(nr_vertices)}
 
             idx2repr = {i: get_repr(origin_idx, i) for i in extremity_indices}
-            # only consider extremities with coords different from the query extremity
+            # only consider extremities with coords_rel different from the query extremity
             # (angle representation not None)
             # the origin extremity itself must also not be checked when looking for visible neighbours
             idx2repr = {i: r for i, r in idx2repr.items() if r is not None}
@@ -314,7 +325,7 @@ class PolygonEnvironment:
             n2_repr_inv = angle_rep_inverse(n2_repr)
 
             # IMPORTANT: check all extremities here, not just current candidates
-            # do not check extremities with equal coords (also query extremity itself!)
+            # do not check extremities with equal coords_rel (also query extremity itself!)
             #   and with the same angle representation (those edges must not get deleted from graph!)
             lie_in_front_idx = find_within_range2(
                 n1_repr_inv,
@@ -338,7 +349,6 @@ class PolygonEnvironment:
             coords_origin = coords[origin_idx]
             visible_idxs = find_visible2(
                 extremity_mask,
-                angle_representations,
                 coords,
                 vertex_edge_idxs,
                 edge_vertex_idxs,
@@ -348,16 +358,27 @@ class PolygonEnvironment:
                 vert_idx2dist,
             )
 
+            self.translate(vertices[origin_idx])
+            candidates = {vertices[i] for i in idx2repr.keys()}
+            edges2check = {all_edges[i] for i in edge_idxs2check}
+            visibles_n_distances_goal = find_visible(candidates, edges_to_check=edges2check)
+            visible_idxs_ = {vertices.index(v) for v, d in visibles_n_distances_goal}
+
             # TODO graph: also use indices instead of vertices
             origin_extremity = vertices[origin_idx]
             visible_vertex2dist_map = {vertices[i]: get_distance_to_origin(origin_idx, i) for i in visible_idxs}
+
+            if not visible_idxs_ == visible_idxs:
+                _ = 1
+                # raise ValueError
+
             graph.add_multiple_undirected_edges(origin_extremity, visible_vertex2dist_map)
             # optimisation: "thin out" the graph
             # remove already existing edges in the graph to the extremities in front
             lie_in_front = {vertices[i] for i in lie_in_front_idx}
             graph.remove_multiple_undirected_edges(origin_extremity, lie_in_front)
 
-        graph.make_clean()  # join all nodes with the same coords
+        graph.make_clean()  # join all nodes with the same coords_rel
 
         self.graph = graph
         self.prepared = True
@@ -394,6 +415,46 @@ class PolygonEnvironment:
          if points close to or on polygon edges should be accepted as valid input, set this to ``False``.
         :return: a tuple of shortest path and its length. ([], None) if there is no possible path.
         """
+
+        # TODO pre computation and storage of all
+        all_edges = self.all_edges
+        coords_start = np.array(start_coordinates)
+        coords_goal = np.array(goal_coordinates)
+        coords = np.append(self.coords, (coords_start, coords_goal), axis=0)
+        # TODO more performant way of computing
+
+        # TODO reuse
+        def get_relative_coords(coords_origin: np.ndarray, i: int) -> np.ndarray:
+            coords_v = coords[i]
+            return coords_v - coords_origin
+
+        def get_distance_to_origin(coords_origin: np.ndarray, i: int) -> float:
+            coords_rel = get_relative_coords(coords_origin, i)
+            return np.linalg.norm(coords_rel, ord=2)
+
+        vertex_edge_idxs = self.vertex_edge_idxs
+        edge_vertex_idxs = self.edge_vertex_idxs
+        extremity_mask = np.append(self.extremity_mask, (False, False))
+
+        idx_start = self.nr_vertices
+        idx_goal = self.nr_vertices + 1
+        nr_vertices = self.nr_vertices + 2
+        # id_map_dist_to_start = {i: get_distance_to_origin(coords_start, i) for i in range(nr_vertices)}
+        id_map_dist_to_goal = {i: get_distance_to_origin(coords_goal, i) for i in range(nr_vertices)}
+
+        # TODO detect if coordinates match an extremity (node in the graph). extend only on demand
+        # TODO extend id_map_dist_to
+        # extemity_indices = self.extremity_indices
+        # skip_start_check = False
+        # for i in extemity_indices:
+        #     dist = id_map_dist_to_start[i]
+        #     if dist == 0:
+        #         idx_start = i
+        #         skip_start_check = True
+        #         break
+        # if not skip:
+        #     coords = np.append(coords, coords_start, axis=0)
+
         # path planning query:
         # make sure the map has been loaded and prepared
         if self.boundary_polygon is None:
@@ -405,7 +466,7 @@ class PolygonEnvironment:
             raise ValueError("start point does not lie within the map")
         if verify and not self.within_map(goal_coordinates):
             raise ValueError("goal point does not lie within the map")
-        if start_coordinates == goal_coordinates:
+        if np.array_equal(coords_start, coords_goal):
             # start and goal are identical and can be reached instantly
             return [start_coordinates, goal_coordinates], 0.0
 
@@ -417,6 +478,9 @@ class PolygonEnvironment:
         # include start and goal vertices in the graph
         start_vertex = Vertex(start_coordinates)
         goal_vertex = Vertex(goal_coordinates)
+
+        # TODO required?!
+        vertices = self.all_vertices + [start_vertex, goal_vertex]
 
         # check the goal node first (earlier termination possible)
         self.translate(new_origin=goal_vertex)  # do before checking angle representations!
@@ -433,12 +497,45 @@ class PolygonEnvironment:
                 self.graph.get_all_nodes(),
             )
         )
-        # IMPORTANT: check if the start node is visible from the goal node!
+        # IMPORTANT: also check if the start node is visible from the goal node!
         # NOTE: all edges are being checked, it is computationally faster to compute all visibilities in one go
         candidates.add(start_vertex)
 
-        # TODO use new variant
         visibles_n_distances_goal = find_visible(candidates, edges_to_check=self.all_edges)
+
+        # TODO visibility of start vertex
+        # TODO use new variant
+        visible_idxs = {vertices.index(v) for v, d in visibles_n_distances_goal}
+        nr_edges = len(all_edges)
+        edge_idxs2check = set(range(nr_edges))
+        idx_origin = idx_goal
+        coords_origin = coords[idx_origin]
+        # TODO
+        cand_idxs = {vertices.index(n) for n in self.graph.get_all_nodes()}
+        cand_idxs.add(idx_start)
+        cand_idx2repr = {i: get_angle_repr(coords_origin, coords[i]) for i in cand_idxs}
+        cand_idx2repr = {i: r for i, r in cand_idx2repr.items() if r is not None}
+
+        vert_idx2dist = id_map_dist_to_goal
+
+        # TODO
+        visible_idxs_ = find_visible2(
+            extremity_mask,
+            coords,
+            vertex_edge_idxs,
+            edge_vertex_idxs,
+            edge_idxs2check,
+            coords_origin,
+            cand_idx2repr,
+            vert_idx2dist,
+        )
+        if not visible_idxs == visible_idxs_:
+            _ = 1
+            # raise ValueError
+
+        # visible_vertex2dist_map = {vertices[i]: get_distance_to_origin(coords_origin, i) for i in visible_idxs}
+        visibles_n_distances_goal = {(vertices[i], vert_idx2dist[i]) for i in visible_idxs}
+
         if len(visibles_n_distances_goal) == 0:
             # The goal node does not have any neighbours. Hence there is not possible path to the goal.
             return [], None
@@ -473,7 +570,7 @@ class PolygonEnvironment:
         # TODO use new variant
         visibles_n_distances_start = find_visible(candidates, edges_to_check=self.all_edges)
         if len(visibles_n_distances_start) == 0:
-            # The start node does not have any neighbours. Hence there is not possible path to the goal.
+            # The start node does not have any neighbours. Hence there is no possible path to the goal.
             return [], None
 
         # add edges in the direction: start -> extremity

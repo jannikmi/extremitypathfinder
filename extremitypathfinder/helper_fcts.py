@@ -234,8 +234,7 @@ def check_data_requirements(boundary_coords: np.ndarray, list_hole_coords: List[
 #     return repr
 
 
-def get_angle_repr(coords_origin: np.ndarray, idx_v: int, repr_matrix: np.ndarray, coordinates: np.ndarray) -> float:
-    coords_v = coordinates[idx_v]
+def get_angle_repr(coords_origin: np.ndarray, coords_v: np.ndarray) -> float:
     repr = compute_angle_repr(coords_origin, coords_v)
     # TODO
     assert repr is None or not np.isnan(repr)
@@ -529,7 +528,7 @@ def find_visible(vertex_candidates, edges_to_check):
     :param edges_to_check: the set of edges which determine visibility
     :return: a set of tuples of all vertices visible from the query vertex and the corresponding distance
     """
-
+    edges_to_check = set(edges_to_check)
     visible_vertices = set()
     if len(vertex_candidates) == 0:
         return visible_vertices
@@ -693,7 +692,6 @@ def find_visible(vertex_candidates, edges_to_check):
 
 def find_visible2(
     extremity_mask: np.ndarray,
-    angle_representations: np.ndarray,
     coords: np.ndarray,
     vertex_edge_idxs: np.ndarray,
     edge_vertex_idxs: np.ndarray,
@@ -727,7 +725,7 @@ def find_visible2(
         # return np.linalg.norm(coords, ord=2)
 
     def get_repr(i: int) -> float:
-        return get_angle_repr(coords_origin, i, angle_representations, coords)
+        return get_angle_repr(coords_origin, coords[i])
 
     def get_neighbours(i: int) -> Tuple[int, int]:
         edge_idx1, edge_idx2 = vertex_edge_idxs[i]
