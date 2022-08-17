@@ -668,11 +668,9 @@ class PolygonEnvironment:
 
         # ATTENTION: update to new coordinates
         temp_graph.coord_map = {i: coords[i] for i in temp_graph.all_nodes}
-        merge_id_mapping = temp_graph.join_identical()
-        # apply mapping in case they got merged with another node
-        idx_start_mapped = merge_id_mapping.get(idx_start, idx_start)
-        idx_goal_mapped = merge_id_mapping.get(idx_goal, idx_goal)
-        vertex_id_path, distance = temp_graph.modified_a_star(idx_start_mapped, idx_goal_mapped, coords_goal)
+        temp_graph.join_identical()
+
+        vertex_id_path, distance = temp_graph.modified_a_star(idx_start, idx_goal, coords_goal)
         vertex_path = [vertices[i] for i in vertex_id_path]
 
         if free_space_after:

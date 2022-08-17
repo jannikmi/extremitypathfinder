@@ -338,7 +338,7 @@ NodeId = int
 
 # TODO often empty sets in self.neighbours
 class DirectedHeuristicGraph(object):
-    __slots__ = ["all_nodes", "distances", "goal_coords", "heuristic", "neighbours", "coord_map"]
+    __slots__ = ["all_nodes", "distances", "goal_coords", "heuristic", "neighbours", "coord_map", "merged_id_mapping"]
 
     def __init__(self, coord_map: Optional[Dict[NodeId, np.ndarray]] = None):
         self.distances: Dict[Tuple[NodeId, NodeId], float] = {}
@@ -351,6 +351,7 @@ class DirectedHeuristicGraph(object):
 
         self.all_nodes: Set[NodeId] = set(all_nodes)  # independent copy required!
         self.coord_map: Dict[NodeId, np.ndarray] = coord_map
+        self.merged_id_mapping: Dict[NodeId, NodeId] = {}
 
         # TODO use same set as extremities of env, but different for copy!
 
@@ -451,10 +452,9 @@ class DirectedHeuristicGraph(object):
         self.join_identical()
         # leave dangling nodes! (they might become reachable by adding start and and goal node!)
 
-    def join_identical(self) -> Dict[NodeId, NodeId]:
+    def join_identical(self):
         # join all nodes with the same coordinates,
         nodes_to_check = self.all_nodes.copy()
-        merged_id_map = {}
         while len(nodes_to_check) > 1:
             n1 = nodes_to_check.pop()
             coordinates1 = self.coord_map[n1]
@@ -462,9 +462,7 @@ class DirectedHeuristicGraph(object):
             nodes_to_check.difference_update(same_nodes)
             for n2 in same_nodes:
                 self.merge_nodes(n1, n2)
-                merged_id_map[n2] = n1  # mapping from -> to
-
-        return merged_id_map
+                self.merged_id_mapping[n2] = n1  # mapping from -> to
 
     def merge_nodes(self, n1: NodeId, n2: NodeId):
         # print('removing duplicate node', n2)
@@ -513,6 +511,10 @@ class DirectedHeuristicGraph(object):
         :return: a tuple of the shortest path from start to goal and its total length.
             ([], None) if there is no possible path.
         """
+
+        # apply mapping in case start or goal got merged with another node
+        start = self.merged_id_mapping.get(start, start)
+        goal = self.merged_id_mapping.get(goal, goal)
 
         def enqueue(neighbours: Iterator):
             try:
