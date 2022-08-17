@@ -1,5 +1,5 @@
 import heapq
-from typing import Dict, Iterable, List, Optional, Set
+from typing import Dict, Iterable, Iterator, List, Optional, Set, Tuple
 
 import numpy as np
 
@@ -328,17 +328,29 @@ class SearchStateQueue(object):
         return s.node, s.neighbours, s.distance, s.path, s.cost_so_far
 
 
+def get_distance_to_origin(coords_origin: np.ndarray, coords_v: np.ndarray) -> float:
+    coords_rel = coords_v - coords_origin
+    return np.linalg.norm(coords_rel, ord=2)
+
+
+NodeId = int
+
+
 # TODO often empty sets in self.neighbours
 class DirectedHeuristicGraph(object):
-    __slots__ = ["all_nodes", "distances", "goal_node", "heuristic", "neighbours"]
+    __slots__ = ["all_nodes", "distances", "goal_coords", "heuristic", "neighbours", "coords"]
 
-    def __init__(self, all_nodes: Optional[Iterable[Vertex]] = None):
-        self.distances: Dict = {}
-        self.neighbours: Dict = {}
+    def __init__(self, coords: Optional[Dict[NodeId, np.ndarray]] = None):
+        self.distances: Dict[Tuple[NodeId, NodeId], float] = {}
+        self.neighbours: Dict[NodeId, Set[NodeId]] = {}
 
-        if all_nodes is None:
+        if coords is None:
             all_nodes = set()
-        self.all_nodes: Set[Vertex] = set(all_nodes)  # independent copy required!
+        else:
+            all_nodes = set(coords.keys())
+
+        self.all_nodes: Set[NodeId] = set(all_nodes)  # independent copy required!
+        self.coords: Dict[NodeId, np.ndarray] = coords
 
         # TODO use same set as extremities of env, but different for copy!
 
@@ -346,8 +358,8 @@ class DirectedHeuristicGraph(object):
         # <=> must always be lowest for node with the POSSIBLY lowest cost
         # <=> heuristic is LOWER BOUND for the cost
         # the heuristic here: distance to the goal node (is always the shortest possible distance!)
-        self.heuristic: dict = {}
-        self.goal_node: Optional[Vertex] = None
+        self.heuristic: Dict[NodeId, float] = {}
+        self.goal_coords: Optional[np.ndarray] = None
 
     def __deepcopy__(self, memodict=None):
         # returns an independent copy (nodes can be added without changing the original graph),
@@ -358,39 +370,29 @@ class DirectedHeuristicGraph(object):
         independent_copy.all_nodes = self.all_nodes.copy()
         return independent_copy
 
-    def get_all_nodes(self):
+    def get_all_nodes(self) -> Set[NodeId]:
         return self.all_nodes
 
-    def get_neighbours(self):
-        return self.neighbours.items()
+    def get_neighbours(self) -> Iterable:
+        yield from self.neighbours.items()
 
-    def get_neighbours_of(self, node):
+    def get_neighbours_of(self, node: NodeId) -> Set[NodeId]:
         return self.neighbours.get(node, set())
 
-    def get_distance(self, node1, node2):
+    def get_distance(self, node1: NodeId, node2: NodeId) -> float:
         # directed edges: just one direction is being stored
         return self.distances[(node1, node2)]
 
-    def get_heuristic(self, node):
-        global origin  # use origin contains the current goal node
+    def get_heuristic(self, node: NodeId) -> float:
         # lazy evaluation:
         h = self.heuristic.get(node, None)
         if h is None:
             # has been reset, compute again
-            h = np.linalg.norm(node.coordinates - origin.coordinates)
+            h = get_distance_to_origin(self.goal_coords, self.coords[node])
             self.heuristic[node] = h
         return h
 
-    def set_goal_node(self, goal_node):
-        assert goal_node in self.all_nodes  # has no outgoing edges -> no neighbours
-        # IMPORTANT: while using heuristic graph (a star), do not change origin!
-        global origin
-        origin = goal_node  # use origin for temporally storing the goal node
-        self.goal_node = goal_node
-        # reset heuristic for all
-        self.heuristic.clear()
-
-    def neighbours_of(self, node1):
+    def neighbours_of(self, node1: NodeId) -> Iterator[NodeId]:
         # optimisation:
         #   return the neighbours ordered after their cost estimate: distance+ heuristic (= current-next + next-goal)
         #   -> when the goal is reachable return it first (-> a star search terminates)
@@ -406,27 +408,27 @@ class DirectedHeuristicGraph(object):
         # yield node, distance, cost_estimate= distance + heuristic
         yield from out_sorted
 
-    def add_directed_edge(self, node1, node2, distance):
+    def add_directed_edge(self, node1: NodeId, node2: NodeId, distance: float):
         assert node1 != node2  # no self loops allowed!
         self.neighbours.setdefault(node1, set()).add(node2)
         self.distances[(node1, node2)] = distance
         self.all_nodes.add(node1)
         self.all_nodes.add(node2)
 
-    def add_undirected_edge(self, node1, node2, distance):
+    def add_undirected_edge(self, node1: NodeId, node2: NodeId, distance: float):
         assert node1 != node2  # no self loops allowed!
         self.add_directed_edge(node1, node2, distance)
         self.add_directed_edge(node2, node1, distance)
 
-    def add_multiple_undirected_edges(self, node1, node_distance_map: Dict):
+    def add_multiple_undirected_edges(self, node1: NodeId, node_distance_map: Dict[NodeId, float]):
         for node2, distance in node_distance_map.items():
             self.add_undirected_edge(node1, node2, distance)
 
-    def add_multiple_directed_edges(self, node1, node_distance_iter):
-        for node2, distance in node_distance_iter:
+    def add_multiple_directed_edges(self, node1: NodeId, node_distance_iter: Dict[NodeId, float]):
+        for node2, distance in node_distance_iter.items():
             self.add_directed_edge(node1, node2, distance)
 
-    def remove_directed_edge(self, n1, n2):
+    def remove_directed_edge(self, n1: NodeId, n2: NodeId):
         neighbours = self.neighbours.get(n1)
         if neighbours is not None:
             neighbours.discard(n2)
@@ -435,12 +437,12 @@ class DirectedHeuristicGraph(object):
             # the node must still be kept, since with the addition of start and goal nodes during a query
             # the node might become reachable!
 
-    def remove_undirected_edge(self, node1, node2):
+    def remove_undirected_edge(self, node1: NodeId, node2: NodeId):
         # should work even if edge does not exist yet
         self.remove_directed_edge(node1, node2)
         self.remove_directed_edge(node2, node1)
 
-    def remove_multiple_undirected_edges(self, node1, node2_iter):
+    def remove_multiple_undirected_edges(self, node1: NodeId, node2_iter: Iterable[NodeId]):
         for node2 in node2_iter:
             self.remove_undirected_edge(node1, node2)
 
@@ -451,11 +453,11 @@ class DirectedHeuristicGraph(object):
 
     def join_identical(self):
         # join all nodes with the same coordinates,
-        nodes_to_check = self.get_all_nodes().copy()
+        nodes_to_check = self.all_nodes.copy()
         while len(nodes_to_check) > 1:
             n1 = nodes_to_check.pop()
-            coordinates1 = n1.coordinates
-            same_nodes = {n for n in nodes_to_check if np.allclose(coordinates1, n.coordinates)}
+            coordinates1 = self.coords[n1]
+            same_nodes = {n for n in nodes_to_check if np.allclose(coordinates1, self.coords[n])}
             nodes_to_check.difference_update(same_nodes)
             for n2 in same_nodes:
                 # print('removing duplicate node', n2)
@@ -472,7 +474,7 @@ class DirectedHeuristicGraph(object):
 
                 self.all_nodes.remove(n2)
 
-    def modified_a_star(self, start: Vertex, goal: Vertex):
+    def modified_a_star(self, start: int, goal: int, goal_coords: np.ndarray) -> Tuple[List[int], Optional[float]]:
         """implementation of the popular A* algorithm with optimisations for this special use case
 
         IMPORTANT: geometrical property of this problem (and hence also the extracted graph):
@@ -515,7 +517,7 @@ class DirectedHeuristicGraph(object):
             state = SearchState(next_node, distance, neighbours, path, cost_so_far, cost_estim)
             search_state_queue.put(state)
 
-        self.set_goal_node(goal)  # lazy update of the heuristic
+        self.goal_coords = goal_coords  # lazy update of the heuristic
 
         search_state_queue = SearchStateQueue()
         current_node = start

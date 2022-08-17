@@ -43,12 +43,8 @@ def mark_points(vertex_iter, **kwargs):
 
 
 def draw_edge(v1, v2, c, alpha, **kwargs):
-    if type(v1) == tuple:
-        x1, y1 = v1
-        x2, y2 = v2
-    else:
-        x1, y1 = v1.coordinates
-        x2, y2 = v2.coordinates
+    x1, y1 = v1
+    x2, y2 = v2
     plt.plot([x1, x2], [y1, y2], color=c, alpha=alpha, **kwargs)
 
 
@@ -70,7 +66,10 @@ def draw_boundaries(map, ax):
 
 
 def draw_internal_graph(map, ax):
-    for start, all_goals in map.graph.get_neighbours():
+    graph = map.graph
+    for start_idx, all_goal_idxs in graph.get_neighbours():
+        start = graph.coords[start_idx]
+        all_goals = [graph.coords[i] for i in all_goal_idxs]
         for goal in all_goals:
             draw_edge(start, goal, c="red", alpha=0.2, linewidth=2)
 
@@ -166,14 +165,15 @@ def draw_only_path(map, vertex_path):
 def draw_graph(map, graph):
     fig, ax = plt.subplots()
 
-    all_nodes = graph.get_all_nodes()
+    all_node_idxs = graph.get_all_nodes()
+    all_nodes = [graph.coords[i] for i in all_node_idxs]
     mark_points(all_nodes, c="black", s=30)
 
-    for n in all_nodes:
-        x, y = n.coordinates
-        neighbours = graph.get_neighbours_of(n)
-        for n2 in neighbours:
-            x2, y2 = n2.coordinates
+    for i in all_node_idxs:
+        x, y = graph.coords[i]
+        neighbour_idxs = graph.get_neighbours_of(i)
+        for n2_idx in neighbour_idxs:
+            x2, y2 = graph.coords[n2_idx]
             dx, dy = x2 - x, y2 - y
             plt.arrow(
                 x,
