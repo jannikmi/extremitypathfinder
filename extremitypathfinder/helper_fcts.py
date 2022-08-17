@@ -726,10 +726,8 @@ def find_visible2(
 
     def get_neighbours(i: int) -> Tuple[int, int]:
         edge_idx1, edge_idx2 = vertex_edge_idxs[i]
-        neigh_idx1, i2_ = edge_vertex_idxs[edge_idx1]
-        i1_, neigh_idx2 = edge_vertex_idxs[edge_idx2]
-        # TODO
-        assert i2_ == i2_
+        neigh_idx1 = edge_vertex_idxs[edge_idx1, 0]
+        neigh_idx2 = edge_vertex_idxs[edge_idx2, 1]
         return neigh_idx1, neigh_idx2
 
     def is_extremity(i: int) -> bool:

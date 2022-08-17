@@ -227,35 +227,23 @@ class PolygonEnvironment:
         if len(extremity_indices) != len(extremities):
             raise ValueError
 
+        # TODO reuse
         def get_repr(i1, i2):
             return get_angle_representation(i1, i2, angle_representations, coordinates)
 
+        def get_neighbours(i: int) -> Tuple[int, int]:
+            edge_idx1, edge_idx2 = vertex_edge_idxs[i]
+            neigh_idx1 = edge_vertex_idxs[edge_idx1, 0]
+            neigh_idx2 = edge_vertex_idxs[edge_idx2, 1]
+            return neigh_idx1, neigh_idx2
+
         # have to run for all (also last one!), because existing edges might get deleted every loop
-        while len(extremity_indices) > 0:
-            # while len(extremities_to_check) > 0:
-            # extremities are always visible to each other (bi-directional relation -> undirected graph)
-            #  -> do not check extremities which have been checked already
-            #  (would only give the same result when algorithms are correct)
-            # the extremity itself must not be checked when looking for visible neighbours
-            # origin_extremity: PolygonVertex = extremities_to_check.pop()
-            origin_idx = extremity_indices.pop()
-            origin_extremity = vertices[origin_idx]
 
-            # self.translate(new_origin=origin_extremity)
-
-            # only consider extremities with coordinates different from the query extremity
-            # (angle representation not None)
-            candidate_idxs = {i for i in extremity_indices if get_repr(origin_idx, i) is not None}
-            # candidates.difference_update(
-            #     {c for c in candidates if get_angle_representation(idx, c) is None}
-            # )
-
-            # these vertices all belong to a polygon
-            n1, n2 = origin_extremity.get_neighbours()
-            idx_n1 = vertices.index(n1)
-            idx_n2 = vertices.index(n2)
+        extremity_indices = list(extremity_indices)
+        for _, origin_idx in enumerate(extremity_indices):
+            # vertices all belong to a polygon
+            idx_n1, idx_n2 = get_neighbours(origin_idx)
             # ATTENTION: polygons may intersect -> neighbouring extremities must NOT be visible from each other!
-
             # eliminate all vertices 'behind' the query point from the candidate set
             # since the query vertex is an extremity the 'outer' angle is < 180 degree
             # then the difference between the angle representation of the two edges has to be < 2.0
@@ -265,7 +253,17 @@ class PolygonEnvironment:
             n1_repr = get_repr(origin_idx, idx_n1)
             n2_repr = get_repr(origin_idx, idx_n2)
 
-            idx2repr = {i: get_repr(origin_idx, i) for i in candidate_idxs}
+            idx2repr = {i: get_repr(origin_idx, i) for i in extremity_indices}
+            # only consider extremities with coordinates different from the query extremity
+            # (angle representation not None)
+            # the extremity itself must also not be checked when looking for visible neighbours
+            idx2repr = {i: r for i, r in idx2repr.items() if r is not None}
+            # extremities are always visible to each other (bi-directional relation -> undirected graph)
+            #  -> do not check extremities which have been checked already
+            #  (must give the same result when algorithms are correct)
+            # TODO
+            # idx2repr_tmp = {i: r for i, r in idx2repr.items() if i > origin_idx}
+
             idxs_behind = find_within_range2(
                 n1_repr,
                 n2_repr,
@@ -273,7 +271,21 @@ class PolygonEnvironment:
                 angle_range_less_180=True,
                 equal_repr_allowed=False,
             )
-            candidate_idxs.difference_update(idxs_behind)
+
+            # idxs_behind_ = find_within_range2(
+            #     n1_repr,
+            #     n2_repr,
+            #     idx2repr_tmp,
+            #     angle_range_less_180=True,
+            #     equal_repr_allowed=False,
+            # )
+            #
+            # if idxs_behind_ != idxs_behind:
+            #     x=1
+
+            # idxs_behind__ = {i for i in idxs_behind_ if i >origin_idx}
+            # if idxs_behind__ != idxs_behind:
+            #     raise ValueError
 
             # as shown in [1, Ch. II 4.4.2 "Property One"]: Starting from any point lying "in front of" an extremity e,
             # such that both adjacent edges are visible, one will never visit e, because everything is
@@ -289,10 +301,10 @@ class PolygonEnvironment:
             # Find extremities which fulfill this condition for the given query extremity
             n1_repr_inv = angle_rep_inverse(n1_repr)
             n2_repr_inv = angle_rep_inverse(n2_repr)
+
             # IMPORTANT: check all extremities here, not just current candidates
             # do not check extremities with equal coordinates (also query extremity itself!)
             #   and with the same angle representation (those edges must not get deleted from graph!)
-            idx2repr = {i: get_repr(origin_idx, i) for i in extremity_indices if get_repr(origin_idx, i) is not None}
             lie_in_front_idx = find_within_range2(
                 n1_repr_inv,
                 n2_repr_inv,
@@ -300,23 +312,28 @@ class PolygonEnvironment:
                 angle_range_less_180=True,
                 equal_repr_allowed=False,
             )
-            # "thin out" the graph -> optimisation
-            # already existing edges in the graph to the extremities in front have to be removed
+            # optimisation: "thin out" the graph
+            # remove already existing edges in the graph to the extremities in front
             # TODO graph: also use indices instead of vertices
+            origin_extremity = vertices[origin_idx]
             lie_in_front = {vertices[i] for i in lie_in_front_idx}
             self.graph.remove_multiple_undirected_edges(origin_extremity, lie_in_front)
             # do not consider when looking for visible extremities, even if they are actually be visible
-            candidate_idxs.difference_update(idxs_behind)
+            extr_candidates = {i for i in idx2repr.keys() if i not in lie_in_front_idx and i not in idxs_behind}
 
-            # all edges except the neighbouring edges (handled above!) have to be checked
+            # do not consider indices found to lie behind
+            # for i in idxs_behind:
+            #     idx2repr.pop(i)
+
+            # all edges have to be checked, except the 2 neighbouring edges (handled above!)
             nr_edges = len(all_edges)
             edge_idxs2check = set(range(nr_edges))
             edge1_idx, edge2_idx = vertex_edge_idxs[origin_idx]
             edge_idxs2check.remove(edge1_idx)
             edge_idxs2check.remove(edge2_idx)
-
+            # TODO reutrn only idx
             visible_vertices = find_visible2(
-                candidate_idxs,
+                extr_candidates,
                 extremity_mask,
                 angle_representations,
                 vertices,
@@ -326,6 +343,7 @@ class PolygonEnvironment:
                 origin_idx,
                 edge_idxs2check,
             )
+            # TODO compile mapping to distance
             self.graph.add_multiple_undirected_edges(origin_extremity, visible_vertices)
 
         self.graph.make_clean()  # join all nodes with the same coordinates
