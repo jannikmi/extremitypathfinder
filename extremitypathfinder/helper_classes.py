@@ -418,8 +418,8 @@ class DirectedHeuristicGraph(object):
         self.add_directed_edge(node1, node2, distance)
         self.add_directed_edge(node2, node1, distance)
 
-    def add_multiple_undirected_edges(self, node1, node_distance_iter):
-        for node2, distance in node_distance_iter:
+    def add_multiple_undirected_edges(self, node1, node_distance_map: Dict):
+        for node2, distance in node_distance_map.items():
             self.add_undirected_edge(node1, node2, distance)
 
     def add_multiple_directed_edges(self, node1, node_distance_iter):

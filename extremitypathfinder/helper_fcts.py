@@ -690,13 +690,12 @@ def find_visible2(
     candidate_idxs: Set[int],
     extremity_mask: np.ndarray,
     angle_representations: np.ndarray,
-    vertices: List["PolygonVertex"],
     coords: np.ndarray,
     vertex_edge_idxs: np.ndarray,
     edge_vertex_idxs: np.ndarray,
     origin_idx: int,
     edge_idxs2check: Set[int],
-):
+) -> Set[int]:
     """
     query_vertex: a vertex for which the visibility to the vertices should be checked.
         also non extremity vertices, polygon vertices and vertices with the same coordinates are allowed.
@@ -713,6 +712,7 @@ def find_visible2(
 
     coords_origin = coords[origin_idx]
 
+    # TODO reuse
     def get_coordinates_translated(i: int) -> np.ndarray:
         coords_v = coords[i]
         return coords_v - coords_origin
@@ -861,8 +861,7 @@ def find_visible2(
     # all remaining vertices were not concealed behind any edge and hence are visible
     visible_idxs.update(candidate_idxs)
 
-    # return a set of tuples: (vertex, distance)
-    return {(vertices[i], get_distance_to_origin(i)) for i in visible_idxs}
+    return visible_idxs
 
 
 def try_extraction(json_data, key):
