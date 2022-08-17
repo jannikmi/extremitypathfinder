@@ -410,7 +410,7 @@ class PolygonEnvironment:
 
         :param start_coordinates: a (x,y) coordinate tuple representing the start node
         :param goal_coordinates:  a (x,y) coordinate tuple representing the goal node
-        :param free_space_after: whether the created temporary search graph temp_graph
+        :param free_space_after: whether the created temporary search graph graph
             should be deleted after the query
         :param verify: whether it should be checked if start and goal points really lie inside the environment.
          if points close to or on polygon edges should be accepted as valid input, set this to ``False``.
@@ -495,7 +495,8 @@ class PolygonEnvironment:
         # create temporary graph TODO make more performant, avoid real copy
         # DirectedHeuristicGraph implements __deepcopy__() to not change the original precomputed self.graph
         # but to still not create real copies of vertex instances!
-        temp_graph = deepcopy(self.graph)
+        graph = deepcopy(self.graph)
+        # graph = self.graph
 
         # check the goal node first (earlier termination possible)
         idx_origin = idx_goal
@@ -566,7 +567,7 @@ class PolygonEnvironment:
             # add unidirectional edges to the temporary graph
             # add edges in the direction: extremity (v) -> goal
             v_idx = vertices.index(v)
-            temp_graph.add_directed_edge(v_idx, idx_goal, d)
+            graph.add_directed_edge(v_idx, idx_goal, d)
 
         idx_origin = idx_start
         coords_origin = coords[idx_origin]
@@ -610,7 +611,7 @@ class PolygonEnvironment:
         # visibles_n_distances_map = {vertices.index(v): d for v, d in visibles_n_distances_start}
         if idx_start in visible_idxs:
             raise ValueError
-        temp_graph.add_multiple_directed_edges(idx_start, visibles_n_distances_map)
+        graph.add_multiple_directed_edges(idx_start, visibles_n_distances_map)
 
         # # TODO optimisation
         # # also here unnecessary edges in the graph can be deleted when start or goal lie
@@ -619,12 +620,12 @@ class PolygonEnvironment:
         # #  in front MUST be added to the graph! Handled by always introducing new
         # (non extremity, non polygon) vertices.
         # # for every extremity that is visible from either goal or start
-        # # NOTE: edges are undirected! temp_graph.get_neighbours_of(start_vertex) == set()
-        # # neighbours_start = temp_graph.get_neighbours_of(start_vertex)
+        # # NOTE: edges are undirected! graph.get_neighbours_of(start_vertex) == set()
+        # # neighbours_start = graph.get_neighbours_of(start_vertex)
         # neighbours_start = {n for n, d in visibles_n_distances_start}
         # # the goal vertex might be marked visible, it is not an extremity -> skip
         # neighbours_start.discard(goal_vertex)
-        # neighbour_idxs_goal = temp_graph.get_neighbours_of(idx_goal)
+        # neighbour_idxs_goal = graph.get_neighbours_of(idx_goal)
         # neighbours_goal = {vertices[i] for i in neighbour_idxs_goal}
         # neighbours = neighbours_start | neighbours_goal
         # for vertex in neighbours:
@@ -662,21 +663,24 @@ class PolygonEnvironment:
         #         equal_repr_allowed=False,
         #     )
         #     lie_in_front_idxs = iter(vertices.index(v) for v in lie_in_front)
-        #     temp_graph.remove_multiple_undirected_edges(vertex_idx, lie_in_front_idxs)
+        #     graph.remove_multiple_undirected_edges(vertex_idx, lie_in_front_idxs)
 
         # NOTE: exploiting property 2 from [1] here would be more expensive than beneficial
 
         # ATTENTION: update to new coordinates
-        temp_graph.coord_map = {i: coords[i] for i in temp_graph.all_nodes}
-        temp_graph.join_identical()
+        graph.coord_map = {i: coords[i] for i in graph.all_nodes}
+        graph.join_identical()
 
-        vertex_id_path, distance = temp_graph.modified_a_star(idx_start, idx_goal, coords_goal)
+        vertex_id_path, distance = graph.modified_a_star(idx_start, idx_goal, coords_goal)
         vertex_path = [vertices[i] for i in vertex_id_path]
 
+        # clean up
+        graph.remove_node(idx_start)
+        graph.remove_node(idx_goal)
         if free_space_after:
-            del temp_graph  # free the memory
+            del graph  # free the memory
         else:
-            self.temp_graph = temp_graph
+            self.temp_graph = graph
         # extract the coordinates from the path
         return [tuple(v.coordinates) for v in vertex_path], distance
 

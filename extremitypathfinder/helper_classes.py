@@ -430,13 +430,12 @@ class DirectedHeuristicGraph(object):
             self.add_directed_edge(node1, node2, distance)
 
     def remove_directed_edge(self, n1: NodeId, n2: NodeId):
-        neighbours = self.neighbours.get(n1)
-        if neighbours is not None:
-            neighbours.discard(n2)
-            self.distances.pop((n1, n2), None)
-            # ATTENTION: even if there are no neighbours left and a node is hence dangling (not reachable),
-            # the node must still be kept, since with the addition of start and goal nodes during a query
-            # the node might become reachable!
+        neighbours = self.get_neighbours_of(n1)
+        neighbours.discard(n2)
+        self.distances.pop((n1, n2), None)
+        # ATTENTION: even if there are no neighbours left and a node is hence dangling (not reachable),
+        # the node must still be kept, since with the addition of start and goal nodes during a query
+        # the node might become reachable!
 
     def remove_undirected_edge(self, node1: NodeId, node2: NodeId):
         # should work even if edge does not exist yet
@@ -462,21 +461,37 @@ class DirectedHeuristicGraph(object):
             nodes_to_check.difference_update(same_nodes)
             for n2 in same_nodes:
                 self.merge_nodes(n1, n2)
-                self.merged_id_mapping[n2] = n1  # mapping from -> to
+
+    def remove_node(self, n: NodeId):
+        self.all_nodes.discard(n)
+        # also deletes all edges
+        # outgoing
+        neighbours = self.neighbours.pop(n, set())
+        for n1 in neighbours:
+            self.distances.pop((n, n1), None)
+            self.distances.pop((n1, n), None)
+        # incoming
+        for n1 in self.all_nodes:
+            neighbours = self.neighbours.get(n1, set())
+            neighbours.discard(n)
+            self.distances.pop((n, n1), None)
+            self.distances.pop((n1, n), None)
 
     def merge_nodes(self, n1: NodeId, n2: NodeId):
         # print('removing duplicate node', n2)
-        neighbours_n1 = self.neighbours[n1]
+        neighbours_n1 = self.neighbours.get(n1, set())
         neighbours_n2 = self.neighbours.pop(n2, {})
         for n3 in neighbours_n2:
             d = self.distances.pop((n2, n3))
             self.distances.pop((n3, n2), None)
-            self.neighbours[n3].discard(n2)
+            self.neighbours.get(n3, set()).discard(n2)
             # do not allow self loops!
             if n3 != n1 and n3 not in neighbours_n1:
                 # and add all the new edges to node 1
                 self.add_undirected_edge(n1, n3, d)
-        self.all_nodes.remove(n2)
+
+        self.remove_node(n2)
+        self.merged_id_mapping[n2] = n1  # mapping from -> to
 
     def modified_a_star(self, start: int, goal: int, goal_coords: np.ndarray) -> Tuple[List[int], Optional[float]]:
         """implementation of the popular A* algorithm with optimisations for this special use case

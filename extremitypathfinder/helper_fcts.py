@@ -876,7 +876,7 @@ def clean_visible_idxs(
     visible_idxs: Set[int], cand_idx2repr: Dict[int, float], vert_idx2dist: Dict[int, float]
 ) -> Set[int]:
     # in case some vertices have the same representation, only return (link) the closest vertex
-    if len(visible_idxs) == 0:
+    if len(visible_idxs) <= 1:
         return visible_idxs
 
     cleaned = set()

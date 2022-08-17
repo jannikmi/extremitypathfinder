@@ -56,7 +56,7 @@ def draw_polygon(ax, coords, **kwargs):
 
 
 def draw_boundaries(map, ax):
-    # TODO outside light grey
+    # TODO outside dark grey
     # TODO fill holes light grey
     draw_polygon(ax, map.boundary_polygon.coordinates)
     for h in map.holes:
@@ -127,7 +127,6 @@ def draw_with_path(map, temp_graph, vertex_path):
     fig, ax = plt.subplots()
 
     coords_map = temp_graph.coord_map
-    coords = coords_map.values()
     all_nodes = temp_graph.all_nodes
     draw_boundaries(map, ax)
     draw_internal_graph(map, ax)
@@ -139,14 +138,14 @@ def draw_with_path(map, temp_graph, vertex_path):
         start, goal = vertex_path[0], vertex_path[-1]
         goal_idx = None
         start_idx = None
-        for i, c in enumerate(coords):
+        for i, c in coords_map.items():
             if np.array_equal(c, goal):
                 goal_idx = i
             if np.array_equal(c, start):
                 start_idx = i
 
         if start_idx is not None:
-            for n_idx in temp_graph.neighbours[start_idx]:
+            for n_idx in temp_graph.get_neighbours_of(start_idx):
                 n = coords_map[n_idx]
                 draw_edge(start, n, c="y", alpha=0.7)
 
