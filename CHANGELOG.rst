@@ -3,7 +3,8 @@ Changelog
 
 
 TODO pending major release: remove separate prepare step?! initialise in one step during initialisation
-TODO Numba JIT compilation of utils
+TODO Numba JIT compilation of utils. line speed profiling for highest impact of refactoring
+TODO improve A* implementation (away from OOP)
 
 
 2.3.0 (2022-xx)

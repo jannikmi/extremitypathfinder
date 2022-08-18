@@ -10,7 +10,6 @@ class SearchState(object):
     def __init__(self, node, distance, neighbour_generator, path, cost_so_far, cost_estim):
         self.node = node
         self.distance = distance
-        # TODO
         self.neighbours = neighbour_generator
         self.path = path
         self.cost_so_far: float = cost_so_far
@@ -45,7 +44,6 @@ def get_distance_to_origin(coords_origin: np.ndarray, coords_v: np.ndarray) -> f
 NodeId = int
 
 
-# TODO often empty sets in self.neighbours
 class DirectedHeuristicGraph(object):
     __slots__ = ["all_nodes", "distances", "goal_coords", "heuristic", "neighbours", "coord_map", "merged_id_mapping"]
 
@@ -61,8 +59,6 @@ class DirectedHeuristicGraph(object):
         self.all_nodes: Set[NodeId] = set(all_nodes)  # independent copy required!
         self.coord_map: Dict[NodeId, np.ndarray] = coord_map
         self.merged_id_mapping: Dict[NodeId, NodeId] = {}
-
-        # TODO use same set as extremities of env, but different for copy!
 
         # the heuristic must NEVER OVERESTIMATE the actual cost (here: actual shortest distance)
         # <=> must always be lowest for node with the POSSIBLY lowest cost

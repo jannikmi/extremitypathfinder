@@ -1,4 +1,3 @@
-# TODO numba precompilation of some parts possible?! do line speed profiling first! speed impact
 import json
 import math
 from itertools import combinations
@@ -152,7 +151,7 @@ def get_intersection_status(p1, p2, q1, q2):
     # return:
     #   0: no intersection
     #   1: intersection in ]p1;p2[
-    # TODO 4 different possibilities
+    # TODO support 2 remaining possibilities
     #   2: intersection directly in p1 or p2
     #   3: intersection directly in q1 or q2
     # solve the set of equations
@@ -276,9 +275,9 @@ def check_data_requirements(boundary_coords: np.ndarray, list_hole_coords: List[
             * outer boundary polygon: counter clockwise
             * holes: clockwise
 
-    # TODO test
-    # todo - polygons must not intersect each other
-    # TODO data rectification
+    TODO test
+    todo - polygons must not intersect each other
+    TODO data rectification
 
     :param boundary_coords:
     :param list_hole_coords:

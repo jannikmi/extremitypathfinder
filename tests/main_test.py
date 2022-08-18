@@ -6,7 +6,6 @@ import pytest
 from extremitypathfinder.extremitypathfinder import PolygonEnvironment
 from extremitypathfinder.plotting import PlottingEnvironment
 
-# TODO
 # PLOT_TEST_RESULTS = True
 PLOT_TEST_RESULTS = False
 TEST_PLOT_OUTPUT_FOLDER = "plots"
@@ -19,6 +18,7 @@ else:
     ENVIRONMENT_CLASS = PolygonEnvironment
     CONSTRUCTION_KWARGS = {}
 
+# TODO pytest parameterize
 # size_x, size_y, obstacle_iter
 GRID_ENV_PARAMS = (
     19,
@@ -296,6 +296,10 @@ TEST_DATA_OVERLAP_POLY_ENV = [
             ],
             138.23115155299263,
         ),
+    ),
+    (
+        ((2, 38), (45, 45)),
+        ([(2.0, 38.0), (9.5, 45.5), (10.0, 45.5), (45.0, 45.0)], 46.11017296417249),
     ),
 ]
 
