@@ -11,13 +11,13 @@ from extremitypathfinder.configs import BOUNDARY_JSON_KEY, HOLES_JSON_KEY
 from extremitypathfinder.helper_classes import DirectedHeuristicGraph
 
 try:
-    from numba import njit
+    from numba import b1, f8, njit
 
     using_numba = True
 except ImportError:
     using_numba = False
     # replace Numba functionality with "transparent" implementations
-    from extremitypathfinder.numba_replacements import njit
+    from extremitypathfinder.numba_replacements import b1, f8, njit
 
 
 @njit(cache=True)
@@ -82,7 +82,7 @@ def get_repr_n_dists(orig_idx: int, coords: np.ndarray) -> np.ndarray:
     return repr_n_dists.T
 
 
-@njit(cache=True)
+@njit(b1(f8[:], f8[:, :], b1), cache=True)
 def inside_polygon(p: np.ndarray, coords: np.ndarray, border_value: bool) -> bool:
     # should return the border value for point equal to any polygon vertex
     # TODO overflow possible with large values when comparing slopes, change procedure
@@ -138,6 +138,7 @@ def inside_polygon(p: np.ndarray, coords: np.ndarray, border_value: bool) -> boo
     return contained
 
 
+@njit(cache=True)
 def is_within_map(p: np.ndarray, boundary: np.ndarray, holes: Iterable[np.ndarray]) -> bool:
     if not inside_polygon(p, boundary, border_value=True):
         return False
@@ -147,11 +148,12 @@ def is_within_map(p: np.ndarray, boundary: np.ndarray, holes: Iterable[np.ndarra
     return True
 
 
+@njit(cache=True)
 def no_identical_consequent_vertices(coords):
     p1 = coords[-1]
     for p2 in coords:
         # TODO adjust allowed difference: rtol, atol
-        if np.allclose(p1, p2):
+        if np.array_equal(p1, p2):
             return False
         p1 = p2
 
@@ -245,7 +247,8 @@ def no_self_intersection(coords):
     return True
 
 
-def has_clockwise_numbering(coords):
+@njit(cache=True)
+def has_clockwise_numbering(coords: np.ndarray) -> bool:
     """tests if a polygon has clockwise vertex numbering
     approach: Sum over the edges, (x2 − x1)(y2 + y1). If the result is positive the curve is clockwise.
     from:
@@ -303,6 +306,8 @@ def check_data_requirements(boundary_coords: np.ndarray, list_hole_coords: List[
             raise ValueError("Vertex numbering of hole polygon must be clockwise.")
 
 
+# TODO modify passed input set. work on independent copy
+# @njit(cache=True)
 def find_within_range(
     vert_idx2repr: np.ndarray,
     repr1: float,
@@ -828,7 +833,7 @@ def convert_gridworld(size_x: int, size_y: int, obstacle_iter: iter, simplify: b
         if cntr_clockwise_wanted:
             # make edge numbering counter clockwise!
             edge_list.reverse()
-        return np.array(edge_list)
+        return np.array(edge_list, dtype=float)
 
     # build the boundary polygon
     # start at the lowest and leftmost unblocked grid cell
