@@ -10,6 +10,60 @@ import numpy as np
 origin = None
 
 
+def compute_repr_n_dist(np_vector: np.ndarray) -> Tuple[float, float]:
+    """computing representation for the angle from the origin to a given vector
+
+    value in [0.0 : 4.0[
+    every quadrant contains angle measures from 0.0 to 1.0
+    there are 4 quadrants (counter clockwise numbering)
+    0 / 360 degree -> 0.0
+    90 degree -> 1.0
+    180 degree -> 2.0
+    270 degree -> 3.0
+    ...
+    Useful for comparing angles without actually computing expensive trigonometrical functions
+    This representation does not grow directly proportional to its represented angle,
+    but it its bijective and monotonous:
+    rep(p1) > rep(p2) <=> angle(p1) > angle(p2)
+    rep(p1) = rep(p2) <=> angle(p1) = angle(p2)
+    angle(p): counter clockwise angle between the two line segments (0,0)'--(1,0)' and (0,0)'--p
+    with (0,0)' being the vector representing the origin
+
+    :param np_vector:
+    :return:
+    """
+    distance = np.linalg.norm(np_vector, ord=2)
+    if distance == 0.0:
+        angle_measure = np.nan
+    else:
+        # 2D vector: (dx, dy) = np_vector
+        dx, dy = np_vector
+        dx_positive = dx >= 0
+        dy_positive = dy >= 0
+
+        if dx_positive and dy_positive:
+            quadrant = 0.0
+            angle_measure = dy
+
+        elif not dx_positive and dy_positive:
+            quadrant = 1.0
+            angle_measure = -dx
+
+        elif not dx_positive and not dy_positive:
+            quadrant = 2.0
+            angle_measure = -dy
+
+        else:
+            quadrant = 3.0
+            angle_measure = dx
+
+        # normalise angle measure to [0; 1]
+        angle_measure /= distance
+        angle_measure += quadrant
+
+    return angle_measure, distance
+
+
 def compute_angle_repr_inner(np_vector: np.ndarray) -> float:
     """computing representation for the angle from the origin to a given vector
 

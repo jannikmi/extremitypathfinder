@@ -239,6 +239,69 @@ def get_angle_repr(coords_origin: np.ndarray, coords_v: np.ndarray) -> float:
     return repr
 
 
+def find_within_range2(
+    repr1: float,
+    repr2: float,
+    vert_idx2repr: np.ndarray,
+    candidate_idxs: Set[int],
+    angle_range_less_180: bool,
+    equal_repr_allowed: bool,
+) -> Set[int]:
+    """
+    filters out all vertices whose representation lies within the range between
+      the two given angle representations
+    which range ('clockwise' or 'counter-clockwise') should be checked is determined by:
+      - query angle (range) is < 180deg or not (>= 180deg)
+    :param repr1:
+    :param repr2:
+    :param representations:
+    :param angle_range_less_180: whether the angle between repr1 and repr2 is < 180 deg
+    :param equal_repr_allowed: whether vertices with the same representation should also be returned
+    :return:
+    """
+    if len(candidate_idxs) == 0:
+        return set()
+
+    repr_diff = abs(repr1 - repr2)
+    if repr_diff == 0.0:
+        return set()
+
+    min_repr = min(repr1, repr2)
+    max_repr = max(repr1, repr2)  # = min_angle + angle_diff
+
+    def repr_within(r):
+        # Note: vertices with the same representation will not NOT be returned!
+        return min_repr < r < max_repr
+
+    # depending on the angle the included range is clockwise or anti-clockwise
+    # (from min_repr to max_val or the other way around)
+    # when the range contains the 0.0 value (transition from 3.99... -> 0.0)
+    # it is easier to check if a representation does NOT lie within this range
+    # -> invert filter condition
+    # special case: angle == 180deg
+    on_line_inv = repr_diff == 2.0 and repr1 >= repr2
+    # which range to filter is determined by the order of the points
+    # since the polygons follow a numbering convention,
+    # the 'left' side of p1-p2 always lies inside the map
+    # -> filter out everything on the right side (='outside')
+    inversion_condition = on_line_inv or ((repr_diff < 2.0) ^ angle_range_less_180)
+
+    def within_filter_func(r: float) -> bool:
+        repr_eq = r == min_repr or r == max_repr
+        if repr_eq and equal_repr_allowed:
+            return True
+        if repr_eq and not equal_repr_allowed:
+            return False
+
+        res = repr_within(r)
+        if inversion_condition:
+            res = not res
+        return res
+
+    idxs_within = {i for i in candidate_idxs if within_filter_func(vert_idx2repr[i])}
+    return idxs_within
+
+
 def find_within_range(
     repr1: float,
     repr2: float,
