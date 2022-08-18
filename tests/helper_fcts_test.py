@@ -8,7 +8,6 @@ from typing import Dict, Set
 
 import numpy as np
 import pytest
-from helpers import proto_test_case
 
 from extremitypathfinder import PolygonEnvironment
 from extremitypathfinder.helper_fcts import (
@@ -19,6 +18,7 @@ from extremitypathfinder.helper_fcts import (
     inside_polygon,
     read_json,
 )
+from tests.helpers import proto_test_case
 
 
 def test_inside_polygon():

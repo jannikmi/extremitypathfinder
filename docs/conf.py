@@ -110,7 +110,7 @@ html_theme = "sphinx_rtd_theme"
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ["_static"]
 
-# TODO https://github.com/adamchainz/django-mysql/blob/master/docs/conf.py
+# https://github.com/adamchainz/django-mysql/blob/master/docs/conf.py
 # -- Options for LaTeX output ------------------------------------------
 
 # -- Options for manual page output ------------------------------------

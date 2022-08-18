@@ -1,6 +1,6 @@
 import pickle
 from copy import deepcopy
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 
@@ -51,7 +51,7 @@ class PolygonEnvironment:
     extremity_indices: List[int]
     reprs_n_distances: Dict[int, np.ndarray]
     graph: DirectedHeuristicGraph
-    temp_graph: DirectedHeuristicGraph  # for storing and plotting the graph during a query
+    temp_graph: Optional[DirectedHeuristicGraph] = None  # for storing and plotting the graph during a query
     boundary_polygon: np.ndarray
     coords: np.ndarray
     edge_vertex_idxs: np.ndarray
@@ -367,8 +367,8 @@ class PolygonEnvironment:
 
         # clean up
         # TODO re-use the same graph
-        graph.remove_node(idx_start)
-        graph.remove_node(idx_goal)
+        # graph.remove_node(idx_start)
+        # graph.remove_node(idx_goal)
         if free_space_after:
             del graph  # free the memory
 

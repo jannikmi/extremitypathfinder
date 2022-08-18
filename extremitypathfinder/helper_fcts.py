@@ -1,4 +1,3 @@
-# TODO numba precompilation of some parts possible?! do line speed profiling first! speed impact
 import json
 import math
 from itertools import combinations
@@ -86,19 +85,20 @@ def get_repr_n_dists(orig_idx: int, coords: np.ndarray) -> np.ndarray:
 def inside_polygon(p: np.ndarray, coords: np.ndarray, border_value: bool) -> bool:
     # should return the border value for point equal to any polygon vertex
     # TODO overflow possible with large values when comparing slopes, change procedure
-    x, y = p
-    for c in coords[:]:
-        if np.array_equal(c, p):
-            return border_value
-
     # and if the point p lies on any polygon edge
     p1 = coords[-1, :]
     for p2 in coords[:]:
+        if np.array_equal(p2, p):
+            return border_value
         rep_p1_p, _ = compute_repr_n_dist(p1 - p)
         rep_p2_p, _ = compute_repr_n_dist(p2 - p)
         if abs(rep_p1_p - rep_p2_p) == 2.0:
             return border_value
         p1 = p2
+
+    # regular point in polygon algorithm
+    # TODO use optimised implementation
+    x, y = p
 
     contained = False
     # the edge from the last to the first point is checked first
@@ -164,7 +164,7 @@ def get_intersection_status(p1, p2, q1, q2):
     # return:
     #   0: no intersection
     #   1: intersection in ]p1;p2[
-    # TODO 4 different possibilities
+    # TODO support 2 remaining possibilities
     #   2: intersection directly in p1 or p2
     #   3: intersection directly in q1 or q2
     # solve the set of equations
@@ -289,9 +289,9 @@ def check_data_requirements(boundary_coords: np.ndarray, list_hole_coords: List[
             * outer boundary polygon: counter clockwise
             * holes: clockwise
 
-    # TODO test
-    # todo - polygons must not intersect each other
-    # TODO data rectification
+    TODO test
+    todo - polygons must not intersect each other
+    TODO data rectification
 
     :param boundary_coords:
     :param list_hole_coords:
