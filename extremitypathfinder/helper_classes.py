@@ -161,6 +161,45 @@ def angle_rep_inverse(repr: Optional[float]) -> Optional[float]:
     return repr_inv
 
 
+def compute_extremity_idxs(coordinates: np.ndarray) -> List[int]:
+    """identify all protruding points = vertices with an inside angle of > 180 degree ('extremities')
+    expected edge numbering:
+        outer boundary polygon: counter clockwise
+        holes: clockwise
+
+    basic idea:
+      - translate the coordinate system to have p2 as origin
+      - compute the angle representations of both vectors representing the edges
+      - "rotate" the coordinate system (equal to deducting) so that the p1p2 representation is 0
+      - check in which quadrant the p2p3 representation lies
+    %4 because the quadrant has to be in [0,1,2,3] (representation in [0:4[)
+    if the representation lies within quadrant 0 or 1 (<2.0), the inside angle
+      (for boundary polygon inside, for holes outside) between p1p2p3 is > 180 degree
+    then p2 = extremity
+    :param coordinates:
+    :return:
+    """
+    nr_coordinates = len(coordinates)
+    extr_idxs = []
+    p1 = coordinates[-2]
+    p2 = coordinates[-1]
+    for i, p3 in enumerate(coordinates):
+        # since consequent vertices are not permitted to be equal,
+        #   the angle representation of the difference is well defined
+        diff_p3_p2 = p3 - p2
+        diff_p1_p2 = p1 - p2
+        rep_diff = compute_angle_repr_inner(diff_p3_p2) - compute_angle_repr_inner(diff_p1_p2)
+        if rep_diff % 4.0 < 2.0:  #
+            # p2 is an extremity
+            idx_p2 = (i - 1) % nr_coordinates
+            extr_idxs.append(idx_p2)
+
+        # move to the next point
+        p1 = p2
+        p2 = p3
+    return extr_idxs
+
+
 class PolygonVertex(Vertex):
     # __slots__ declared in parents are available in child classes. However, child subclasses will get a __dict__
     # and __weakref__ unless they also define __slots__ (which should only contain names of any additional slots).
@@ -236,44 +275,8 @@ class Polygon(object):
         self._extremities: Optional[List[PolygonVertex]] = None
 
     def _find_extremities(self):
-        """
-        identify all protruding points = vertices with an inside angle of > 180 degree ('extremities')
-        expected edge numbering:
-            outer boundary polygon: counter clockwise
-            holes: clockwise
-        :return:
-        """
         coordinates = [v.coordinates for v in self.vertices]
-        extr_idxs = []
-        # extremity_indices = []
-        # extremity_index = -1
-        p1 = coordinates[-2]
-        p2 = coordinates[-1]
-        for i, p3 in enumerate(coordinates):
-            # since consequent vertices are not permitted to be equal,
-            #   the angle representation of the difference is well defined
-            diff_p3_p2 = p3 - p2
-            # TODO optimise
-            diff_p1_p2 = p1 - p2
-
-            if (AngleRepresentation(diff_p3_p2).value - AngleRepresentation(diff_p1_p2).value) % 4 < 2.0:
-                # basic idea:
-                #   - translate the coordinate system to have p2 as origin
-                #   - compute the angle representations of both vectors representing the edges
-                #   - "rotate" the coordinate system (equal to deducting) so that the p1p2 representation is 0
-                #   - check in which quadrant the p2p3 representation lies
-                # %4 because the quadrant has to be in [0,1,2,3] (representation in [0:4[)
-                # if the representation lies within quadrant 0 or 1 (<2.0), the inside angle
-                #   (for boundary polygon inside, for holes outside) between p1p2p3 is > 180 degree
-                # then p2 = extremity
-                idx_p2 = i - 1
-                extr_idxs.append(idx_p2)
-
-            # move to the next point
-            # diff_p1_p2 = diff_p3_p2
-            p1 = p2
-            p2 = p3
-
+        extr_idxs = compute_extremity_idxs(coordinates)
         extremities = [self.vertices[i] for i in extr_idxs]
         for v in extremities:
             v.declare_extremity()

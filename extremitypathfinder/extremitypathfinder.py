@@ -20,6 +20,7 @@ from extremitypathfinder.helper_classes import (
     PolygonVertex,
     Vertex,
     angle_rep_inverse,
+    compute_extremity_idxs,
 )
 from extremitypathfinder.helper_fcts import (
     check_data_requirements,
@@ -145,6 +146,11 @@ class PolygonEnvironment:
         if validate:
             check_data_requirements(boundary_coordinates, list_of_hole_coordinates)
 
+        self.boundary_polygon = Polygon(boundary_coordinates, is_hole=False)
+
+        # IMPORTANT: make a copy of the list instead of linking to the same list (python!)
+        self.holes = [Polygon(coordinates, is_hole=True) for coordinates in list_of_hole_coordinates]
+
         list_of_polygons = [boundary_coordinates] + list_of_hole_coordinates
         nr_total_pts = sum(map(len, list_of_polygons))
         vertex_edge_idxs = np.empty((nr_total_pts, 2), dtype=int)
@@ -170,13 +176,20 @@ class PolygonEnvironment:
 
         assert edge_idx == nr_total_pts
 
-        # self.coords = np.concatenate(list_of_polygons, axis=0)
-        # self.vertex_edge_idxs = vertex_edge_idxs
-        # self.edge_vertex_idxs = edge_vertex_idxs
+        extremity_idxs = compute_extremity_idxs(self.coords)
+        # Attention: only consider extremities that are actually within the map
+        extremity_idxs = [i for i in extremity_idxs if self.within_map(self.coords[i])]
 
-        self.boundary_polygon = Polygon(boundary_coordinates, is_hole=False)
-        # IMPORTANT: make a copy of the list instead of linking to the same list (python!)
-        self.holes = [Polygon(coordinates, is_hole=True) for coordinates in list_of_hole_coordinates]
+        mask = np.full(nr_total_pts, False, dtype=bool)
+        mask[self.extremity_indices] = True
+
+        # coords = np.concatenate(list_of_polygons, axis=0)
+
+        # self.extremity_mask = mask
+        # self.edge_vertex_idxs = edge_vertex_idxs
+        # self.vertex_edge_idxs = vertex_edge_idxs
+        # self.coords = coords
+        # self.extremity_indices = extremity_idxs
 
     def store_grid_world(
         self,
