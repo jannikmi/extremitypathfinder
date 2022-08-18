@@ -3,6 +3,7 @@ Changelog
 
 
 TODO pending major release: remove separate prepare step?! initialise in one step during initialisation
+TODO Numba JIT compilation of utils
 
 
 2.3.0 (2022-xx)

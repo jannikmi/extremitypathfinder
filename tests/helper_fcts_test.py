@@ -26,9 +26,8 @@ def test_inside_polygon():
 
         def test_fct(input):
             polygon_test_case = np.array([(-1.0, -1.0), (1.0, -1.0), (1.0, 1.0), (-1.0, 1.0)])
-            x, y = input
-
-            return inside_polygon(x, y, polygon_test_case, border_value)
+            p = np.array(input, dtype=float)
+            return inside_polygon(p, polygon_test_case, border_value)
 
         p_test_cases = [
             # (x,y),
