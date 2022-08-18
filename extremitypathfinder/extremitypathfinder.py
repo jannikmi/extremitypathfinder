@@ -12,9 +12,10 @@ from extremitypathfinder.configs import (
     PATH_TYPE,
     InputCoords,
 )
-from extremitypathfinder.helper_classes import DirectedHeuristicGraph, compute_extremity_idxs
+from extremitypathfinder.helper_classes import DirectedHeuristicGraph
 from extremitypathfinder.helper_fcts import (
     check_data_requirements,
+    compute_extremity_idxs,
     compute_graph,
     convert_gridworld,
     find_visible,
@@ -282,10 +283,10 @@ class PolygonEnvironment:
         # BUT: this is an edge case -> compute visibility as usual and later try to merge with the graph
 
         # create temporary graph
-        # TODO make more performant, avoid real copy
         # DirectedHeuristicGraph implements __deepcopy__() to not change the original precomputed self.graph
         # but to still not create real copies of vertex instances!
         graph = deepcopy(self.graph)
+        # TODO make more performant, avoid real copy
         # graph = self.graph
 
         # check the goal node first (earlier termination possible)
@@ -296,7 +297,6 @@ class PolygonEnvironment:
         # IMPORTANT: also check if the start node is visible from the goal node!
         # NOTE: all edges are being checked, it is computationally faster to compute all visibilities in one go
         candidate_idxs = self.graph.all_nodes
-        # TODO work on copy to not modify the graph!?
         candidate_idxs.add(idx_start)
         edge_idxs2check = set(range(nr_edges))
         vert_idx2repr, vert_idx2dist = get_repr_n_dists(idx_origin, coords)

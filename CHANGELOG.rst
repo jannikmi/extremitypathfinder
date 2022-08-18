@@ -1,15 +1,19 @@
 Changelog
 =========
 
-2.2.4 (2022-xx)
+
+TODO pending major release: remove separate prepare step?! initialise in one step during initialisation
+
+
+2.3.0 (2022-xx)
 -------------------
+
+* major overhaul of all functionality from OOP to functional/numpy based
 
 internal:
 
 * added test cases
 
-
-TODO remove separate prepare step?!
 
 
 

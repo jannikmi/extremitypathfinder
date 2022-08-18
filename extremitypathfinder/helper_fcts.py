@@ -1,19 +1,13 @@
 # TODO numba precompilation of some parts possible?! do line speed profiling first! speed impact
 import json
 from itertools import combinations
-from typing import Dict, Iterable, List, Set, Tuple
+from typing import Dict, Iterable, List, Optional, Set, Tuple
 
 import numpy as np
 import numpy.linalg
 
 from extremitypathfinder.configs import BOUNDARY_JSON_KEY, HOLES_JSON_KEY
-from extremitypathfinder.helper_classes import (
-    DirectedHeuristicGraph,
-    angle_rep_inverse,
-    compute_angle_repr,
-    compute_angle_repr_inner,
-    compute_repr_n_dist,
-)
+from extremitypathfinder.helper_classes import DirectedHeuristicGraph
 
 
 def get_repr_n_dists(orig_idx: int, coords: np.ndarray) -> np.ndarray:
@@ -34,8 +28,8 @@ def inside_polygon(x, y, coords, border_value):
     p = np.array([x, y])
     p1 = coords[-1, :]
     for p2 in coords[:]:
-        rep_p1_p = compute_angle_repr_inner(p1 - p)
-        rep_p2_p = compute_angle_repr_inner(p2 - p)
+        rep_p1_p, _ = compute_repr_n_dist(p1 - p)
+        rep_p2_p, _ = compute_repr_n_dist(p2 - p)
         if abs(rep_p1_p - rep_p2_p) == 2.0:
             return border_value
         p1 = p2
@@ -219,14 +213,17 @@ def check_polygon(polygon):
         raise ValueError("A polygon must not intersect itself.")
 
 
-# TODO test
-# todo - polygons must not intersect each other
 def check_data_requirements(boundary_coords: np.ndarray, list_hole_coords: List[np.ndarray]):
     """ensures that all the following conditions on the polygons are fulfilled:
         - basic polygon requirements (s. above)
         - edge numbering has to follow this convention (for easier computations):
             * outer boundary polygon: counter clockwise
             * holes: clockwise
+
+    # TODO test
+    # todo - polygons must not intersect each other
+    # TODO data rectification
+
     :param boundary_coords:
     :param list_hole_coords:
     :return:
@@ -238,35 +235,6 @@ def check_data_requirements(boundary_coords: np.ndarray, list_hole_coords: List[
         check_polygon(hole_coords)
         if not has_clockwise_numbering(hole_coords):
             raise ValueError("Vertex numbering of hole polygon must be clockwise.")
-
-    # TODO data rectification
-
-
-# # TODO use caching variant: dict with tuple { (i1,i2): repr } <- Numba?!
-# def get_angle_representation(idx_origin: int, idx_v: int, repr_matrix: np.ndarray, coordinates: np.ndarray) -> float:
-#     repr = repr_matrix[idx_origin, idx_v]
-#
-#     # lazy initalisation: compute on demand only
-#     if np.isnan(repr):  # attention: repr == np.nan does not match!
-#         coords_origin = coordinates[idx_origin]
-#         coords_v = coordinates[idx_v]
-#         repr = compute_angle_repr(coords_origin, coords_v)
-#         repr_matrix[idx_origin, idx_v] = repr
-#
-#         # TODO not required. only triangle required?!
-#         # make use of symmetry: rotate 180 deg
-#         repr_matrix[idx_v, idx_origin] = angle_rep_inverse(repr)
-#
-#     # TODO
-#     assert repr is None or not np.isnan(repr)
-#     return repr
-
-
-def get_angle_repr(coords_origin: np.ndarray, coords_v: np.ndarray) -> float:
-    repr = compute_angle_repr(coords_origin, coords_v)
-    # TODO
-    assert repr is None or not np.isnan(repr)
-    return repr
 
 
 def find_within_range(
@@ -833,3 +801,106 @@ def convert_gridworld(size_x: int, size_y: int, obstacle_iter: iter, simplify: b
         hole_list.append(hole)
 
     return boundary_edges, hole_list
+
+
+def angle_rep_inverse(repr: Optional[float]) -> Optional[float]:
+    if repr is None:
+        repr_inv = None
+    else:
+        repr_inv = (repr + 2.0) % 4.0
+    return repr_inv
+
+
+def compute_extremity_idxs(coordinates: np.ndarray) -> List[int]:
+    """identify all protruding points = vertices with an inside angle of > 180 degree ('extremities')
+    expected edge numbering:
+        outer boundary polygon: counter clockwise
+        holes: clockwise
+
+    basic idea:
+      - translate the coordinate system to have p2 as origin
+      - compute the angle representations of both vectors representing the edges
+      - "rotate" the coordinate system (equal to deducting) so that the p1p2 representation is 0
+      - check in which quadrant the p2p3 representation lies
+    %4 because the quadrant has to be in [0,1,2,3] (representation in [0:4[)
+    if the representation lies within quadrant 0 or 1 (<2.0), the inside angle
+      (for boundary polygon inside, for holes outside) between p1p2p3 is > 180 degree
+    then p2 = extremity
+    :param coordinates:
+    :return:
+    """
+    nr_coordinates = len(coordinates)
+    extr_idxs = []
+    p1 = coordinates[-2]
+    p2 = coordinates[-1]
+    for i, p3 in enumerate(coordinates):
+        # since consequent vertices are not permitted to be equal,
+        #   the angle representation of the difference is well defined
+        diff_p3_p2 = p3 - p2
+        diff_p1_p2 = p1 - p2
+        repr_p3_p2, _ = compute_repr_n_dist(diff_p3_p2)
+        repr_p1_p2, _ = compute_repr_n_dist(diff_p1_p2)
+        rep_diff = repr_p3_p2 - repr_p1_p2
+        if rep_diff % 4.0 < 2.0:  # inside angle > 180 degree
+            # p2 is an extremity
+            idx_p2 = (i - 1) % nr_coordinates
+            extr_idxs.append(idx_p2)
+
+        # move to the next point
+        p1 = p2
+        p2 = p3
+    return extr_idxs
+
+
+def compute_repr_n_dist(np_vector: np.ndarray) -> Tuple[float, float]:
+    """computing representation for the angle from the origin to a given vector
+
+    value in [0.0 : 4.0[
+    every quadrant contains angle measures from 0.0 to 1.0
+    there are 4 quadrants (counter clockwise numbering)
+    0 / 360 degree -> 0.0
+    90 degree -> 1.0
+    180 degree -> 2.0
+    270 degree -> 3.0
+    ...
+    Useful for comparing angles without actually computing expensive trigonometrical functions
+    This representation does not grow directly proportional to its represented angle,
+    but it its bijective and monotonous:
+    rep(p1) > rep(p2) <=> angle(p1) > angle(p2)
+    rep(p1) = rep(p2) <=> angle(p1) = angle(p2)
+    angle(p): counter clockwise angle between the two line segments (0,0)'--(1,0)' and (0,0)'--p
+    with (0,0)' being the vector representing the origin
+
+    :param np_vector:
+    :return:
+    """
+    distance = np.linalg.norm(np_vector, ord=2)
+    if distance == 0.0:
+        angle_measure = np.nan
+    else:
+        # 2D vector: (dx, dy) = np_vector
+        dx, dy = np_vector
+        dx_positive = dx >= 0
+        dy_positive = dy >= 0
+
+        if dx_positive and dy_positive:
+            quadrant = 0.0
+            angle_measure = dy
+
+        elif not dx_positive and dy_positive:
+            quadrant = 1.0
+            angle_measure = -dx
+
+        elif not dx_positive and not dy_positive:
+            quadrant = 2.0
+            angle_measure = -dy
+
+        else:
+            quadrant = 3.0
+            angle_measure = dx
+
+        # normalise angle measure to [0; 1]
+        angle_measure /= distance
+        angle_measure += quadrant
+
+    return angle_measure, distance

@@ -19,7 +19,6 @@ POLYGON_SETTINGS = {
 }
 
 SHOW_PLOTS = False
-# TODO avoid global variable
 PLOTTING_DIR = "all_plots"
 
 
