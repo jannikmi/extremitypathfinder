@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "extremitypathfinder"
-version = "2.2.3"
+version = "2.3.0"
 license = "MIT"
 readme = "README.rst"
 repository = "https://github.com/jannikmi/extremitypathfinder"
