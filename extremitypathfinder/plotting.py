@@ -66,9 +66,9 @@ def draw_boundaries(map, ax):
     mark_points(map.all_extremities, c="red", s=50)
 
 
-def draw_internal_graph(map, ax):
+def draw_internal_graph(map: PolygonEnvironment, ax):
     graph = map.graph
-    for start_idx, all_goal_idxs in graph.get_neighbours():
+    for start_idx, all_goal_idxs in graph.neighbours.items():
         start = graph.coord_map[start_idx]
         all_goals = [graph.coord_map[i] for i in all_goal_idxs]
         for goal in all_goals:

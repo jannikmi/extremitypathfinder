@@ -8,7 +8,7 @@ from helpers import proto_test_case
 
 from extremitypathfinder import PolygonEnvironment
 from extremitypathfinder.helper_classes import AngleRepresentation
-from extremitypathfinder.helper_fcts import clean_visible_idxs, has_clockwise_numbering, inside_polygon, read_json
+from extremitypathfinder.helper_fcts import clean_visibles, has_clockwise_numbering, inside_polygon, read_json
 
 
 # TODO test find_visible(), ...
@@ -137,7 +137,7 @@ class HelperFctsTest(unittest.TestCase):
 def test_clean_visible_idxs(
     visible_idxs: Set[int], cand_idx2repr: Dict[int, float], vert_idx2dist: Dict[int, float], expected: Set[int]
 ):
-    res = clean_visible_idxs(visible_idxs, cand_idx2repr, vert_idx2dist)
+    res = clean_visibles(visible_idxs, cand_idx2repr, vert_idx2dist)
     assert res == expected
 
 
