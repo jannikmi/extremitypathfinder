@@ -19,7 +19,7 @@ hook:
 	@pre-commit install
 	@pre-commit run --all-files
 
-hookupdate:
+hook2:
 	@pre-commit autoupdate
 
 clean:

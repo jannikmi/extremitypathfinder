@@ -1,268 +1,7 @@
 import heapq
-from typing import Dict, List, Optional, Set
+from typing import Dict, Iterable, Iterator, List, Optional, Set, Tuple
 
 import numpy as np
-
-# TODO find a way to avoid global variable, wrap all in a different kind of 'coordinate system environment'?
-# problem: lazy evaluation, passing the origin every time is not an option
-# placeholder for temporarily storing the origin of the current coordinate system
-origin = None
-
-
-class AngleRepresentation(object):
-    """
-    a class automatically computing a representation for the angle from the origin to a given vector
-    value in [0.0 : 4.0[
-    every quadrant contains angle measures from 0.0 to 1.0
-    there are 4 quadrants (counter clockwise numbering)
-    0 / 360 degree -> 0.0
-    90 degree -> 1.0
-    180 degree -> 2.0
-    270 degree -> 3.0
-    ...
-    Useful for comparing angles without actually computing expensive trigonometrical functions
-    This representation does not grow directly proportional to its represented angle,
-    but it its bijective and monotonous:
-    rep(p1) > rep(p2) <=> angle(p1) > angle(p2)
-    rep(p1) = rep(p2) <=> angle(p1) = angle(p2)
-    angle(p): counter clockwise angle between the two line segments (0,0)'--(1,0)' and (0,0)'--p
-    with (0,0)' being the vector representing the origin
-
-    """
-
-    # prevent dynamic attribute assignment (-> safe memory)
-    # __slots__ = ['quadrant', 'angle_measure', 'value']
-    __slots__ = ["value"]
-
-    def __init__(self, np_vector):
-        # 2D vector: (dx, dy) = np_vector
-        norm = np.linalg.norm(np_vector)
-        if norm == 0.0:
-            # make sure norm is not 0!
-            raise ValueError("received null vector:", np_vector, norm)
-
-        dx_positive = np_vector[0] >= 0
-        dy_positive = np_vector[1] >= 0
-
-        if dx_positive and dy_positive:
-            quadrant = 0.0
-            angle_measure = np_vector[1] / norm
-
-        elif not dx_positive and dy_positive:
-            quadrant = 1.0
-            angle_measure = -np_vector[0] / norm
-
-        elif not dx_positive and not dy_positive:
-            quadrant = 2.0
-            angle_measure = -np_vector[1] / norm
-
-        else:
-            quadrant = 3.0
-            angle_measure = np_vector[0] / norm
-
-        self.value = quadrant + angle_measure
-
-    def __str__(self):
-        return str(self.value)
-
-    def __repr__(self):
-        return self.__str__()
-
-
-class Vertex(object):
-    # defining static attributes on class to safe memory
-    __slots__ = [
-        "coordinates",
-        "is_extremity",
-        "is_outdated",
-        "coordinates_translated",
-        "angle_representation",
-        "distance_to_origin",
-    ]
-
-    def __init__(self, coordinates):
-        self.coordinates = np.array(coordinates)
-        self.is_extremity: bool = False
-
-        # a container for temporally storing shifted coordinates
-        self.coordinates_translated = None
-        self.angle_representation: Optional[AngleRepresentation] = None
-        self.distance_to_origin: float = 0.0
-
-        # for lazy evaluation: often the angle representations dont have to be computed for every vertex!
-        self.is_outdated: bool = True
-
-    def __gt__(self, other):
-        # ordering needed for priority queue. multiple vertices possibly have the same priority.
-        return id(self) > id(other)
-
-    def __str__(self):
-        return str(tuple(self.coordinates))
-
-    def __repr__(self):
-        return self.__str__()
-
-    def evaluate(self):
-        global origin
-        # store the coordinate value of the point relative to the new origin vector
-        self.coordinates_translated = self.coordinates - origin.coordinates
-        self.distance_to_origin = np.linalg.norm(self.coordinates_translated)
-        if self.distance_to_origin == 0.0:
-            # the coordinates of the origin and this vertex are equal
-            # an angle is not defined in this case!
-            self.angle_representation = None
-        else:
-            self.angle_representation = AngleRepresentation(self.coordinates_translated)
-
-        self.is_outdated = False
-
-    def get_coordinates_translated(self):
-        if self.is_outdated:
-            self.evaluate()
-        return self.coordinates_translated
-
-    def get_angle_representation(self):
-        if self.is_outdated:
-            self.evaluate()
-        try:
-            return self.angle_representation.value
-        except AttributeError:
-            return None
-
-    def get_distance_to_origin(self):
-        if self.is_outdated:
-            self.evaluate()
-        return self.distance_to_origin
-
-    def mark_outdated(self):
-        self.is_outdated = True
-
-
-class PolygonVertex(Vertex):
-    # __slots__ declared in parents are available in child classes. However, child subclasses will get a __dict__
-    # and __weakref__ unless they also define __slots__ (which should only contain names of any additional slots).
-    __slots__ = ["edge1", "edge2", "neighbour1", "neighbour2"]
-
-    def __init__(self, *args, **kwargs):
-        super(PolygonVertex, self).__init__(*args, **kwargs)
-        self.edge1: Optional[Edge] = None
-        self.edge2: Optional[Edge] = None
-        self.neighbour1: Optional[PolygonVertex] = None
-        self.neighbour2: Optional[PolygonVertex] = None
-
-    def get_neighbours(self):
-        return self.neighbour1, self.neighbour2
-
-    def declare_extremity(self):
-        self.is_extremity = True
-
-    def set_edge1(self, e1):
-        self.edge1 = e1
-        # ordering is important! the numbering convention has to stay intact!
-        self.neighbour1 = e1.vertex1
-
-    def set_edge2(self, e2):
-        self.edge2 = e2
-        # ordering is important! the numbering convention has to stay intact!
-        self.neighbour2 = e2.vertex2
-
-
-class Edge(object):
-    __slots__ = ["vertex1", "vertex2"]
-
-    def __init__(self, vertex1, vertex2):
-        self.vertex1: PolygonVertex = vertex1
-        self.vertex2: PolygonVertex = vertex2
-
-    def __str__(self):
-        return self.vertex1.__str__() + "-->" + self.vertex2.__str__()
-
-    def __repr__(self):
-        return self.__str__()
-
-
-class Polygon(object):
-    __slots__ = ["vertices", "edges", "coordinates", "is_hole", "_extremities"]
-
-    def __init__(self, coordinate_list, is_hole):
-        # store just the coordinates separately from the vertices in the format suiting the inside_polygon() function
-        self.coordinates = np.array(coordinate_list)
-
-        self.is_hole: bool = is_hole
-
-        if len(coordinate_list) < 3:
-            raise ValueError(
-                "This is not a valid polygon:",
-                coordinate_list,
-                "# edges:",
-                len(coordinate_list),
-            )
-
-        self.vertices: List[PolygonVertex] = [PolygonVertex(coordinate) for coordinate in coordinate_list]
-
-        self.edges: List[Edge] = []
-        vertex1 = self.vertices[-1]
-        for vertex2 in self.vertices:
-            edge = Edge(vertex1, vertex2)
-            # ordering is important! the numbering convention has to stay intact!
-            vertex1.set_edge2(edge)
-            vertex2.set_edge1(edge)
-            self.edges.append(edge)
-            vertex1 = vertex2
-
-        self._extremities: Optional[List[PolygonVertex]] = None
-
-    def _find_extremities(self):
-        """
-        identify all protruding points = vertices with an inside angle of > 180 degree ('extremities')
-        expected edge numbering:
-            outer boundary polygon: counter clockwise
-            holes: clockwise
-        :return:
-        """
-        self._extremities = []
-        # extremity_indices = []
-        # extremity_index = -1
-        v1 = self.vertices[-2]
-        p1 = v1.coordinates
-        v2 = self.vertices[-1]
-        p2 = v2.coordinates
-
-        for v3 in self.vertices:
-
-            p3 = v3.coordinates
-            # since consequent vertices are not permitted to be equal,
-            #   the angle representation of the difference is well defined
-            if (AngleRepresentation(p3 - p2).value - AngleRepresentation(p1 - p2).value) % 4 < 2.0:
-                # basic idea:
-                #   - translate the coordinate system to have p2 as origin
-                #   - compute the angle representations of both vectors representing the edges
-                #   - "rotate" the coordinate system (equal to deducting) so that the p1p2 representation is 0
-                #   - check in which quadrant the p2p3 representation lies
-                # %4 because the quadrant has to be in [0,1,2,3] (representation in [0:4[)
-                # if the representation lies within quadrant 0 or 1 (<2.0), the inside angle
-                #   (for boundary polygon inside, for holes outside) between p1p2p3 is > 180 degree
-                # then p2 = extremity
-                v2.declare_extremity()
-                self._extremities.append(v2)
-
-            # move to the next point
-            # vertex1=vertex2
-            v2 = v3
-            p1 = p2
-            p2 = p3
-
-    @property
-    def extremities(self) -> List[PolygonVertex]:
-        if self._extremities is None:
-            self._find_extremities()
-        return self._extremities
-
-    def translate(self, new_origin: Vertex):
-        global origin
-        origin = new_origin
-        for vertex in self.vertices:
-            vertex.mark_outdated()
 
 
 class SearchState(object):
@@ -271,7 +10,6 @@ class SearchState(object):
     def __init__(self, node, distance, neighbour_generator, path, cost_so_far, cost_estim):
         self.node = node
         self.distance = distance
-        # TODO
         self.neighbours = neighbour_generator
         self.path = path
         self.cost_so_far: float = cost_so_far
@@ -298,26 +36,36 @@ class SearchStateQueue(object):
         return s.node, s.neighbours, s.distance, s.path, s.cost_so_far
 
 
-# TODO often empty sets in self.neighbours
+def get_distance_to_origin(coords_origin: np.ndarray, coords_v: np.ndarray) -> float:
+    coords_rel = coords_v - coords_origin
+    return np.linalg.norm(coords_rel, ord=2)
+
+
+NodeId = int
+
+
 class DirectedHeuristicGraph(object):
-    __slots__ = ["all_nodes", "distances", "goal_node", "heuristic", "neighbours"]
+    __slots__ = ["all_nodes", "distances", "goal_coords", "heuristic", "neighbours", "coord_map", "merged_id_mapping"]
 
-    def __init__(self, all_nodes: Optional[Set[Vertex]] = None):
-        self.distances: Dict = {}
-        self.neighbours: Dict = {}
+    def __init__(self, coord_map: Optional[Dict[NodeId, np.ndarray]] = None):
+        self.distances: Dict[Tuple[NodeId, NodeId], float] = {}
+        self.neighbours: Dict[NodeId, Set[NodeId]] = {}
 
-        if all_nodes is None:
+        if coord_map is None:
             all_nodes = set()
-        self.all_nodes: Set[Vertex] = all_nodes.copy()  # independent copy required!
+        else:
+            all_nodes = set(coord_map.keys())
 
-        # TODO use same set as extremities of env, but different for copy!
+        self.all_nodes: Set[NodeId] = set(all_nodes)  # independent copy required!
+        self.coord_map: Dict[NodeId, np.ndarray] = coord_map
+        self.merged_id_mapping: Dict[NodeId, NodeId] = {}
 
         # the heuristic must NEVER OVERESTIMATE the actual cost (here: actual shortest distance)
         # <=> must always be lowest for node with the POSSIBLY lowest cost
         # <=> heuristic is LOWER BOUND for the cost
         # the heuristic here: distance to the goal node (is always the shortest possible distance!)
-        self.heuristic: dict = {}
-        self.goal_node: Optional[Vertex] = None
+        self.heuristic: Dict[NodeId, float] = {}
+        self.goal_coords: Optional[np.ndarray] = None
 
     def __deepcopy__(self, memodict=None):
         # returns an independent copy (nodes can be added without changing the original graph),
@@ -328,39 +76,29 @@ class DirectedHeuristicGraph(object):
         independent_copy.all_nodes = self.all_nodes.copy()
         return independent_copy
 
-    def get_all_nodes(self):
+    def get_all_nodes(self) -> Set[NodeId]:
         return self.all_nodes
 
-    def get_neighbours(self):
-        return self.neighbours.items()
+    def get_neighbours(self) -> Iterable:
+        yield from self.neighbours.items()
 
-    def get_neighbours_of(self, node):
+    def get_neighbours_of(self, node: NodeId) -> Set[NodeId]:
         return self.neighbours.get(node, set())
 
-    def get_distance(self, node1, node2):
+    def get_distance(self, node1: NodeId, node2: NodeId) -> float:
         # directed edges: just one direction is being stored
         return self.distances[(node1, node2)]
 
-    def get_heuristic(self, node):
-        global origin  # use origin contains the current goal node
+    def get_heuristic(self, node: NodeId) -> float:
         # lazy evaluation:
         h = self.heuristic.get(node, None)
         if h is None:
             # has been reset, compute again
-            h = np.linalg.norm(node.coordinates - origin.coordinates)
+            h = get_distance_to_origin(self.goal_coords, self.coord_map[node])
             self.heuristic[node] = h
         return h
 
-    def set_goal_node(self, goal_node):
-        assert goal_node in self.all_nodes  # has no outgoing edges -> no neighbours
-        # IMPORTANT: while using heuristic graph (a star), do not change origin!
-        global origin
-        origin = goal_node  # use origin for temporally storing the goal node
-        self.goal_node = goal_node
-        # reset heuristic for all
-        self.heuristic.clear()
-
-    def neighbours_of(self, node1):
+    def gen_neighbours_and_dist(self, node1: NodeId) -> Iterator[Tuple[NodeId, float, float]]:
         # optimisation:
         #   return the neighbours ordered after their cost estimate: distance+ heuristic (= current-next + next-goal)
         #   -> when the goal is reachable return it first (-> a star search terminates)
@@ -376,73 +114,88 @@ class DirectedHeuristicGraph(object):
         # yield node, distance, cost_estimate= distance + heuristic
         yield from out_sorted
 
-    def add_directed_edge(self, node1, node2, distance):
+    def add_directed_edge(self, node1: NodeId, node2: NodeId, distance: float):
         assert node1 != node2  # no self loops allowed!
         self.neighbours.setdefault(node1, set()).add(node2)
         self.distances[(node1, node2)] = distance
         self.all_nodes.add(node1)
         self.all_nodes.add(node2)
 
-    def add_undirected_edge(self, node1, node2, distance):
+    def add_undirected_edge(self, node1: NodeId, node2: NodeId, distance: float):
         assert node1 != node2  # no self loops allowed!
         self.add_directed_edge(node1, node2, distance)
         self.add_directed_edge(node2, node1, distance)
 
-    def add_multiple_undirected_edges(self, node1, node_distance_iter):
-        for node2, distance in node_distance_iter:
+    def add_multiple_undirected_edges(self, node1: NodeId, node_distance_map: Dict[NodeId, float]):
+        for node2, distance in node_distance_map.items():
             self.add_undirected_edge(node1, node2, distance)
 
-    def add_multiple_directed_edges(self, node1, node_distance_iter):
-        for node2, distance in node_distance_iter:
+    def add_multiple_directed_edges(self, node1: NodeId, node_distance_iter: Dict[NodeId, float]):
+        for node2, distance in node_distance_iter.items():
             self.add_directed_edge(node1, node2, distance)
 
-    def remove_directed_edge(self, n1, n2):
-        neighbours = self.neighbours.get(n1)
-        if neighbours is not None:
-            neighbours.discard(n2)
-            self.distances.pop((n1, n2), None)
-            # ATTENTION: even if there are no neighbours left and a node is hence dangling (not reachable),
-            # the node must still be kept, since with the addition of start and goal nodes during a query
-            # the node might become reachable!
+    def remove_directed_edge(self, n1: NodeId, n2: NodeId):
+        neighbours = self.get_neighbours_of(n1)
+        neighbours.discard(n2)
+        self.distances.pop((n1, n2), None)
+        # ATTENTION: even if there are no neighbours left and a node is hence dangling (not reachable),
+        # the node must still be kept, since with the addition of start and goal nodes during a query
+        # the node might become reachable!
 
-    def remove_undirected_edge(self, node1, node2):
+    def remove_undirected_edge(self, node1: NodeId, node2: NodeId):
         # should work even if edge does not exist yet
         self.remove_directed_edge(node1, node2)
         self.remove_directed_edge(node2, node1)
 
-    def remove_multiple_undirected_edges(self, node1, node2_iter):
+    def remove_multiple_undirected_edges(self, node1: NodeId, node2_iter: Iterable[NodeId]):
         for node2 in node2_iter:
             self.remove_undirected_edge(node1, node2)
 
-    def make_clean(self):
-        # for shortest path computations all graph nodes should be unique
-        self.join_identical()
-        # leave dangling nodes! (they might become reachable by adding start and and goal node!)
-
     def join_identical(self):
-        # join all nodes with the same coordinates,
-        nodes_to_check = self.get_all_nodes().copy()
+        # for shortest path computations all graph nodes should be unique
+        # join all nodes with the same coordinates
+        # leave dangling nodes! (they might become reachable by adding start and and goal node!)
+        nodes_to_check = self.all_nodes.copy()
         while len(nodes_to_check) > 1:
             n1 = nodes_to_check.pop()
-            coordinates1 = n1.coordinates
-            same_nodes = {n for n in nodes_to_check if np.allclose(coordinates1, n.coordinates)}
+            coordinates1 = self.coord_map[n1]
+            same_nodes = {n for n in nodes_to_check if np.allclose(coordinates1, self.coord_map[n])}
             nodes_to_check.difference_update(same_nodes)
             for n2 in same_nodes:
-                # print('removing duplicate node', n2)
-                neighbours_n1 = self.neighbours[n1]
-                neighbours_n2 = self.neighbours.pop(n2)
-                for n3 in neighbours_n2:
-                    d = self.distances.pop((n2, n3))
-                    self.distances.pop((n3, n2))
-                    self.neighbours[n3].remove(n2)
-                    # do not allow self loops!
-                    if n3 != n1 and n3 not in neighbours_n1:
-                        # and add all the new edges to node 1
-                        self.add_undirected_edge(n1, n3, d)
+                self.merge_nodes(n1, n2)
 
-                self.all_nodes.remove(n2)
+    def remove_node(self, n: NodeId):
+        self.all_nodes.discard(n)
+        # also deletes all edges
+        # outgoing
+        neighbours = self.neighbours.pop(n, set())
+        for n1 in neighbours:
+            self.distances.pop((n, n1), None)
+            self.distances.pop((n1, n), None)
+        # incoming
+        for n1 in self.all_nodes:
+            neighbours = self.neighbours.get(n1, set())
+            neighbours.discard(n)
+            self.distances.pop((n, n1), None)
+            self.distances.pop((n1, n), None)
 
-    def modified_a_star(self, start: Vertex, goal: Vertex):
+    def merge_nodes(self, n1: NodeId, n2: NodeId):
+        # print('removing duplicate node', n2)
+        neighbours_n1 = self.neighbours.get(n1, set())
+        neighbours_n2 = self.neighbours.pop(n2, {})
+        for n3 in neighbours_n2:
+            d = self.distances.pop((n2, n3))
+            self.distances.pop((n3, n2), None)
+            self.neighbours.get(n3, set()).discard(n2)
+            # do not allow self loops!
+            if n3 != n1 and n3 not in neighbours_n1:
+                # and add all the new edges to node 1
+                self.add_undirected_edge(n1, n3, d)
+
+        self.remove_node(n2)
+        self.merged_id_mapping[n2] = n1  # mapping from -> to
+
+    def modified_a_star(self, start: int, goal: int, goal_coords: np.ndarray) -> Tuple[List[int], Optional[float]]:
         """implementation of the popular A* algorithm with optimisations for this special use case
 
         IMPORTANT: geometrical property of this problem (and hence also the extracted graph):
@@ -476,7 +229,11 @@ class DirectedHeuristicGraph(object):
             ([], None) if there is no possible path.
         """
 
-        def enqueue_neighbours():
+        # apply mapping in case start or goal got merged with another node
+        start = self.merged_id_mapping.get(start, start)
+        goal = self.merged_id_mapping.get(goal, goal)
+
+        def enqueue(neighbours: Iterator):
             try:
                 next_node, distance, cost_estim = next(neighbours)
             except StopIteration:
@@ -485,14 +242,14 @@ class DirectedHeuristicGraph(object):
             state = SearchState(next_node, distance, neighbours, path, cost_so_far, cost_estim)
             search_state_queue.put(state)
 
-        self.set_goal_node(goal)  # lazy update of the heuristic
+        self.goal_coords = goal_coords  # lazy update of the heuristic
 
         search_state_queue = SearchStateQueue()
         current_node = start
-        neighbours = self.neighbours_of(current_node)
+        neighbours = self.gen_neighbours_and_dist(current_node)
         cost_so_far = 0.0
         path = [start]
-        enqueue_neighbours()
+        enqueue(neighbours)
         visited_nodes = set()
 
         while not search_state_queue.is_empty():
@@ -508,7 +265,7 @@ class DirectedHeuristicGraph(object):
             # print('neighbours:', heuristic_graph.get_neighbours_of(current_node))
 
             # there could still be other neighbours left in this generator:
-            enqueue_neighbours()
+            enqueue(neighbours)
 
             if current_node in visited_nodes:
                 # this node has already been visited. there is no need to consider
@@ -533,8 +290,8 @@ class DirectedHeuristicGraph(object):
                 return path, cost_so_far
 
             # also consider the neighbours of the current node
-            neighbours = self.neighbours_of(current_node)
-            enqueue_neighbours()
+            neighbours = self.gen_neighbours_and_dist(current_node)
+            enqueue(neighbours)
 
         # goal is not reachable
         return [], None

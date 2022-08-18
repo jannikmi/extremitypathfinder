@@ -44,8 +44,10 @@ repos:
     hooks:
       - id: flake8
         exclude: ^(docs|scripts|tests)/
+        # E203 whitespace before ':'
         args:
           - --max-line-length=120
+          - --ignore=E203
         additional_dependencies:
           - flake8-bugbear
           - flake8-comprehensions
@@ -59,7 +61,7 @@ repos:
         additional_dependencies: [ numpy, poetry==1.1.11 ]
 
   - repo: https://github.com/asottile/pyupgrade
-    rev: v2.36.0
+    rev: v2.37.3
     hooks:
       - id: pyupgrade
 

@@ -1,6 +1,24 @@
 Changelog
 =========
 
+
+TODO pending major release: remove separate prepare step?! initialise in one step during initialisation
+TODO Numba JIT compilation of utils. line speed profiling for highest impact of refactoring
+TODO improve A* implementation (away from OOP)
+
+
+2.3.0 (2022-08-18)
+-------------------
+
+* major overhaul of all functionality from OOP to functional programming/numpy based
+
+internal:
+
+* added test cases
+
+
+
+
 2.2.3 (2022-10-11)
 -------------------
 
