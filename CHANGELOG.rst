@@ -7,10 +7,10 @@ TODO Numba JIT compilation of utils. line speed profiling for highest impact of 
 TODO improve A* implementation (away from OOP)
 
 
-2.3.0 (2022-xx)
+2.3.0 (2022-08-18)
 -------------------
 
-* major overhaul of all functionality from OOP to functional/numpy based
+* major overhaul of all functionality from OOP to functional programming/numpy based
 
 internal:
 
