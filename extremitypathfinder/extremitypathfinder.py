@@ -72,20 +72,6 @@ class PolygonEnvironment:
         return self._all_vertices
 
     @property
-    def coords(self) -> np.ndarray:
-        return np.stack([v.coordinates for v in self.all_vertices])
-
-    @property
-    def vertex_edge_idxs(self) -> np.ndarray:
-        all_edges = self.all_edges
-        return np.stack([(all_edges.index(v.edge1), all_edges.index(v.edge2)) for v in self.all_vertices])
-
-    @property
-    def edge_vertex_idxs(self) -> np.ndarray:
-        vertices = self.all_vertices
-        return np.stack([(vertices.index(edge.vertex1), vertices.index(edge.vertex2)) for edge in self.all_edges])
-
-    @property
     def nr_vertices(self) -> int:
         return len(self.all_vertices)
 
@@ -115,6 +101,20 @@ class PolygonEnvironment:
     def all_edges(self) -> List[Edge]:
         return list(itertools.chain(*iter(p.edges for p in self.polygons)))
 
+    @property
+    def coords(self) -> np.ndarray:
+        return np.stack([v.coordinates for v in self.all_vertices])
+
+    @property
+    def vertex_edge_idxs(self) -> np.ndarray:
+        all_edges = self.all_edges
+        return np.stack([(all_edges.index(v.edge1), all_edges.index(v.edge2)) for v in self.all_vertices])
+
+    @property
+    def edge_vertex_idxs(self) -> np.ndarray:
+        vertices = self.all_vertices
+        return np.stack([(vertices.index(edge.vertex1), vertices.index(edge.vertex2)) for edge in self.all_edges])
+
     def store(
         self,
         boundary_coordinates: INPUT_COORD_LIST_TYPE,
@@ -140,10 +140,39 @@ class PolygonEnvironment:
         """
         self.prepared = False
         # loading the map
-        boundary_coordinates = np.array(boundary_coordinates)
-        list_of_hole_coordinates = [np.array(hole_coords) for hole_coords in list_of_hole_coordinates]
+        boundary_coordinates = np.array(boundary_coordinates, dtype=float)
+        list_of_hole_coordinates = [np.array(hole_coords, dtype=float) for hole_coords in list_of_hole_coordinates]
         if validate:
             check_data_requirements(boundary_coordinates, list_of_hole_coordinates)
+
+        list_of_polygons = [boundary_coordinates] + list_of_hole_coordinates
+        nr_total_pts = sum(map(len, list_of_polygons))
+        vertex_edge_idxs = np.empty((nr_total_pts, 2), dtype=int)
+        edge_vertex_idxs = np.empty((nr_total_pts, 2), dtype=int)
+        edge_idx = 0
+        offset = 0
+        for poly in list_of_polygons:
+            nr_coords = len(poly)
+            v1 = -1 % nr_coords
+            # TODO col 1 is just np.arange?!
+            for v2 in range(nr_coords):
+                v1_idx = v1 + offset
+                v2_idx = v2 + offset
+                edge_vertex_idxs[edge_idx, 0] = v1_idx
+                edge_vertex_idxs[edge_idx, 1] = v2_idx
+                vertex_edge_idxs[v1_idx, 0] = edge_idx
+                vertex_edge_idxs[v2_idx, 1] = edge_idx
+                # move to the next vertex/edge
+                v1 = v2
+                edge_idx += 1
+
+            offset = edge_idx
+
+        assert edge_idx == nr_total_pts
+
+        # self.coords = np.concatenate(list_of_polygons, axis=0)
+        # self.vertex_edge_idxs = vertex_edge_idxs
+        # self.edge_vertex_idxs = edge_vertex_idxs
 
         self.boundary_polygon = Polygon(boundary_coordinates, is_hole=False)
         # IMPORTANT: make a copy of the list instead of linking to the same list (python!)
@@ -223,7 +252,6 @@ class PolygonEnvironment:
         nr_vertices = self.nr_vertices
         extremity_indices = self.extremity_indices
         extremity_mask = self.extremity_mask
-        all_edges = self.all_edges
         coords = self.coords
         vertex_edge_idxs = self.vertex_edge_idxs
         edge_vertex_idxs = self.edge_vertex_idxs
@@ -256,8 +284,7 @@ class PolygonEnvironment:
 
         extremity_coord_map = {i: coords[i] for i in extremity_indices}
         graph = DirectedHeuristicGraph(extremity_coord_map)
-        # TODO use orig_ptr
-        for _orig_ptr, origin_idx in enumerate(extremity_indices):
+        for origin_idx in extremity_indices:
             # vertices all belong to a polygon
             idx_n1, idx_n2 = get_neighbours(origin_idx)
             # ATTENTION: polygons may intersect -> neighbouring extremities must NOT be visible from each other!
@@ -273,12 +300,15 @@ class PolygonEnvironment:
             # TODO lazy init? same as angle repr
             vert_idx2dist = {i: get_distance_to_origin(origin_idx, i) for i in range(nr_vertices)}
             vert_idx2repr = {i: get_repr(origin_idx, i) for i in range(nr_vertices)}
-
-            idx2repr = {i: get_repr(origin_idx, i) for i in extremity_indices}
+            idx2repr = {i: vert_idx2repr[i] for i in extremity_indices}
             # only consider extremities with coords_rel different from the query extremity
             # (angle representation not None)
             # the origin extremity itself must also not be checked when looking for visible neighbours
-            idx2repr = {i: r for i, r in idx2repr.items() if r is not None}
+            # extremities are always visible to each other
+            # (bi-directional relation -> undirected edges in the graph)
+            #  -> do not check extremities which have been checked already
+            #  (must give the same result when algorithms are correct)
+            idx2repr = {i: r for i, r in idx2repr.items() if r is not None and i > origin_idx}
             idxs_behind = find_within_range(
                 n1_repr,
                 n2_repr,
@@ -286,27 +316,9 @@ class PolygonEnvironment:
                 angle_range_less_180=True,
                 equal_repr_allowed=False,
             )
-
-            # TODO
-            # extremities are always visible to each other
-            # (bi-directional relation -> undirected edges in the graph)
-            #  -> do not check extremities which have been checked already
-            #  (must give the same result when algorithms are correct)
-            # idx2repr_tmp = {i: r for i, r in idx2repr.items() if i > origin_idx}
-            # idxs_behind = find_within_range2(
-            #     n1_repr,
-            #     n2_repr,
-            #     idx2repr_tmp,
-            #     angle_range_less_180=True,
-            #     equal_repr_allowed=False,
-            # )
-            #
-            # if idxs_behind_ != idxs_behind:
-            #     x = 1
-            #
-            # idxs_behind__ = {i for i in idxs_behind_ if i > origin_idx}
-            # if idxs_behind__ != idxs_behind:
-            #     raise ValueError
+            # do not consider points found to lie behind
+            for i in idxs_behind:
+                idx2repr.pop(i)
 
             # as shown in [1, Ch. II 4.4.2 "Property One"]: Starting from any point lying "in front of" an extremity e,
             # such that both adjacent edges are visible, one will never visit e, because everything is
@@ -326,22 +338,22 @@ class PolygonEnvironment:
             # IMPORTANT: check all extremities here, not just current candidates
             # do not check extremities with equal coords_rel (also query extremity itself!)
             #   and with the same angle representation (those edges must not get deleted from graph!)
-            idx2repr = {i: r for i, r in idx2repr.items() if i not in idxs_behind}
-            lie_in_front_idxs = find_within_range(
+            idxs_in_front = find_within_range(
                 n1_repr_inv,
                 n2_repr_inv,
                 idx2repr,
                 angle_range_less_180=True,
                 equal_repr_allowed=False,
             )
-
             # do not consider points lying in front when looking for visible extremities,
             # even if they are actually be visible
-            # do not consider points found to lie behind
-            candidate_idxs = {i for i in idx2repr.keys() if i not in lie_in_front_idxs and i not in idxs_behind}
+            for i in idxs_in_front:
+                idx2repr.pop(i)
+
+            candidate_idxs = set(idx2repr.keys())
 
             # all edges have to be checked, except the 2 neighbouring edges (handled above!)
-            nr_edges = len(all_edges)
+            nr_edges = len(self.all_edges)
             edge_idxs2check = set(range(nr_edges))
             edge1_idx, edge2_idx = vertex_edge_idxs[origin_idx]
             edge_idxs2check.remove(edge1_idx)
@@ -363,7 +375,7 @@ class PolygonEnvironment:
             graph.add_multiple_undirected_edges(origin_idx, visible_vertex2dist_map)
             # optimisation: "thin out" the graph
             # remove already existing edges in the graph to the extremities in front
-            graph.remove_multiple_undirected_edges(origin_idx, lie_in_front_idxs)
+            graph.remove_multiple_undirected_edges(origin_idx, idxs_in_front)
 
         graph.join_identical()  # join all nodes with the same coords_rel
 

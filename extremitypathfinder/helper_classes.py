@@ -243,16 +243,13 @@ class Polygon(object):
             holes: clockwise
         :return:
         """
-        extremities = []
+        coordinates = [v.coordinates for v in self.vertices]
+        extr_idxs = []
         # extremity_indices = []
         # extremity_index = -1
-        v1 = self.vertices[-2]
-        p1 = v1.coordinates
-        v2 = self.vertices[-1]
-        p2 = v2.coordinates
-
-        for v3 in self.vertices:
-            p3 = v3.coordinates
+        p1 = coordinates[-2]
+        p2 = coordinates[-1]
+        for i, p3 in enumerate(coordinates):
             # since consequent vertices are not permitted to be equal,
             #   the angle representation of the difference is well defined
             diff_p3_p2 = p3 - p2
@@ -269,17 +266,17 @@ class Polygon(object):
                 # if the representation lies within quadrant 0 or 1 (<2.0), the inside angle
                 #   (for boundary polygon inside, for holes outside) between p1p2p3 is > 180 degree
                 # then p2 = extremity
-                v2.declare_extremity()
-                extremities.append(v2)
+                idx_p2 = i - 1
+                extr_idxs.append(idx_p2)
 
             # move to the next point
-            # vertex1=vertex2
-            # TODO optimise
-            diff_p1_p2 = diff_p3_p2
+            # diff_p1_p2 = diff_p3_p2
             p1 = p2
-            v2 = v3
             p2 = p3
 
+        extremities = [self.vertices[i] for i in extr_idxs]
+        for v in extremities:
+            v.declare_extremity()
         self._extremities = extremities
 
     @property
