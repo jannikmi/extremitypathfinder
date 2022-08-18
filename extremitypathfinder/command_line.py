@@ -1,7 +1,7 @@
 import argparse
 
 from extremitypathfinder import PolygonEnvironment
-from extremitypathfinder.global_settings import BOUNDARY_JSON_KEY, HOLES_JSON_KEY
+from extremitypathfinder.configs import BOUNDARY_JSON_KEY, HOLES_JSON_KEY
 from extremitypathfinder.helper_fcts import read_json
 
 JSON_HELP_MSG = (

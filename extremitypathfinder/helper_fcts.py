@@ -6,7 +6,7 @@ from typing import Dict, Iterable, List, Set, Tuple
 import numpy as np
 import numpy.linalg
 
-from extremitypathfinder.global_settings import BOUNDARY_JSON_KEY, HOLES_JSON_KEY
+from extremitypathfinder.configs import BOUNDARY_JSON_KEY, HOLES_JSON_KEY
 from extremitypathfinder.helper_classes import (
     DirectedHeuristicGraph,
     angle_rep_inverse,

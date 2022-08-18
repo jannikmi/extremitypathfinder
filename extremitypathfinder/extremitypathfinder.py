@@ -4,7 +4,7 @@ from typing import Dict, List, Tuple
 
 import numpy as np
 
-from extremitypathfinder.global_settings import (
+from extremitypathfinder.configs import (
     DEFAULT_PICKLE_NAME,
     INPUT_COORD_LIST_TYPE,
     LENGTH_TYPE,
