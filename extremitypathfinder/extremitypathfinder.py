@@ -232,8 +232,8 @@ class PolygonEnvironment:
         """
         boundary = self.boundary_polygon
         holes = self.holes
-        x, y = coords
-        return is_within_map(x, y, boundary, holes)
+        p = np.array(coords, dtype=float)
+        return is_within_map(p, boundary, holes)
 
     def find_shortest_path(
         self,

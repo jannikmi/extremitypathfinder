@@ -1,5 +1,6 @@
 # TODO numba precompilation of some parts possible?! do line speed profiling first! speed impact
 import json
+import math
 from itertools import combinations
 from typing import Dict, Iterable, List, Optional, Set, Tuple
 
@@ -9,6 +10,70 @@ import numpy.linalg
 from extremitypathfinder.configs import BOUNDARY_JSON_KEY, HOLES_JSON_KEY
 from extremitypathfinder.helper_classes import DirectedHeuristicGraph
 
+try:
+    from numba import njit
+
+    using_numba = True
+except ImportError:
+    using_numba = False
+    # replace Numba functionality with "transparent" implementations
+    from extremitypathfinder.numba_replacements import njit
+
+
+@njit(cache=True)
+def compute_repr_n_dist(np_vector: np.ndarray) -> Tuple[float, float]:
+    """computing representation for the angle from the origin to a given vector
+
+    value in [0.0 : 4.0[
+    every quadrant contains angle measures from 0.0 to 1.0
+    there are 4 quadrants (counter clockwise numbering)
+    0 / 360 degree -> 0.0
+    90 degree -> 1.0
+    180 degree -> 2.0
+    270 degree -> 3.0
+    ...
+    Useful for comparing angles without actually computing expensive trigonometrical functions
+    This representation does not grow directly proportional to its represented angle,
+    but it its bijective and monotonous:
+    rep(p1) > rep(p2) <=> angle(p1) > angle(p2)
+    rep(p1) = rep(p2) <=> angle(p1) = angle(p2)
+    angle(p): counter clockwise angle between the two line segments (0,0)'--(1,0)' and (0,0)'--p
+    with (0,0)' being the vector representing the origin
+
+    :param np_vector:
+    :return:
+    """
+    dx, dy = np_vector
+    distance = math.sqrt(dx**2 + dy**2)  # l-2 norm
+    if distance == 0.0:
+        angle_measure = np.nan
+    else:
+        # 2D vector: (dx, dy) = np_vector
+        dx_positive = dx >= 0
+        dy_positive = dy >= 0
+
+        if dx_positive and dy_positive:
+            quadrant = 0.0
+            angle_measure = dy
+
+        elif not dx_positive and dy_positive:
+            quadrant = 1.0
+            angle_measure = -dx
+
+        elif not dx_positive and not dy_positive:
+            quadrant = 2.0
+            angle_measure = -dy
+
+        else:
+            quadrant = 3.0
+            angle_measure = dx
+
+        # normalise angle measure to [0; 1]
+        angle_measure /= distance
+        angle_measure += quadrant
+
+    return angle_measure, distance
+
 
 def get_repr_n_dists(orig_idx: int, coords: np.ndarray) -> np.ndarray:
     coords_orig = coords[orig_idx]
@@ -17,15 +82,16 @@ def get_repr_n_dists(orig_idx: int, coords: np.ndarray) -> np.ndarray:
     return repr_n_dists.T
 
 
-def inside_polygon(x, y, coords, border_value):
+@njit(cache=True)
+def inside_polygon(p: np.ndarray, coords: np.ndarray, border_value: bool) -> bool:
     # should return the border value for point equal to any polygon vertex
     # TODO overflow possible with large values when comparing slopes, change procedure
+    x, y = p
     for c in coords[:]:
-        if np.all(c == [x, y]):
+        if np.array_equal(c, p):
             return border_value
 
     # and if the point p lies on any polygon edge
-    p = np.array([x, y])
     p1 = coords[-1, :]
     for p2 in coords[:]:
         rep_p1_p, _ = compute_repr_n_dist(p1 - p)
@@ -72,11 +138,11 @@ def inside_polygon(x, y, coords, border_value):
     return contained
 
 
-def is_within_map(x, y, boundary, holes):
-    if not inside_polygon(x, y, boundary, border_value=True):
+def is_within_map(p: np.ndarray, boundary: np.ndarray, holes: Iterable[np.ndarray]) -> bool:
+    if not inside_polygon(p, boundary, border_value=True):
         return False
     for hole in holes:
-        if inside_polygon(x, y, hole, border_value=False):
+        if inside_polygon(p, hole, border_value=False):
             return False
     return True
 
@@ -779,9 +845,17 @@ def convert_gridworld(size_x: int, size_y: int, obstacle_iter: iter, simplify: b
     # just the obstacles inside the boundary polygon are part of holes
     # shift coordinates by +(0.5,0.5) for correct detection
     # the border value does not matter here
-    unchecked_obstacles = [
-        o for o in obstacle_iter if inside_polygon(o[0] + 0.5, o[1] + 0.5, boundary_edges, border_value=True)
-    ]
+
+    def get_unchecked_obstacles(obstacles: Iterable, poly: np.ndarray, required_val: bool = True) -> List:
+        unchecked_obstacles = []
+        for o in obstacles:
+            p = o + 0.5
+            if inside_polygon(p, poly, border_value=True) == required_val:
+                unchecked_obstacles.append(o)
+
+        return unchecked_obstacles
+
+    unchecked_obstacles = get_unchecked_obstacles(obstacle_iter, boundary_edges)
 
     hole_list = []
     while len(unchecked_obstacles) > 0:
@@ -790,9 +864,7 @@ def convert_gridworld(size_x: int, size_y: int, obstacle_iter: iter, simplify: b
 
         # detect which of the obstacles still do not belong to any hole:
         # delete the obstacles which are included in the just constructed hole
-        unchecked_obstacles = [
-            o for o in unchecked_obstacles if not inside_polygon(o[0] + 0.5, o[1] + 0.5, hole, border_value=True)
-        ]
+        unchecked_obstacles = get_unchecked_obstacles(unchecked_obstacles, hole, required_val=False)
 
         if simplify:
             # TODO
@@ -850,57 +922,3 @@ def compute_extremity_idxs(coordinates: np.ndarray) -> List[int]:
         p1 = p2
         p2 = p3
     return extr_idxs
-
-
-def compute_repr_n_dist(np_vector: np.ndarray) -> Tuple[float, float]:
-    """computing representation for the angle from the origin to a given vector
-
-    value in [0.0 : 4.0[
-    every quadrant contains angle measures from 0.0 to 1.0
-    there are 4 quadrants (counter clockwise numbering)
-    0 / 360 degree -> 0.0
-    90 degree -> 1.0
-    180 degree -> 2.0
-    270 degree -> 3.0
-    ...
-    Useful for comparing angles without actually computing expensive trigonometrical functions
-    This representation does not grow directly proportional to its represented angle,
-    but it its bijective and monotonous:
-    rep(p1) > rep(p2) <=> angle(p1) > angle(p2)
-    rep(p1) = rep(p2) <=> angle(p1) = angle(p2)
-    angle(p): counter clockwise angle between the two line segments (0,0)'--(1,0)' and (0,0)'--p
-    with (0,0)' being the vector representing the origin
-
-    :param np_vector:
-    :return:
-    """
-    distance = np.linalg.norm(np_vector, ord=2)
-    if distance == 0.0:
-        angle_measure = np.nan
-    else:
-        # 2D vector: (dx, dy) = np_vector
-        dx, dy = np_vector
-        dx_positive = dx >= 0
-        dy_positive = dy >= 0
-
-        if dx_positive and dy_positive:
-            quadrant = 0.0
-            angle_measure = dy
-
-        elif not dx_positive and dy_positive:
-            quadrant = 1.0
-            angle_measure = -dx
-
-        elif not dx_positive and not dy_positive:
-            quadrant = 2.0
-            angle_measure = -dy
-
-        else:
-            quadrant = 3.0
-            angle_measure = dx
-
-        # normalise angle measure to [0; 1]
-        angle_measure /= distance
-        angle_measure += quadrant
-
-    return angle_measure, distance
