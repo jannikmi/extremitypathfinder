@@ -18,14 +18,14 @@ from extremitypathfinder.helper_classes import (
     PolygonVertex,
     angle_rep_inverse,
     compute_extremity_idxs,
-    compute_repr_n_dist,
 )
 from extremitypathfinder.helper_fcts import (
     check_data_requirements,
     convert_gridworld,
     find_visible2,
-    find_within_range2,
+    find_within_range,
     get_angle_repr,
+    get_repr_n_dists,
     inside_polygon,
 )
 
@@ -150,17 +150,7 @@ class PolygonEnvironment:
         self.extremity_indices = extremity_idxs
         self.extremity_mask = mask
 
-        # def get_representations(i:int)->np.ndarray:
-        #
-        # self.representations = {i: get_representations(i) for i in extremity_idxs}
-
-        def get_repr_n_dists(i: int) -> np.ndarray:
-            coords_orig = coords[i]
-            coords_translated = coords - coords_orig
-            repr_n_dists = np.apply_along_axis(compute_repr_n_dist, axis=1, arr=coords_translated)
-            return repr_n_dists.T
-
-        self.reprs_n_distances = {i: get_repr_n_dists(i) for i in extremity_idxs}
+        self.reprs_n_distances = {i: get_repr_n_dists(i, coords) for i in extremity_idxs}
 
     def store_grid_world(
         self,
@@ -279,7 +269,7 @@ class PolygonEnvironment:
             # (angle representation not None)
 
             candidate_idxs = {i for i in candidate_idxs if vert_idx2repr[i] is not np.nan}
-            idxs_behind = find_within_range2(
+            idxs_behind = find_within_range(
                 n1_repr,
                 n2_repr,
                 vert_idx2repr,
@@ -308,7 +298,7 @@ class PolygonEnvironment:
             # IMPORTANT: check all extremities here, not just current candidates
             # do not check extremities with equal coords_rel (also query extremity itself!)
             #   and with the same angle representation (those edges must not get deleted from graph!)
-            idxs_in_front = find_within_range2(
+            idxs_in_front = find_within_range(
                 n1_repr_inv,
                 n2_repr_inv,
                 vert_idx2repr,
@@ -336,6 +326,7 @@ class PolygonEnvironment:
                 vert_idx2repr,
                 vert_idx2dist,
                 candidate_idxs,
+                origin_idx,
             )
 
             visible_vertex2dist_map = {i: get_distance_to_origin(origin_idx, i) for i in visible_idxs}
@@ -416,9 +407,6 @@ class PolygonEnvironment:
         coords = np.append(self.coords, (coords_start, coords_goal), axis=0)
         idx_start = self.nr_vertices
         idx_goal = self.nr_vertices + 1
-        nr_vertices = self.nr_vertices + 2
-        vert_idx2dist_start = {i: get_distance_to_origin(coords_start, i) for i in range(nr_vertices)}
-        vert_idx2dist_goal = {i: get_distance_to_origin(coords_goal, i) for i in range(nr_vertices)}
 
         # start and goal nodes could be identical with one ore more of the vertices
         # BUT: this is an edge case -> compute visibility as usual and later try to merge with the graph
@@ -435,15 +423,14 @@ class PolygonEnvironment:
         # the visibility of only the graphs nodes has to be checked (not all extremities!)
         # points with the same angle representation should not be considered visible
         # (they also cause errors in the algorithms, because their angle repr is not defined!)
-        candidate_idxs = self.graph.get_all_nodes()
         # IMPORTANT: also check if the start node is visible from the goal node!
         # NOTE: all edges are being checked, it is computationally faster to compute all visibilities in one go
-        candidate_idxs.add(idx_start)
+        self.graph.get_all_nodes().add(idx_start)
         coords_origin = coords[idx_origin]
-        vert_idx2repr = {i: get_angle_repr(coords_origin, coords[i]) for i in range(nr_vertices)}
-        candidate_idxs = {i for i in candidate_idxs if vert_idx2repr[i] is not None}
         edge_idxs2check = set(range(nr_edges))
-        vert_idx2dist = vert_idx2dist_goal
+
+        vert_idx2repr, vert_idx2dist = get_repr_n_dists(idx_origin, coords)
+        candidate_idxs = {i for i in (self.graph.get_all_nodes()) if not vert_idx2dist[i] == 0.0}
         visible_idxs = find_visible2(
             extremity_mask,
             coords,
@@ -454,6 +441,7 @@ class PolygonEnvironment:
             vert_idx2repr,
             vert_idx2dist,
             candidate_idxs,
+            idx_origin,
         )
         visibles_n_distances_map = {i: vert_idx2dist[i] for i in visible_idxs}
 
@@ -476,11 +464,9 @@ class PolygonEnvironment:
         coords_origin = coords[idx_origin]
         # the visibility of only the graphs nodes have to be checked
         # the goal node does not have to be considered, because of the earlier check
-        candidate_idxs = self.graph.get_all_nodes()
-        vert_idx2repr = {i: get_angle_repr(coords_origin, coords[i]) for i in range(nr_vertices)}
-        candidate_idxs = {i for i in candidate_idxs if vert_idx2repr[i] is not None}
         edge_idxs2check = set(range(nr_edges))  # new copy
-        vert_idx2dist = vert_idx2dist_start
+        vert_idx2repr, vert_idx2dist = get_repr_n_dists(idx_origin, coords)
+        candidate_idxs = {i for i in self.graph.get_all_nodes() if not vert_idx2dist[i] == 0.0}
         visible_idxs = find_visible2(
             extremity_mask,
             coords,
@@ -491,6 +477,7 @@ class PolygonEnvironment:
             vert_idx2repr,
             vert_idx2dist,
             candidate_idxs,
+            idx_origin,
         )
 
         if len(visible_idxs) == 0:
