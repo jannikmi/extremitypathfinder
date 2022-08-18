@@ -7,8 +7,8 @@ from extremitypathfinder.extremitypathfinder import PolygonEnvironment
 from extremitypathfinder.plotting import PlottingEnvironment
 
 # TODO
-PLOT_TEST_RESULTS = True
-# PLOT_TEST_RESULTS = False
+# PLOT_TEST_RESULTS = True
+PLOT_TEST_RESULTS = False
 TEST_PLOT_OUTPUT_FOLDER = "plots"
 
 if PLOT_TEST_RESULTS:

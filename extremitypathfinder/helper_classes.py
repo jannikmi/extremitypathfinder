@@ -446,13 +446,10 @@ class DirectedHeuristicGraph(object):
         for node2 in node2_iter:
             self.remove_undirected_edge(node1, node2)
 
-    def make_clean(self):
-        # for shortest path computations all graph nodes should be unique
-        self.join_identical()
-        # leave dangling nodes! (they might become reachable by adding start and and goal node!)
-
     def join_identical(self):
-        # join all nodes with the same coordinates,
+        # for shortest path computations all graph nodes should be unique
+        # join all nodes with the same coordinates
+        # leave dangling nodes! (they might become reachable by adding start and and goal node!)
         nodes_to_check = self.all_nodes.copy()
         while len(nodes_to_check) > 1:
             n1 = nodes_to_check.pop()
