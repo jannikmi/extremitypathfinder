@@ -75,19 +75,20 @@ def get_repr_n_dists(orig_idx: int, coords: np.ndarray) -> np.ndarray:
 def inside_polygon(p: np.ndarray, coords: np.ndarray, border_value: bool) -> bool:
     # should return the border value for point equal to any polygon vertex
     # TODO overflow possible with large values when comparing slopes, change procedure
-    x, y = p
-    for c in coords[:]:
-        if np.array_equal(c, p):
-            return border_value
-
     # and if the point p lies on any polygon edge
     p1 = coords[-1, :]
     for p2 in coords[:]:
+        if np.array_equal(p2, p):
+            return border_value
         rep_p1_p, _ = compute_repr_n_dist(p1 - p)
         rep_p2_p, _ = compute_repr_n_dist(p2 - p)
         if abs(rep_p1_p - rep_p2_p) == 2.0:
             return border_value
         p1 = p2
+
+    # regular point in polygon algorithm
+    # TODO use optimised implementation
+    x, y = p
 
     contained = False
     # the edge from the last to the first point is checked first
