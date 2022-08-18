@@ -34,7 +34,7 @@ def export_plot(fig, file_name):
 
 def mark_points(vertex_iter, **kwargs):
     try:
-        coordinates = [v.coordinates.tolist() for v in vertex_iter]
+        coordinates = [v.tolist() for v in vertex_iter]
     except AttributeError:
         coordinates = list(vertex_iter)
     coords_zipped = list(zip(*coordinates))
@@ -57,9 +57,9 @@ def draw_polygon(ax, coords, **kwargs):
 def draw_boundaries(map, ax):
     # TODO outside dark grey
     # TODO fill holes light grey
-    draw_polygon(ax, map.boundary_polygon.coordinates)
+    draw_polygon(ax, map.boundary_polygon)
     for h in map.holes:
-        draw_polygon(ax, h.coordinates, facecolor="grey", fill=True)
+        draw_polygon(ax, h, facecolor="grey", fill=True)
 
     mark_points(map.all_vertices, c="black", s=15)
     mark_points(map.all_extremities, c="red", s=50)
@@ -77,14 +77,14 @@ def draw_internal_graph(map: PolygonEnvironment, ax):
 def set_limits(map, ax):
     ax.set_xlim(
         (
-            min(map.boundary_polygon.coordinates[:, 0]) - 1,
-            max(map.boundary_polygon.coordinates[:, 0]) + 1,
+            min(map.boundary_polygon[:, 0]) - 1,
+            max(map.boundary_polygon[:, 0]) + 1,
         )
     )
     ax.set_ylim(
         (
-            min(map.boundary_polygon.coordinates[:, 1]) - 1,
-            max(map.boundary_polygon.coordinates[:, 1]) + 1,
+            min(map.boundary_polygon[:, 1]) - 1,
+            max(map.boundary_polygon[:, 1]) + 1,
         )
     )
 
