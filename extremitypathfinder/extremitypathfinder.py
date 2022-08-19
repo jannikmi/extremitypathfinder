@@ -25,14 +25,6 @@ from extremitypathfinder.utils import (
 )
 
 
-# is not a helper function to make it an importable part of the package
-def load_pickle(path=DEFAULT_PICKLE_NAME):
-    print("loading map from:", path)
-    with open(path, "rb") as f:
-        return pickle.load(f)
-
-
-# TODO document parameters
 class PolygonEnvironment:
     """Class allowing to use polygons to represent "2D environments" and use them for path finding.
 
@@ -42,6 +34,8 @@ class PolygonEnvironment:
     [1] Vinther, Anders Strand-Holm, Magnus Strand-Holm Vinther, and Peyman Afshani.
     "`Pathfinding in Two-dimensional Worlds
     <https://www.cs.au.dk/~gerth/advising/thesis/anders-strand-holm-vinther_magnus-strand-holm-vinther.pdf>`__"
+
+    TODO document parameters
     """
 
     nr_edges: int

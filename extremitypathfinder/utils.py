@@ -1,6 +1,7 @@
 import itertools
 import json
 import math
+import pickle
 from itertools import combinations
 from typing import Dict, Iterable, List, Optional, Set, Tuple
 
@@ -8,7 +9,7 @@ import networkx as nx
 import numpy as np
 import numpy.linalg
 
-from extremitypathfinder.configs import BOUNDARY_JSON_KEY, HOLES_JSON_KEY
+from extremitypathfinder.configs import BOUNDARY_JSON_KEY, DEFAULT_PICKLE_NAME, HOLES_JSON_KEY
 
 
 def compute_repr_n_dist(np_vector: np.ndarray) -> Tuple[float, float]:
@@ -989,3 +990,9 @@ def compute_extremity_idxs(coordinates: np.ndarray) -> List[int]:
         p1 = p2
         p2 = p3
     return extr_idxs
+
+
+def load_pickle(path=DEFAULT_PICKLE_NAME):
+    print("loading map from:", path)
+    with open(path, "rb") as f:
+        return pickle.load(f)
