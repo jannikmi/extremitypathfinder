@@ -1,7 +1,7 @@
 import pickle
-from copy import deepcopy
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Set, Tuple
 
+import networkx as nx
 import numpy as np
 
 from extremitypathfinder.configs import (
@@ -12,14 +12,15 @@ from extremitypathfinder.configs import (
     PATH_TYPE,
     InputCoords,
 )
-from extremitypathfinder.helper_classes import DirectedHeuristicGraph
 from extremitypathfinder.helper_fcts import (
     check_data_requirements,
+    cmp_reps_n_distances,
     compute_extremity_idxs,
     compute_graph,
     convert_gridworld,
+    find_identical,
     find_visible,
-    get_repr_n_dists,
+    get_distance,
     is_within_map,
 )
 
@@ -50,8 +51,9 @@ class PolygonEnvironment:
     holes: List[np.ndarray]
     extremity_indices: List[int]
     reprs_n_distances: Dict[int, np.ndarray]
-    graph: DirectedHeuristicGraph
-    temp_graph: Optional[DirectedHeuristicGraph] = None  # for storing and plotting the graph during a query
+    graph: nx.DiGraph
+    # TODO
+    temp_graph: Optional[nx.DiGraph] = None  # for storing and plotting the graph during a query
     boundary_polygon: np.ndarray
     coords: np.ndarray
     edge_vertex_idxs: np.ndarray
@@ -148,13 +150,16 @@ class PolygonEnvironment:
             mask[i] = True
 
         self.nr_vertices = nr_total_pts
+        # start and goal points will be stored after all polygon coordinates
+        self.idx_start = nr_total_pts
+        self.idx_goal = nr_total_pts + 1
         self.edge_vertex_idxs = edge_vertex_idxs
         self.vertex_edge_idxs = vertex_edge_idxs
         self.coords = coords
         self.extremity_indices = extremity_idxs
         self.extremity_mask = mask
 
-        self.reprs_n_distances = {i: get_repr_n_dists(i, coords) for i in extremity_idxs}
+        self.reprs_n_distances = {i: cmp_reps_n_distances(i, coords) for i in extremity_idxs}
 
     def store_grid_world(
         self,
@@ -207,11 +212,6 @@ class PolygonEnvironment:
         """
         if self.prepared:
             raise ValueError("this environment is already prepared. load new polygons first.")
-
-        nr_extremities = len(self.extremity_indices)
-        if nr_extremities == 0:
-            self.graph = DirectedHeuristicGraph()
-            return
 
         self.graph = compute_graph(
             self.nr_edges,
@@ -270,107 +270,83 @@ class PolygonEnvironment:
             # start and goal are identical and can be reached instantly
             return [start_coordinates, goal_coordinates], 0.0
 
+        start = self.idx_start
+        goal = self.idx_goal
         # temporarily extend data structure
-        coords = np.append(self.coords, (coords_start, coords_goal), axis=0)
-        idx_start = self.nr_vertices
-        idx_goal = self.nr_vertices + 1
-
-        # start and goal nodes could be identical with one ore more of the vertices
+        # Note: start and goal nodes could be identical with one ore more of the vertices
         # BUT: this is an edge case -> compute visibility as usual and later try to merge with the graph
+        coords = np.append(self.coords, (coords_start, coords_goal), axis=0)
+        self._coords_tmp = coords
+
+        # check the goal node first (earlier termination possible)
+        origin = goal
+        # the visibility of only the graph nodes has to be checked (not all extremities!)
+        # IMPORTANT: also check if the start node is visible from the goal node!
+        candidate_idxs: Set[int] = set(self.graph.nodes)
+        candidate_idxs.add(start)
+        repr_n_dists = cmp_reps_n_distances(origin, coords)
+        self.reprs_n_distances[origin] = repr_n_dists
+        vert_idx2repr, vert_idx2dist = repr_n_dists
+        visibles_goal = self.get_visible_idxs(origin, candidate_idxs, coords, vert_idx2repr, vert_idx2dist)
+        if len(visibles_goal) == 0:
+            # The goal node does not have any neighbours. Hence there is not possible path to the goal.
+            return [], None
+
+        # IMPORTANT geometrical property of this problem: it is always shortest to directly reach a node
+        #   instead of visiting other nodes first (there is never an advantage through reduced edge weight)
+        # -> when goal is directly reachable, there can be no other shorter path to it. Terminate
+        if start in visibles_goal:
+            d = vert_idx2dist[start]
+            return [start_coordinates, goal_coordinates], d
 
         # create temporary graph
         # DirectedHeuristicGraph implements __deepcopy__() to not change the original precomputed self.graph
         # but to still not create real copies of vertex instances!
-        graph = deepcopy(self.graph)
         # TODO make more performant, avoid real copy
+        graph = self.graph.copy()
         # graph = self.graph
 
-        # check the goal node first (earlier termination possible)
-        idx_origin = idx_goal
-        # the visibility of only the graphs nodes has to be checked (not all extremities!)
-        # points with the same angle representation should not be considered visible
-        # (they also cause errors in the algorithms, because their angle repr is not defined!)
-        # IMPORTANT: also check if the start node is visible from the goal node!
-        # NOTE: all edges are being checked, it is computationally faster to compute all visibilities in one go
-        candidate_idxs = self.graph.all_nodes
-        candidate_idxs.add(idx_start)
-        repr_n_dists = get_repr_n_dists(idx_origin, coords)
-        self.reprs_n_distances[idx_origin] = repr_n_dists
-        vert_idx2repr, vert_idx2dist = repr_n_dists
-        visible_idxs = self.get_visible_idxs(idx_origin, candidate_idxs, coords, vert_idx2repr, vert_idx2dist)
-        if len(visible_idxs) == 0:
-            # The goal node does not have any neighbours. Hence there is not possible path to the goal.
-            return [], None
+        # add unidirectional edges in the direction: extremity (v) -> goal
+        for i in visibles_goal:
+            graph.add_edge(i, goal, weight=vert_idx2dist[i])
 
-        visibles_n_distances_map = {i: vert_idx2dist[i] for i in visible_idxs}
-
-        try:
-            d = visibles_n_distances_map[idx_start]
-            # IMPORTANT geometrical property of this problem: it is always shortest to directly reach a node
-            #   instead of visiting other nodes first (there is never an advantage through reduced edge weight)
-            # -> when goal is directly reachable, there can be no other shorter path to it. Terminate
-            return [start_coordinates, goal_coordinates], d
-        except KeyError:
-            pass
-
-        # add unidirectional edges to the temporary graph
-        # add edges in the direction: extremity (v) -> goal
-        for i, d in visibles_n_distances_map.items():
-            graph.add_directed_edge(i, idx_goal, d)
-
-        idx_origin = idx_start
+        origin = start
         # the visibility of only the graphs nodes have to be checked
         # the goal node does not have to be considered, because of the earlier check
-        candidate_idxs = self.graph.get_all_nodes()
-        repr_n_dists = get_repr_n_dists(idx_origin, coords)
-        self.reprs_n_distances[idx_origin] = repr_n_dists
+        candidate_idxs: Set[int] = set(self.graph.nodes)  # TODO new copy required?!
+        repr_n_dists = cmp_reps_n_distances(origin, coords)
+        self.reprs_n_distances[origin] = repr_n_dists
         vert_idx2repr, vert_idx2dist = repr_n_dists
-        visible_idxs = self.get_visible_idxs(idx_origin, candidate_idxs, coords, vert_idx2repr, vert_idx2dist)
+        visibles_start = self.get_visible_idxs(origin, candidate_idxs, coords, vert_idx2repr, vert_idx2dist)
 
-        if len(visible_idxs) == 0:
+        if len(visibles_start) == 0:
             # The start node does not have any neighbours. Hence there is no possible path to the goal.
             return [], None
 
         # add edges in the direction: start -> extremity
-        visibles_n_distances_map = {i: vert_idx2dist[i] for i in visible_idxs}
-        graph.add_multiple_directed_edges(idx_start, visibles_n_distances_map)
-
-        # Note: also here unnecessary edges in the graph could be deleted when start or goal lie
+        # Note: also here unnecessary edges in the graph could be deleted
         # optimising the graph here however is more expensive than beneficial,
-        # as it is only being used for a single query
+        # as the graph is only being used for a single query
+        for i in visibles_start:
+            graph.add_edge(start, i, weight=vert_idx2dist[i])
 
-        # ATTENTION: update to new coordinates
-        graph.coord_map = {i: coords[i] for i in graph.all_nodes}
+        def l2_distance(n1, n2):
+            return get_distance(n1, n2, self.reprs_n_distances)
 
-        # TODO mapping
-        graph.join_identical()
-        idx_start = graph.merged_id_mapping.get(idx_start, idx_start)
-        idx_goal = graph.merged_id_mapping.get(idx_goal, idx_goal)
+        # TODO only check start goal
+        # apply mapping to start and goal index as well
+        merge_mapping = find_identical(graph.nodes, self.reprs_n_distances)
+        if len(merge_mapping) > 0:
+            nx.relabel_nodes(graph, merge_mapping, copy=False)
 
-        import networkx as nx
-
-        # TODO re-use graph
-        G = nx.DiGraph()
-        # TODO compile in function:
-        for (start, goal), dist in graph.distances.items():
-            G.add_edge(start, goal, weight=dist)
-
-        def dist(n1, n2):
-            if n2 > n1:
-                # TODO dists have not been all been computed
-                tmp = n1
-                n1 = n2
-                n2 = tmp
-            _, dists = self.reprs_n_distances[n1]
-            distance = dists[n2]
-            return distance
-
-        vertex_id_path = nx.astar_path(G, idx_start, idx_goal, heuristic=dist)  # weight="cost")
+        start_mapped = merge_mapping.get(start, start)
+        goal_mapped = merge_mapping.get(goal, goal)
+        id_path = nx.astar_path(graph, start_mapped, goal_mapped, heuristic=l2_distance, weight="weight")
 
         # clean up
         # TODO re-use the same graph
-        # graph.remove_node(idx_start)
-        # graph.remove_node(idx_goal)
+        # graph.remove_node(start)
+        # graph.remove_node(goal)
         if free_space_after:
             del graph  # free the memory
 
@@ -378,17 +354,18 @@ class PolygonEnvironment:
             self.temp_graph = graph
 
         # extract the coordinates from the path
-        vertex_path = [tuple(coords[i]) for i in vertex_id_path]
+        path = [tuple(coords[i]) for i in id_path]
 
         # compute distance
         distance = 0.0
-        v1 = vertex_id_path[0]
-        for v2 in vertex_id_path[1:]:
-            distance += dist(v1, v2)
+        v1 = id_path[0]
+        for v2 in id_path[1:]:
+            distance += l2_distance(v1, v2)
             v1 = v2
-        return vertex_path, distance
+        return path, distance
 
     def get_visible_idxs(self, idx_origin, candidate_idxs, coords, vert_idx2repr, vert_idx2dist):
+        # Note: points with equal coordinates should not be considered visible (will be merged later)
         candidate_idxs = {i for i in candidate_idxs if not vert_idx2dist[i] == 0.0}
         edge_idxs2check = set(range(self.nr_edges))
         visible_idxs = find_visible(
