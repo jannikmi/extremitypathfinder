@@ -1,13 +1,15 @@
+import itertools
 import json
 import math
+import pickle
 from itertools import combinations
 from typing import Dict, Iterable, List, Optional, Set, Tuple
 
+import networkx as nx
 import numpy as np
 import numpy.linalg
 
-from extremitypathfinder.configs import BOUNDARY_JSON_KEY, HOLES_JSON_KEY
-from extremitypathfinder.helper_classes import DirectedHeuristicGraph
+from extremitypathfinder.configs import BOUNDARY_JSON_KEY, DEFAULT_PICKLE_NAME, HOLES_JSON_KEY
 
 
 def compute_repr_n_dist(np_vector: np.ndarray) -> Tuple[float, float]:
@@ -64,7 +66,7 @@ def compute_repr_n_dist(np_vector: np.ndarray) -> Tuple[float, float]:
     return angle_measure, distance
 
 
-def get_repr_n_dists(orig_idx: int, coords: np.ndarray) -> np.ndarray:
+def cmp_reps_n_distances(orig_idx: int, coords: np.ndarray) -> np.ndarray:
     coords_orig = coords[orig_idx]
     coords_translated = coords - coords_orig
     repr_n_dists = np.apply_along_axis(compute_repr_n_dist, axis=1, arr=coords_translated)
@@ -265,7 +267,7 @@ def check_polygon(polygon):
     if not no_identical_consequent_vertices(polygon):
         raise ValueError("Consequent vertices of a polynomial must not be identical.")
     if not no_self_intersection(polygon):
-        raise ValueError("A polygon must not intersect itself.")
+        raise ValueError("A polygon must not intersect it")
 
 
 def check_data_requirements(boundary_coords: np.ndarray, list_hole_coords: List[np.ndarray]):
@@ -438,12 +440,12 @@ def find_visible(
     origin: int,
     candidates: Set[int],
     edges_to_check: Set[int],
-    extremity_mask: np.ndarray,
     coords: np.ndarray,
-    vertex_edge_idxs: np.ndarray,
-    edge_vertex_idxs: np.ndarray,
     representations: np.ndarray,
     distances: np.ndarray,
+    extremity_mask: np.ndarray,
+    edge_vertex_idxs: np.ndarray,
+    vertex_edge_idxs: np.ndarray,
 ) -> Set[int]:
     """
     query_vertex: a vertex for which the visibility to the vertices should be checked.
@@ -619,17 +621,17 @@ def find_visible_and_in_front(
         origin,
         candidates,
         edge_idxs2check,
-        extremity_mask,
         coords,
-        vertex_edge_idxs,
-        edge_vertex_idxs,
         representations,
         distances,
+        extremity_mask,
+        edge_vertex_idxs,
+        vertex_edge_idxs,
     )
     return idxs_in_front, visible_idxs
 
 
-def compute_graph(
+def compute_graph_edges(
     nr_edges: int,
     extremity_indices: Iterable[int],
     reprs_n_distances: Dict[int, np.ndarray],
@@ -637,10 +639,10 @@ def compute_graph(
     edge_vertex_idxs: np.ndarray,
     extremity_mask: np.ndarray,
     vertex_edge_idxs: np.ndarray,
-) -> DirectedHeuristicGraph:
+) -> Dict[Tuple[int, int], float]:
     # IMPORTANT: add all extremities (even if they turn out to be dangling in the end)
-    extremity_coord_map = {i: coords[i] for i in extremity_indices}
-    graph = DirectedHeuristicGraph(extremity_coord_map)
+
+    connections = {}
     for extr_ptr, origin_idx in enumerate(extremity_indices):
         vert_idx2repr, vert_idx2dist = reprs_n_distances[origin_idx]
         # optimisation: extremities are always visible to each other
@@ -663,11 +665,88 @@ def compute_graph(
         )
         # "thin out" the graph:
         # remove already existing edges in the graph to the extremities in front
-        graph.remove_multiple_undirected_edges(origin_idx, idxs_in_front)
 
-        visible_vertex2dist_map = {i: vert_idx2dist[i] for i in visible_idxs}
-        graph.add_multiple_undirected_edges(origin_idx, visible_vertex2dist_map)
-    graph.join_identical()  # join all nodes with the same coordinates
+        for i in idxs_in_front:
+            connections.pop((origin_idx, i), None)
+            connections.pop((i, origin_idx), None)
+
+        for i in visible_idxs:
+            d = vert_idx2dist[i]
+            connections[(origin_idx, i)] = d
+            connections[(i, origin_idx)] = d
+
+    return connections
+
+
+def get_distance(n1, n2, reprs_n_distances):
+    if n2 > n1:
+        # Note: start and goal nodex get added last -> highest idx
+        # for the lower idxs the distances to goal and start have not been computed
+        # -> use the higher indices to access the distances
+        tmp = n1
+        n1 = n2
+        n2 = tmp
+    _, dists = reprs_n_distances[n1]
+    distance = dists[n2]
+    return distance
+
+
+def find_identical(candidates: Iterable[int], reprs_n_distances: Dict[int, np.ndarray]) -> Dict[int, int]:
+    # for shortest path computations all graph nodes should be unique
+    # join all nodes with the same coordinates
+    merging_mapping = {}
+    # symmetric relation -> only consider one direction
+    for n1, n2 in itertools.combinations(candidates, 2):
+        dist = get_distance(n1, n2, reprs_n_distances)
+        if dist == 0.0:  # same coordinates
+            merging_mapping[n2] = n1
+
+    return merging_mapping
+
+
+def find_identical_single(i: int, candidates: Iterable[int], reprs_n_distances: Dict[int, np.ndarray]) -> int:
+    # for shortest path computations all graph nodes should be unique
+    # join all nodes with the same coordinates
+    # symmetric relation -> only consider one direction
+    for n in candidates:
+        if i == n:
+            continue
+        dist = get_distance(i, n, reprs_n_distances)
+        if dist == 0.0:  # same coordinates
+            return n
+    return i
+
+
+def compute_graph(
+    nr_edges: int,
+    extremity_indices: Iterable[int],
+    reprs_n_distances: Dict[int, np.ndarray],
+    coords: np.ndarray,
+    edge_vertex_idxs: np.ndarray,
+    extremity_mask: np.ndarray,
+    vertex_edge_idxs: np.ndarray,
+) -> nx.DiGraph:
+    edges = compute_graph_edges(
+        nr_edges,
+        extremity_indices,
+        reprs_n_distances,
+        coords,
+        edge_vertex_idxs,
+        extremity_mask,
+        vertex_edge_idxs,
+    )
+
+    graph = nx.DiGraph()
+    # IMPORTANT: add all extremities (even if they turn out to be dangling in the end),
+    # adding start and goal nodes at query time might connect them!
+    graph.add_nodes_from(extremity_indices)
+    for (start, goal), dist in edges.items():
+        graph.add_edge(start, goal, weight=dist)
+
+    merge_mapping = find_identical(graph.nodes, reprs_n_distances)
+    if len(merge_mapping) > 0:
+        nx.relabel_nodes(graph, merge_mapping, copy=False)
+
     return graph
 
 
@@ -911,3 +990,9 @@ def compute_extremity_idxs(coordinates: np.ndarray) -> List[int]:
         p1 = p2
         p2 = p3
     return extr_idxs
+
+
+def load_pickle(path=DEFAULT_PICKLE_NAME):
+    print("loading map from:", path)
+    with open(path, "rb") as f:
+        return pickle.load(f)

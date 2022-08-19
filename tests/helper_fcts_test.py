@@ -10,7 +10,7 @@ import numpy as np
 import pytest
 
 from extremitypathfinder import PolygonEnvironment
-from extremitypathfinder.helper_fcts import (
+from extremitypathfinder.utils import (
     clean_visibles,
     compute_extremity_idxs,
     compute_repr_n_dist,
