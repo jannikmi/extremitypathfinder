@@ -4,7 +4,6 @@ from os.path import abspath, exists, join
 
 import matplotlib.pyplot as plt
 import networkx as nx
-import numpy as np
 from matplotlib.patches import Polygon
 
 from extremitypathfinder.extremitypathfinder import PolygonEnvironment
@@ -137,14 +136,8 @@ def draw_with_path(map, graph: nx.DiGraph, vertex_path):
         # additionally draw:
         # new edges yellow
         start, goal = vertex_path[0], vertex_path[-1]
-        goal_idx = None
-        start_idx = None
-        for i in all_nodes:
-            c = coords[i]
-            if np.array_equal(c, goal):
-                goal_idx = i
-            if np.array_equal(c, start):
-                start_idx = i
+        goal_idx = map._idx_goal_tmp
+        start_idx = map._idx_start_tmp
 
         if start_idx is not None:
             for n_idx in graph.neighbors(start_idx):

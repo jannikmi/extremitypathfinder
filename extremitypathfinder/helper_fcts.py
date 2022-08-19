@@ -1,3 +1,4 @@
+import itertools
 import json
 import math
 from itertools import combinations
@@ -689,18 +690,30 @@ def get_distance(n1, n2, reprs_n_distances):
     return distance
 
 
-def find_identical(candidates, reprs_n_distances):
+def find_identical(candidates: Iterable[int], reprs_n_distances: Dict[int, np.ndarray]) -> Dict[int, int]:
     # for shortest path computations all graph nodes should be unique
     # join all nodes with the same coordinates
-    # leave dangling nodes! (they might become reachable by adding start and and goal node!)
     merging_mapping = {}
     # symmetric relation -> only consider one direction
-    for n1, n2 in combinations(candidates, 2):
+    for n1, n2 in itertools.combinations(candidates, 2):
         dist = get_distance(n1, n2, reprs_n_distances)
         if dist == 0.0:  # same coordinates
             merging_mapping[n2] = n1
 
     return merging_mapping
+
+
+def find_identical_single(i: int, candidates: Iterable[int], reprs_n_distances: Dict[int, np.ndarray]) -> int:
+    # for shortest path computations all graph nodes should be unique
+    # join all nodes with the same coordinates
+    # symmetric relation -> only consider one direction
+    for n in candidates:
+        if i == n:
+            continue
+        dist = get_distance(i, n, reprs_n_distances)
+        if dist == 0.0:  # same coordinates
+            return n
+    return i
 
 
 def compute_graph(
@@ -712,7 +725,6 @@ def compute_graph(
     extremity_mask: np.ndarray,
     vertex_edge_idxs: np.ndarray,
 ) -> nx.DiGraph:
-
     edges = compute_graph_edges(
         nr_edges,
         extremity_indices,

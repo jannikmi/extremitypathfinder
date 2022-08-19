@@ -18,13 +18,11 @@ from extremitypathfinder.helper_fcts import (
     compute_extremity_idxs,
     compute_graph,
     convert_gridworld,
-    find_identical,
+    find_identical_single,
     find_visible,
     get_distance,
     is_within_map,
 )
-
-# TODO possible to allow polygon consisting of 2 vertices only(=barrier)? lots of functions need at least 3 vertices atm
 
 
 # is not a helper function to make it an importable part of the package
@@ -158,7 +156,6 @@ class PolygonEnvironment:
         self.coords = coords
         self.extremity_indices = extremity_idxs
         self.extremity_mask = mask
-
         self.reprs_n_distances = {i: cmp_reps_n_distances(i, coords) for i in extremity_idxs}
 
     def store_grid_world(
@@ -276,7 +273,7 @@ class PolygonEnvironment:
         # Note: start and goal nodes could be identical with one ore more of the vertices
         # BUT: this is an edge case -> compute visibility as usual and later try to merge with the graph
         coords = np.append(self.coords, (coords_start, coords_goal), axis=0)
-        self._coords_tmp = coords
+        self._coords_tmp = coords  # for plotting including the start and goal indices
 
         # check the goal node first (earlier termination possible)
         origin = goal
@@ -333,14 +330,17 @@ class PolygonEnvironment:
         def l2_distance(n1, n2):
             return get_distance(n1, n2, self.reprs_n_distances)
 
-        # TODO only check start goal
         # apply mapping to start and goal index as well
-        merge_mapping = find_identical(graph.nodes, self.reprs_n_distances)
-        if len(merge_mapping) > 0:
-            nx.relabel_nodes(graph, merge_mapping, copy=False)
+        start_mapped = find_identical_single(start, graph.nodes, self.reprs_n_distances)
+        if start_mapped != start:
+            nx.relabel_nodes(graph, {start: start_mapped}, copy=False)
 
-        start_mapped = merge_mapping.get(start, start)
-        goal_mapped = merge_mapping.get(goal, goal)
+        goal_mapped = find_identical_single(goal, graph.nodes, self.reprs_n_distances)
+        if goal_mapped != goal_mapped:
+            nx.relabel_nodes(graph, {goal: goal_mapped}, copy=False)
+
+        self._idx_start_tmp, self._idx_goal_tmp = start_mapped, goal_mapped  # for plotting
+
         id_path = nx.astar_path(graph, start_mapped, goal_mapped, heuristic=l2_distance, weight="weight")
 
         # clean up
