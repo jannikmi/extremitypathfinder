@@ -1,5 +1,5 @@
 import pickle
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Dict, Iterable, List, Optional, Set, Tuple
 
 import networkx as nx
 import numpy as np
@@ -110,7 +110,6 @@ class PolygonEnvironment:
         offset = 0
         extremity_idxs = set()
         for poly in list_of_polygons:
-
             poly_extr_idxs = compute_extremity_idxs(poly)
             poly_extr_idxs = {i + offset for i in poly_extr_idxs}
             extremity_idxs |= poly_extr_idxs
@@ -215,16 +214,36 @@ class PolygonEnvironment:
         )
         self.prepared = True
 
-    def within_map(self, coords: InputCoords):
+    def within_map(self, coords: np.ndarray) -> bool:
         """checks if the given coordinates lie within the boundary polygon and outside of all holes
 
         :param coords: numerical tuple representing coordinates
         :return: whether the given coordinate is a valid query point
         """
-        boundary = self.boundary_polygon
-        holes = self.holes
-        p = np.array(coords, dtype=float)
-        return is_within_map(p, boundary, holes)
+        return is_within_map(coords, self.boundary_polygon, self.holes)
+
+    def get_visible_idxs(
+        self,
+        origin: int,
+        candidates: Iterable[int],
+        coords: np.ndarray,
+        vert_idx2repr: np.ndarray,
+        vert_idx2dist: np.ndarray,
+    ) -> Set[int]:
+        # Note: points with equal coordinates should not be considered visible (will be merged later)
+        candidates = {i for i in candidates if not vert_idx2dist[i] == 0.0}
+        edge_idxs2check = set(range(self.nr_edges))
+        return find_visible(
+            origin,
+            candidates,
+            edge_idxs2check,
+            coords,
+            vert_idx2repr,
+            vert_idx2dist,
+            self.extremity_mask,
+            self.edge_vertex_idxs,
+            self.vertex_edge_idxs,
+        )
 
     def find_shortest_path(
         self,
@@ -250,13 +269,13 @@ class PolygonEnvironment:
         if not self.prepared:
             self.prepare()
 
-        if verify and not self.within_map(start_coordinates):
+        coords_start = np.array(start_coordinates, dtype=float)
+        coords_goal = np.array(goal_coordinates, dtype=float)
+        if verify and not self.within_map(coords_start):
             raise ValueError("start point does not lie within the map")
-        if verify and not self.within_map(goal_coordinates):
+        if verify and not self.within_map(coords_goal):
             raise ValueError("goal point does not lie within the map")
 
-        coords_start = np.array(start_coordinates)
-        coords_goal = np.array(goal_coordinates)
         if np.array_equal(coords_start, coords_goal):
             # start and goal are identical and can be reached instantly
             return [start_coordinates, goal_coordinates], 0.0
@@ -293,9 +312,10 @@ class PolygonEnvironment:
         # create temporary graph
         # DirectedHeuristicGraph implements __deepcopy__() to not change the original precomputed self.graph
         # but to still not create real copies of vertex instances!
-        # TODO make more performant, avoid real copy
         graph = self.graph.copy()
+        # TODO avoid real copy to make make more performant
         # graph = self.graph
+        # nr_edges_before = len(graph.edges)
 
         # add unidirectional edges in the direction: extremity (v) -> goal
         for i in visibles_goal:
@@ -304,7 +324,6 @@ class PolygonEnvironment:
         origin = start
         # the visibility of only the graphs nodes have to be checked
         # the goal node does not have to be considered, because of the earlier check
-        candidate_idxs: Set[int] = set(self.graph.nodes)  # TODO new copy required?!
         repr_n_dists = cmp_reps_n_distances(origin, coords)
         self.reprs_n_distances[origin] = repr_n_dists
         vert_idx2repr, vert_idx2dist = repr_n_dists
@@ -338,17 +357,19 @@ class PolygonEnvironment:
         id_path = nx.astar_path(graph, start_mapped, goal_mapped, heuristic=l2_distance, weight="weight")
 
         # clean up
-        # TODO re-use the same graph
-        # graph.remove_node(start)
-        # graph.remove_node(goal)
+        # TODO re-use the same graph. need to keep track of all merged edges
+        # if start_mapped == start:
+        #     graph.remove_node(start)
+        # if goal_mapped==goal:
+        #     graph.remove_node(goal)
+        # nr_edges_after = len(graph.edges)
+        # if not nr_edges_after == nr_edges_before:
+        #     raise ValueError
+
         if free_space_after:
             del graph  # free the memory
-
         else:
             self.temp_graph = graph
-
-        # extract the coordinates from the path
-        path = [tuple(coords[i]) for i in id_path]
 
         # compute distance
         distance = 0.0
@@ -356,21 +377,7 @@ class PolygonEnvironment:
         for v2 in id_path[1:]:
             distance += l2_distance(v1, v2)
             v1 = v2
-        return path, distance
 
-    def get_visible_idxs(self, idx_origin, candidate_idxs, coords, vert_idx2repr, vert_idx2dist):
-        # Note: points with equal coordinates should not be considered visible (will be merged later)
-        candidate_idxs = {i for i in candidate_idxs if not vert_idx2dist[i] == 0.0}
-        edge_idxs2check = set(range(self.nr_edges))
-        visible_idxs = find_visible(
-            idx_origin,
-            candidate_idxs,
-            edge_idxs2check,
-            coords,
-            vert_idx2repr,
-            vert_idx2dist,
-            self.extremity_mask,
-            self.edge_vertex_idxs,
-            self.vertex_edge_idxs,
-        )
-        return visible_idxs
+        # extract the coordinates from the path
+        path = [tuple(coords[i]) for i in id_path]
+        return path, distance
