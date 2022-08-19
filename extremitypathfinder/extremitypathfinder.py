@@ -341,23 +341,31 @@ class PolygonEnvironment:
 
         # ATTENTION: update to new coordinates
         graph.coord_map = {i: coords[i] for i in graph.all_nodes}
+
+        # TODO mapping
         graph.join_identical()
+        idx_start = graph.merged_id_mapping.get(idx_start, idx_start)
+        idx_goal = graph.merged_id_mapping.get(idx_goal, idx_goal)
 
-        vertex_id_path, distance = graph.modified_a_star(idx_start, idx_goal, coords_goal)
+        import networkx as nx
 
-        # import networkx as nx
-        # G = nx.DiGraph()
-        # # TODO compile in function:
-        # for (start,goal), dist in graph.distances.items():
-        #     G.add_edge(start,goal, weight=dist)
-        #
-        # def dist(a, b):
-        #     (x1, y1) = a
-        #     (x2, y2) = b
-        #     return ((x1 - x2) ** 2 + (y1 - y2) ** 2) ** 0.5
-        #
-        # path = nx.astar_path(G, idx_start,idx_goal, heuristic=dist) # weight="cost")
-        #
+        # TODO re-use graph
+        G = nx.DiGraph()
+        # TODO compile in function:
+        for (start, goal), dist in graph.distances.items():
+            G.add_edge(start, goal, weight=dist)
+
+        def dist(n1, n2):
+            if n2 > n1:
+                # TODO dists have not been all been computed
+                tmp = n1
+                n1 = n2
+                n2 = tmp
+            _, dists = self.reprs_n_distances[n1]
+            distance = dists[n2]
+            return distance
+
+        vertex_id_path = nx.astar_path(G, idx_start, idx_goal, heuristic=dist)  # weight="cost")
 
         # clean up
         # TODO re-use the same graph
@@ -371,6 +379,13 @@ class PolygonEnvironment:
 
         # extract the coordinates from the path
         vertex_path = [tuple(coords[i]) for i in vertex_id_path]
+
+        # compute distance
+        distance = 0.0
+        v1 = vertex_id_path[0]
+        for v2 in vertex_id_path[1:]:
+            distance += dist(v1, v2)
+            v1 = v2
         return vertex_path, distance
 
     def get_visible_idxs(self, idx_origin, candidate_idxs, coords, vert_idx2repr, vert_idx2dist):
