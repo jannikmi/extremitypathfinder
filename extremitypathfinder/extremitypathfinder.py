@@ -12,7 +12,7 @@ from extremitypathfinder.configs import (
     PATH_TYPE,
     InputCoords,
 )
-from extremitypathfinder.helper_fcts import (
+from extremitypathfinder.utils import (
     check_data_requirements,
     cmp_reps_n_distances,
     compute_extremity_idxs,
