@@ -270,11 +270,7 @@ class PolygonEnvironment:
             # start and goal are identical and can be reached instantly
             return [start_coordinates, goal_coordinates], 0.0
 
-        nr_edges = self.nr_edges
-        vertex_edge_idxs = self.vertex_edge_idxs
-        edge_vertex_idxs = self.edge_vertex_idxs
-        # temporarily extend data structures
-        extremity_mask = np.append(self.extremity_mask, (False, False))
+        # temporarily extend data structure
         coords = np.append(self.coords, (coords_start, coords_goal), axis=0)
         idx_start = self.nr_vertices
         idx_goal = self.nr_vertices + 1
@@ -298,54 +294,38 @@ class PolygonEnvironment:
         # NOTE: all edges are being checked, it is computationally faster to compute all visibilities in one go
         candidate_idxs = self.graph.all_nodes
         candidate_idxs.add(idx_start)
-        edge_idxs2check = set(range(nr_edges))
-        vert_idx2repr, vert_idx2dist = get_repr_n_dists(idx_origin, coords)
-        candidate_idxs = {i for i in candidate_idxs if not vert_idx2dist[i] == 0.0}
-        visible_idxs = find_visible(
-            idx_origin,
-            candidate_idxs,
-            edge_idxs2check,
-            extremity_mask,
-            coords,
-            vertex_edge_idxs,
-            edge_vertex_idxs,
-            vert_idx2repr,
-            vert_idx2dist,
-        )
-        visibles_n_distances_map = {i: vert_idx2dist[i] for i in visible_idxs}
-
-        if len(visibles_n_distances_map) == 0:
+        repr_n_dists = get_repr_n_dists(idx_origin, coords)
+        self.reprs_n_distances[idx_origin] = repr_n_dists
+        vert_idx2repr, vert_idx2dist = repr_n_dists
+        visible_idxs = self.get_visible_idxs(idx_origin, candidate_idxs, coords, vert_idx2repr, vert_idx2dist)
+        if len(visible_idxs) == 0:
             # The goal node does not have any neighbours. Hence there is not possible path to the goal.
             return [], None
 
-        for i, d in visibles_n_distances_map.items():
-            if i == idx_start:
-                # IMPORTANT geometrical property of this problem: it is always shortest to directly reach a node
-                #   instead of visiting other nodes first (there is never an advantage through reduced edge weight)
-                # -> when goal is directly reachable, there can be no other shorter path to it. Terminate
-                return [start_coordinates, goal_coordinates], d
+        visibles_n_distances_map = {i: vert_idx2dist[i] for i in visible_idxs}
 
-            # add unidirectional edges to the temporary graph
-            # add edges in the direction: extremity (v) -> goal
+        try:
+            d = visibles_n_distances_map[idx_start]
+            # IMPORTANT geometrical property of this problem: it is always shortest to directly reach a node
+            #   instead of visiting other nodes first (there is never an advantage through reduced edge weight)
+            # -> when goal is directly reachable, there can be no other shorter path to it. Terminate
+            return [start_coordinates, goal_coordinates], d
+        except KeyError:
+            pass
+
+        # add unidirectional edges to the temporary graph
+        # add edges in the direction: extremity (v) -> goal
+        for i, d in visibles_n_distances_map.items():
             graph.add_directed_edge(i, idx_goal, d)
 
         idx_origin = idx_start
         # the visibility of only the graphs nodes have to be checked
         # the goal node does not have to be considered, because of the earlier check
-        edge_idxs2check = set(range(nr_edges))  # new copy
-        vert_idx2repr, vert_idx2dist = get_repr_n_dists(idx_origin, coords)
-        candidate_idxs = {i for i in self.graph.get_all_nodes() if not vert_idx2dist[i] == 0.0}
-        visible_idxs = find_visible(
-            idx_origin,
-            candidate_idxs,
-            edge_idxs2check,
-            extremity_mask,
-            coords,
-            vertex_edge_idxs,
-            edge_vertex_idxs,
-            vert_idx2repr,
-            vert_idx2dist,
-        )
+        candidate_idxs = self.graph.get_all_nodes()
+        repr_n_dists = get_repr_n_dists(idx_origin, coords)
+        self.reprs_n_distances[idx_origin] = repr_n_dists
+        vert_idx2repr, vert_idx2dist = repr_n_dists
+        visible_idxs = self.get_visible_idxs(idx_origin, candidate_idxs, coords, vert_idx2repr, vert_idx2dist)
 
         if len(visible_idxs) == 0:
             # The start node does not have any neighbours. Hence there is no possible path to the goal.
@@ -365,6 +345,20 @@ class PolygonEnvironment:
 
         vertex_id_path, distance = graph.modified_a_star(idx_start, idx_goal, coords_goal)
 
+        # import networkx as nx
+        # G = nx.DiGraph()
+        # # TODO compile in function:
+        # for (start,goal), dist in graph.distances.items():
+        #     G.add_edge(start,goal, weight=dist)
+        #
+        # def dist(a, b):
+        #     (x1, y1) = a
+        #     (x2, y2) = b
+        #     return ((x1 - x2) ** 2 + (y1 - y2) ** 2) ** 0.5
+        #
+        # path = nx.astar_path(G, idx_start,idx_goal, heuristic=dist) # weight="cost")
+        #
+
         # clean up
         # TODO re-use the same graph
         # graph.remove_node(idx_start)
@@ -378,6 +372,22 @@ class PolygonEnvironment:
         # extract the coordinates from the path
         vertex_path = [tuple(coords[i]) for i in vertex_id_path]
         return vertex_path, distance
+
+    def get_visible_idxs(self, idx_origin, candidate_idxs, coords, vert_idx2repr, vert_idx2dist):
+        candidate_idxs = {i for i in candidate_idxs if not vert_idx2dist[i] == 0.0}
+        edge_idxs2check = set(range(self.nr_edges))
+        visible_idxs = find_visible(
+            idx_origin,
+            candidate_idxs,
+            edge_idxs2check,
+            coords,
+            vert_idx2repr,
+            vert_idx2dist,
+            self.extremity_mask,
+            self.edge_vertex_idxs,
+            self.vertex_edge_idxs,
+        )
+        return visible_idxs
 
 
 if __name__ == "__main__":

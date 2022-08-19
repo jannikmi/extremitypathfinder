@@ -438,12 +438,12 @@ def find_visible(
     origin: int,
     candidates: Set[int],
     edges_to_check: Set[int],
-    extremity_mask: np.ndarray,
     coords: np.ndarray,
-    vertex_edge_idxs: np.ndarray,
-    edge_vertex_idxs: np.ndarray,
     representations: np.ndarray,
     distances: np.ndarray,
+    extremity_mask: np.ndarray,
+    edge_vertex_idxs: np.ndarray,
+    vertex_edge_idxs: np.ndarray,
 ) -> Set[int]:
     """
     query_vertex: a vertex for which the visibility to the vertices should be checked.
@@ -619,12 +619,12 @@ def find_visible_and_in_front(
         origin,
         candidates,
         edge_idxs2check,
-        extremity_mask,
         coords,
-        vertex_edge_idxs,
-        edge_vertex_idxs,
         representations,
         distances,
+        extremity_mask,
+        edge_vertex_idxs,
+        vertex_edge_idxs,
     )
     return idxs_in_front, visible_idxs
 
