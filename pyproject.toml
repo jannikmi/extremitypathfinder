@@ -41,6 +41,7 @@ extremitypathfinder = "extremitypathfinder.command_line:main"
 [tool.poetry.dependencies]
 python = "^3.8"
 numpy = "^1.22"
+networkx = "^2.8.5"
 
 [tool.poetry.dev-dependencies]
 pytest = "^6.2.5"
