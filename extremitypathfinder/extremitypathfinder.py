@@ -374,8 +374,3 @@ class PolygonEnvironment:
             self.vertex_edge_idxs,
         )
         return visible_idxs
-
-
-if __name__ == "__main__":
-    # TODO command line support. read polygons and holes from .json files?
-    pass
