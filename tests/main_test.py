@@ -32,7 +32,7 @@ else:
 
 def try_test_cases(environment, test_cases):
     def validate(start_coordinates, goal_coordinates, expected_output):
-        output = environment.find_shortest_path(start_coordinates, goal_coordinates)
+        output = environment.find_shortest_path(start_coordinates, goal_coordinates, verify=True)
         path, length = output
         assert type(path) is list
         expected_path, expected_length = expected_output
