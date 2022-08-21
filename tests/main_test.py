@@ -1,7 +1,9 @@
 import pytest
 
+from extremitypathfinder import utils
 from extremitypathfinder.extremitypathfinder import PolygonEnvironment
 from extremitypathfinder.plotting import PlottingEnvironment
+from tests.helpers import other_edge_intersects
 from tests.test_cases import (
     GRID_ENV_PARAMS,
     INVALID_DESTINATION_DATA,
@@ -134,3 +136,33 @@ def test_separated_environment():
     env.prepare()
     print("\ntesting polygon environment with two separated areas")
     try_test_cases(env, TEST_DATA_SEPARATE_ENV)
+
+
+@pytest.mark.parametrize(
+    "env_data",
+    [SEPARATED_ENV, OVERLAP_POLY_ENV_PARAMS, POLY_ENV_PARAMS],
+)
+def test_extremity_neighbour_connection(env_data):
+    # if two extremities are direct neighbours in a polygon, they also must be connected in the prepared graph
+    # exception: there is another polygon edge intersecting that
+    print("\ntesting if all two direct extremity neighbour are connected")
+    env = PolygonEnvironment()
+    env.store(*env_data)
+    coords = env.coords
+    env.prepare()
+    graph = env.graph
+    extremities = env.extremity_indices
+    edge_vertex_idxs = env.edge_vertex_idxs
+
+    def connection_as_expected(i1: int, i2: int):
+        if i2 not in extremities:
+            return
+        should_be_connected = not other_edge_intersects(i1, i2, edge_vertex_idxs, coords)
+        graph_neighbors_e = set(graph.neighbors(i1))
+        are_connected = i2 in graph_neighbors_e
+        assert should_be_connected == are_connected
+
+    for e in extremities:
+        n1, n2 = utils.get_neighbour_idxs(e, env.vertex_edge_idxs, edge_vertex_idxs)
+        connection_as_expected(e, n1)
+        connection_as_expected(e, n2)
