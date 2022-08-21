@@ -88,46 +88,51 @@ def inside_polygon(p: np.ndarray, coords: np.ndarray, border_value: bool) -> boo
             return border_value
         p1 = p2
 
-    # regular point in polygon algorithm
-    # TODO use optimised implementation
+    # regular point in polygon algorithm: ray casting
     x, y = p
+    x_coords = coords[:, 0]
+    y_coords = coords[:, 1]
+    nr_coords = len(x_coords)
+    inside = False
 
-    contained = False
     # the edge from the last to the first point is checked first
-    i = -1
-    y1 = coords[-1, 1]
+    y1 = y_coords[-1]
     y_gt_y1 = y > y1
-    for y2 in coords[:, 1]:
+    for i in range(nr_coords):
+        y2 = y_coords[i]
         y_gt_y2 = y > y2
-        if y_gt_y1:
-            if not y_gt_y2:
-                x1 = coords[i, 0]
-                x2 = coords[i + 1, 0]
-                # only crossings "right" of the point should be counted
-                x1GEx = x <= x1
-                x2GEx = x <= x2
-                # compare the slope of the line [p1-p2] and [p-p2]
-                # depending on the position of p2 this determines whether the polygon edge is right or left of the point
-                # to avoid expensive division the divisors (of the slope dy/dx) are brought to the other side
-                # ( dy/dx > a  ==  dy > a * dx )
-                if (x1GEx and x2GEx) or ((x1GEx or x2GEx) and (y2 - y) * (x2 - x1) <= (y2 - y1) * (x2 - x)):
-                    contained = not contained
+        if y_gt_y1 ^ y_gt_y2:  # XOR
+            # [p1-p2] crosses horizontal line in p
+            x1 = x_coords[i - 1]
+            x2 = x_coords[i]
+            # only count crossings "right" of the point ( >= x)
+            x_le_x1 = x <= x1
+            x_le_x2 = x <= x2
+            if x_le_x1 or x_le_x2:
+                if x_le_x1 and x_le_x2:
+                    # p1 and p2 are both to the right -> valid crossing
+                    inside = not inside
+                else:
+                    # compare the slope of the line [p1-p2] and [p-p2]
+                    # depending on the position of p2 this determines whether
+                    # the polygon edge is right or left of the point
+                    # to avoid expensive division the divisors (of the slope dy/dx) are brought to the other side
+                    # ( dy/dx > a  ==  dy > a * dx )
+                    # only one of the points is to the right
+                    slope1 = (y2 - y) * (x2 - x1)
+                    slope2 = (y2 - y1) * (x2 - x)
+                    # NOTE: accept slope equality to also detect if p lies directly on an edge
+                    if y_gt_y1:
+                        if slope1 <= slope2:
+                            inside = not inside
+                    elif slope1 >= slope2:  # NOT y_gt_y1
+                        inside = not inside
 
-        else:
-            if y_gt_y2:
-                x1 = coords[i, 0]
-                x2 = coords[i + 1, 0]
-                # only crossings "right" of the point should be counted
-                x1GEx = x <= x1
-                x2GEx = x <= x2
-                if (x1GEx and x2GEx) or ((x1GEx or x2GEx) and (y2 - y) * (x2 - x1) >= (y2 - y1) * (x2 - x)):
-                    contained = not contained
-
+        # next point
         y1 = y2
         y_gt_y1 = y_gt_y2
-        i += 1
 
-    return contained
+    return inside
 
 
 def is_within_map(p: np.ndarray, boundary: np.ndarray, holes: Iterable[np.ndarray]) -> bool:
@@ -721,7 +726,6 @@ def compute_graph(
     extremity_mask: np.ndarray,
     vertex_edge_idxs: np.ndarray,
 ) -> t.Graph:
-
     edges = compute_graph_edges(
         nr_edges,
         extremity_indices,
