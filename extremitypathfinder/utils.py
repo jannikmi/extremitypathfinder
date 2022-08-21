@@ -370,29 +370,6 @@ def get_neighbour_idxs(i: int, vertex_edge_idxs: np.ndarray, edge_vertex_idxs: n
     return neigh_idx1, neigh_idx2
 
 
-def skip_edge(
-    node: int,
-    edge2discard: int,
-    candidates: Set[int],
-    edge_vertex_idxs: np.ndarray,
-    extremity_mask: np.ndarray,
-    vertex_edge_idxs: np.ndarray,
-):
-    # (note: not identical, does not belong to the same polygon!)
-    # mark this vertex as not visible (would otherwise add 0 distance edge in the graph)
-    candidates.discard(node)
-    # no points lie truly "behind" this edge as there is no "direction of sight" defined
-    # <-> angle representation/range undefined for just this single edge
-    # however if one considers the point neighbouring in the other direction (<-> two edges)
-    # these two neighbouring edges define an invisible angle range
-    # -> simply move the pointer
-    v1, v2 = get_neighbour_idxs(node, vertex_edge_idxs, edge_vertex_idxs)
-    range_less_180 = extremity_mask[node]
-    # do not check the other neighbouring edge of vertex1 in the future (has been considered already)
-    edge_idx = vertex_edge_idxs[node][edge2discard]
-    return edge_idx, range_less_180, v1, v2
-
-
 def find_candidates_behind(
     origin: int, v1: int, v2: int, candidates: Set[int], distances: np.ndarray, coords: np.ndarray
 ) -> Set[int]:
@@ -470,30 +447,43 @@ def find_visible(
     edge_angle_range = {}
     samples = {}
     edges_to_skip = set()
-    for edge in edges_to_check:
 
-        # the "view range" of an edge from a query point (spanned by the two vertices of the edge)
-        #   is always < 180deg when the edge is not running through the query point (=180 deg)
+    def skip_edge(node: int, edge2discard: int) -> Tuple[int, bool, int, int]:
+        # origin identical to node
+        # mark this vertex as not visible (would otherwise add 0 distance edge in the graph)
+        candidates.discard(node)
+        # no points lie truly "behind" this edge as there is no "direction of sight" defined
+        # <-> angle representation/range undefined for just this single edge
+        # however if one considers the point neighbouring in the other direction (<-> two edges)
+        # these two neighbouring edges define an invisible angle range
+        # -> simply move the pointer
+        v1, v2 = get_neighbour_idxs(node, vertex_edge_idxs, edge_vertex_idxs)
+        range_less_180 = extremity_mask[node]
+        # do not check the other neighbouring edge of vertex1 in the future (has been considered already)
+        edge_idx = vertex_edge_idxs[node][edge2discard]
+        return edge_idx, range_less_180, v1, v2
+
+    for edge in edges_to_check:
+        if edge in edges_to_skip:
+            continue
 
         v1, v2 = edge_vertex_idxs[edge]
-        repr1 = representations[v1]
-        repr2 = representations[v2]
 
-        # angle range blocked by a single edge is always <180 degree
+        # the "view range" of an edge from a query point (spanned by the two vertices of the edge)
+        #   is always < 180deg
+        # edge case: edge is running through the query point -> 180 deg
         range_less_180 = True
+        lies_on_edge = False
 
         if distances[v1] == 0.0:
             angle_range = np.inf
             # vertex1 of the edge has the same coordinates as the query vertex
+            # (note: not identical, does not belong to the same polygon!)
             # -> the origin lies on the edge
             lies_on_edge = True
             edge_to_skip, range_less_180, v1, v2 = skip_edge(
                 node=v1,
                 edge2discard=0,
-                candidates=candidates,
-                edge_vertex_idxs=edge_vertex_idxs,
-                extremity_mask=extremity_mask,
-                vertex_edge_idxs=vertex_edge_idxs,
             )
             edges_to_skip.add(edge_to_skip)
         elif distances[v2] == 0.0:
@@ -505,27 +495,24 @@ def find_visible(
             edge_to_skip, range_less_180, v1, v2 = skip_edge(
                 node=v2,
                 edge2discard=1,
-                candidates=candidates,
-                edge_vertex_idxs=edge_vertex_idxs,
-                extremity_mask=extremity_mask,
-                vertex_edge_idxs=vertex_edge_idxs,
             )
             edges_to_skip.add(edge_to_skip)
-        else:
-            # case: a 'regular' edge
-            angle_range = abs(repr1 - repr2)
-            if angle_range > 2.0:
-                # angle range blocked by a single edge is always <180 degree
-                angle_range = 4 - angle_range
 
-            lies_on_edge = angle_range == 2.0  # 180deg -> on the edge
+        repr1 = representations[v1]
+        repr2 = representations[v2]
+        # case: a 'regular' edge
+        angle_range = abs(repr1 - repr2)
+        if angle_range == 2.0:  # 180deg -> on the edge
+            lies_on_edge = True
+        elif angle_range > 2.0:
+            # angle range blocked by a single edge is always <180 degree
+            angle_range = 4 - angle_range
 
         edge_angle_range[edge] = angle_range
         samples[edge] = (v1, v2, repr1, repr2, lies_on_edge, range_less_180)
 
-    edges_to_check.difference_update(edges_to_skip)
     # edges with the highest angle range first
-    edges_prioritised = sorted(edges_to_check, reverse=True, key=lambda e: edge_angle_range[e])
+    edges_prioritised = sorted(edge_angle_range.keys(), reverse=True, key=lambda e: edge_angle_range[e])
 
     visibles = set()
     # goal: eliminating all vertices lying behind any edge ("blocking the view")
@@ -580,7 +567,6 @@ def find_visible(
     # all edges have been checked
     # all remaining vertices were not concealed behind any edge and hence are visible
     visibles.update(candidates)
-    # TODO include 'find_candidates_behind'
     return clean_visibles(visibles, representations, distances)
 
 
