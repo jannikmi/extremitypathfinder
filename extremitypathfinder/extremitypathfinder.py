@@ -349,7 +349,10 @@ class PolygonEnvironment:
         def l2_distance(n1, n2):
             return get_distance(n1, n2, self.reprs_n_distances)
 
-        id_path = nx.astar_path(graph, start_mapped, goal_mapped, heuristic=l2_distance, weight="weight")
+        try:
+            id_path = nx.astar_path(graph, start_mapped, goal_mapped, heuristic=l2_distance, weight="weight")
+        except nx.exception.NetworkXNoPath:
+            return [], None
 
         # clean up
         # TODO re-use the same graph. need to keep track of all merged edges
