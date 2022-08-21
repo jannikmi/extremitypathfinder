@@ -10,4 +10,4 @@ InputNumerical = Union[float, int]
 InputCoord = Tuple[InputNumerical, InputNumerical]
 InputCoordList = Union[np.ndarray, List[InputCoord]]
 ObstacleIterator = Iterable[InputCoord]
-Graph = nx.DiGraph
+Graph = nx.Graph

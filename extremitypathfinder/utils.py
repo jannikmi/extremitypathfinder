@@ -641,8 +641,6 @@ def compute_graph_edges(
     extremity_mask: np.ndarray,
     vertex_edge_idxs: np.ndarray,
 ) -> Dict[Tuple[int, int], float]:
-    # IMPORTANT: add all extremities (even if they turn out to be dangling in the end)
-
     connections = {}
     for extr_ptr, origin_idx in enumerate(extremity_indices):
         vert_idx2repr, vert_idx2dist = reprs_n_distances[origin_idx]
@@ -666,15 +664,11 @@ def compute_graph_edges(
         )
         # "thin out" the graph:
         # remove already existing edges in the graph to the extremities in front
-
         for i in idxs_in_front:
             connections.pop((origin_idx, i), None)
-            connections.pop((i, origin_idx), None)
 
         for i in visible_idxs:
-            d = vert_idx2dist[i]
-            connections[(origin_idx, i)] = d
-            connections[(i, origin_idx)] = d
+            connections[(origin_idx, i)] = vert_idx2dist[i]
 
     return connections
 
@@ -727,6 +721,7 @@ def compute_graph(
     extremity_mask: np.ndarray,
     vertex_edge_idxs: np.ndarray,
 ) -> t.Graph:
+
     edges = compute_graph_edges(
         nr_edges,
         extremity_indices,

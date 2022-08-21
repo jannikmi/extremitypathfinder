@@ -13,6 +13,7 @@ TODOs
 
 internal:
 
+* using undirected Graph: The precomputed graph usually makes up the majority of the visibility graph (in comparison to the temporarily added edges for query start and goal nodes) and this precomputed part has to be undirected. Use undirected graph everywhere.
 * added test cases
 
 

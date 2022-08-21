@@ -312,7 +312,10 @@ class PolygonEnvironment:
         # graph = self.graph
         # nr_edges_before = len(graph.edges)
 
-        # add unidirectional edges in the direction: extremity (v) -> goal
+        # add edges: extremity (i) <-> goal
+        # Note: also here unnecessary edges in the graph could be deleted
+        # optimising the graph here however is more expensive than beneficial,
+        # as the graph is only being used for a single query
         for i in visibles_goal:
             graph.add_edge(i, goal, weight=vert_idx2dist[i])
 
@@ -328,15 +331,9 @@ class PolygonEnvironment:
             # The start node does not have any neighbours. Hence there is no possible path to the goal.
             return [], None
 
-        # add edges in the direction: start -> extremity
-        # Note: also here unnecessary edges in the graph could be deleted
-        # optimising the graph here however is more expensive than beneficial,
-        # as the graph is only being used for a single query
+        # add edges: start <-> extremity (i)
         for i in visibles_start:
             graph.add_edge(start, i, weight=vert_idx2dist[i])
-
-        def l2_distance(n1, n2):
-            return get_distance(n1, n2, self.reprs_n_distances)
 
         # apply mapping to start and goal index as well
         start_mapped = find_identical_single(start, graph.nodes, self.reprs_n_distances)
@@ -348,6 +345,9 @@ class PolygonEnvironment:
             nx.relabel_nodes(graph, {goal: goal_mapped}, copy=False)
 
         self._idx_start_tmp, self._idx_goal_tmp = start_mapped, goal_mapped  # for plotting
+
+        def l2_distance(n1, n2):
+            return get_distance(n1, n2, self.reprs_n_distances)
 
         id_path = nx.astar_path(graph, start_mapped, goal_mapped, heuristic=l2_distance, weight="weight")
 
