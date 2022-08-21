@@ -3,9 +3,9 @@ from os import makedirs
 from os.path import abspath, exists, join
 
 import matplotlib.pyplot as plt
-import networkx as nx
 from matplotlib.patches import Polygon
 
+from extremitypathfinder import types as t
 from extremitypathfinder.extremitypathfinder import PolygonEnvironment
 
 EXPORT_RESOLUTION = 200  # dpi
@@ -123,7 +123,7 @@ def draw_prepared_map(map):
         plt.show()
 
 
-def draw_with_path(map, graph: nx.DiGraph, vertex_path):
+def draw_with_path(map, graph: t.Graph, vertex_path):
     fig, ax = plt.subplots()
 
     coords = map._coords_tmp
@@ -172,7 +172,7 @@ def draw_only_path(map, vertex_path, start_coordinates, goal_coordinates):
         plt.show()
 
 
-def draw_graph(map, graph: nx.DiGraph):
+def draw_graph(map, graph: t.Graph):
     fig, ax = plt.subplots()
 
     nodes = graph.nodes

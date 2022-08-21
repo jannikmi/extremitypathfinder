@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "extremitypathfinder"
-version = "2.4.0"
+version = "2.4.1"
 license = "MIT"
 readme = "README.rst"
 repository = "https://github.com/jannikmi/extremitypathfinder"
@@ -22,11 +22,11 @@ classifiers = [
 description = "python package implementing a multivariate Horner scheme for efficiently evaluating multivariate polynomials"
 authors = ["jannikmi <github@michelfe.it>"]
 include = [
+    "LICENSE",
     ".editorconfig",
     ".pre-commit-config.yaml",
     "CHANGELOG.rst",
     "CONTRIBUTING.rst",
-    "LICENSE",
     "Makefile",
     "README.rst",
     "tox.ini",

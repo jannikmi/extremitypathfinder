@@ -4,14 +4,9 @@ from typing import Dict, Iterable, List, Optional, Set, Tuple
 import networkx as nx
 import numpy as np
 
-from extremitypathfinder.configs import (
-    DEFAULT_PICKLE_NAME,
-    INPUT_COORD_LIST_TYPE,
-    LENGTH_TYPE,
-    OBSTACLE_ITER_TYPE,
-    PATH_TYPE,
-    InputCoords,
-)
+from extremitypathfinder import types as t
+from extremitypathfinder.configs import DEFAULT_PICKLE_NAME
+from extremitypathfinder.types import InputCoord, InputCoordList, Length, ObstacleIterator, Path
 from extremitypathfinder.utils import (
     check_data_requirements,
     cmp_reps_n_distances,
@@ -43,9 +38,9 @@ class PolygonEnvironment:
     holes: List[np.ndarray]
     extremity_indices: List[int]
     reprs_n_distances: Dict[int, np.ndarray]
-    graph: nx.DiGraph
+    graph: t.Graph
     # TODO
-    temp_graph: Optional[nx.DiGraph] = None  # for storing and plotting the graph during a query
+    temp_graph: Optional[t.Graph] = None  # for storing and plotting the graph during a query
     boundary_polygon: np.ndarray
     coords: np.ndarray
     edge_vertex_idxs: np.ndarray
@@ -68,8 +63,8 @@ class PolygonEnvironment:
 
     def store(
         self,
-        boundary_coordinates: INPUT_COORD_LIST_TYPE,
-        list_of_hole_coordinates: INPUT_COORD_LIST_TYPE,
+        boundary_coordinates: InputCoordList,
+        list_of_hole_coordinates: InputCoordList,
         validate: bool = False,
     ):
         """saves the passed input polygons in the environment
@@ -155,7 +150,7 @@ class PolygonEnvironment:
         self,
         size_x: int,
         size_y: int,
-        obstacle_iter: OBSTACLE_ITER_TYPE,
+        obstacle_iter: ObstacleIterator,
         simplify: bool = True,
         validate: bool = False,
     ):
@@ -247,11 +242,11 @@ class PolygonEnvironment:
 
     def find_shortest_path(
         self,
-        start_coordinates: InputCoords,
-        goal_coordinates: InputCoords,
+        start_coordinates: InputCoord,
+        goal_coordinates: InputCoord,
         free_space_after: bool = True,
         verify: bool = True,
-    ) -> Tuple[PATH_TYPE, LENGTH_TYPE]:
+    ) -> Tuple[Path, Length]:
         """computes the shortest path and its length between start and goal node
 
         :param start_coordinates: a (x,y) coordinate tuple representing the start node
@@ -317,7 +312,10 @@ class PolygonEnvironment:
         # graph = self.graph
         # nr_edges_before = len(graph.edges)
 
-        # add unidirectional edges in the direction: extremity (v) -> goal
+        # add edges: extremity (i) <-> goal
+        # Note: also here unnecessary edges in the graph could be deleted
+        # optimising the graph here however is more expensive than beneficial,
+        # as the graph is only being used for a single query
         for i in visibles_goal:
             graph.add_edge(i, goal, weight=vert_idx2dist[i])
 
@@ -333,15 +331,9 @@ class PolygonEnvironment:
             # The start node does not have any neighbours. Hence there is no possible path to the goal.
             return [], None
 
-        # add edges in the direction: start -> extremity
-        # Note: also here unnecessary edges in the graph could be deleted
-        # optimising the graph here however is more expensive than beneficial,
-        # as the graph is only being used for a single query
+        # add edges: start <-> extremity (i)
         for i in visibles_start:
             graph.add_edge(start, i, weight=vert_idx2dist[i])
-
-        def l2_distance(n1, n2):
-            return get_distance(n1, n2, self.reprs_n_distances)
 
         # apply mapping to start and goal index as well
         start_mapped = find_identical_single(start, graph.nodes, self.reprs_n_distances)
@@ -354,7 +346,13 @@ class PolygonEnvironment:
 
         self._idx_start_tmp, self._idx_goal_tmp = start_mapped, goal_mapped  # for plotting
 
-        id_path = nx.astar_path(graph, start_mapped, goal_mapped, heuristic=l2_distance, weight="weight")
+        def l2_distance(n1, n2):
+            return get_distance(n1, n2, self.reprs_n_distances)
+
+        try:
+            id_path = nx.astar_path(graph, start_mapped, goal_mapped, heuristic=l2_distance, weight="weight")
+        except nx.exception.NetworkXNoPath:
+            return [], None
 
         # clean up
         # TODO re-use the same graph. need to keep track of all merged edges
