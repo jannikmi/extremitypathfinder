@@ -1,3 +1,5 @@
+import itertools
+
 import pytest
 
 from extremitypathfinder import utils
@@ -167,3 +169,29 @@ def test_extremity_neighbour_connection(env_data):
         n1, n2 = utils.get_neighbour_idxs(e, env.vertex_edge_idxs, edge_vertex_idxs)
         connection_as_expected(e, n1)
         connection_as_expected(e, n2)
+
+
+@pytest.mark.parametrize(
+    "env_data",
+    POLYGON_ENVS,
+)
+def test_all_coords_work_as_input(env_data):
+    # if two extremities are direct neighbours in a polygon, they also must be connected in the prepared graph
+    # exception: there is another polygon edge intersecting that
+    print("\ntesting if all two direct extremity neighbour are connected")
+    env = PolygonEnvironment()
+    env.store(*env_data)
+    coords = env.coords
+    nr_vertices = env.nr_vertices
+    env.prepare()
+
+    for start, goal in itertools.product(range(nr_vertices), repeat=2):
+        coords_start = coords[start]
+        coords_goal = coords[goal]
+
+        if not env.within_map(coords_start):
+            continue
+        if not env.within_map(coords_goal):
+            continue
+
+        env.find_shortest_path(coords_start, coords_goal, verify=True)
