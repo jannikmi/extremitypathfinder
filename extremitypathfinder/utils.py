@@ -454,14 +454,12 @@ def find_visible(
     vertex_edge_idxs: np.ndarray,
 ) -> Set[int]:
     """
-    query_vertex: a vertex for which the visibility to the vertices should be checked.
-        also non extremity vertices, polygon vertices and vertices with the same coordinates are allowed.
-        query point also might lie directly on an edge! (angle = 180deg)
+    :param origin: the vertex for which the visibility to the other candidates should be checked.
     :param candidates: the set of all vertex ids which should be checked for visibility.
         IMPORTANT: is being manipulated, so has to be a copy!
-        IMPORTANT: must not contain the query vertex!
+        IMPORTANT: must not contain any vertices with equal coordinates (e.g. the origin vertex itself)!
     :param edges_to_check: the set of edges which determine visibility
-    :return: a set of tuples of all vertices visible from the query vertex and the corresponding distance
+    :return: a set of of all vertices visible from the origin
     """
     if len(candidates) == 0:
         return candidates
@@ -661,7 +659,7 @@ def find_visible_and_in_front(
 
 def compute_graph_edges(
     nr_edges: int,
-    extremity_indices: Iterable[int],
+    extremity_indices: List[int],
     reprs_n_distances: Dict[int, np.ndarray],
     coords: np.ndarray,
     edge_vertex_idxs: np.ndarray,
@@ -669,7 +667,9 @@ def compute_graph_edges(
     vertex_edge_idxs: np.ndarray,
 ) -> Dict[Tuple[int, int], float]:
     connections = {}
-    for extr_ptr, origin_idx in enumerate(extremity_indices):
+
+    # optimisation: no not check the last extremity as no other candidates will remain (cf. below)
+    for extr_ptr, origin_idx in enumerate(extremity_indices[:-1]):
         vert_idx2repr, vert_idx2dist = reprs_n_distances[origin_idx]
         # optimisation: extremities are always visible to each other
         # (bi-directional relation -> undirected edges in the graph)
