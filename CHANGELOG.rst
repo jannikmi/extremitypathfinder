@@ -11,6 +11,8 @@ TODOs
 2.4.1 (2022-xx)
 -------------------
 
+* added speed benchmarks and performance section in the documentation with benchmark results
+
 internal:
 
 * using undirected Graph: The precomputed graph usually makes up the majority of the visibility graph (in comparison to the temporarily added edges for query start and goal nodes) and this precomputed part has to be undirected. Use undirected graph everywhere.

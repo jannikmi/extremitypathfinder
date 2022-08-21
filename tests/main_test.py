@@ -9,6 +9,7 @@ from tests.test_cases import (
     INVALID_DESTINATION_DATA,
     OVERLAP_POLY_ENV_PARAMS,
     POLY_ENV_PARAMS,
+    POLYGON_ENVS,
     SEPARATED_ENV,
     TEST_DATA_GRID_ENV,
     TEST_DATA_OVERLAP_POLY_ENV,
@@ -140,7 +141,7 @@ def test_separated_environment():
 
 @pytest.mark.parametrize(
     "env_data",
-    [SEPARATED_ENV, OVERLAP_POLY_ENV_PARAMS, POLY_ENV_PARAMS],
+    POLYGON_ENVS,
 )
 def test_extremity_neighbour_connection(env_data):
     # if two extremities are direct neighbours in a polygon, they also must be connected in the prepared graph
