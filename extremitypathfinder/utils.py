@@ -9,6 +9,7 @@ import networkx as nx
 import numpy as np
 import numpy.linalg
 
+from extremitypathfinder import types as t
 from extremitypathfinder.configs import BOUNDARY_JSON_KEY, DEFAULT_PICKLE_NAME, HOLES_JSON_KEY
 
 
@@ -725,7 +726,7 @@ def compute_graph(
     edge_vertex_idxs: np.ndarray,
     extremity_mask: np.ndarray,
     vertex_edge_idxs: np.ndarray,
-) -> nx.DiGraph:
+) -> t.Graph:
     edges = compute_graph_edges(
         nr_edges,
         extremity_indices,
@@ -736,7 +737,7 @@ def compute_graph(
         vertex_edge_idxs,
     )
 
-    graph = nx.DiGraph()
+    graph = t.Graph()
     # IMPORTANT: add all extremities (even if they turn out to be dangling in the end),
     # adding start and goal nodes at query time might connect them!
     graph.add_nodes_from(extremity_indices)
