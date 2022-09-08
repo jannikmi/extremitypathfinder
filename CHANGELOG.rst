@@ -3,10 +3,13 @@ Changelog
 
 TODOs
 
+* update documentation on A* search
 * pending major release: remove separate prepare step?! initialise in one step during initialisation
+* pending major release: drop simplify parameter
 * Numba JIT compilation of utils. line speed profiling for highest impact of refactoring
 * allow input of complex geometries: input coords, and edges separately (polygons are special case)
-* drop simplify parameter
+* cf. GitHub Issues
+
 
 2.4.1 (2022-08-22)
 -------------------
