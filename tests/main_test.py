@@ -1,5 +1,6 @@
 import itertools
 
+import networkx as nx
 import pytest
 
 from extremitypathfinder import utils
@@ -151,9 +152,12 @@ def test_extremity_neighbour_connection(env_data):
     print("\ntesting if all two direct extremity neighbour are connected")
     env = PolygonEnvironment()
     env.store(*env_data)
-    coords = env.coords
     env.prepare()
-    graph = env.graph
+    graph: nx.Graph = env.graph
+    # add all "extra" nodes with visibility edges manually
+    # perform custom A* search
+
+    coords = env.coords
     extremities = env.extremity_indices
     edge_vertex_idxs = env.edge_vertex_idxs
 
