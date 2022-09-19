@@ -182,6 +182,8 @@ def get_intersection_status(p1, p2, q1, q2):
         return 0
     # if np.all(0.0 <= x) and np.all(x <= 1.0):
     #     return 2
+    else:
+        return 1
 
 
 # special case of has_intersection()
