@@ -186,8 +186,8 @@ def get_intersection_status(p1, p2, q1, q2):
         return 1
 
 
-# special case of has_intersection()
 def lies_behind_inner(p1: np.ndarray, p2: np.ndarray, v: np.ndarray) -> bool:
+    # special case of get_intersection_status()
     # solve the set of equations
     # (p2-p1) lambda + (p1) = (v) mu
     #  in matrix form A x = b:
@@ -347,6 +347,7 @@ def find_within_range(
     # since the polygons follow a numbering convention,
     # the 'left' side of p1-p2 always lies inside the map
     # -> filter out everything on the right side (='outside')
+    # ^: XOR
     inversion_condition = on_line_inv or ((repr_diff < 2.0) ^ angle_range_less_180)
 
     def within_filter_func(r: float) -> bool:
