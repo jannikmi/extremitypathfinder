@@ -18,7 +18,7 @@ def compute_repr_n_dist(np_vector: np.ndarray) -> Tuple[float, float]:
 
     value in [0.0 : 4.0[
     every quadrant contains angle measures from 0.0 to 1.0
-    there are 4 quadrants (counter clockwise numbering)
+    there are 4 quadrants (counterclockwise numbering)
     0 / 360 degree -> 0.0
     90 degree -> 1.0
     180 degree -> 2.0
@@ -29,7 +29,7 @@ def compute_repr_n_dist(np_vector: np.ndarray) -> Tuple[float, float]:
     but it its bijective and monotonous:
     rep(p1) > rep(p2) <=> angle(p1) > angle(p2)
     rep(p1) = rep(p2) <=> angle(p1) = angle(p2)
-    angle(p): counter clockwise angle between the two line segments (0,0)'--(1,0)' and (0,0)'--p
+    angle(p): counterclockwise angle between the two line segments (0,0)'--(1,0)' and (0,0)'--p
     with (0,0)' being the vector representing the origin
 
     :param np_vector:
@@ -170,19 +170,18 @@ def get_intersection_status(p1, p2, q1, q2):
     b = np.array(q1 - p1)
     try:
         x = np.linalg.solve(A, b)
-        # not crossing the line segment is considered to be ok
-        # so x == 0.0 or x == 1.0 is not considered an intersection
-        # assert np.allclose((p2 - p1) * x[0] + p1, (q2 - q1) * x[1] + q1)
-        # assert np.allclose(np.dot(A, x), b)
-        if x[0] <= 0.0 or x[1] <= 0.0 or x[0] >= 1.0 or x[1] >= 1.0:
-            return 0
-        # if np.all(0.0 <= x) and np.all(x <= 1.0):
-        #     return 2
     except np.linalg.LinAlgError:
         # line segments are parallel (matrix is singular, set of equations is not solvable)
         return 0
 
-    return 1
+    # not crossing the line segment is considered to be ok
+    # so x == 0.0 or x == 1.0 is not considered an intersection
+    # assert np.allclose((p2 - p1) * x[0] + p1, (q2 - q1) * x[1] + q1)
+    # assert np.allclose(np.dot(A, x), b)
+    if x[0] <= 0.0 or x[1] <= 0.0 or x[0] >= 1.0 or x[1] >= 1.0:
+        return 0
+    # if np.all(0.0 <= x) and np.all(x <= 1.0):
+    #     return 2
 
 
 # special case of has_intersection()
@@ -315,9 +314,10 @@ def find_within_range(
       - query angle (range) is < 180deg or not (>= 180deg)
     :param repr1:
     :param repr2:
-    :param representations:
+    :param candidate_idxs:
     :param angle_range_less_180: whether the angle between repr1 and repr2 is < 180 deg
     :param equal_repr_allowed: whether vertices with the same representation should also be returned
+    :param representations:
     :return:
     """
     if len(candidate_idxs) == 0:
@@ -331,7 +331,7 @@ def find_within_range(
     max_repr = max(repr1, repr2)  # = min_angle + angle_diff
 
     def repr_within(r):
-        # Note: vertices with the same representation will not NOT be returned!
+        # Note: vertices with the same representation will NOT be returned!
         return min_repr < r < max_repr
 
     # depending on the angle the included range is clockwise or anti-clockwise
@@ -436,7 +436,7 @@ def find_visible(
         IMPORTANT: is being manipulated, so has to be a copy!
         IMPORTANT: must not contain any vertices with equal coordinates (e.g. the origin vertex itself)!
     :param edges_to_check: the set of edges which determine visibility
-    :return: a set of of all vertices visible from the origin
+    :return: a set of all vertices visible from the origin
     """
     if len(candidates) == 0:
         return candidates
@@ -590,7 +590,7 @@ def find_visible_and_in_front(
     # such that both adjacent edges are visible, one will never visit e, because everything is
     # reachable on a shorter path without e (except e itself).
     # An extremity e1 lying in the area "in front of" extremity e hence is never the next vertex
-    # in a shortest path coming from e.
+    # in the shortest path coming from e.
     # And also in reverse: when coming from e1 everything else than e itself can be reached faster
     # without visiting e.
     # -> e1 and e do not have to be connected in the graph.
@@ -610,7 +610,7 @@ def find_visible_and_in_front(
         representations=representations,
     )
     # do not consider points lying in front when looking for visible extremities,
-    # even if they are actually be visible.
+    # even if they are actually visible.
     candidates.difference_update(candidates_in_front)
     # ATTENTION: polygons may intersect -> neighbouring extremities must NOT be visible from each other!
     # eliminate all vertices 'behind' the query point from the candidate set
@@ -695,7 +695,6 @@ def compute_graph(
     extremity_mask: np.ndarray,
     vertex_edge_idxs: np.ndarray,
 ) -> t.Graph:
-
     graph = t.Graph()
     # IMPORTANT: add all extremities (even if they turn out to be dangling in the end),
     # adding start and goal nodes at query time might connect them!
@@ -705,7 +704,7 @@ def compute_graph(
     for extr_ptr, origin_idx in enumerate(extremity_indices[:-1]):
         vert_idx2repr, vert_idx2dist = reprs_n_distances[origin_idx]
         # optimisation: extremities are always visible to each other
-        # (bi-directional relation -> undirected edges in the graph)
+        # (bidirectional relation -> undirected edges in the graph)
         #  -> do not check extremities which have been checked already
         #  (must give the same result when algorithms are correct)
         # the origin extremity itself must also not be checked when looking for visible neighbours
@@ -781,7 +780,7 @@ def convert_gridworld(size_x: int, size_y: int, obstacle_iter: iter, simplify: b
     :param size_y: the vertical grid world size
     :param obstacle_iter: an iterable of coordinate pairs (x,y) representing blocked grid cells (obstacles)
     :param simplify: whether the polygons should be simplified or not. reduces edge amount, allow diagonal edges
-    :return: an boundary polygon (counter clockwise numbering) and a list of hole polygons (clockwise numbering)
+    :return: a boundary polygon (counterclockwise numbering) and a list of hole polygons (clockwise numbering)
     NOTE: convert grid world into polygons in a way that coordinates coincide with grid!
         -> no conversion of obtained graphs needed!
         the origin of the polygon coordinate system is (-0.5,-0.5) in the grid cell system (= corners of the grid world)
@@ -867,7 +866,7 @@ def convert_gridworld(size_x: int, size_y: int, obstacle_iter: iter, simplify: b
                 forward_pos = current_pos + forward_vect
                 if boundary_detect_fct(forward_pos):
                     node_pos = current_pos + offsets[forward_index]
-                    # there is a node at the bottom left corner of the start position (offset= (0,0) )
+                    # there is a node in the bottom left corner of the start position (offset= (0,0) )
                     if is_equal(node_pos, start_pos):
                         # check and terminate if this node does already exist
                         break
@@ -886,7 +885,7 @@ def convert_gridworld(size_x: int, size_y: int, obstacle_iter: iter, simplify: b
                     just_turned = False
 
         if cntr_clockwise_wanted:
-            # make edge numbering counter clockwise!
+            # make edge numbering counterclockwise!
             edge_list.reverse()
         return np.array(edge_list, dtype=float)
 
@@ -946,7 +945,7 @@ def angle_rep_inverse(repr: Optional[float]) -> Optional[float]:
 def compute_extremity_idxs(coordinates: np.ndarray) -> List[int]:
     """identify all protruding points = vertices with an inside angle of > 180 degree ('extremities')
     expected edge numbering:
-        outer boundary polygon: counter clockwise
+        outer boundary polygon: counterclockwise
         holes: clockwise
 
     basic idea:
@@ -967,7 +966,7 @@ def compute_extremity_idxs(coordinates: np.ndarray) -> List[int]:
     p2 = coordinates[-1]
     for i, p3 in enumerate(coordinates):
         # since consequent vertices are not permitted to be equal,
-        #   the angle representation of the difference is well defined
+        #   the angle representation of the difference is well-defined
         diff_p3_p2 = p3 - p2
         diff_p1_p2 = p1 - p2
         repr_p3_p2, _ = compute_repr_n_dist(diff_p3_p2)
