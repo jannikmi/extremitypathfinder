@@ -366,6 +366,66 @@ def find_within_range(
     return idxs_within
 
 
+def lies_within_range(
+    repr1: float,
+    repr2: float,
+    repr: float,
+    angle_range_less_180: bool,
+    equal_repr_allowed: bool,
+) -> bool:
+    """
+    filters out all vertices whose representation lies within the range between
+      the two given angle representations
+    which range ('clockwise' or 'counter-clockwise') should be checked is determined by:
+      - query angle (range) is < 180deg or not (>= 180deg)
+    :param repr1:
+    :param repr2:
+    :param candidate_idxs:
+    :param angle_range_less_180: whether the angle between repr1 and repr2 is < 180 deg
+    :param equal_repr_allowed: whether vertices with the same representation should also be returned
+    :param representations:
+    :return:
+    """
+    repr_diff = abs(repr1 - repr2)
+    if repr_diff == 0.0:
+        return set()
+
+    min_repr = min(repr1, repr2)
+    max_repr = max(repr1, repr2)  # = min_angle + angle_diff
+
+    def repr_within(r):
+        # Note: vertices with the same representation will NOT be returned!
+        return min_repr < r < max_repr
+
+    # depending on the angle the included range is clockwise or anti-clockwise
+    # (from min_repr to max_val or the other way around)
+    # when the range contains the 0.0 value (transition from 3.99... -> 0.0)
+    # it is easier to check if a representation does NOT lie within this range
+    # -> invert filter condition
+    # special case: angle == 180deg
+    on_line_inv = repr_diff == 2.0 and repr1 >= repr2
+    # which range to filter is determined by the order of the points
+    # since the polygons follow a numbering convention,
+    # the 'left' side of p1-p2 always lies inside the map
+    # -> filter out everything on the right side (='outside')
+    # ^: XOR
+    inversion_condition = on_line_inv or ((repr_diff < 2.0) ^ angle_range_less_180)
+
+    def within_filter_func(r: float) -> bool:
+        repr_eq = r == min_repr or r == max_repr
+        if repr_eq and equal_repr_allowed:
+            return True
+        if repr_eq and not equal_repr_allowed:
+            return False
+
+        res = repr_within(r)
+        if inversion_condition:
+            res = not res
+        return res
+
+    return within_filter_func(repr)
+
+
 def get_neighbour_idxs(i: int, vertex_edge_idxs: np.ndarray, edge_vertex_idxs: np.ndarray) -> Tuple[int, int]:
     edge_idx1, edge_idx2 = vertex_edge_idxs[i]
     neigh_idx1 = edge_vertex_idxs[edge_idx1, 0]
@@ -573,6 +633,201 @@ def find_visible(
     return clean_visibles(visibles, representations, distances)
 
 
+def find_visible_(
+    origin: int,
+    candidates: Set[int],
+    edges_to_check: Set[int],
+    coords: np.ndarray,
+    representations: np.ndarray,
+    distances: np.ndarray,
+    extremity_mask: np.ndarray,
+    edge_vertex_idxs: np.ndarray,
+    vertex_edge_idxs: np.ndarray,
+) -> Set[int]:
+    """
+    TODO
+    for all origin extremities
+    precompute all required ranges etc for all edges
+    sort all edges after their minimum representation
+    also sort the candidate extremities after their angle representation
+    for every edge
+        if the minimum representation of the edge is smaller than the repr of the candidate:
+        check the next candidate, move start candidate pointer along
+        if the maximum representation of the edge is bigger than  the repr of the candidate:
+        check the next edge, start at the start candidate index again
+        check if the edge is blocking the visibility of the node: if yes delete from candidates
+        check the next node
+
+        optimisation: if flag, invert edge representations and also eliminate
+        all candidates within range (without lies behind check!)
+
+
+    :param origin: the vertex for which the visibility to the other candidates should be checked.
+    :param candidates: the set of all vertex ids which should be checked for visibility.
+        IMPORTANT: is being manipulated, so has to be a copy!
+        IMPORTANT: must not contain any vertices with equal coordinates (e.g. the origin vertex itself)!
+    :param edges_to_check: the set of edges which determine visibility
+    :return: a set of all vertices visible from the origin
+    """
+    nr_candidates_total = len(candidates)
+    if nr_candidates_total == 0:
+        return candidates
+
+    edges = list(edges_to_check)
+    nr_edges = len(edges)
+    edges_reps = []
+    edges_min_rep = []
+    edges_max_rep = []
+    edges_max_dist = []
+    edges_is_crossing = np.zeros(nr_edges, dtype=bool)
+    for i, e in enumerate(edges):
+        i1, i2 = edge_vertex_idxs[e]
+        r1, r2 = representations[i1], representations[i2]
+        e_max_dist = max(distances[i1], distances[i2])
+        e_min_rep = min(r1, r2)
+        e_max_rep = max(r1, r2)
+        if e_max_rep - e_min_rep > 2.0:
+            edges_is_crossing[i] = True
+            # TODO swap min and max for edges crossing the origin (diff > 180 deg)
+            # e_min_rep_ = e_min_rep
+            # e_min_rep = e_max_rep
+            # e_max_rep = e_min_rep_
+
+        edges_reps.append((r1, r2))
+        edges_min_rep.append(e_min_rep)
+        edges_max_rep.append(e_max_rep)
+        edges_max_dist.append(e_max_dist)
+
+    edge_idxs = np.argsort(edges_min_rep)
+
+    edges_max_rep = np.array(edges_max_rep)
+    edges_min_rep = np.array(edges_min_rep)
+
+    # TODO once deleted do not consider a candidate again
+    # TODO eliminate candidates with equal representations: only keep the closest (min dist)
+    candidate_indices = sorted(candidates, key=lambda i: representations[i])
+    candidate_ptr = 0
+    # extremity_reps = np.array([representations[i] for i in candidate_indices])
+    # extremity_dists = [distances[i] for i in candidate_indices]
+    # extremity_indices_idxs = np.argsort(extremity_reps)
+    for edge_idx in edge_idxs:
+        # TODO only edges not crossing the origin
+        if edges_is_crossing[edge_idx]:
+            continue
+
+        candidate_ptr = check_candidates(
+            edge_idx,
+            candidate_ptr,
+            candidate_indices,
+            coords,
+            distances,
+            edge_vertex_idxs,
+            edges_max_dist,
+            edges_max_rep,
+            edges_min_rep,
+            nr_candidates_total,
+            origin,
+            representations,
+        )
+
+    # TODO check crossing edges
+    # angle_range_less_180 = False
+    # trick: rotate coordinate system to avoid dealing with origin crossings
+    # TODO explain
+    infimum_cross_edge_rep = np.min(edges_max_rep[edges_is_crossing])
+    edges_max_rep[edges_is_crossing] = edges_max_rep[edges_is_crossing] - infimum_cross_edge_rep
+    edges_min_rep[edges_is_crossing] = (edges_min_rep[edges_is_crossing] - infimum_cross_edge_rep) % 4.0
+
+    representations = representations.copy()  # work on independent copy
+    representations[candidate_indices] = (representations[candidate_indices] - infimum_cross_edge_rep) % 4.0
+
+    # special case: all edges crossing the origin
+    # Note: still sorted!
+    # Note: candidate_idx now points to the first TODO
+    candidate_ptr = 0
+    for edge_idx in edge_idxs[edges_is_crossing]:
+        candidate_ptr = check_candidates(
+            edge_idx,
+            candidate_ptr,
+            candidate_indices,
+            coords,
+            distances,
+            edge_vertex_idxs,
+            edges_max_dist,
+            edges_max_rep,
+            edges_min_rep,
+            nr_candidates_total,
+            origin,
+            representations,
+        )
+
+    candidates_ = set(candidate_indices)
+    return candidates_
+
+
+def check_candidates(
+    edge_idx,
+    candidate_ptr,
+    candidate_indices,
+    coords,
+    distances,
+    edge_vertex_idxs,
+    edges_max_dist,
+    edges_max_rep,
+    edges_min_rep,
+    nr_candidates_total,
+    origin,
+    representations,
+):
+    edge_min_rep = edges_min_rep[edge_idx]
+    # start over at the same candidate than the previous edge
+    # TODO Note: check within range: edge case, same representation than edge vertex.
+    #  do not include (edge does not block view)
+    for candidate_idx in candidate_indices[candidate_ptr:]:
+        candidate_rep = representations[candidate_idx]
+        # a candidate does not have to be considered,
+        # when its representation is smaller than the minimum representation of the edge
+        if candidate_rep > edge_min_rep:
+            # candidate has to be considered
+            break
+        # this also is the case for all consequent edges (have a larger or equal minimum representation!)
+        candidate_ptr += 1
+
+    edge_max_rep = edges_max_rep[edge_idx]
+    # start at the start candidate index again
+    for candidate_ptr_curr in range(candidate_ptr, nr_candidates_total):
+        # Note: candidate list shrinks during the iteration -> avoid index error
+        try:
+            candidate_idx = candidate_indices[candidate_ptr_curr]
+        except IndexError:
+            break
+
+        candidate_rep = representations[candidate_idx]
+        if edge_max_rep <= candidate_rep:
+            # the maximum representation of the edge is smaller or equal than the repr of the candidate,
+            # -> check the next edge
+            break
+
+        # TODO debug. remove
+        assert lies_within_range(
+            edge_min_rep, edge_max_rep, candidate_rep, angle_range_less_180=True, equal_repr_allowed=False
+        )
+
+        # TODO check if the edge is blocking the visibility of the node: if yes delete from candidates
+        # if a candidate is farther away from the query point than both vertices of the edge,
+        #   it surely lies behind the edge
+        # ATTENTION: even if a candidate is closer to the query point than both vertices of the edge,
+        #   it still needs to be checked!
+        candidate_dist2orig = distances[candidate_idx]
+        edge_max_dist = edges_max_dist[edge_idx]
+        further_away = candidate_dist2orig > edge_max_dist
+        i1, i2 = edge_vertex_idxs[edge_idx]
+        if further_away or lies_behind(i1, i2, candidate_idx, origin, coords):
+            candidate_indices.pop(candidate_ptr_curr)
+
+    return candidate_ptr
+
+
 def find_visible_and_in_front(
     origin: int,
     nr_edges: int,
@@ -647,6 +902,21 @@ def find_visible_and_in_front(
         edge_vertex_idxs,
         vertex_edge_idxs,
     )
+    visible_idxs_ = find_visible_(
+        origin,
+        candidates,
+        edge_idxs2check,
+        coords,
+        representations,
+        distances,
+        extremity_mask,
+        edge_vertex_idxs,
+        vertex_edge_idxs,
+    )
+    ids_too_much = visible_idxs_ - visible_idxs
+    ids_not_detected = visible_idxs - visible_idxs_
+    if len(ids_too_much) > 0 or len(ids_not_detected) > 0:
+        raise ValueError
     return candidates_in_front, visible_idxs
 
 
