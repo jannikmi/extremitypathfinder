@@ -20,10 +20,11 @@ POLYGON_SETTINGS = {
 
 SHOW_PLOTS = False
 PLOTTING_DIR = "all_plots"
+PLOT_FILE_ENDING = ".svg"
 
 
 def get_plot_name(file_name="plot"):
-    return abspath(join(PLOTTING_DIR, file_name + "_" + str(time.time())[:-7] + ".png"))
+    return abspath(join(PLOTTING_DIR, file_name + "_" + str(time.time())[:-7] + PLOT_FILE_ENDING))
 
 
 def export_plot(fig, file_name):
