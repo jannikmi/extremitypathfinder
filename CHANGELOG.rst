@@ -8,6 +8,13 @@ TODOs
 * allow input of complex geometries: input coords, and edges separately (polygons are special case)
 * drop simplify parameter
 
+
+TBA
+-------------------
+
+* tests for python 3.11
+
+
 2.4.1 (2022-08-22)
 -------------------
 
