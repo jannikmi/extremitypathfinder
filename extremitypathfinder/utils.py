@@ -695,7 +695,6 @@ def compute_graph(
     extremity_mask: np.ndarray,
     vertex_edge_idxs: np.ndarray,
 ) -> t.Graph:
-
     graph = t.Graph()
     # IMPORTANT: add all extremities (even if they turn out to be dangling in the end),
     # adding start and goal nodes at query time might connect them!
@@ -763,7 +762,7 @@ def read_json(path2json_file):
     :return: The parsed lists of boundaries and holes
     """
     # parse data from the input file
-    with open(path2json_file, "r") as json_file:
+    with open(path2json_file) as json_file:
         json_data = json_file.read()
     json_loaded = json.loads(json_data)
     boundary_data = try_extraction(json_loaded, BOUNDARY_JSON_KEY)

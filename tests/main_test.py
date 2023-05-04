@@ -53,7 +53,7 @@ def try_test_cases(environment, test_cases):
         assert correct_result, f"unexpected result (path, length): got {output} instead of {expected_output} "
 
     print("testing if path and distance are correct:")
-    for ((start_coordinates, goal_coordinates), expected_output) in test_cases:
+    for (start_coordinates, goal_coordinates), expected_output in test_cases:
         validate(start_coordinates, goal_coordinates, expected_output)
         # automatically test reversed!
         path, length = expected_output
