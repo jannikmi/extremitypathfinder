@@ -1,18 +1,16 @@
 Changelog
 =========
 
-TODOs
 
-* pending major release: remove separate prepare step?! initialise in one step during initialisation
-* Numba JIT compilation of utils. line speed profiling for highest impact of refactoring
-* allow input of complex geometries: input coords, and edges separately (polygons are special case)
-* drop simplify parameter
-
-
-TBA
+TBA (TBA)
 -------------------
 
-* tests for python 3.11
+* removed need for separate ``.prepare()`` call. Storing environment boundary data automatically triggers the preparation of the visibility graph. This is a non-breaking change. The ``.prepare()`` method is still available, but it is not needed anymore.
+
+internal:
+
+* included tests for python 3.11
+
 
 
 2.4.1 (2022-08-22)

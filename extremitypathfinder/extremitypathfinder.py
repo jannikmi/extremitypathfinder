@@ -1,4 +1,5 @@
 import pickle
+import warnings
 from typing import Dict, Iterable, List, Optional, Set, Tuple
 
 import networkx as nx
@@ -146,6 +147,8 @@ class PolygonEnvironment:
         self.extremity_mask = mask
         self.reprs_n_distances = {i: cmp_reps_n_distances(i, coords) for i in extremity_idxs}
 
+        self.prepare()
+
     def store_grid_world(
         self,
         size_x: int,
@@ -195,8 +198,9 @@ class PolygonEnvironment:
             and storing them in the graph would not be an advantage, because then the graph is fully connected.
             A* would visit every node in the graph at least once (-> disadvantage!).
         """
-        if self.prepared:
-            raise ValueError("this environment is already prepared. load new polygons first.")
+        if self.prepared:  # idempotent
+            warnings.warn("called .prepare() on already prepared map. skipping...", stacklevel=1)
+            return
 
         self.graph = compute_graph(
             self.nr_edges,
@@ -261,8 +265,6 @@ class PolygonEnvironment:
         # make sure the map has been loaded and prepared
         if self.boundary_polygon is None:
             raise ValueError("No Polygons have been loaded into the map yet.")
-        if not self.prepared:
-            self.prepare()
 
         coords_start = np.array(start_coordinates, dtype=float)
         coords_goal = np.array(goal_coordinates, dtype=float)
