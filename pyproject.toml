@@ -19,7 +19,7 @@ classifiers = [
     "Topic :: Education",
     "Topic :: Games/Entertainment"
 ]
-description = "python package implementing a multivariate Horner scheme for efficiently evaluating multivariate polynomials"
+description = "python package for fast shortest path computation on 2D polygon or grid maps"
 authors = ["jannikmi <github@michelfe.it>"]
 include = [
     "LICENSE",
