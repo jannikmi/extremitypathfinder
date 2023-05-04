@@ -58,7 +58,7 @@ repos:
     hooks:
       - id: check-manifest
         args: [ "--no-build-isolation", "--ignore",  "*.png,docs/*,publish.py,readthedocs.yml,poetry.lock,setup.py,scripts/*" ]
-        additional_dependencies: [ numpy, poetry==1.1.11 ]
+        additional_dependencies: [ numpy, poetry>=1.4 ]
 
   - repo: https://github.com/asottile/pyupgrade
     rev: v3.3.2

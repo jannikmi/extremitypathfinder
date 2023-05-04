@@ -10,7 +10,7 @@ TBA (TBA)
 internal:
 
 * included tests for python 3.11
-
+* updated dependency specification: networkx>=3, relaxed development dependency version requirements
 
 
 2.4.1 (2022-08-22)
