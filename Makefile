@@ -6,8 +6,12 @@ install:
 
 update:
 	@echo "updating the dependencies pinned in 'pyproject.toml':"
-	@poetry update -vv
+	@poetry update -vvv
 	#poetry export -f requirements.txt --output docs/requirements.txt --without-hashes
+
+lock:
+	@echo "pinning the dependencies in 'pyproject.toml':"
+	@poetry lock -vvv
 
 
 test:
