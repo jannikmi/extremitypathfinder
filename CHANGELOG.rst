@@ -2,15 +2,16 @@ Changelog
 =========
 
 
-TBA (TBA)
+2.5.0 (TBA)
 -------------------
 
 * removed need for separate ``.prepare()`` call. Storing environment boundary data automatically triggers the preparation of the visibility graph. This is a non-breaking change. The ``.prepare()`` method is still available, but it is not needed anymore.
 
 internal:
 
-* included tests for python 3.11
 * updated dependency specification: networkx>=3, relaxed development dependency version requirements
+* included tests for python 3.11
+* code refactoring
 
 
 2.4.1 (2022-08-22)
