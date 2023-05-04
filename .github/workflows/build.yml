@@ -40,7 +40,7 @@ jobs:
         run: pip install -U pip
 
       - name: Install test dependencies
-        run: pip install tox tox-gh-actions poetry
+        run: pip install tox tox-gh-actions poetry>=1.4.2
 
       - name: Run tox
         run: tox
