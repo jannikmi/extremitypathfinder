@@ -2,9 +2,12 @@
 extremitypathfinder
 ===================
 
+..
+    Note: can't include the badges file from the docs here, as it won't render on PyPI -> sync manually
 
-.. image:: https://api.travis-ci.org/jannikmi/extremitypathfinder.svg?branch=master
-    :target: https://travis-ci.org/jannikmi/extremitypathfinder
+
+.. image:: https://github.com/jannikmi/extremitypathfinder/actions/workflows/build.yml/badge.svg?branch=master
+    :target: https://github.com/jannikmi/extremitypathfinder/actions?query=branch%3Amaster
 
 .. image:: https://readthedocs.org/projects/extremitypathfinder/badge/?version=latest
     :alt: documentation status
