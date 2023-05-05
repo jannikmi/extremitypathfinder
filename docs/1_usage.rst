@@ -78,7 +78,7 @@ Ensure that all the following conditions on the polygons are fulfilled:
 
 
 Visibility Graph Pre-computation
--------------------------------
+--------------------------------
 
 Storing the map properties automatically computes the :ref:`visibility graph  <algorithm>` of the environment once.
 
