@@ -1,23 +1,14 @@
 import pickle
+import warnings
 from typing import Dict, Iterable, List, Optional, Set, Tuple
 
 import networkx as nx
 import numpy as np
 
 from extremitypathfinder import types as t
+from extremitypathfinder import utils
 from extremitypathfinder.configs import DEFAULT_PICKLE_NAME
 from extremitypathfinder.types import InputCoord, InputCoordList, Length, ObstacleIterator, Path
-from extremitypathfinder.utils import (
-    check_data_requirements,
-    cmp_reps_n_distances,
-    compute_extremity_idxs,
-    compute_graph,
-    convert_gridworld,
-    find_identical_single,
-    find_visible,
-    get_distance,
-    is_within_map,
-)
 
 
 class PolygonEnvironment:
@@ -89,62 +80,29 @@ class PolygonEnvironment:
         boundary_coordinates = np.array(boundary_coordinates, dtype=float)
         list_of_hole_coordinates = [np.array(hole_coords, dtype=float) for hole_coords in list_of_hole_coordinates]
         if validate:
-            check_data_requirements(boundary_coordinates, list_of_hole_coordinates)
+            utils.check_data_requirements(boundary_coordinates, list_of_hole_coordinates)
 
+        # Note: independent copy!
+        self.holes = list_of_hole_coordinates
         self.boundary_polygon = boundary_coordinates
 
-        # IMPORTANT: make a copy of the list instead of linking to the same list (python!)
-        self.holes = list_of_hole_coordinates
+        (
+            self.coords,
+            self.extremity_indices,
+            self.extremity_mask,
+            self.vertex_edge_idxs,
+            self.edge_vertex_idxs,
+        ) = utils.compile_boundary_data_fr_polys(boundary_coordinates, list_of_hole_coordinates)
 
-        list_of_polygons = [boundary_coordinates] + list_of_hole_coordinates
-        nr_total_pts = sum(map(len, list_of_polygons))
-        vertex_edge_idxs = np.empty((nr_total_pts, 2), dtype=int)
-        # TODO required? inverse of the other. get_neighbours function
-        edge_vertex_idxs = np.empty((nr_total_pts, 2), dtype=int)
-        edge_idx = 0
-        offset = 0
-        extremity_idxs = set()
-        for poly in list_of_polygons:
-            poly_extr_idxs = compute_extremity_idxs(poly)
-            poly_extr_idxs = {i + offset for i in poly_extr_idxs}
-            extremity_idxs |= poly_extr_idxs
-
-            nr_coords = len(poly)
-            v1 = -1 % nr_coords
-            # TODO col 1 is just np.arange?!
-            for v2 in range(nr_coords):
-                v1_idx = v1 + offset
-                v2_idx = v2 + offset
-                edge_vertex_idxs[edge_idx, 0] = v1_idx
-                edge_vertex_idxs[edge_idx, 1] = v2_idx
-                vertex_edge_idxs[v1_idx, 1] = edge_idx
-                vertex_edge_idxs[v2_idx, 0] = edge_idx
-                # move to the next vertex/edge
-                v1 = v2
-                edge_idx += 1
-
-            offset = edge_idx
-
-        # assert edge_idx == nr_total_pts
-
-        coords = np.concatenate(list_of_polygons, axis=0)
-        # Attention: only consider extremities that are actually within the map
-        extremity_idxs = [i for i in extremity_idxs if self.within_map(coords[i])]
-
-        mask = np.full(nr_total_pts, False, dtype=bool)
-        for i in extremity_idxs:
-            mask[i] = True
-
+        nr_total_pts = self.edge_vertex_idxs.shape[0]
         self.nr_vertices = nr_total_pts
+        self.reprs_n_distances = {i: utils.cmp_reps_n_distances(i, self.coords) for i in self.extremity_indices}
+
         # start and goal points will be stored after all polygon coordinates
         self.idx_start = nr_total_pts
         self.idx_goal = nr_total_pts + 1
-        self.edge_vertex_idxs = edge_vertex_idxs
-        self.vertex_edge_idxs = vertex_edge_idxs
-        self.coords = coords
-        self.extremity_indices = extremity_idxs
-        self.extremity_mask = mask
-        self.reprs_n_distances = {i: cmp_reps_n_distances(i, coords) for i in extremity_idxs}
+
+        self.prepare()
 
     def store_grid_world(
         self,
@@ -165,7 +123,9 @@ class PolygonEnvironment:
         :param validate: whether the input should be validated
         :param simplify: whether the polygons should be simplified or not. reduces edge amount, allow diagonal edges
         """
-        boundary_coordinates, list_of_hole_coordinates = convert_gridworld(size_x, size_y, obstacle_iter, simplify)
+        boundary_coordinates, list_of_hole_coordinates = utils.convert_gridworld(
+            size_x, size_y, obstacle_iter, simplify
+        )
         self.store(boundary_coordinates, list_of_hole_coordinates, validate)
 
     def export_pickle(self, path: str = DEFAULT_PICKLE_NAME):
@@ -195,10 +155,11 @@ class PolygonEnvironment:
             and storing them in the graph would not be an advantage, because then the graph is fully connected.
             A* would visit every node in the graph at least once (-> disadvantage!).
         """
-        if self.prepared:
-            raise ValueError("this environment is already prepared. load new polygons first.")
+        if self.prepared:  # idempotent
+            warnings.warn("called .prepare() on already prepared map. skipping...", stacklevel=1)
+            return
 
-        self.graph = compute_graph(
+        self.graph = utils.compute_graph(
             self.nr_edges,
             self.extremity_indices,
             self.reprs_n_distances,
@@ -215,7 +176,7 @@ class PolygonEnvironment:
         :param coords: numerical tuple representing coordinates
         :return: whether the given coordinate is a valid query point
         """
-        return is_within_map(coords, self.boundary_polygon, self.holes)
+        return utils.is_within_map(coords, self.boundary_polygon, self.holes)
 
     def get_visible_idxs(
         self,
@@ -228,7 +189,7 @@ class PolygonEnvironment:
         # Note: points with equal coordinates should not be considered visible (will be merged later)
         candidates = {i for i in candidates if not vert_idx2dist[i] == 0.0}
         edge_idxs2check = set(range(self.nr_edges))
-        return find_visible(
+        return utils.find_visible(
             origin,
             candidates,
             edge_idxs2check,
@@ -261,8 +222,6 @@ class PolygonEnvironment:
         # make sure the map has been loaded and prepared
         if self.boundary_polygon is None:
             raise ValueError("No Polygons have been loaded into the map yet.")
-        if not self.prepared:
-            self.prepare()
 
         coords_start = np.array(start_coordinates, dtype=float)
         coords_goal = np.array(goal_coordinates, dtype=float)
@@ -289,7 +248,7 @@ class PolygonEnvironment:
         # IMPORTANT: also check if the start node is visible from the goal node!
         candidate_idxs: Set[int] = set(self.graph.nodes)
         candidate_idxs.add(start)
-        repr_n_dists = cmp_reps_n_distances(origin, coords)
+        repr_n_dists = utils.cmp_reps_n_distances(origin, coords)
         self.reprs_n_distances[origin] = repr_n_dists
         vert_idx2repr, vert_idx2dist = repr_n_dists
         visibles_goal = self.get_visible_idxs(origin, candidate_idxs, coords, vert_idx2repr, vert_idx2dist)
@@ -322,7 +281,7 @@ class PolygonEnvironment:
         origin = start
         # the visibility of only the graphs nodes have to be checked
         # the goal node does not have to be considered, because of the earlier check
-        repr_n_dists = cmp_reps_n_distances(origin, coords)
+        repr_n_dists = utils.cmp_reps_n_distances(origin, coords)
         self.reprs_n_distances[origin] = repr_n_dists
         vert_idx2repr, vert_idx2dist = repr_n_dists
         visibles_start = self.get_visible_idxs(origin, candidate_idxs, coords, vert_idx2repr, vert_idx2dist)
@@ -336,18 +295,18 @@ class PolygonEnvironment:
             graph.add_edge(start, i, weight=vert_idx2dist[i])
 
         # apply mapping to start and goal index as well
-        start_mapped = find_identical_single(start, graph.nodes, self.reprs_n_distances)
+        start_mapped = utils.find_identical_single(start, graph.nodes, self.reprs_n_distances)
         if start_mapped != start:
             nx.relabel_nodes(graph, {start: start_mapped}, copy=False)
 
-        goal_mapped = find_identical_single(goal, graph.nodes, self.reprs_n_distances)
+        goal_mapped = utils.find_identical_single(goal, graph.nodes, self.reprs_n_distances)
         if goal_mapped != goal_mapped:
             nx.relabel_nodes(graph, {goal: goal_mapped}, copy=False)
 
         self._idx_start_tmp, self._idx_goal_tmp = start_mapped, goal_mapped  # for plotting
 
         def l2_distance(n1, n2):
-            return get_distance(n1, n2, self.reprs_n_distances)
+            return utils.get_distance(n1, n2, self.reprs_n_distances)
 
         try:
             id_path = nx.astar_path(graph, start_mapped, goal_mapped, heuristic=l2_distance, weight="weight")

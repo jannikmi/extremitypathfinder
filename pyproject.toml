@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "extremitypathfinder"
-version = "2.4.1"
+version = "2.5.0"
 license = "MIT"
 readme = "README.rst"
 repository = "https://github.com/jannikmi/extremitypathfinder"
@@ -19,7 +19,7 @@ classifiers = [
     "Topic :: Education",
     "Topic :: Games/Entertainment"
 ]
-description = "python package implementing a multivariate Horner scheme for efficiently evaluating multivariate polynomials"
+description = "python package for fast shortest path computation on 2D polygon or grid maps"
 authors = ["jannikmi <github@michelfe.it>"]
 include = [
     "LICENSE",
@@ -41,23 +41,28 @@ extremitypathfinder = "extremitypathfinder.command_line:main"
 [tool.poetry.dependencies]
 python = "^3.8"
 numpy = "^1.22"
-networkx = "^2.8.5"
+networkx = "^3"
 
-[tool.poetry.dev-dependencies]
-pytest = "^6.2.5"
-tox = "^3.24.4"
-pre-commit = "^2.15.0"
-# docs
-Sphinx = "^4.3.1"
-sphinx-rtd-theme = "^1.0.0"
-matplotlib = "^3.5.2"
+[tool.poetry.group.dev.dependencies]
+pre-commit = "*"
+
+[tool.poetry.group.plot.dependencies]
+matplotlib = "*"
+
+[tool.poetry.group.test.dependencies]
+pytest = "*"
+tox = "*"
+
+[tool.poetry.group.docs.dependencies]
+Sphinx = "*"
+sphinx-rtd-theme = "*"
+
 
 [tool.poetry.extras]
-numba = ["numba"]
 plot = ["matplotlib"]
 test = ["pytest", "tox"]
 docs = ["Sphinx", "sphinx-rtd-theme"]
 
 [build-system]
-requires = ["poetry-core>=1.0.7", "poetry==1.1.11"]
+requires = ["poetry-core>=1.5", "poetry>=1.4"]
 build-backend = "poetry.core.masonry.api"

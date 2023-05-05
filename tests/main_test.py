@@ -53,7 +53,7 @@ def try_test_cases(environment, test_cases):
         assert correct_result, f"unexpected result (path, length): got {output} instead of {expected_output} "
 
     print("testing if path and distance are correct:")
-    for ((start_coordinates, goal_coordinates), expected_output) in test_cases:
+    for (start_coordinates, goal_coordinates), expected_output in test_cases:
         validate(start_coordinates, goal_coordinates, expected_output)
         # automatically test reversed!
         path, length = expected_output
@@ -67,7 +67,6 @@ def test_grid_env():
     grid_env.store_grid_world(*GRID_ENV_PARAMS, simplify=False, validate=False)
     nr_extremities = len(grid_env.all_extremities)
     assert nr_extremities == 17, "extremities do not get detected correctly!"
-    grid_env.prepare()
     nr_graph_nodes = len(grid_env.graph.nodes)
     assert nr_graph_nodes == 16, "identical nodes should get joined in the graph!"
 
@@ -96,7 +95,6 @@ def test_poly_env():
     assert (
         len(list(poly_env.all_extremities)) == nr_exp_extremities
     ), f"the environment should detect all {nr_exp_extremities} extremities!"
-    poly_env.prepare()
     nr_nodes_env2 = len(poly_env.graph.nodes)
     # TODO
     # assert nr_nodes_env2 == nr_exp_extremities, (
@@ -128,7 +126,6 @@ def test_poly_env():
 def test_overlapping_polygon():
     overlap_poly_env = ENVIRONMENT_CLASS(**CONSTRUCTION_KWARGS)
     overlap_poly_env.store(*OVERLAP_POLY_ENV_PARAMS)
-    overlap_poly_env.prepare()
     print("\ntesting polygon environment with overlapping polygons")
     try_test_cases(overlap_poly_env, TEST_DATA_OVERLAP_POLY_ENV)
 
@@ -136,7 +133,6 @@ def test_overlapping_polygon():
 def test_separated_environment():
     env = ENVIRONMENT_CLASS(**CONSTRUCTION_KWARGS)
     env.store(*SEPARATED_ENV)
-    env.prepare()
     print("\ntesting polygon environment with two separated areas")
     try_test_cases(env, TEST_DATA_SEPARATE_ENV)
 
@@ -152,7 +148,6 @@ def test_extremity_neighbour_connection(env_data):
     env = PolygonEnvironment()
     env.store(*env_data)
     coords = env.coords
-    env.prepare()
     graph = env.graph
     extremities = env.extremity_indices
     edge_vertex_idxs = env.edge_vertex_idxs
@@ -183,7 +178,6 @@ def test_all_coords_work_as_input(env_data):
     env.store(*env_data)
     coords = env.coords
     nr_vertices = env.nr_vertices
-    env.prepare()
 
     for start, goal in itertools.product(range(nr_vertices), repeat=2):
         coords_start = coords[start]
