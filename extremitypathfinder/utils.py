@@ -36,7 +36,7 @@ def compute_repr_n_dist(np_vector: np.ndarray) -> Tuple[float, float]:
     :return:
     """
     dx, dy = np_vector
-    distance = math.sqrt(dx**2 + dy**2)  # l-2 norm
+    distance = math.sqrt(dx ** 2 + dy ** 2)  # l-2 norm
     if distance == 0.0:
         angle_measure = np.nan
     else:
@@ -302,12 +302,12 @@ def check_data_requirements(boundary_coords: np.ndarray, list_hole_coords: List[
 
 
 def find_within_range(
-    repr1: float,
-    repr2: float,
-    candidate_idxs: Set[int],
-    angle_range_less_180: bool,
-    equal_repr_allowed: bool,
-    representations: np.ndarray,
+        repr1: float,
+        repr2: float,
+        candidate_idxs: Set[int],
+        angle_range_less_180: bool,
+        equal_repr_allowed: bool,
+        representations: np.ndarray,
 ) -> Set[int]:
     """
     filters out all vertices whose representation lies within the range between
@@ -367,11 +367,11 @@ def find_within_range(
 
 
 def lies_within_range(
-    repr1: float,
-    repr2: float,
-    repr: float,
-    angle_range_less_180: bool,
-    equal_repr_allowed: bool,
+        repr1: float,
+        repr2: float,
+        repr: float,
+        angle_range_less_180: bool,
+        equal_repr_allowed: bool,
 ) -> bool:
     """
     filters out all vertices whose representation lies within the range between
@@ -426,7 +426,7 @@ def get_neighbour_idxs(i: int, vertex_edge_idxs: np.ndarray, edge_vertex_idxs: n
 
 
 def find_candidates_behind(
-    origin: int, v1: int, v2: int, candidates: Set[int], distances: np.ndarray, coords: np.ndarray
+        origin: int, v1: int, v2: int, candidates: Set[int], distances: np.ndarray, coords: np.ndarray
 ) -> Set[int]:
     dist_v1 = distances[v1]
     dist_v2 = distances[v2]
@@ -475,15 +475,15 @@ def clean_visibles(visible_idxs: Set[int], cand_idx2repr: np.ndarray, vert_idx2d
 
 
 def find_visible(
-    origin: int,
-    candidates: Set[int],
-    edges_to_check: Set[int],
-    coords: np.ndarray,
-    representations: np.ndarray,
-    distances: np.ndarray,
-    extremity_mask: np.ndarray,
-    edge_vertex_idxs: np.ndarray,
-    vertex_edge_idxs: np.ndarray,
+        origin: int,
+        candidates: Set[int],
+        edges_to_check: Set[int],
+        coords: np.ndarray,
+        representations: np.ndarray,
+        distances: np.ndarray,
+        extremity_mask: np.ndarray,
+        edge_vertex_idxs: np.ndarray,
+        vertex_edge_idxs: np.ndarray,
 ) -> Set[int]:
     """
     :param origin: the vertex for which the visibility to the other candidates should be checked.
@@ -627,18 +627,272 @@ def find_visible(
     return clean_visibles(visibles, representations, distances)
 
 
+def find_visible_(
+        origin: int,
+        candidates: Set[int],
+        edges_to_check: Set[int],
+        coords: np.ndarray,
+        representations: np.ndarray,
+        distances: np.ndarray,
+        edge_vertex_idxs: np.ndarray,
+        vertex_edge_idxs: np.ndarray,
+        extremity_mask: np.ndarray,
+) -> Set[int]:
+    """
+    TODO
+    for all origin extremities
+    precompute all required ranges etc for all edges
+    sort all edges after their minimum representation
+    also sort the candidate extremities after their angle representation
+    for every edge_idx
+        if the minimum representation of the edge_idx is smaller than the repr of the candidate:
+        check the next candidate, move start candidate pointer along
+        if the maximum representation of the edge_idx is bigger than  the repr of the candidate:
+        check the next edge_idx, start at the start candidate index again
+        check if the edge_idx is blocking the visibility of the node: if yes delete from candidates
+        check the next node
+
+        optimisation: if flag, invert edge_idx representations and also eliminate
+        all candidates within range (without lies behind check!)
+
+
+    :param origin: the vertex for which the visibility to the other candidates should be checked.
+    :param candidates: the set of all vertex ids which should be checked for visibility.
+        IMPORTANT: is being manipulated, so has to be a copy!
+        IMPORTANT: must not contain any vertices with equal coordinates (e.g. the origin vertex itself)!
+    :param edges_to_check: the set of edges which determine visibility
+    :return: a set of all vertices visible from the origin
+    """
+    print("\n\nNEW:")
+    nr_candidates_total = len(candidates)
+    if nr_candidates_total == 0:
+        return candidates
+
+    edges = list(edges_to_check)
+    crossing_edges, edges_is_crossing, edges_max_dist, edges_max_rep, edges_min_rep, non_crossing_edges = _compile_visibility_datastructs(
+        distances, edge_vertex_idxs, edges, extremity_mask, representations, vertex_edge_idxs)
+
+    # TODO own fct
+    # TODO test
+    # TODO immutable
+    # eliminate candidates with equal representations: only keep the closest (min dist)
+    candidates_sorted = _eliminate_eq_candidates(candidates, distances, representations)
+
+    print(candidates_sorted)
+
+    # check non-crossing edges
+    print("non-crossing edges")
+
+    # TODO skipped edges. argsort
+    # sort after the minimum representation
+    edge_idxs_sorted = sorted(non_crossing_edges, key=lambda e: edges_min_rep[e])
+    # edge_ptr_iter = iter(ptr for ptr in edge_ptrs if not edges_is_crossing[ptr])
+    check_candidates(
+        candidates_sorted,
+        edge_idxs_sorted,
+        edges_max_rep,
+        edges_min_rep,
+        origin,
+        distances,
+        representations,
+        coords,
+        edge_vertex_idxs,
+        edges_max_dist,
+    )
+
+    print(candidates_sorted)
+    # check origin-crossing edges
+    print("crossing edges")
+    # TODO test
+    candidates_sorted, edges_max_rep, edges_min_rep, representations = rotate_crossing(candidates_sorted,
+                                                                                       edges_is_crossing,
+                                                                                       edges_max_rep, edges_min_rep,
+                                                                                       representations)
+
+    # start with checking the first candidate again
+    edge_idxs_sorted = sorted(crossing_edges, key=lambda e: edges_min_rep[e])
+    check_candidates(
+        candidates_sorted,
+        edge_idxs_sorted,
+        edges_max_rep,
+        edges_min_rep,
+        origin,
+        distances,
+        representations,
+        coords,
+        edge_vertex_idxs,
+        edges_max_dist,
+    )
+    print(candidates_sorted)
+
+    candidates_ = set(candidates_sorted)
+    return candidates_
+
+
+
+def _eliminate_eq_candidates(candidates, distances, representations):
+    candidates_sorted = sorted(candidates, key=lambda i: representations[i])
+    candidate_prev = candidates_sorted[0]
+    i = 1
+    while i < len(candidates_sorted):
+        candidate = candidates_sorted[i]
+        if representations[candidate] != representations[candidate_prev]:
+            i += 1
+            continue
+
+        # two candidates have equal angle representation
+        # only keep the closest (min dist)
+        distance = distances[candidate]
+        distance_prev = distances[candidate_prev]
+        if distance == distance_prev:
+            # points are equal
+            # TODO need to be combined anyway
+            # continue
+            candidates_sorted.pop(i)
+        elif distance > distance_prev:
+            candidates_sorted.pop(i)
+        else:
+            candidates_sorted.pop(i - 1)
+
+        candidate_prev = candidate
+        i += 1
+    return candidates_sorted
+
+
+def _compile_visibility_datastructs(distances, edge_vertex_idxs, edges, extremity_mask, representations,
+                                    vertex_edge_idxs):
+    nr_edges_total = len(edge_vertex_idxs)
+    edges_min_rep = np.zeros(nr_edges_total, dtype=float)
+    edges_max_rep = np.zeros(nr_edges_total, dtype=float)
+    edges_max_dist = np.zeros(nr_edges_total, dtype=float)
+    edges_is_crossing = np.zeros(nr_edges_total, dtype=bool)
+    edges_to_skip = set()
+    crossing_edges = set()
+    non_crossing_edges = set()
+    # TODO test
+    for e in edges:
+
+        if e in edges_to_skip:
+            continue
+
+        # Attention: introduces new indexing! beware of confusion
+        i1, i2 = edge_vertex_idxs[e]
+        r1, r2 = representations[i1], representations[i2]
+
+        identical_node = None
+        if np.isnan(r1):
+            identical_node = i1
+        elif np.isnan(r2):
+            identical_node = i2
+        # TODO remove
+        if np.isnan(r1) and np.isnan(r2):
+            raise ValueError
+
+        if identical_node is None:
+            # regular edge, can block at most 180 degree
+            deg_gr_180 = False
+            max_dist = max(distances[i1], distances[i2])
+        else:
+            # edge case: one of the edge vertices is identical to origin
+            # no points lie truly "behind" this edge as there is no "direction of sight" defined
+            # <-> angle representation/range undefined for just this single edge
+            # however if one considers the point neighbouring in the other direction (<-> two edges)
+            # these two neighbouring edges define an invisible angle range
+            # -> simply move the pointer
+            i1, i2 = get_neighbour_idxs(identical_node, vertex_edge_idxs, edge_vertex_idxs)
+            r1, r2 = representations[i1], representations[i2]
+            # Note: the second edge should not be considered twice
+            e1, e2 = vertex_edge_idxs[identical_node]
+            if e1 != e:
+                edges_to_skip.add(e1)
+            if e2 != e:
+                edges_to_skip.add(e2)
+
+            # TODO
+            if e1 != e and e2 != e:
+                raise ValueError()
+
+            # the "outside the polygon" angle range should be eliminated
+            # this angle range is greater than 180 degree if the node identical to the origin is NOT an extremity
+            deg_gr_180 = not extremity_mask[identical_node]
+
+            # set distance to 0 in order to mark all candidates within range as "lying behind"
+            max_dist = 0.0
+
+            # mark the identical vertex as not visible (would otherwise add 0 distance edge in the graph)
+            # # TODO needs to be added and will be combined later?! check in separate function?!
+            # if i1 != origin:
+            # candidates.discard(identical_node)
+
+        min_rep = min(r1, r2)
+        max_rep = max(r1, r2)
+        deg_gr_180_actual = max_rep - min_rep > 2.0
+        # an edge "crosses the origin" (rep: 4.0 -> 0.0) when its vertex representation difference is unlike expected
+        is_crossing = deg_gr_180_actual != deg_gr_180
+        if is_crossing:
+            crossing_edges.add(e)
+        else:
+            non_crossing_edges.add(e)
+
+        edges_min_rep[e] = min_rep
+        edges_max_rep[e] = max_rep
+        edges_max_dist[e] = max_dist
+        edges_is_crossing[e] = is_crossing
+
+    return crossing_edges, edges_is_crossing, edges_max_dist, edges_max_rep, edges_min_rep, non_crossing_edges
+
+
+def rotate_crossing(candidate_idxs, edges_is_crossing, edges_max_rep, edges_min_rep, representations):
+    if not np.all(edges_min_rep >= 0.0):
+        raise ValueError
+
+    # special case: edges cross the origin
+    # trick: rotate coordinate system to avoid dealing with origin crossings
+    # -> implementation for regular edges can be reused!
+    # bring the minimum maximal angle representation ("supremum") of all crossing edges to 0
+    supremum_cross_edge_rep = np.min(edges_max_rep[edges_is_crossing])
+    infimum_to_0 = 4.0 - supremum_cross_edge_rep
+    # Note: adding an angle < 180deg to the minimum edge_idx representations (quadrant 1 & 2) cannot lead to "overflow"
+    edges_min_rep[edges_is_crossing] = edges_min_rep[edges_is_crossing] + infimum_to_0
+    edges_max_rep[edges_is_crossing] = (edges_max_rep[edges_is_crossing] + infimum_to_0) % 4.0
+    # Note: all maximum representations were moved to 1. or 2. quadrant
+    # -> became the smaller that the previously min rep! -> swap
+    tmp = edges_min_rep
+    edges_min_rep = edges_max_rep
+    edges_max_rep = tmp
+    # apply same transformation also to candidate representations
+    # TODO avoid large copy
+    representations = representations.copy()  # IMPORTANT: work on independent copy
+    representations[candidate_idxs] = (representations[candidate_idxs] + infimum_to_0) % 4.0
+    # Note: new sorting is required
+    candidate_idxs = sorted(candidate_idxs, key=lambda i: representations[i])
+    non_nan_reps = representations[np.logical_not(np.isnan(representations))]
+    assert np.all(non_nan_reps >= 0.0)
+    assert np.all(non_nan_reps <= 4.0)
+    if not np.all(edges_min_rep >= 0.0):
+        raise ValueError
+    assert np.all(edges_min_rep <= 4.0)
+    assert np.min(edges_min_rep[edges_is_crossing]) == 0.0
+    assert np.all(edges_max_rep >= 0.0)
+    assert np.all(edges_max_rep <= 4.0)
+    for r_min, r_max in zip(edges_min_rep[edges_is_crossing], edges_max_rep[edges_is_crossing]):
+        if r_min > r_max:
+            raise ValueError
+    return candidate_idxs, edges_max_rep, edges_min_rep, representations
+
+
 def check_candidates_inner(
-    edge_min_rep,
-    edge_max_rep,
-    edge_max_dist,
-    p1,
-    p2,
-    candidate_ptr,
-    origin,
-    candidate_indices,
-    coords,
-    distances,
-    representations,
+        edge_min_rep,
+        edge_max_rep,
+        edge_max_dist,
+        p1,
+        p2,
+        candidate_ptr,
+        origin,
+        candidate_indices,
+        coords,
+        distances,
+        representations,
 ):
     # start over at the same candidate than the previous edge
     # TODO Note: check within range: edge case, same representation than edge vertex.
@@ -670,7 +924,7 @@ def check_candidates_inner(
 
         # TODO debug. remove
         if not lies_within_range(
-            edge_min_rep, edge_max_rep, candidate_rep, angle_range_less_180=True, equal_repr_allowed=True
+                edge_min_rep, edge_max_rep, candidate_rep, angle_range_less_180=True, equal_repr_allowed=True
         ):
             raise ValueError
 
@@ -700,16 +954,16 @@ def check_candidates_inner(
 
 
 def check_candidates(
-    candidate_idxs,
-    edge_idxs_sorted,
-    edges_max_rep,
-    edges_min_rep,
-    origin,
-    distances,
-    representations,
-    coords,
-    edge_vertex_idxs,
-    edges_max_dist,
+        candidate_idxs,
+        edge_idxs_sorted,
+        edges_max_rep,
+        edges_min_rep,
+        origin,
+        distances,
+        representations,
+        coords,
+        edge_vertex_idxs,
+        edges_max_dist,
 ):
     candidate_ptr = 0
     for edge_idx in edge_idxs_sorted:
@@ -747,248 +1001,17 @@ def check_candidates(
         )
 
 
-def find_visible_(
-    origin: int,
-    candidates: Set[int],
-    edges_to_check: Set[int],
-    coords: np.ndarray,
-    representations: np.ndarray,
-    distances: np.ndarray,
-    edge_vertex_idxs: np.ndarray,
-    vertex_edge_idxs: np.ndarray,
-    extremity_mask: np.ndarray,
-) -> Set[int]:
-    """
-    TODO
-    for all origin extremities
-    precompute all required ranges etc for all edges
-    sort all edges after their minimum representation
-    also sort the candidate extremities after their angle representation
-    for every edge_idx
-        if the minimum representation of the edge_idx is smaller than the repr of the candidate:
-        check the next candidate, move start candidate pointer along
-        if the maximum representation of the edge_idx is bigger than  the repr of the candidate:
-        check the next edge_idx, start at the start candidate index again
-        check if the edge_idx is blocking the visibility of the node: if yes delete from candidates
-        check the next node
-
-        optimisation: if flag, invert edge_idx representations and also eliminate
-        all candidates within range (without lies behind check!)
-
-
-    :param origin: the vertex for which the visibility to the other candidates should be checked.
-    :param candidates: the set of all vertex ids which should be checked for visibility.
-        IMPORTANT: is being manipulated, so has to be a copy!
-        IMPORTANT: must not contain any vertices with equal coordinates (e.g. the origin vertex itself)!
-    :param edges_to_check: the set of edges which determine visibility
-    :return: a set of all vertices visible from the origin
-    """
-    nr_candidates_total = len(candidates)
-    if nr_candidates_total == 0:
-        return candidates
-
-    edges = list(edges_to_check)
-
-    nr_edges_total = len(edge_vertex_idxs)
-    edges_min_rep = np.zeros(nr_edges_total, dtype=float)
-    edges_max_rep = np.zeros(nr_edges_total, dtype=float)
-    edges_max_dist = np.zeros(nr_edges_total, dtype=float)
-    edges_is_crossing = np.zeros(nr_edges_total, dtype=bool)
-
-    edges_to_skip = set()
-    crossing_edges = set()
-    non_crossing_edges = set()
-
-    # TODO test
-    for e in edges:
-
-        if e in edges_to_skip:
-            continue
-
-        # Attention: introduces new indexing! beware of confusion
-        i1, i2 = edge_vertex_idxs[e]
-        r1, r2 = representations[i1], representations[i2]
-
-        identical_node = None
-        if np.isnan(r1):
-            identical_node = i1
-        elif np.isnan(r2):
-            identical_node = i2
-
-        # TODO
-        if np.isnan(r1) and np.isnan(r2):
-            raise ValueError
-
-        if identical_node is None:
-            # regular edge
-            # a single edge_idx can block at most 180 degree
-            deg_gr_180_exp = False
-            max_dist = max(distances[i1], distances[i2])
-        else:
-            # one of the edge vertices is identical to origin
-            # no points lie truly "behind" this edge as there is no "direction of sight" defined
-            # <-> angle representation/range undefined for just this single edge
-            # however if one considers the point neighbouring in the other direction (<-> two edges)
-            # these two neighbouring edges define an invisible angle range
-            # -> simply move the pointer
-            i1, i2 = get_neighbour_idxs(identical_node, vertex_edge_idxs, edge_vertex_idxs)
-            r1, r2 = representations[i1], representations[i2]
-            # Note: the second edge should not be considered twice
-            e1, e2 = vertex_edge_idxs[identical_node]
-            if e1 != e:
-                edges_to_skip.add(e1)
-            if e2 != e:
-                edges_to_skip.add(e2)
-
-            # TODO
-            if e1 != e and e2 != e:
-                raise ValueError()
-
-            # the "outside the polygon" angle range should be eliminated
-            # this angle range is greater than 180 degree if the node identical to the origin is NOT an extremity
-            deg_gr_180_exp = not extremity_mask[identical_node]
-
-            # set distance to 0 in order to mark all candidates within range as "lying behind"
-            max_dist = 0.0
-
-            # # TODO
-            # # mark this vertex as not visible (would otherwise add 0 distance edge in the graph)
-            # if i1 != origin:
-            #     candidates.discard(i1)
-
-        min_rep = min(r1, r2)
-        max_rep = max(r1, r2)
-        deg_gr_180_actual = max_rep - min_rep > 2.0
-        # an edge "crosses the origin" (rep: 4.0 -> 0.0) when its vertex representation difference is unlike expected
-        is_crossing = deg_gr_180_actual != deg_gr_180_exp
-        if is_crossing:
-            crossing_edges.add(e)
-        else:
-            non_crossing_edges.add(e)
-
-        edges_min_rep[e] = min_rep
-        edges_max_rep[e] = max_rep
-        edges_max_dist[e] = max_dist
-        edges_is_crossing[e] = is_crossing
-
-    # TODO skipped edges. argsort
-    # sort after the minimum representation
-    edge_idxs_sorted = sorted(non_crossing_edges, key=lambda e: edges_min_rep[e])
-
-    # TODO immutable
-    # TODO eliminate candidates with equal representations: only keep the closest (min dist)
-    # TODO own fct
-    # TODO test
-    candidate_idxs = sorted(candidates, key=lambda i: representations[i])
-    candidate_prev = candidate_idxs[0]
-    i = 1
-    while i < len(candidate_idxs):
-        candidate = candidate_idxs[i]
-        if representations[candidate] == representations[candidate_prev]:
-            # two candidates have equal representation
-            # only keep the closest (min dist)
-            distance = distances[candidate]
-            distance_prev = distances[candidate_prev]
-            if distance == distance_prev:
-                # TODO need to be combined anyway
-                # continue
-                candidate_idxs.pop(i)
-            elif distance > distance_prev:
-                candidate_idxs.pop(i)
-            else:
-                candidate_idxs.pop(i - 1)
-
-        candidate_prev = candidate
-        i += 1
-
-    # all non-crossing edges
-    # edge_ptr_iter = iter(ptr for ptr in edge_ptrs if not edges_is_crossing[ptr])
-    check_candidates(
-        candidate_idxs,
-        edge_idxs_sorted,
-        edges_max_rep,
-        edges_min_rep,
-        origin,
-        distances,
-        representations,
-        coords,
-        edge_vertex_idxs,
-        edges_max_dist,
-    )
-
-    # special case: edges cross the origin
-    # trick: rotate coordinate system to avoid dealing with origin crossings
-    # -> implementation for regular edges can be reused!
-    # bring the minimum maximal angle representation ("supremum") of all crossing edges to 0
-    supremum_cross_edge_rep = np.min(edges_max_rep[edges_is_crossing])
-    infimum_to_0 = 4.0 - supremum_cross_edge_rep
-
-    if not np.all(edges_min_rep >= 0.0):
-        raise ValueError
-
-    # Note: adding an angle < 180deg to the minimum edge_idx representations (quadrant 1 & 2) cannot lead to "overflow"
-    edges_min_rep[edges_is_crossing] = edges_min_rep[edges_is_crossing] + infimum_to_0
-    edges_max_rep[edges_is_crossing] = (edges_max_rep[edges_is_crossing] + infimum_to_0) % 4.0
-    # Note: all maximum representations were moved to 1. or 2. quadrant
-    # -> became the smaller that the previously min rep! -> swap
-    tmp = edges_min_rep
-    edges_min_rep = edges_max_rep
-    edges_max_rep = tmp
-
-    # apply same transformation also to candidate representations
-    # TODO avoid large copy
-    representations = representations.copy()  # IMPORTANT: work on independent copy
-    representations[candidate_idxs] = (representations[candidate_idxs] + infimum_to_0) % 4.0
-    # Note: new sorting is required
-    candidate_idxs = sorted(candidate_idxs, key=lambda i: representations[i])
-
-    non_nan_reps = representations[np.logical_not(np.isnan(representations))]
-    assert np.all(non_nan_reps >= 0.0)
-    assert np.all(non_nan_reps <= 4.0)
-
-    if not np.all(edges_min_rep >= 0.0):
-        raise ValueError
-    assert np.all(edges_min_rep <= 4.0)
-    assert np.min(edges_min_rep[edges_is_crossing]) == 0.0
-
-    assert np.all(edges_max_rep >= 0.0)
-    assert np.all(edges_max_rep <= 4.0)
-
-    for r_min, r_max in zip(edges_min_rep[edges_is_crossing], edges_max_rep[edges_is_crossing]):
-        if r_min > r_max:
-            raise ValueError
-
-    # start checking the first candidate again
-    print("crossing edges")
-    edge_idxs_sorted = sorted(crossing_edges, key=lambda e: edges_min_rep[e])
-    check_candidates(
-        candidate_idxs,
-        edge_idxs_sorted,
-        edges_max_rep,
-        edges_min_rep,
-        origin,
-        distances,
-        representations,
-        coords,
-        edge_vertex_idxs,
-        edges_max_dist,
-    )
-
-    candidates_ = set(candidate_idxs)
-    return candidates_
-
-
 def find_visible_and_in_front(
-    origin: int,
-    nr_edges: int,
-    coords: np.ndarray,
-    candidates: Set[int],
-    candidates_in_front: Set[int],
-    extremity_mask: np.ndarray,
-    distances: np.ndarray,
-    representations: np.ndarray,
-    vertex_edge_idxs: np.ndarray,
-    edge_vertex_idxs: np.ndarray,
+        origin: int,
+        nr_edges: int,
+        coords: np.ndarray,
+        candidates: Set[int],
+        candidates_in_front: Set[int],
+        extremity_mask: np.ndarray,
+        distances: np.ndarray,
+        representations: np.ndarray,
+        vertex_edge_idxs: np.ndarray,
+        edge_vertex_idxs: np.ndarray,
 ):
     # vertices all belong to a polygon
     n1, n2 = get_neighbour_idxs(origin, vertex_edge_idxs, edge_vertex_idxs)
@@ -1042,6 +1065,7 @@ def find_visible_and_in_front(
     # TODO edge set to ignore instead
     edge_idxs2check = set(range(nr_edges))
     edge_idxs2check.difference_update(vertex_edge_idxs[origin])
+
     visible_idxs = find_visible(
         origin,
         candidates,
@@ -1076,9 +1100,9 @@ def find_visible_and_in_front(
 
     ids_too_much -= ids_too_much_
     ids_not_detected -= ids_not_detected_
-    # if len(ids_too_much) > 0 or len(ids_not_detected) > 0:
-    #     raise ValueError
-    return candidates_in_front, visible_idxs_
+    if len(ids_too_much) > 0 or len(ids_not_detected) > 0:
+        raise ValueError
+    return candidates_in_front, visible_idxs
 
 
 def get_distance(n1, n2, reprs_n_distances):
@@ -1121,13 +1145,13 @@ def find_identical_single(i: int, candidates: Iterable[int], reprs_n_distances: 
 
 
 def compute_graph(
-    nr_edges: int,
-    extremity_indices: Iterable[int],
-    reprs_n_distances: Dict[int, np.ndarray],
-    coords: np.ndarray,
-    edge_vertex_idxs: np.ndarray,
-    extremity_mask: np.ndarray,
-    vertex_edge_idxs: np.ndarray,
+        nr_edges: int,
+        extremity_indices: Iterable[int],
+        reprs_n_distances: Dict[int, np.ndarray],
+        coords: np.ndarray,
+        edge_vertex_idxs: np.ndarray,
+        extremity_mask: np.ndarray,
+        vertex_edge_idxs: np.ndarray,
 ) -> t.Graph:
     graph = t.Graph()
     # IMPORTANT: add all extremities (even if they turn out to be dangling in the end),
@@ -1142,7 +1166,7 @@ def compute_graph(
         #  -> do not check extremities which have been checked already
         #  (must give the same result when algorithms are correct)
         # the origin extremity itself must also not be checked when looking for visible neighbours
-        candidate_idxs = set(extremity_indices[extr_ptr + 1 :])
+        candidate_idxs = set(extremity_indices[extr_ptr + 1:])
         # Note: also the nodes previously connected to the current origin must be considered for removal
         candidates_in_front = candidate_idxs | set(graph.neighbors(origin_idx))
         idxs_in_front, visible_idxs = find_visible_and_in_front(
