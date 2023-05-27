@@ -20,7 +20,8 @@ def get_find_visible_args(boundary_data):
             vertex_edge_idxs,
             extremity_mask)
 
-def _yield_reference(boundary_data):
+
+def _yield_input_args(boundary_data):
     (candidates,
      edges_to_check,
      coords,
@@ -31,8 +32,36 @@ def _yield_reference(boundary_data):
         reps_n_distances = utils.cmp_reps_n_distances(origin, coords)
         representations, distances = reps_n_distances
 
-        # TODO move old implementation to tests test_cases.FIND_VISIBLE_TEST_CASES
-        # TODO compile test cases with output from ref. impl.
+        # the origin itself is not a candidate (always visible)
+        candidates_ = candidates - {origin}
+        # do not check the 2 edges having the origin as vertex
+        edges_to_check_ = edges_to_check - set(vertex_edge_idxs[origin])
+        yield (
+            origin,
+            candidates_,
+            edges_to_check_,
+            coords,
+            representations,
+            distances,
+            edge_vertex_idxs,
+            vertex_edge_idxs,
+            extremity_mask,
+        )
+
+
+def _yield_reference(boundary_data):
+    # TODO move old implementation to tests test_cases.FIND_VISIBLE_TEST_CASES
+    # TODO compile test cases with output from ref. impl.
+    for (origin,
+         candidates,
+         edges_to_check,
+         coords,
+         representations,
+         distances,
+         edge_vertex_idxs,
+         vertex_edge_idxs,
+         extremity_mask,
+         ) in _yield_input_args(boundary_data):
         expected_visible = utils.find_visible(origin,
                                               candidates,
                                               edges_to_check,
@@ -42,24 +71,40 @@ def _yield_reference(boundary_data):
                                               edge_vertex_idxs,
                                               vertex_edge_idxs,
                                               extremity_mask)
-        yield boundary_data, origin, expected_visible
+        yield (
+            origin,
+            candidates,
+            edges_to_check,
+            coords,
+            representations,
+            distances,
+            edge_vertex_idxs,
+            vertex_edge_idxs,
+            extremity_mask,
+            expected_visible,
+        )
+
+
+test_cases_expected = [list(_yield_reference(env)) for env in test_cases.ALL_ENV_BOUNDARY_DATA]
+test_cases_expected = list(itertools.chain.from_iterable(test_cases_expected))
 
 
 @pytest.mark.parametrize(
-    "coords, extremity_indices, extremity_mask, vertex_edge_idxs, edge_vertex_idxs", test_cases.ALL_ENV_BOUNDARY_DATA)
-def test_find_visible_definition(coords, extremity_indices, extremity_mask, vertex_edge_idxs, edge_vertex_idxs
-                                 ):
-    # check that it works for all kind of inputs
-    found_visible = np.where(extremity_mask)[0]
-    nr_edges = len(edge_vertex_idxs)
-    edges_to_check = set(range(nr_edges))
-    for origin in range(len(coords)):  # all possible vertices as origins
-        reps_n_distances = utils.cmp_reps_n_distances(origin, coords)
-        representations, distances = reps_n_distances
-
-        found_visible = utils.find_visible_(
+    "boundary_data", test_cases.ALL_ENV_BOUNDARY_DATA)
+def test_find_visible_definition(boundary_data):
+    for (origin,
+         candidates,
+         edges_to_check,
+         coords,
+         representations,
+         distances,
+         edge_vertex_idxs,
+         vertex_edge_idxs,
+         extremity_mask,
+         expected_visible) in _yield_input_args(boundary_data):
+        _ = utils.find_visible_(
             origin,
-            found_visible,
+            candidates,
             edges_to_check,
             coords,
             representations,
@@ -70,22 +115,21 @@ def test_find_visible_definition(coords, extremity_indices, extremity_mask, vert
         )
 
 
-test_cases_expected = [list(_yield_reference(env)) for env in test_cases.ALL_ENV_BOUNDARY_DATA]
-test_cases_expected = list(itertools.chain.from_iterable(test_cases_expected))
-
 @pytest.mark.parametrize(
-    "boundary_data, origin, expected_visible",
+    "origin,candidates,edges_to_check,coords,representations,distances,edge_vertex_idxs,vertex_edge_idxs,extremity_mask,expected_visible",
     test_cases_expected)
-def test_find_visible(boundary_data, origin, expected_visible
-                      ):
-    (candidates,
-     edges_to_check,
-     coords,
-     edge_vertex_idxs,
-     vertex_edge_idxs,
-     extremity_mask) = get_find_visible_args(boundary_data)
-    reps_n_distances = utils.cmp_reps_n_distances(origin, coords)
-    representations, distances = reps_n_distances
+def test_find_visible(
+        origin,
+        candidates,
+        edges_to_check,
+        coords,
+        representations,
+        distances,
+        edge_vertex_idxs,
+        vertex_edge_idxs,
+        extremity_mask,
+        expected_visible
+):
     found_visible = utils.find_visible_(
         origin,
         candidates,
@@ -98,9 +142,8 @@ def test_find_visible(boundary_data, origin, expected_visible
         extremity_mask,
     )
     if found_visible != expected_visible:
-        print("boundary_data", boundary_data)
         print("origin", origin)
         print("expected_visible", expected_visible)
         print("found_visible", found_visible)
-        x=1
+        x = 1
     assert found_visible == expected_visible, f"expected {expected_visible} but got {found_visible}"

@@ -693,6 +693,11 @@ def find_visible_(
     )
 
     print(candidates_sorted)
+
+    # when there are no origin-crossing edges, we are done
+    if len(crossing_edges) == 0:
+        return set(candidates_sorted)
+
     # check origin-crossing edges
     print("crossing edges")
     # TODO test
@@ -873,7 +878,7 @@ def rotate_crossing(candidate_idxs, edges_is_crossing, edges_max_rep, edges_min_
     return candidate_idxs, edges_max_rep, edges_min_rep, representations
 
 
-def check_candidates_inner(
+def check_candidates_one_edge(
         edge_min_rep,
         edge_max_rep,
         edge_max_dist,
@@ -970,15 +975,15 @@ def check_candidates(
             candidate_rep = representations[candidate_idx]
             if edge_min_rep > candidate_rep:
                 # optimisation: the edge has a higher minimum representation that the last candidate
-                # all following edges have higher minimum representation
-                # -> this and all following edges don't need to be checked
+                # all following edges have higher minimum representation and hence can't block the visibility
+                # -> visibility computation is finished
                 break
 
         edge_max_rep = edges_max_rep[edge_idx]
         edge_max_dist = edges_max_dist[edge_idx]
         i1, i2 = edge_vertex_idxs[edge_idx]
 
-        candidate_ptr = check_candidates_inner(
+        candidate_ptr = check_candidates_one_edge(
             edge_min_rep,
             edge_max_rep,
             edge_max_dist,
