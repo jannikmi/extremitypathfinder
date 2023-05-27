@@ -77,14 +77,10 @@ Ensure that all the following conditions on the polygons are fulfilled:
     polygon environment with extremities marked in red
 
 
-Preprocessing
--------------
+Visibility Graph Pre-computation
+--------------------------------
 
-computes the :ref:`visibility graph  <algorithm>` of the environment once.
-
-::
-
-    environment.prepare()
+Storing the map properties automatically computes the :ref:`visibility graph  <algorithm>` of the environment once.
 
 
 .. figure:: _static/prepared_map_plot.png
@@ -194,7 +190,6 @@ The class ``PlottingEnvironment`` automatically generates plots for every step i
 
     environment = PlottingEnvironment(plotting_dir="path/to/plots")
     environment.store(boundary_coordinates, list_of_holes, validate=True)
-    environment.prepare()
     path, distance = environment.find_shortest_path(start, end)
 
 

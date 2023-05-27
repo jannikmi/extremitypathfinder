@@ -2,9 +2,12 @@
 extremitypathfinder
 ===================
 
+..
+    Note: can't include the badges file from the docs here, as it won't render on PyPI -> sync manually
 
-.. image:: https://api.travis-ci.org/jannikmi/extremitypathfinder.svg?branch=master
-    :target: https://travis-ci.org/jannikmi/extremitypathfinder
+
+.. image:: https://github.com/jannikmi/extremitypathfinder/actions/workflows/build.yml/badge.svg?branch=master
+    :target: https://github.com/jannikmi/extremitypathfinder/actions?query=branch%3Amaster
 
 .. image:: https://readthedocs.org/projects/extremitypathfinder/badge/?version=latest
     :alt: documentation status
@@ -58,7 +61,6 @@ Quick Guide:
         ],
     ]
     environment.store(boundary_coordinates, list_of_holes, validate=False)
-    environment.prepare()
     start_coordinates = (4.5, 1.0)
     goal_coordinates = (4.0, 8.5)
     path, length = environment.find_shortest_path(start_coordinates, goal_coordinates)

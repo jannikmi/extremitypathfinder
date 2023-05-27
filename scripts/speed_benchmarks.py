@@ -25,7 +25,6 @@ def get_random_env():
 def get_prepared_env(env_data):
     env = PolygonEnvironment()
     env.store(*env_data)
-    env.prepare()
     return env
 
 

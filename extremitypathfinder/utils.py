@@ -1220,7 +1220,7 @@ def read_json(path2json_file):
     :return: The parsed lists of boundaries and holes
     """
     # parse data from the input file
-    with open(path2json_file, "r") as json_file:
+    with open(path2json_file) as json_file:
         json_data = json_file.read()
     json_loaded = json.loads(json_data)
     boundary_data = try_extraction(json_loaded, BOUNDARY_JSON_KEY)
@@ -1445,3 +1445,47 @@ def load_pickle(path=DEFAULT_PICKLE_NAME):
     print("loading map from:", path)
     with open(path, "rb") as f:
         return pickle.load(f)
+
+
+def compile_boundary_data_fr_polys(boundary_coordinates, list_of_hole_coordinates):
+    def within_map(coord):
+        return is_within_map(coord, boundary_coordinates, list_of_hole_coordinates)
+
+    list_of_polygons = [boundary_coordinates] + list_of_hole_coordinates
+    nr_total_pts = sum(map(len, list_of_polygons))
+
+    # compute edge and vertex indices from polygon data structure
+    vertex_edge_idxs = np.empty((nr_total_pts, 2), dtype=int)
+    # TODO required? inverse of the other. get_neighbours function
+    edge_vertex_idxs = np.empty((nr_total_pts, 2), dtype=int)
+    edge_idx = 0
+    offset = 0
+    extremity_indices = set()
+    for poly in list_of_polygons:
+        poly_extr_idxs = compute_extremity_idxs(poly)
+        poly_extr_idxs = {i + offset for i in poly_extr_idxs}
+        extremity_indices |= poly_extr_idxs
+
+        nr_coords = len(poly)
+        v1 = -1 % nr_coords
+        # TODO col 1 is just np.arange?!
+        for v2 in range(nr_coords):
+            v1_idx = v1 + offset
+            v2_idx = v2 + offset
+            edge_vertex_idxs[edge_idx, 0] = v1_idx
+            edge_vertex_idxs[edge_idx, 1] = v2_idx
+            vertex_edge_idxs[v1_idx, 1] = edge_idx
+            vertex_edge_idxs[v2_idx, 0] = edge_idx
+            # move to the next vertex/edge
+            v1 = v2
+            edge_idx += 1
+
+        offset = edge_idx
+
+    coords = np.concatenate(list_of_polygons, axis=0)
+    # Attention: only consider extremities that are actually within the map (polygons are allowed to overlap)
+    extremity_indices = [i for i in extremity_indices if within_map(coords[i])]
+    extremity_mask = np.full(nr_total_pts, False, dtype=bool)
+    for i in extremity_indices:
+        extremity_mask[i] = True
+    return coords, extremity_indices, extremity_mask, vertex_edge_idxs, edge_vertex_idxs
