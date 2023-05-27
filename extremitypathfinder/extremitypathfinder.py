@@ -189,17 +189,8 @@ class PolygonEnvironment:
         # Note: points with equal coordinates should not be considered visible (will be merged later)
         candidates = {i for i in candidates if not vert_idx2dist[i] == 0.0}
         edge_idxs2check = set(range(self.nr_edges))
-        return utils.find_visible(
-            origin,
-            candidates,
-            edge_idxs2check,
-            coords,
-            vert_idx2repr,
-            vert_idx2dist,
-            self.extremity_mask,
-            self.edge_vertex_idxs,
-            self.vertex_edge_idxs,
-        )
+        return utils.find_visible(origin, candidates, edge_idxs2check, coords, vert_idx2repr, vert_idx2dist,
+                                  self.edge_vertex_idxs, self.vertex_edge_idxs, self.extremity_mask)
 
     def find_shortest_path(
         self,

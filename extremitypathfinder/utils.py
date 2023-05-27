@@ -474,17 +474,9 @@ def clean_visibles(visible_idxs: Set[int], cand_idx2repr: np.ndarray, vert_idx2d
     return cleaned
 
 
-def find_visible(
-        origin: int,
-        candidates: Set[int],
-        edges_to_check: Set[int],
-        coords: np.ndarray,
-        representations: np.ndarray,
-        distances: np.ndarray,
-        extremity_mask: np.ndarray,
-        edge_vertex_idxs: np.ndarray,
-        vertex_edge_idxs: np.ndarray,
-) -> Set[int]:
+def find_visible(origin: int, candidates: Set[int], edges_to_check: Set[int], coords: np.ndarray,
+                 representations: np.ndarray, distances: np.ndarray, edge_vertex_idxs: np.ndarray,
+                 vertex_edge_idxs: np.ndarray, extremity_mask: np.ndarray) -> Set[int]:
     """
     :param origin: the vertex for which the visibility to the other candidates should be checked.
     :param candidates: the set of all vertex ids which should be checked for visibility.
@@ -1066,17 +1058,8 @@ def find_visible_and_in_front(
     edge_idxs2check = set(range(nr_edges))
     edge_idxs2check.difference_update(vertex_edge_idxs[origin])
 
-    visible_idxs = find_visible(
-        origin,
-        candidates,
-        edge_idxs2check,
-        coords,
-        representations,
-        distances,
-        extremity_mask,
-        edge_vertex_idxs,
-        vertex_edge_idxs,
-    )
+    visible_idxs = find_visible(origin, candidates, edge_idxs2check, coords, representations, distances,
+                                edge_vertex_idxs, vertex_edge_idxs, extremity_mask)
     visible_idxs_ = find_visible_(
         origin,
         candidates,
