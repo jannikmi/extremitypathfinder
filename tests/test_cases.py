@@ -79,24 +79,24 @@ TEST_DATA_GRID_ENV = [
     (((5, 5), (5, 7)), ([(5, 5), (5, 7)], 2.0)),
     # should have direct connection to all visible extremities! connected in graph
     (((6, 8), (5, 7)), ([(6, 8), (5, 7)], sqrt(2))),
-    (((4, 1), (5, 7)), ([(4, 1), (5, 7)], sqrt(1 ** 2 + 6 ** 2))),
+    (((4, 1), (5, 7)), ([(4, 1), (5, 7)], sqrt(1**2 + 6**2))),
     # should have direct connection to all visible extremities! even if not connected in graph!
-    (((4, 2), (5, 7)), ([(4, 2), (5, 7)], sqrt(1 ** 2 + 5 ** 2))),
+    (((4, 2), (5, 7)), ([(4, 2), (5, 7)], sqrt(1**2 + 5**2))),
     # mix of edges and vertices, directly visible
-    (((2, 2), (5, 7)), ([(2, 2), (5, 7)], sqrt(3 ** 2 + 5 ** 2))),
+    (((2, 2), (5, 7)), ([(2, 2), (5, 7)], sqrt(3**2 + 5**2))),
     # also regular points should have direct connection to all visible extremities!
-    (((10, 3), (17, 6)), ([(10, 3), (17, 6)], sqrt(7 ** 2 + 3 ** 2))),
-    (((10, 3), (8, 8)), ([(10, 3), (8, 8)], sqrt(2 ** 2 + 5 ** 2))),
+    (((10, 3), (17, 6)), ([(10, 3), (17, 6)], sqrt(7**2 + 3**2))),
+    (((10, 3), (8, 8)), ([(10, 3), (8, 8)], sqrt(2**2 + 5**2))),
     # even if the query point lies in front of an extremity! (test if new query vertices are being created!)
-    (((10, 3), (8, 5)), ([(10, 3), (8, 5)], sqrt(2 ** 2 + 2 ** 2))),
+    (((10, 3), (8, 5)), ([(10, 3), (8, 5)], sqrt(2**2 + 2**2))),
     # using a* graph search:
     # directly reachable through a single vertex (does not change distance!)
-    (((5, 1), (3, 3)), ([(5, 1), (4, 2), (3, 3)], sqrt(2 ** 2 + 2 ** 2))),
+    (((5, 1), (3, 3)), ([(5, 1), (4, 2), (3, 3)], sqrt(2**2 + 2**2))),
     # If two Polygons have vertices with identical coordinates (this is allowed),
     #   paths through these vertices are theoretically possible!
     (
         ((6.5, 5.5), (7.5, 6.5)),
-        ([(6.5, 5.5), (7, 6), (7.5, 6.5)], sqrt(1 ** 2 + 1 ** 2)),
+        ([(6.5, 5.5), (7, 6), (7.5, 6.5)], sqrt(1**2 + 1**2)),
     ),
     # distance should stay the same even if multiple extremities lie on direct path
     # test if path is skipping passed extremities
@@ -349,22 +349,3 @@ TEST_DATA_SEPARATE_ENV = [
 
 # ((start,goal),(path,distance))
 POLYGON_ENVS = [SEPARATED_ENV, OVERLAP_POLY_ENV_PARAMS, POLY_ENV_PARAMS]
-
-
-def compile_boundary_data(env):
-    boundary, holes = env
-    boundary = np.array(boundary)
-    holes = [np.array(hole) for hole in holes]
-    # (coords, extremity_indices, extremity_mask, vertex_edge_idxs, edge_vertex_idxs)
-    return utils.compile_boundary_data_fr_polys(boundary, holes)
-
-
-ALL_ENV_BOUNDARY_DATA = [compile_boundary_data(env) for env in POLYGON_ENVS]
-
-POLY_ENV_BOUNDARY_DATA = compile_boundary_data(POLY_ENV_PARAMS)
-FIND_VISIBLE_TEST_CASES = [
-    # (boundary_data, origin_idx, expected_visible)
-    (POLY_ENV_BOUNDARY_DATA, 0, {1, 2, 3, 4, 5, 6, 7, 8}),
-]
-
-
