@@ -385,24 +385,23 @@ def lies_within_range(
     :param representations:
     :return:
     """
-    r = repr
-    repr_eq = (r == repr1) or (r == repr2)
-    if repr_eq:
+    eq_repr = (repr == repr1) or (repr == repr2)
+    if eq_repr:
         return equal_repr_allowed
 
     min_repr = min(repr1, repr2)
     max_repr = max(repr1, repr2)  # = min_angle + angle_diff
 
     # Note: vertices with the same representation will NOT be returned!
-    res = min_repr < r < max_repr
+    res = min_repr < repr < max_repr
 
-    # depending on the angle the included range is clockwise or anti-clockwise
+    # depending on the angle, the included range is clockwise or anti-clockwise
     # (from min_repr to max_val or the other way around)
     # when the range contains the 0.0 value (transition from 3.99... -> 0.0)
     # it is easier to check if a representation does NOT lie within this range
     # -> invert filter condition
-    # special case: angle == 180deg
-    repr_diff = abs(repr1 - repr2)
+    # special case: angle == 180deg <-> lies on the line
+    repr_diff = max_repr - min_repr
     on_line_inv = repr_diff == 2.0 and repr1 >= repr2
     # which range to filter is determined by the order of the points
     # since the polygons follow a numbering convention,
@@ -786,15 +785,9 @@ def _compile_visibility_datastructs(
             identical_node = i1
         elif np.isnan(r2):
             identical_node = i2
-        # if np.isnan(r1) and np.isnan(r2):
-        #     raise ValueError
 
-        if identical_node is None:
-            # regular edge, can block at most 180 degree
-            deg_gr_180 = False
-            max_dist = max(distances[i1], distances[i2])
-        else:
-            # edge case: one of the edge vertices is identical to origin
+        if identical_node is not None:
+            # one of the edge vertices is identical to origin
             # no points lie truly "behind" this edge as there is no "direction of sight" defined
             # <-> angle representation/range undefined for just this single edge
             # however if one considers the point neighbouring in the other direction (<-> two edges)
@@ -802,6 +795,9 @@ def _compile_visibility_datastructs(
             # -> simply move the pointer
             i1, i2 = get_neighbour_idxs(identical_node, vertex_edge_idxs, edge_vertex_idxs)
             r1, r2 = representations[i1], representations[i2]
+            min_rep = min(r1, r2)
+            max_rep = max(r1, r2)
+
             # Note: the second edge should not be considered twice
             e1, e2 = vertex_edge_idxs[identical_node]
             if e1 != e:
@@ -824,7 +820,11 @@ def _compile_visibility_datastructs(
 
             # the "outside the polygon" angle range should be eliminated
             # this angle range is greater than 180 degree if the node identical to the origin is NOT an extremity
-            deg_gr_180 = not extremity_mask[identical_node]
+            deg_gr_180_exp = not extremity_mask[identical_node]
+            deg_gr_180_actual = max_rep - min_rep > 2.0
+            # an edge "crosses the origin" (rep: 4.0 -> 0.0)
+            # when its vertex representation difference is unlike expected
+            is_crossing = deg_gr_180_actual != deg_gr_180_exp
 
             # set distance to 0 in order to mark all candidates within range as "lying behind"
             max_dist = 0.0
@@ -832,13 +832,32 @@ def _compile_visibility_datastructs(
             # mark the identical vertex as not visible (would otherwise add 0 distance edge in the graph)
             # # TODO needs to be added and will be combined later?! check in separate function?!
             # if i1 != origin:
-            # candidates.discard(identical_node)
+            #     candidates.discard(i1)
+        else:
+            min_rep = min(r1, r2)
+            max_rep = max(r1, r2)
+            rep_diff = max_rep - min_rep
+            on_the_edge = rep_diff == 2.0
+            if on_the_edge:
+                # "edge case": origin lies on the edge
+                # the edge blocks the visibility to the "outside the polygon"
+                # depending on the vertex numbering, the outside angle range crosses the origin or not
+                # (from min_repr to max_val or the other way around)
+                # when the range contains the 0.0 value (transition from 3.99... -> 0.0)
+                # it is easier to check if a representation does NOT lie within this range
+                # -> invert filter condition
+                # special case: angle == 180deg <-> lies on the line
+                is_crossing = r1 > r2
+                # TODO edge case one of the reps is 0?!
 
-        min_rep = min(r1, r2)
-        max_rep = max(r1, r2)
-        deg_gr_180_actual = max_rep - min_rep > 2.0
-        # an edge "crosses the origin" (rep: 4.0 -> 0.0) when its vertex representation difference is unlike expected
-        is_crossing = deg_gr_180_actual != deg_gr_180
+                # set distance to 0 in order to mark all candidates within range as "lying behind"
+                max_dist = 0.0
+            else:
+                # regular edge
+                # a single edge_idx can block at most 180 degree
+                is_crossing = rep_diff > 2.0
+                max_dist = max(distances[i1], distances[i2])
+
         if is_crossing:
             crossing_edges.add(e)
         else:
@@ -865,6 +884,10 @@ def rotate_crossing(candidate_idxs, edges_is_crossing, edges_max_rep, edges_min_
     if not np.all(edges_min_rep >= 0.0):
         raise ValueError
 
+    # TODO refactor
+    if not np.any(edges_is_crossing):
+        return set(candidate_idxs)
+
     # special case: edges cross the origin
     # trick: rotate coordinate system to avoid dealing with origin crossings
     # -> implementation for regular edges can be reused!
@@ -880,7 +903,7 @@ def rotate_crossing(candidate_idxs, edges_is_crossing, edges_max_rep, edges_min_
     edges_min_rep = edges_max_rep
     edges_max_rep = tmp
     # apply same transformation also to candidate representations
-    # TODO avoid large copy
+    # TODO avoid large copy. use dict
     representations = representations.copy()  # IMPORTANT: work on independent copy
     representations[candidate_idxs] = (representations[candidate_idxs] + infimum_to_0) % 4.0
     # Note: new sorting is required
@@ -1087,9 +1110,10 @@ def find_visible_and_in_front(
     edge_idxs2check = set(range(nr_edges))
     edge_idxs2check.difference_update(vertex_edge_idxs[origin])
 
+    candidates_ = candidates.copy()
     visible_idxs = find_visible(
         origin,
-        candidates,
+        candidates_,
         edge_idxs2check,
         coords,
         representations,
@@ -1105,9 +1129,9 @@ def find_visible_and_in_front(
         coords,
         representations,
         distances,
+        extremity_mask,
         edge_vertex_idxs,
         vertex_edge_idxs,
-        extremity_mask,
     )
     ids_too_much = visible_idxs_ - visible_idxs
     ids_not_detected = visible_idxs - visible_idxs_
