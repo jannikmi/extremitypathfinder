@@ -745,7 +745,8 @@ def _eliminate_eq_candidates(candidates, distances, representations):
     while i < len(candidates_sorted):
         candidate = candidates_sorted[i]
         rep = representations[candidate]
-        if rep == rep_prev:
+        if np.isnan(rep) or rep == rep_prev:
+            # the candidate is equal to the origin OR
             # two candidates have equal angle representation
             # only keep the closest (=1st)
             candidates_sorted.pop(i)
@@ -837,6 +838,7 @@ def _compile_visibility_datastructs(
             min_rep = min(r1, r2)
             max_rep = max(r1, r2)
             rep_diff = max_rep - min_rep
+            # special case: angle == 180deg <-> lies on the line
             on_the_edge = rep_diff == 2.0
             if on_the_edge:
                 # "edge case": origin lies on the edge
@@ -846,10 +848,8 @@ def _compile_visibility_datastructs(
                 # when the range contains the 0.0 value (transition from 3.99... -> 0.0)
                 # it is easier to check if a representation does NOT lie within this range
                 # -> invert filter condition
-                # special case: angle == 180deg <-> lies on the line
                 is_crossing = r1 > r2
                 # TODO edge case one of the reps is 0?!
-
                 # set distance to 0 in order to mark all candidates within range as "lying behind"
                 max_dist = 0.0
             else:
@@ -958,8 +958,16 @@ def check_candidates_one_edge(
         except IndexError:
             break
 
+        if candidate_idx == p1 or candidate_idx == p2:
+            # an edge cannot block its own vertices
+            # move pointer to the next candidate
+            candidate_ptr_curr += 1
+            continue
+
         candidate_rep = representations[candidate_idx]
-        assert not np.isnan(candidate_rep)
+        # TODO
+        if np.isnan(candidate_rep):
+            raise ValueError
 
         if edge_max_rep < candidate_rep:
             # the maximum representation of the edge is smaller than the repr of the candidate,
@@ -987,7 +995,7 @@ def check_candidates_one_edge(
             visibility_is_blocked = further_away or lies_behind(p1, p2, candidate_idx, origin, coords)
 
         if visibility_is_blocked:
-            # print(f"removing {candidate_idx} at idx {candidate_ptr_curr}, edge {p1}--{p2}")
+            print(f"removing {candidate_idx} at idx {candidate_ptr_curr}, edge {p1}--{p2}")
             candidate_indices.pop(candidate_ptr_curr)
             # Note: keep ptr at the same position (list shrank)
         else:
@@ -1129,9 +1137,9 @@ def find_visible_and_in_front(
         coords,
         representations,
         distances,
-        extremity_mask,
         edge_vertex_idxs,
         vertex_edge_idxs,
+        extremity_mask,
     )
     ids_too_much = visible_idxs_ - visible_idxs
     ids_not_detected = visible_idxs - visible_idxs_
@@ -1148,7 +1156,7 @@ def find_visible_and_in_front(
     if len(ids_too_much) > 0 or len(ids_not_detected) > 0:
         pass
         # raise ValueError(f"visible vertices not found correctly: {ids_too_much}, {ids_not_detected}")
-    return candidates_in_front, visible_idxs
+    return candidates_in_front, visible_idxs_
 
 
 def get_distance(n1, n2, reprs_n_distances):

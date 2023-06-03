@@ -57,7 +57,7 @@ def _yield_reference(boundary_data):
         vertex_edge_idxs,
         extremity_mask,
     ) in _yield_input_args(boundary_data):
-        expected_visible = utils.find_visible(
+        visibles_expected = utils.find_visible(
             origin,
             candidates,
             edges_to_check,
@@ -78,7 +78,7 @@ def _yield_reference(boundary_data):
             edge_vertex_idxs,
             vertex_edge_idxs,
             extremity_mask,
-            expected_visible,
+            visibles_expected,
         )
 
 
@@ -93,7 +93,7 @@ test_cases_expected = list(itertools.chain.from_iterable(test_cases_expected))
 
 
 @pytest.mark.parametrize(
-    "origin,candidates,edges_to_check,coords,representations,distances,edge_vertex_idxs,vertex_edge_idxs,extremity_mask,expected_visible",
+    "origin,candidates,edges_to_check,coords,representations,distances,edge_vertex_idxs,vertex_edge_idxs,extremity_mask,visibles_expected",
     test_cases_expected,
 )
 def test_find_visible(
@@ -106,9 +106,9 @@ def test_find_visible(
     edge_vertex_idxs,
     vertex_edge_idxs,
     extremity_mask,
-    expected_visible,
+    visibles_expected,
 ):
-    found_visible = utils.find_visible_(
+    visibles_found = utils.find_visible_(
         origin,
         candidates,
         edges_to_check,
@@ -119,25 +119,4 @@ def test_find_visible(
         vertex_edge_idxs,
         extremity_mask,
     )
-    if found_visible != expected_visible:
-        print("origin", origin)
-        print("expected_visible", expected_visible)
-        print("found_visible", found_visible)
-        outp = [
-            origin,
-            candidates,
-            edges_to_check,
-            coords,
-            representations,
-            distances,
-            edge_vertex_idxs,
-            vertex_edge_idxs,
-            extremity_mask,
-            expected_visible,
-        ]
-        # outp = [list(x) if isinstance(x, set) else x for x in outp]
-        # outp = [x.tolist() if isinstance(x, np.ndarray) else x for x in outp]
-        with open(f"outp.pickle", "wb") as f:
-            pickle.dump(outp, f)
-        x = 1
-    assert found_visible == expected_visible, f"expected {expected_visible} but got {found_visible}"
+    assert visibles_found == visibles_expected, f"expected {visibles_expected} but got {visibles_found}"
