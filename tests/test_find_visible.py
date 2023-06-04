@@ -14,7 +14,7 @@ import numpy as np
 import pytest
 
 from extremitypathfinder import PolygonEnvironment, utils
-from extremitypathfinder.utils import find_within_range, get_neighbour_idxs, lies_behind
+from extremitypathfinder.utils import _find_within_range, _lies_behind, get_neighbour_idxs
 from tests.test_cases import GRID_ENV_PARAMS, POLYGON_ENVS
 
 
@@ -34,7 +34,7 @@ def find_candidates_behind(
         #   it still needs to be checked!
         dist2orig = distances[idx]
         further_away = dist2orig > max_distance
-        if further_away or lies_behind(v1, v2, idx, origin, coords):
+        if further_away or _lies_behind(v1, v2, idx, origin, coords):
             idxs_behind.add(idx)
         # vertex lies in front of this edge
     return idxs_behind
@@ -205,7 +205,7 @@ def find_visible_reference(
             #   they may be visible, but must be ruled out if they lie behind any edge!
             equal_repr_allowed = True
 
-        idxs_behind = find_within_range(repr1, repr2, idxs_behind, range_less_180, equal_repr_allowed, representations)
+        idxs_behind = _find_within_range(repr1, repr2, idxs_behind, range_less_180, equal_repr_allowed, representations)
         if not lies_on_edge:
             # Note: when the origin lies on the edge, all candidates within the angle range lie behind the edge
             # -> actual "behind/in front" checks can be skipped!

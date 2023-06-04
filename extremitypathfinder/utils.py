@@ -13,7 +13,7 @@ from extremitypathfinder import types as t
 from extremitypathfinder.configs import BOUNDARY_JSON_KEY, DEFAULT_PICKLE_NAME, HOLES_JSON_KEY
 
 
-def compute_repr_n_dist(np_vector: np.ndarray) -> Tuple[float, float]:
+def _compute_repr_n_dist(np_vector: np.ndarray) -> Tuple[float, float]:
     """computing representation for the angle from the origin to a given vector
 
     value in [0.0 : 4.0[
@@ -70,11 +70,11 @@ def compute_repr_n_dist(np_vector: np.ndarray) -> Tuple[float, float]:
 def cmp_reps_n_distances(orig_idx: int, coords: np.ndarray) -> np.ndarray:
     coords_orig = coords[orig_idx]
     coords_translated = coords - coords_orig
-    repr_n_dists = np.apply_along_axis(compute_repr_n_dist, axis=1, arr=coords_translated)
+    repr_n_dists = np.apply_along_axis(_compute_repr_n_dist, axis=1, arr=coords_translated)
     return repr_n_dists.T
 
 
-def inside_polygon(p: np.ndarray, coords: np.ndarray, border_value: bool) -> bool:
+def _inside_polygon(p: np.ndarray, coords: np.ndarray, border_value: bool) -> bool:
     # should return the border value for point equal to any polygon vertex
     # TODO overflow possible with large values when comparing slopes, change procedure
     # and if the point p lies on any polygon edge
@@ -82,8 +82,8 @@ def inside_polygon(p: np.ndarray, coords: np.ndarray, border_value: bool) -> boo
     for p2 in coords[:]:
         if np.array_equal(p2, p):
             return border_value
-        rep_p1_p, _ = compute_repr_n_dist(p1 - p)
-        rep_p2_p, _ = compute_repr_n_dist(p2 - p)
+        rep_p1_p, _ = _compute_repr_n_dist(p1 - p)
+        rep_p2_p, _ = _compute_repr_n_dist(p2 - p)
         if abs(rep_p1_p - rep_p2_p) == 2.0:
             return border_value
         p1 = p2
@@ -136,15 +136,15 @@ def inside_polygon(p: np.ndarray, coords: np.ndarray, border_value: bool) -> boo
 
 
 def is_within_map(p: np.ndarray, boundary: np.ndarray, holes: Iterable[np.ndarray]) -> bool:
-    if not inside_polygon(p, boundary, border_value=True):
+    if not _inside_polygon(p, boundary, border_value=True):
         return False
     for hole in holes:
-        if inside_polygon(p, hole, border_value=False):
+        if _inside_polygon(p, hole, border_value=False):
             return False
     return True
 
 
-def no_identical_consequent_vertices(coords):
+def _no_identical_consequent_vertices(coords):
     p1 = coords[-1]
     for p2 in coords:
         # TODO adjust allowed difference: rtol, atol
@@ -155,7 +155,7 @@ def no_identical_consequent_vertices(coords):
     return True
 
 
-def get_intersection_status(p1, p2, q1, q2):
+def _get_intersection_status(p1, p2, q1, q2):
     # return:
     #   0: no intersection
     #   1: intersection in ]p1;p2[
@@ -186,7 +186,7 @@ def get_intersection_status(p1, p2, q1, q2):
         return 1
 
 
-def lies_behind_inner(p1: np.ndarray, p2: np.ndarray, v: np.ndarray) -> bool:
+def _lies_behind_inner(p1: np.ndarray, p2: np.ndarray, v: np.ndarray) -> bool:
     # special case of get_intersection_status()
     # solve the set of equations
     # (p2-p1) lambda + (p1) = (v) mu
@@ -210,15 +210,15 @@ def lies_behind_inner(p1: np.ndarray, p2: np.ndarray, v: np.ndarray) -> bool:
     return x[1] < 1.0
 
 
-def lies_behind(idx_p1: int, idx_p2: int, idx_v: int, idx_orig: int, coords: np.ndarray) -> bool:
+def _lies_behind(idx_p1: int, idx_p2: int, idx_v: int, idx_orig: int, coords: np.ndarray) -> bool:
     coords_origin = coords[idx_orig]
     coords_p1_rel = coords[idx_p1] - coords_origin
     coords_p2_rel = coords[idx_p2] - coords_origin
     coords_v_rel = coords[idx_v] - coords_origin
-    return lies_behind_inner(coords_p1_rel, coords_p2_rel, coords_v_rel)
+    return _lies_behind_inner(coords_p1_rel, coords_p2_rel, coords_v_rel)
 
 
-def no_self_intersection(coords):
+def _no_self_intersection(coords):
     polygon_length = len(coords)
     # again_check = []
     for index_p1, index_q1 in combinations(range(polygon_length), 2):
@@ -228,7 +228,7 @@ def no_self_intersection(coords):
             continue
         p1, p2 = coords[index_p1], coords[(index_p1 + 1) % polygon_length]
         q1, q2 = coords[index_q1], coords[(index_q1 + 1) % polygon_length]
-        intersect_status = get_intersection_status(p1, p2, q1, q2)
+        intersect_status = _get_intersection_status(p1, p2, q1, q2)
         if intersect_status == 1:
             return False
         # if intersect_status == 2:
@@ -242,7 +242,7 @@ def no_self_intersection(coords):
     return True
 
 
-def has_clockwise_numbering(coords: np.ndarray) -> bool:
+def _has_clockwise_numbering(coords: np.ndarray) -> bool:
     """tests if a polygon has clockwise vertex numbering
     approach: Sum over the edges, (x2 − x1)(y2 + y1). If the result is positive the curve is clockwise.
     from:
@@ -260,7 +260,7 @@ def has_clockwise_numbering(coords: np.ndarray) -> bool:
     return total_sum > 0
 
 
-def check_polygon(polygon):
+def _check_polygon(polygon):
     """ensures that all the following conditions on the polygons are fulfilled:
     - must at least contain 3 vertices
     - no consequent vertices with identical coordinates in the polygons! In general might have the same coordinates
@@ -270,9 +270,9 @@ def check_polygon(polygon):
         raise TypeError("Given polygons must at least contain 3 vertices.")
     if not polygon.shape[1] == 2:
         raise TypeError("Each point of a polygon must consist of two values (x,y).")
-    if not no_identical_consequent_vertices(polygon):
+    if not _no_identical_consequent_vertices(polygon):
         raise ValueError("Consequent vertices of a polynomial must not be identical.")
-    if not no_self_intersection(polygon):
+    if not _no_self_intersection(polygon):
         raise ValueError("The given polygon has self intersections")
 
 
@@ -291,16 +291,16 @@ def check_data_requirements(boundary_coords: np.ndarray, list_hole_coords: List[
     :param list_hole_coords:
     :return:
     """
-    check_polygon(boundary_coords)
-    if has_clockwise_numbering(boundary_coords):
+    _check_polygon(boundary_coords)
+    if _has_clockwise_numbering(boundary_coords):
         raise ValueError("Vertex numbering of the boundary polygon must be counter clockwise.")
     for hole_coords in list_hole_coords:
-        check_polygon(hole_coords)
-        if not has_clockwise_numbering(hole_coords):
+        _check_polygon(hole_coords)
+        if not _has_clockwise_numbering(hole_coords):
             raise ValueError("Vertex numbering of hole polygon must be clockwise.")
 
 
-def find_within_range(
+def _find_within_range(
     repr1: float,
     repr2: float,
     candidate_idxs: Set[int],
@@ -779,7 +779,7 @@ def check_candidates_one_edge(
             # ATTENTION: even if a candidate is closer to the query point than both vertices of the edge,
             #   it still needs to be checked!
             further_away = dist_to_candidate > edge_max_dist
-            visibility_is_blocked = further_away or lies_behind(p1, p2, candidate_idx, origin, coords)
+            visibility_is_blocked = further_away or _lies_behind(p1, p2, candidate_idx, origin, coords)
 
         if visibility_is_blocked:
             candidate_indices.pop(candidate_ptr_curr)
@@ -839,7 +839,7 @@ def _check_candidates(
         )
 
 
-def find_visible_and_in_front(
+def _find_visible_and_in_front(
     origin: int,
     nr_edges: int,
     coords: np.ndarray,
@@ -870,9 +870,9 @@ def find_visible_and_in_front(
     # IMPORTANT: check all extremities here, not just current candidates
     # do not check extremities with equal coords_rel (also query extremity itself!)
     #   and with the same angle representation (those edges must not get deleted from graph!)
-    candidates_in_front = find_within_range(
-        repr1=angle_rep_inverse(n1_repr),
-        repr2=angle_rep_inverse(n2_repr),
+    candidates_in_front = _find_within_range(
+        repr1=_angle_rep_inverse(n1_repr),
+        repr2=_angle_rep_inverse(n2_repr),
         candidate_idxs=candidates_in_front,
         angle_range_less_180=True,
         equal_repr_allowed=False,
@@ -888,7 +888,7 @@ def find_visible_and_in_front(
     # all vertices between the angle of the two neighbouring edges ('outer side')
     #   are not visible (no candidates!)
     # ATTENTION: vertices with the same angle representation might be visible and must NOT be deleted!
-    idxs_behind = find_within_range(
+    idxs_behind = _find_within_range(
         n1_repr,
         n2_repr,
         candidates,
@@ -903,20 +903,7 @@ def find_visible_and_in_front(
     # TODO edge set to ignore instead
     edge_idxs2check = set(range(nr_edges))
     edge_idxs2check.difference_update(vertex_edge_idxs[origin])
-
-    candidates_ = candidates.copy()
     visible_idxs = find_visible(
-        origin,
-        candidates_,
-        edge_idxs2check,
-        coords,
-        representations,
-        distances,
-        edge_vertex_idxs,
-        vertex_edge_idxs,
-        extremity_mask,
-    )
-    visible_idxs_ = find_visible(
         origin,
         candidates,
         edge_idxs2check,
@@ -927,22 +914,7 @@ def find_visible_and_in_front(
         vertex_edge_idxs,
         extremity_mask,
     )
-    ids_too_much = visible_idxs_ - visible_idxs
-    ids_not_detected = visible_idxs - visible_idxs_
-    ids_too_much_ = set()
-    ids_not_detected_ = set()
-    for i1 in ids_too_much:
-        for i2 in ids_not_detected:
-            if representations[i1] == representations[i2]:  # distances[i1] == distances[i2] and
-                ids_too_much_.add(i1)
-                ids_not_detected_.add(i2)
-
-    ids_too_much -= ids_too_much_
-    ids_not_detected -= ids_not_detected_
-    if len(ids_too_much) > 0 or len(ids_not_detected) > 0:
-        pass
-        # raise ValueError(f"visible vertices not found correctly: {ids_too_much}, {ids_not_detected}")
-    return candidates_in_front, visible_idxs_
+    return candidates_in_front, visible_idxs
 
 
 def get_distance(n1, n2, reprs_n_distances):
@@ -958,7 +930,7 @@ def get_distance(n1, n2, reprs_n_distances):
     return distance
 
 
-def find_identical(candidates: Iterable[int], reprs_n_distances: Dict[int, np.ndarray]) -> Dict[int, int]:
+def _find_identical(candidates: Iterable[int], reprs_n_distances: Dict[int, np.ndarray]) -> Dict[int, int]:
     # for shortest path computations all graph nodes should be unique
     # join all nodes with the same coordinates
     merging_mapping = {}
@@ -1009,7 +981,7 @@ def compute_graph(
         candidate_idxs = set(extremity_indices[extr_ptr + 1 :])
         # Note: also the nodes previously connected to the current origin must be considered for removal
         candidates_in_front = candidate_idxs | set(graph.neighbors(origin_idx))
-        idxs_in_front, visible_idxs = find_visible_and_in_front(
+        idxs_in_front, visible_idxs = _find_visible_and_in_front(
             origin_idx,
             nr_edges,
             coords,
@@ -1032,14 +1004,14 @@ def compute_graph(
         for i in visible_idxs:
             graph.add_edge(origin_idx, i, weight=vert_idx2dist[i])
 
-    merge_mapping = find_identical(graph.nodes, reprs_n_distances)
+    merge_mapping = _find_identical(graph.nodes, reprs_n_distances)
     if len(merge_mapping) > 0:
         nx.relabel_nodes(graph, merge_mapping, copy=False)
 
     return graph
 
 
-def try_extraction(json_data, key):
+def _try_extraction(json_data, key):
     try:
         extracted_data = json_data[key]
     except KeyError as e:
@@ -1047,7 +1019,7 @@ def try_extraction(json_data, key):
     return extracted_data
 
 
-def convert2polygon(json_list):
+def _convert2polygon(json_list):
     return [tuple(coord_pair_list) for coord_pair_list in json_list]
 
 
@@ -1063,10 +1035,10 @@ def read_json(path2json_file):
     with open(path2json_file) as json_file:
         json_data = json_file.read()
     json_loaded = json.loads(json_data)
-    boundary_data = try_extraction(json_loaded, BOUNDARY_JSON_KEY)
-    holes_data = try_extraction(json_loaded, HOLES_JSON_KEY)
-    boundary_coordinates = convert2polygon(boundary_data)
-    list_of_holes = [convert2polygon(hole_data) for hole_data in holes_data]
+    boundary_data = _try_extraction(json_loaded, BOUNDARY_JSON_KEY)
+    holes_data = _try_extraction(json_loaded, HOLES_JSON_KEY)
+    boundary_coordinates = _convert2polygon(boundary_data)
+    list_of_holes = [_convert2polygon(hole_data) for hole_data in holes_data]
     return boundary_coordinates, list_of_holes
 
 
@@ -1207,7 +1179,7 @@ def convert_gridworld(size_x: int, size_y: int, obstacle_iter: iter, simplify: b
         unchecked_obstacles = []
         for o in obstacles:
             p = o + 0.5
-            if inside_polygon(p, poly, border_value=True) == required_val:
+            if _inside_polygon(p, poly, border_value=True) == required_val:
                 unchecked_obstacles.append(o)
 
         return unchecked_obstacles
@@ -1232,7 +1204,7 @@ def convert_gridworld(size_x: int, size_y: int, obstacle_iter: iter, simplify: b
     return boundary_edges, hole_list
 
 
-def angle_rep_inverse(repr: Optional[float]) -> Optional[float]:
+def _angle_rep_inverse(repr: Optional[float]) -> Optional[float]:
     if repr is None:
         repr_inv = None
     else:
@@ -1240,7 +1212,7 @@ def angle_rep_inverse(repr: Optional[float]) -> Optional[float]:
     return repr_inv
 
 
-def compute_extremity_idxs(coordinates: np.ndarray) -> List[int]:
+def _compute_extremity_idxs(coordinates: np.ndarray) -> List[int]:
     """identify all protruding points = vertices with an inside angle of > 180 degree ('extremities')
     expected edge numbering:
         outer boundary polygon: counterclockwise
@@ -1267,8 +1239,8 @@ def compute_extremity_idxs(coordinates: np.ndarray) -> List[int]:
         #   the angle representation of the difference is well-defined
         diff_p3_p2 = p3 - p2
         diff_p1_p2 = p1 - p2
-        repr_p3_p2, _ = compute_repr_n_dist(diff_p3_p2)
-        repr_p1_p2, _ = compute_repr_n_dist(diff_p1_p2)
+        repr_p3_p2, _ = _compute_repr_n_dist(diff_p3_p2)
+        repr_p1_p2, _ = _compute_repr_n_dist(diff_p1_p2)
         rep_diff = repr_p3_p2 - repr_p1_p2
         if rep_diff % 4.0 < 2.0:  # inside angle > 180 degree
             # p2 is an extremity
@@ -1302,7 +1274,7 @@ def compile_boundary_data_fr_polys(boundary_coordinates, list_of_hole_coordinate
     offset = 0
     extremity_indices = set()
     for poly in list_of_polygons:
-        poly_extr_idxs = compute_extremity_idxs(poly)
+        poly_extr_idxs = _compute_extremity_idxs(poly)
         poly_extr_idxs = {i + offset for i in poly_extr_idxs}
         extremity_indices |= poly_extr_idxs
 

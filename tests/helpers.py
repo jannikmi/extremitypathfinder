@@ -21,6 +21,6 @@ def other_edge_intersects(n1: int, n2: int, edge_vertex_idxs: np.ndarray, coords
             continue
         q1 = coords[i1]
         q2 = coords[i2]
-        if utils.get_intersection_status(p1, p2, q1, q2) == 1:
+        if utils._get_intersection_status(p1, p2, q1, q2) == 1:
             return True
     return False
