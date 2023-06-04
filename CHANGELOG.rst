@@ -1,6 +1,17 @@
 Changelog
 =========
 
+2.6.0 (2023-06-04)
+-------------------
+
+internal:
+
+* implemented an optimised visibility graph algorithm: sort edges and candidates after their representation to always only check the relevant fraction of candidates for each edge. Runtime complexity O(n^2 log_2 n).
+* added visibility computation tests
+* automatically skip GitHub actions publishing when the version already exists. useful for minor improvements without publishing a version. build would always fail otherwise
+* updated pinned dependencies to fix security alerts
+* minor code refactoring
+
 
 2.5.0 (2023-05-05)
 -------------------
