@@ -196,9 +196,9 @@ class PolygonEnvironment:
             coords,
             vert_idx2repr,
             vert_idx2dist,
-            self.extremity_mask,
             self.edge_vertex_idxs,
             self.vertex_edge_idxs,
+            self.extremity_mask,
         )
 
     def find_shortest_path(

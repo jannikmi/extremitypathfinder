@@ -1,6 +1,10 @@
 # size_x, size_y, obstacle_iter
 from math import sqrt
 
+import numpy as np
+
+from extremitypathfinder import utils
+
 GRID_ENV_PARAMS = (
     19,
     10,
