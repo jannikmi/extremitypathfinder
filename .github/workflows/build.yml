@@ -74,13 +74,6 @@ jobs:
         run: |
           poetry build --no-interaction
 
-      - name: Test PyPI Publishing
-        uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          password: ${{ secrets.TEST_PYPI_DEPLOYMENT_API_KEY }}
-          repository-url: https://test.pypi.org/legacy/
-          skip-existing: true
-
       - name: Create GitHub Release
         id: create_gh_release
         uses: ncipollo/release-action@v1
