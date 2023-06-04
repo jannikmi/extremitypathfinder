@@ -1,8 +1,5 @@
 name: build
 
-permissions:
-  id-token: write
-
 on:
   pull_request:
   push:
@@ -51,6 +48,9 @@ jobs:
 
   deploy:
     runs-on: ubuntu-latest
+    permissions:
+        id-token: write
+        contents: write
     needs: test
     if: endsWith(github.ref, '/master')
     steps:
