@@ -1,19 +1,22 @@
-pin:
-	@echo "pinning the dependencies specified in 'pyproject.toml':"
-	@poetry update -vv
-	#poetry export -f requirements.txt --output docs/requirements.txt --without-hashes
-
-req:
+install:
 	@echo "installing the development dependencies..."
 	@poetry install
 	@#poetry install --no-dev
 
 
-update: pin req
+update:
+	@echo "updating the dependencies pinned in 'pyproject.toml':"
+	@poetry update -vvv
+	#poetry export -f requirements.txt --output docs/requirements.txt --without-hashes
+
+lock:
+	@echo "pinning the dependencies in 'pyproject.toml':"
+	@poetry lock -vvv
+
 
 test:
-	@tox
 	#pytest
+	@tox
 
 hook:
 	@pre-commit install

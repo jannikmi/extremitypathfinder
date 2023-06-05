@@ -1,10 +1,50 @@
 Changelog
 =========
 
+2.6.0 (2023-06-04)
+-------------------
 
-TODO pending major release: remove separate prepare step?! initialise in one step during initialisation
-TODO Numba JIT compilation of utils. line speed profiling for highest impact of refactoring
-TODO improve A* implementation (away from OOP)
+internal:
+
+* implemented an optimised visibility graph algorithm: sort edges and candidates after their representation to always only check the relevant fraction of candidates for each edge. Runtime complexity O(n^2 log_2 n).
+* added visibility computation tests
+* automatically skip GitHub actions publishing when the version already exists. useful for minor improvements without publishing a version. build would always fail otherwise
+* updated pinned dependencies to fix security alerts
+* minor code refactoring
+
+
+2.5.0 (2023-05-05)
+-------------------
+
+* removed need for separate ``.prepare()`` call. Storing environment boundary data automatically triggers the preparation of the visibility graph. This is a non-breaking change. The ``.prepare()`` method is still available, but it is not needed anymore.
+
+internal:
+
+* updated dependency specification: networkx>=3, relaxed development dependency version requirements
+* included tests for python 3.11
+* minor code refactoring
+
+
+2.4.1 (2022-08-22)
+-------------------
+
+* bugfix: catch the case where no path is possible in the graph in the ``networkx`` A* implementation
+* added speed benchmarks and performance section in the documentation with benchmark results
+
+internal:
+
+* optimisation: checking edges with the biggest angle range first
+* optimisation: skipping visibility checks for the last extremity
+* using optimised point in polygon check algorithm
+* using undirected Graph: The precomputed graph usually makes up the majority of the visibility graph (in comparison to the temporarily added edges for query start and goal nodes) and this precomputed part has to be undirected. Use undirected graph everywhere.
+* added test cases
+
+
+2.4.0 (2022-08-18)
+-------------------
+
+* A* and graph representation based on ``networkx`` library -> new dependency
+
 
 
 2.3.0 (2022-08-18)

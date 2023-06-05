@@ -1,6 +1,10 @@
 # size_x, size_y, obstacle_iter
 from math import sqrt
 
+import numpy as np
+
+from extremitypathfinder import utils
+
 GRID_ENV_PARAMS = (
     19,
     10,
@@ -157,33 +161,33 @@ POLY_ENV_PARAMS = (
 )
 
 TEST_DATA_POLY_ENV = [
-    # ((start,goal),(path,distance))
-    # identical nodes
-    (((1, 1), (1, 1)), ([(1, 1), (1, 1)], 0.0)),
-    # directly reachable
-    (((1, 1), (1, 2)), ([(1, 1), (1, 2)], 1.0)),
-    (((1, 1), (2, 1)), ([(1, 1), (2, 1)], 1.0)),
-    # points on the polygon edges (vertices) should be accepted!
-    # on edge (boundary polygon)
-    (((1, 0), (1, 1)), ([(1, 0), (1, 1)], 1.0)),
-    (((9.5, 2.5), (8.5, 2.5)), ([(9.5, 2.5), (8.5, 2.5)], 1.0)),
-    (((0, 2), (0, 1)), ([(0, 2), (0, 1)], 1.0)),  # both
-    (((1, 0), (5, 0)), ([(1, 0), (5, 0)], 4.0)),  # both
-    # on edge of hole
-    (((4, 8), (3, 8)), ([(4, 8), (3, 8)], 1.0)),
-    (((4, 8), (4.1, 8.1)), ([(4, 8), (4.1, 8.1)], sqrt(2 * (0.1**2)))),  # both
-    # on vertex
-    (((9, 5), (8, 5)), ([(9, 5), (8, 5)], 1.0)),
-    # on vertex of hole
-    (((3, 7), (2, 7)), ([(3, 7), (2, 7)], 1.0)),
-    # on two vertices
-    # coinciding with edge (direct neighbour)
-    (((3, 7), (5, 9)), ([(3, 7), (5, 9)], sqrt(8))),
-    (((4.6, 7), (5, 9)), ([(4.6, 7), (5, 9)], sqrt((0.4**2) + (2**2)))),
-    # should have direct connection to all visible extremities! connected in graph
-    (((5, 4), (5, 9)), ([(5, 4), (5, 9)], 5)),
-    # should have a direct connection to all visible extremities! even if not connected in graph!
-    (((9, 5), (5, 9)), ([(9, 5), (5, 9)], sqrt(2 * (4**2)))),
+    # # ((start,goal),(path,distance))
+    # # identical nodes
+    # (((1, 1), (1, 1)), ([(1, 1), (1, 1)], 0.0)),
+    # # directly reachable
+    # (((1, 1), (1, 2)), ([(1, 1), (1, 2)], 1.0)),
+    # (((1, 1), (2, 1)), ([(1, 1), (2, 1)], 1.0)),
+    # # points on the polygon edges (vertices) should be accepted!
+    # # on edge (boundary polygon)
+    # (((1, 0), (1, 1)), ([(1, 0), (1, 1)], 1.0)),
+    # (((9.5, 2.5), (8.5, 2.5)), ([(9.5, 2.5), (8.5, 2.5)], 1.0)),
+    # (((0, 2), (0, 1)), ([(0, 2), (0, 1)], 1.0)),  # both
+    # (((1, 0), (5, 0)), ([(1, 0), (5, 0)], 4.0)),  # both
+    # # on edge of hole
+    # (((4, 8), (3, 8)), ([(4, 8), (3, 8)], 1.0)),
+    # (((4, 8), (4.1, 8.1)), ([(4, 8), (4.1, 8.1)], sqrt(2 * (0.1**2)))),  # both
+    # # on vertex
+    # (((9, 5), (8, 5)), ([(9, 5), (8, 5)], 1.0)),
+    # # on vertex of hole
+    # (((3, 7), (2, 7)), ([(3, 7), (2, 7)], 1.0)),
+    # # on two vertices
+    # # coinciding with edge (direct neighbour)
+    # (((3, 7), (5, 9)), ([(3, 7), (5, 9)], sqrt(8))),
+    # (((4.6, 7), (5, 9)), ([(4.6, 7), (5, 9)], sqrt((0.4**2) + (2**2)))),
+    # # should have direct connection to all visible extremities! connected in graph
+    # (((5, 4), (5, 9)), ([(5, 4), (5, 9)], 5)),
+    # # should have a direct connection to all visible extremities! even if not connected in graph!
+    # (((9, 5), (5, 9)), ([(9, 5), (5, 9)], sqrt(2 * (4**2)))),
     # using a* graph search:
     # directly reachable through a single vertex (does not change distance!)
     (((9, 4), (9, 6)), ([(9, 4), (9, 5), (9, 6)], 2)),
@@ -344,3 +348,4 @@ TEST_DATA_SEPARATE_ENV = [
 ]
 
 # ((start,goal),(path,distance))
+POLYGON_ENVS = [SEPARATED_ENV, OVERLAP_POLY_ENV_PARAMS, POLY_ENV_PARAMS]

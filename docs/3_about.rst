@@ -63,7 +63,7 @@ This package pretty much implements the Visibility Graph Optimized (VGO) Algorit
 Rough Procedure:
 ________________
 
-- **1. Preprocessing the environment:** Independently of any query start and goal points the optimized visibility graph is being computed for the static environment once with ``map.prepare()``. Later versions might include a faster approach to compute visibility on the fly, for use cases where the environment is changing dynamically. The edges of the precomputed graph between the extremities are shown in red in the following plots. Notice that the extremity on the right is not connected to any other extremity due to the above mentioned optimisation:
+- **1. Preprocessing the environment:** Independently of any query start and goal points the optimized visibility graph is being computed for the static environment once. Later versions might include a faster approach to compute visibility on the fly, for use cases where the environment is changing dynamically. The edges of the precomputed graph between the extremities are shown in red in the following plots. Notice that the extremity on the right is not connected to any other extremity due to the above mentioned optimisation:
 
 .. figure:: _static/prepared_map_plot.png
 
@@ -85,33 +85,59 @@ ________________
     polygon environment with optimised visibility graph overlay. visualised edges added to the visibility graph in yellow, found shortest path in green.
 
 
-Tweaks (my contribution):
-_________________________
+Implementation
+______________
 
 
-Visibility detection: my "Angle Range Elimination Algorithm" (AREA)
+Visibility detection: "Angle Range Elimination Algorithm" (AREA, Contribution of this package)
 ********************************************************************
 
-To the best of my knowledge there was no previous algorithm for computing the visibility of points (<-> visibility graph) that is visiting edges at most once without any trigonometric computations, without sorting and with that few distance/intersection checks.
+AREA is an algorithm for computing the visibility graph.
+
+In this use case we are not interested in the full visibility graph, but the visibility of just some points (all extremities, start and goal).
 
 Simple fundamental idea: points (extremities) are visible when there is no edge running in front "blocking the view".
 
 Rough procedure: For all edges delete the points lying behind them. Points that remain at the end are visible.
 
-In this use case we are not interested in the full visibility graph, but the visibility of just some points (extremities, start and goal). Additionally deciding if a point lies behind an edge can often be done without computing intersections by just comparing distances. This can be used to reduce the needed computations.
+Optimisations:
+- for each edge only checking the relevant candidates ("within the angle range"):
+    - By sorting the edges after their angle representation (similar to Lee's algorith, s. below), only the candidates with a bigger representation have to be checked.
+    - By also sorting the candidates, the candidates with a smaller representation than the edge don't have to be checked.
+- angle representations: instead of computing with angles in degree or radians, it is much more efficient and still sufficient to use a representation that is mapping an angle to a range :math:`a \in [0.0 ; 4.0[` (:math:`[0.0 ; 1.0[` in all 4 quadrants). This can be done without computationally expensive trigonometric functions!
+- deciding if a point lies behind an edge can often be done without computing intersections by just comparing distances. This can be used to reduce the needed computations.
 
-Further speed up can be accomplished by trying to prioritize closer edges, because they have a bigger chance to eliminate candidates.
 
-The basic runtime complexity of this algorithm should be :math:`O(m^2 n)`, where :math:`m` is the amount of extremities (candidates) and :math:`n` is the amount of edges (= #vertices). This is fast, because of a few tweaks and usually :math:`m << n`.
+Properties:
 
-Implemented in ``PolygonEnvironment.find_visible()`` in ``extremitypathfinder.py``
+- checking all edges
+- checking an edge at most once
+- ability to process only a subset of all vertices as possible candidates
+- decreasing number of candidates after every checked origin (visibility is a symmetric relation -> only need to check once for every candidate pair!)
+- no expensive trigonometric computations
+- actual Intersection computation (solving linear scalar equations) only for a fraction of candidates
+- could theoretically also work with just lines (this package however currently just allows polygons)
+
+
+Runtime Complexity:
+
+- :math:`m`: the amount of extremities (candidates)
+- :math:`n`: the amount of edges / vertices (since polynomial edges share vertices), with usually :math:`m << n`
+- :math:`O(m)` for checking every candidate as origin
+- :math:`O(n log_2 n)` for sorting the edges, done once for every origin -> :math:`O(m n log_2 n)`
+- :math:`O(n)` for checking every edge -> :math:`O(m (n log_2 n + n)`
+- :math:`O(m/n)` (average) for checking the visibility of target candidates. only the fraction relevant for each edge will be checked -> :math:`O(m (n log_2 n + (n m) / n) = O(m (n log_2 n + m) = O(m n log_2 n`
+- since :math:`m ~ n` the final complexity is :math:`O(m n log_2 n) = O(n^2 log_2 n)`
+
+The core visibility algorithm (for one origin) is implemented in ``PolygonEnvironment.get_visible_idxs()`` in ``extremitypathfinder.py``
+
 
 Comparison:
 ***********
 
 **Lee's visibility graph algorithm**:
 
-complexity: :math:`O(n^2 log_2 n)` (cf. `these slides <http://cs.smith.edu/~streinu/Teaching/Courses/274/Spring98/Projects/Philip/fp/algVisibility.html>`__)
+complexity: :math:`O(n^2 log_2 n)` (cf. `these slides <https://dav.ee/papers/Visibility_Graph_Algorithm.pdf>`__)
 
 - Initially all edges are being checked for intersection
 - Necessarily checking the visibility of all points (instead of just some)
@@ -121,40 +147,23 @@ complexity: :math:`O(n^2 log_2 n)` (cf. `these slides <http://cs.smith.edu/~stre
 - Can work with just lines (not restricted to polygons)
 
 
+Optimised Pathfinding:
+**********************
 
-**My Algorithm:**
+Currently using the default implementation of A* from the `networkx` package.
 
-- Checking all edges
-- Not considering all points (just a few candidates)
-- Decreasing number of candidates with every run (visibility is a symmetric relation -> only need to check once for every point pair!)
-- Minimal intersection comp. (fraction of candidates)
-- No sorting needed
-- Could theoretically also work with just lines (this package however currently just allows polygons)
-- More simple and clear approach
+Remark: This geometrical property of the specific task (the visibility graph) could be exploited in an optimised (e.g. A*) algorithm:
 
-
-
-**Angle representation**: Instead of computing with angles in degree or radians, it is much more efficient and still sufficient to use a representation that is mapping an angle to a range :math:`a \in [0.0 ; 4.0[` (:math:`[0.0 ; 1.0[` in all 4 quadrants). This can be done without computationally expensive trigonometric functions!
-Check the implementation in class ``AngleRepresentation`` in ``helper_classes.py``.
-
-
-**Modifications to A-star:** The basic algorithm has been modified to exploit the following geometrical property of this specific task (and hence also the extracted graph):
-
-    It is always shortest to directly reach a node instead of visiting other nodes first
+- It is always shortest to directly reach a node instead of visiting other nodes first
     (there is never an advantage through reduced edge weight).
 
-This can be exploited in a lot of cases to make A* terminate earlier than for general graphs:
+Make A* terminate earlier than for general graphs:
 
 - no need to revisit nodes (path only gets longer)
 
-- when the goal is directly reachable, there can be no other shorter path to it -> terminate.
+- when the goal is directly reachable, there can be no other shorter path to it -> terminate
 
-- not all neighbours of the current node have to be checked like in vanilla A* before continuing to the next node.
-
-Implemented in ``graph_search.py``
-
-
-**Laziness:** Angle representations of points are being computed only on demand.
+- not all neighbours of the current node have to be checked like in vanilla A* before continuing to the next node
 
 
 Comparison to pyvisgraph
@@ -174,6 +183,7 @@ This package is similar to `pyvisgraph <https://github.com/TaipanRex/pyvisgraph>
 
 - parallel computing not supported so far
 - no existing speed comparison
+
 
 Contact
 --------

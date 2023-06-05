@@ -20,6 +20,7 @@ jobs:
           - "3.8"
           - "3.9"
           - "3.10"
+          - "3.11"
     env:
       TOXENV: ${{ matrix.tox-env }}
       TOX_SKIP_MISSING_INTERPRETERS: False
@@ -40,20 +41,23 @@ jobs:
         run: pip install -U pip
 
       - name: Install test dependencies
-        run: pip install tox tox-gh-actions poetry
+        run: pip install tox==3.24.4 tox-gh-actions poetry>=1.4.2
 
       - name: Run tox
         run: tox
 
   deploy:
     runs-on: ubuntu-latest
+    permissions:
+        id-token: write
+        contents: write
     needs: test
     if: endsWith(github.ref, '/master')
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v2
+      - name: Set up Python
+        uses: actions/setup-python@v4
         with:
           python-version: 3.8
 
@@ -63,27 +67,27 @@ jobs:
 
       - name: Fetch version
         id: fetch_version
-        run: echo "::set-output name=version_nr::$(poetry version -s)"
+        run: echo "version_nr=$(poetry version -s)" >> $GITHUB_OUTPUT
 
       - name: Build a binary wheel and a source tarball
         # Note: poetry build required to support CLI script entrypoint in pyproject.toml?!
         run: |
-          poetry build
+          poetry build --no-interaction
 
       - name: Create GitHub Release
         id: create_gh_release
-        uses: actions/create-release@v1
+        uses: ncipollo/release-action@v1
         env:
-          # use token provided by Actions
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ steps.fetch_version.outputs.version_nr }}
         with:
-          tag_name: ${{env.VERSION}}
-          release_name: Release ${{env.VERSION}}
+          tag: ${{env.VERSION}}
+          name: Release ${{env.VERSION}}
           draft: false
           prerelease: false
+          skipIfReleaseExists: true
 
       - name: PyPI Publishing
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           password: ${{ secrets.PYPI_DEPLOYMENT_API_KEY }}
+          skip-existing: true

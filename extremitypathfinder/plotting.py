@@ -3,9 +3,9 @@ from os import makedirs
 from os.path import abspath, exists, join
 
 import matplotlib.pyplot as plt
-import numpy as np
 from matplotlib.patches import Polygon
 
+from extremitypathfinder import types as t
 from extremitypathfinder.extremitypathfinder import PolygonEnvironment
 
 EXPORT_RESOLUTION = 200  # dpi
@@ -20,10 +20,11 @@ POLYGON_SETTINGS = {
 
 SHOW_PLOTS = False
 PLOTTING_DIR = "all_plots"
+PLOT_FILE_ENDING = ".svg"
 
 
 def get_plot_name(file_name="plot"):
-    return abspath(join(PLOTTING_DIR, file_name + "_" + str(time.time())[:-7] + ".png"))
+    return abspath(join(PLOTTING_DIR, file_name + "_" + str(time.time())[:-7] + PLOT_FILE_ENDING))
 
 
 def export_plot(fig, file_name):
@@ -67,9 +68,10 @@ def draw_boundaries(map, ax):
 
 def draw_internal_graph(map: PolygonEnvironment, ax):
     graph = map.graph
-    for start_idx, all_goal_idxs in graph.neighbours.items():
-        start = graph.coord_map[start_idx]
-        all_goals = [graph.coord_map[i] for i in all_goal_idxs]
+    coords = map.coords
+    for n in graph.nodes:
+        start = coords[n]
+        all_goals = [coords[i] for i in graph.neighbors(n)]
         for goal in all_goals:
             draw_edge(start, goal, c="red", alpha=0.2, linewidth=2)
 
@@ -122,11 +124,11 @@ def draw_prepared_map(map):
         plt.show()
 
 
-def draw_with_path(map, temp_graph, vertex_path):
+def draw_with_path(map, graph: t.Graph, vertex_path):
     fig, ax = plt.subplots()
 
-    coords_map = temp_graph.coord_map
-    all_nodes = temp_graph.all_nodes
+    coords = map._coords_tmp
+    all_nodes = graph.nodes
     draw_boundaries(map, ax)
     draw_internal_graph(map, ax)
     set_limits(map, ax)
@@ -135,24 +137,19 @@ def draw_with_path(map, temp_graph, vertex_path):
         # additionally draw:
         # new edges yellow
         start, goal = vertex_path[0], vertex_path[-1]
-        goal_idx = None
-        start_idx = None
-        for i, c in coords_map.items():
-            if np.array_equal(c, goal):
-                goal_idx = i
-            if np.array_equal(c, start):
-                start_idx = i
+        goal_idx = map._idx_goal_tmp
+        start_idx = map._idx_start_tmp
 
         if start_idx is not None:
-            for n_idx in temp_graph.get_neighbours_of(start_idx):
-                n = coords_map[n_idx]
+            for n_idx in graph.neighbors(start_idx):
+                n = coords[n_idx]
                 draw_edge(start, n, c="y", alpha=0.7)
 
         if goal_idx is not None:
             # edges only run towards goal
             for n_idx in all_nodes:
-                if goal_idx in temp_graph.get_neighbours_of(n_idx):
-                    n = coords_map[n_idx]
+                if goal_idx in graph.neighbors(n_idx):
+                    n = coords[n_idx]
                     draw_edge(n, goal, c="y", alpha=0.7)
 
     # start, path and goal in green
@@ -176,18 +173,19 @@ def draw_only_path(map, vertex_path, start_coordinates, goal_coordinates):
         plt.show()
 
 
-def draw_graph(map, graph):
+def draw_graph(map, graph: t.Graph):
     fig, ax = plt.subplots()
 
-    all_node_idxs = graph.get_all_nodes()
-    all_nodes = [graph.coord_map[i] for i in all_node_idxs]
+    nodes = graph.nodes
+    coords = map._coords_tmp
+    all_nodes = [coords[i] for i in nodes]
     mark_points(all_nodes, c="black", s=30)
 
-    for i in all_node_idxs:
-        x, y = graph.coord_map[i]
-        neighbour_idxs = graph.get_neighbours_of(i)
+    for i in nodes:
+        x, y = coords[i]
+        neighbour_idxs = graph.neighbors(i)
         for n2_idx in neighbour_idxs:
-            x2, y2 = graph.coord_map[n2_idx]
+            x2, y2 = coords[n2_idx]
             dx, dy = x2 - x, y2 - y
             plt.arrow(
                 x,
@@ -227,7 +225,6 @@ class PlottingEnvironment(PolygonEnvironment):
 
     def prepare(self):
         """Also draws a prepared map with the computed visibility graph."""
-        super().prepare()
         draw_prepared_map(self)
 
     def find_shortest_path(self, start_coordinates, goal_coordinates, *args, **kwargs):
