@@ -1,6 +1,6 @@
 install:
 	@echo "installing the development dependencies..."
-	@poetry install
+	@poetry install --all-extras
 	@#poetry install --no-dev
 
 

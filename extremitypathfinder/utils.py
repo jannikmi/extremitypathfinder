@@ -9,10 +9,25 @@ import networkx as nx
 import numpy as np
 import numpy.linalg
 
+from extremitypathfinder import configs
 from extremitypathfinder import types as t
 from extremitypathfinder.configs import BOUNDARY_JSON_KEY, DEFAULT_PICKLE_NAME, HOLES_JSON_KEY
 
+# b1, f8, i2, i4, njit, u2
+try:
+    from numba import f8, njit, typeof
 
+    using_numba = True
+except ImportError:
+    using_numba = False
+    # replace Numba functionality with "transparent" implementations
+    from extremitypathfinder.numba_replacements import f8, njit
+
+# TODO cleaner way? or add to replacements
+FloatTuple = typeof((1.0, 1.0))
+
+
+@njit(FloatTuple(f8[:]), cache=True)
 def _compute_repr_n_dist(np_vector: np.ndarray) -> Tuple[float, float]:
     """computing representation for the angle from the origin to a given vector
 
@@ -1294,7 +1309,7 @@ def compile_boundary_data_fr_polys(boundary_coordinates, list_of_hole_coordinate
 
         offset = edge_idx
 
-    coords = np.concatenate(list_of_polygons, axis=0)
+    coords = np.concatenate(list_of_polygons, axis=0, dtype=configs.DTYPE_FLOAT)
     # Attention: only consider extremities that are actually within the map (polygons are allowed to overlap)
     extremity_indices = [i for i in extremity_indices if within_map(coords[i])]
     extremity_mask = np.full(nr_total_pts, False, dtype=bool)

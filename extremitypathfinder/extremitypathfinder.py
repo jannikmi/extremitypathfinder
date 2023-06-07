@@ -5,6 +5,7 @@ from typing import Dict, Iterable, List, Optional, Set, Tuple
 import networkx as nx
 import numpy as np
 
+from extremitypathfinder import configs
 from extremitypathfinder import types as t
 from extremitypathfinder import utils
 from extremitypathfinder.configs import DEFAULT_PICKLE_NAME
@@ -77,8 +78,10 @@ class PolygonEnvironment:
         """
         self.prepared = False
         # loading the map
-        boundary_coordinates = np.array(boundary_coordinates, dtype=float)
-        list_of_hole_coordinates = [np.array(hole_coords, dtype=float) for hole_coords in list_of_hole_coordinates]
+        boundary_coordinates = np.array(boundary_coordinates, dtype=configs.DTYPE_FLOAT)
+        list_of_hole_coordinates = [
+            np.array(hole_coords, dtype=configs.DTYPE_FLOAT) for hole_coords in list_of_hole_coordinates
+        ]
         if validate:
             utils.check_data_requirements(boundary_coordinates, list_of_hole_coordinates)
 
