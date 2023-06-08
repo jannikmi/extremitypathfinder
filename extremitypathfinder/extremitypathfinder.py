@@ -98,13 +98,12 @@ class PolygonEnvironment:
             self.edge_vertex_idxs,
         ) = utils.compile_polygon_datastructs(boundary_coordinates, list_of_hole_coordinates)
 
-        nr_total_pts = self.edge_vertex_idxs.shape[0]
-        self.nr_vertices = nr_total_pts
         self.reprs_n_distances = utils.cmp_reps_n_distance_dict(self.coords, self.extremity_indices)
 
+        self.nr_vertices = self.edge_vertex_idxs.shape[0]
         # start and goal points will be stored after all polygon coordinates
-        self.idx_start = nr_total_pts
-        self.idx_goal = nr_total_pts + 1
+        self.idx_start = self.nr_vertices
+        self.idx_goal = self.nr_vertices + 1
 
         self.prepare()
 
