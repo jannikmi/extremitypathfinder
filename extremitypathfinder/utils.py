@@ -6,6 +6,7 @@ from itertools import combinations
 from typing import Dict, Iterable, List, Optional, Set, Tuple
 
 import networkx as nx
+import numba
 import numpy as np
 import numpy.linalg
 
@@ -82,6 +83,15 @@ def _compute_repr_n_dist(np_vector: np.ndarray) -> Tuple[float, float]:
     return angle_measure, distance
 
 
+@njit(cache=True)
+def _angle_rep_inverse(repr: Optional[float]) -> Optional[float]:
+    if repr is None:
+        repr_inv = None
+    else:
+        repr_inv = (repr + 2.0) % 4.0
+    return repr_inv
+
+
 def cmp_reps_n_distances(orig_idx: int, coords: np.ndarray) -> np.ndarray:
     coords_orig = coords[orig_idx]
     coords_translated = coords - coords_orig
@@ -89,11 +99,47 @@ def cmp_reps_n_distances(orig_idx: int, coords: np.ndarray) -> np.ndarray:
     return repr_n_dists.T
 
 
-# TODO own implementation, efficient, exploit symmetric relation, inverse representation same distance
-# @njit(f8[:,:](i8, f8[:,:]), cache=True)
-# @njit( cache=True)
+@njit(cache=True)
+def _fill_reps_n_distance_dict(coords, extremity_indices, reps_n_distance_dict, non_extremity_indices):
+    for origin_idx in extremity_indices:
+        coords_origin = coords[origin_idx]
+        reps_n_distances_origin = reps_n_distance_dict[origin_idx]
+
+        # diagonal
+        reps_n_distances_origin[:, origin_idx] = np.nan, 0.0
+
+        # non-extremities (all have to be computed)
+        for target_idx in non_extremity_indices:
+            angle_rep, distance = _compute_repr_n_dist(coords[target_idx] - coords_origin)
+            reps_n_distances_origin[:, target_idx] = angle_rep, distance
+
+        # extremities: exploit symmetric relation
+        for target_idx in extremity_indices:
+            if origin_idx == target_idx:
+                continue
+            angle_rep, distance = _compute_repr_n_dist(coords[target_idx] - coords_origin)
+            reps_n_distances_origin[:, target_idx] = angle_rep, distance
+            reps_n_distances_target = reps_n_distance_dict[target_idx]
+            # inverse representation
+            reps_n_distances_target[0, origin_idx] = _angle_rep_inverse(angle_rep)
+            # same distance
+            reps_n_distances_target[1, origin_idx] = distance
+
+
 def cmp_reps_n_distance_dict(coords: np.ndarray, extremity_indices: np.ndarray) -> Dict[int, np.ndarray]:
-    return {i: cmp_reps_n_distances(i, coords) for i in extremity_indices}
+    # alternative: TODO benchmark
+    # reps_n_distance_dict = {i: cmp_reps_n_distances(i, coords) for i in extremity_indices}
+    # efficient implementation exploiting symmetries
+    nr_coords = coords.shape[0]
+    reps_n_distance_dict = numba.typed.Dict.empty(
+        key_type=i8,
+        value_type=f8[:, :],
+    )
+    for i in extremity_indices:
+        reps_n_distance_dict[i] = np.empty((2, nr_coords), dtype=configs.DTYPE_FLOAT)
+    non_extremity_indices = np.setdiff1d(np.arange(nr_coords), extremity_indices)
+    _fill_reps_n_distance_dict(coords, extremity_indices, reps_n_distance_dict, non_extremity_indices)
+    return reps_n_distance_dict
 
 
 @njit(b1(f8[:], f8[:, :], b1), cache=True)
@@ -1173,14 +1219,6 @@ def convert_gridworld(size_x: int, size_y: int, obstacle_iter: iter, simplify: b
         hole_list.append(hole)
 
     return boundary_edges, hole_list
-
-
-def _angle_rep_inverse(repr: Optional[float]) -> Optional[float]:
-    if repr is None:
-        repr_inv = None
-    else:
-        repr_inv = (repr + 2.0) % 4.0
-    return repr_inv
 
 
 @njit(void(f8[:, :], b1[:]), cache=True)
