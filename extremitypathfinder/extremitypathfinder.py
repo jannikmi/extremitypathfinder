@@ -89,13 +89,14 @@ class PolygonEnvironment:
         self.holes = list_of_hole_coordinates
         self.boundary_polygon = boundary_coordinates
 
+        # TODO redundant data. refactor all functions to only use one format
         (
             self.coords,
             self.extremity_indices,
             self.extremity_mask,
             self.vertex_edge_idxs,
             self.edge_vertex_idxs,
-        ) = utils.compile_boundary_data_fr_polys(boundary_coordinates, list_of_hole_coordinates)
+        ) = utils.compile_polygon_datastructs(boundary_coordinates, list_of_hole_coordinates)
 
         nr_total_pts = self.edge_vertex_idxs.shape[0]
         self.nr_vertices = nr_total_pts

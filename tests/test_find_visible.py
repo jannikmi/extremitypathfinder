@@ -225,7 +225,7 @@ def compile_boundary_data(env):
     boundary = np.array(boundary, dtype=configs.DTYPE_FLOAT)
     holes = [np.array(hole, dtype=configs.DTYPE_FLOAT) for hole in holes]
     # (coords, extremity_indices, extremity_mask, vertex_edge_idxs, edge_vertex_idxs)
-    return utils.compile_boundary_data_fr_polys(boundary, holes)
+    return utils.compile_polygon_datastructs(boundary, holes)
 
 
 def _yield_input_args(boundary_data):

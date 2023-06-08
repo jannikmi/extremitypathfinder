@@ -15,13 +15,13 @@ from extremitypathfinder.configs import BOUNDARY_JSON_KEY, DEFAULT_PICKLE_NAME, 
 
 #  f8, i2, i4, njit, u2
 try:
-    from numba import b1, f8, njit, typeof, void
+    from numba import b1, f8, i8, njit, typeof, void
 
     using_numba = True
 except ImportError:
     using_numba = False
     # replace Numba functionality with "transparent" implementations
-    from extremitypathfinder.numba_replacements import b1, f8, njit, typeof, void
+    from extremitypathfinder.numba_replacements import b1, f8, i8, njit, typeof, void
 
 # TODO cleaner way? or add to replacements
 FloatTuple = typeof((1.0, 1.0))
@@ -1225,51 +1225,68 @@ def _cmp_extremity_mask(coordinates: np.ndarray) -> np.ndarray:
     return extremity_mask
 
 
+def _cmp_extremities(list_of_polygons, coords, boundary_coordinates, list_of_hole_coordinates):
+    extremity_masks = [_cmp_extremity_mask(coords_poly) for coords_poly in list_of_polygons]
+    extremity_mask = np.concatenate(extremity_masks, axis=0, dtype=bool)
+    # Attention: since polygons are allowed to overlap, only consider extremities that are actually within the map
+    for extremity_idx in np.where(extremity_mask)[0]:
+        extrimity_coords = coords[extremity_idx]
+        if not is_within_map(extrimity_coords, boundary_coordinates, list_of_hole_coordinates):
+            extremity_mask[extremity_idx] = False
+    extremity_indices = np.where(extremity_mask)[0]
+    return extremity_indices, extremity_mask
+
+
+# TODO
+@njit(void(i8[:, :], i8[:, :]), cache=True)
+def _fill_edge_vertex_idxs(edge_vertex_idxs, vertex_edge_idxs):
+    nr_coords = len(edge_vertex_idxs)
+    v1 = -1 % nr_coords
+    # TODO col 1 is just np.arange?!
+    for edge_idx, v2 in enumerate(range(nr_coords)):
+        v1_idx = v1
+        v2_idx = v2
+        edge_vertex_idxs[edge_idx, 0] = v1_idx
+        edge_vertex_idxs[edge_idx, 1] = v2_idx
+        vertex_edge_idxs[v1_idx, 1] = edge_idx
+        vertex_edge_idxs[v2_idx, 0] = edge_idx
+        # move to the next vertex/edge
+        v1 = v2
+
+
+def _cmp_edge_vertex_idxs(coordinates: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+    nr_coords = len(coordinates)
+    edge_vertex_idxs = np.empty((nr_coords, 2), dtype=int)
+    vertex_edge_idxs = np.empty((nr_coords, 2), dtype=int)
+    _fill_edge_vertex_idxs(edge_vertex_idxs, vertex_edge_idxs)
+    return edge_vertex_idxs, vertex_edge_idxs
+
+
+def _cmp_edge_and_vertex_idxs(list_of_polygons):
+    # compute edge and vertex indices from polygon data structure
+    edge_and_vertex_indices = [_cmp_edge_vertex_idxs(coords_poly) for coords_poly in list_of_polygons]
+    offset = 0
+    for edge_vertex_idxs, vertex_edge_idxs in edge_and_vertex_indices:
+        edge_vertex_idxs += offset
+        vertex_edge_idxs += offset
+        offset += len(edge_vertex_idxs)
+    edge_vertex_idxs, vertex_edge_idxs = zip(*edge_and_vertex_indices)
+    edge_vertex_idxs = np.concatenate(edge_vertex_idxs, axis=0)
+    vertex_edge_idxs = np.concatenate(vertex_edge_idxs, axis=0)
+    return edge_vertex_idxs, vertex_edge_idxs
+
+
+def compile_polygon_datastructs(boundary_coordinates: np.ndarray, list_of_hole_coordinates: List[np.ndarray]):
+    list_of_polygons = [boundary_coordinates] + list_of_hole_coordinates
+    coords = np.concatenate(list_of_polygons, axis=0, dtype=configs.DTYPE_FLOAT)
+    edge_vertex_idxs, vertex_edge_idxs = _cmp_edge_and_vertex_idxs(list_of_polygons)
+    extremity_indices, extremity_mask = _cmp_extremities(
+        list_of_polygons, coords, boundary_coordinates, list_of_hole_coordinates
+    )
+    return coords, extremity_indices, extremity_mask, vertex_edge_idxs, edge_vertex_idxs
+
+
 def load_pickle(path=DEFAULT_PICKLE_NAME):
     print("loading map from:", path)
     with open(path, "rb") as f:
         return pickle.load(f)
-
-
-def compile_boundary_data_fr_polys(boundary_coordinates: np.ndarray, list_of_hole_coordinates: List[np.ndarray]):
-    def within_map(coord: np.ndarray) -> bool:
-        return is_within_map(coord, boundary_coordinates, list_of_hole_coordinates)
-
-    list_of_polygons = [boundary_coordinates] + list_of_hole_coordinates
-    nr_total_pts = sum(map(len, list_of_polygons))
-
-    # compute edge and vertex indices from polygon data structure
-    vertex_edge_idxs = np.empty((nr_total_pts, 2), dtype=int)
-    # TODO required? inverse of the other. get_neighbours function
-    edge_vertex_idxs = np.empty((nr_total_pts, 2), dtype=int)
-    edge_idx = 0
-    offset = 0
-    extremity_masks = []
-    for coords_poly in list_of_polygons:
-        poly_extr_mask = _cmp_extremity_mask(coords_poly)
-        extremity_masks.append(poly_extr_mask)
-
-        nr_coords = len(coords_poly)
-        v1 = -1 % nr_coords
-        # TODO col 1 is just np.arange?!
-        for v2 in range(nr_coords):
-            v1_idx = v1 + offset
-            v2_idx = v2 + offset
-            edge_vertex_idxs[edge_idx, 0] = v1_idx
-            edge_vertex_idxs[edge_idx, 1] = v2_idx
-            vertex_edge_idxs[v1_idx, 1] = edge_idx
-            vertex_edge_idxs[v2_idx, 0] = edge_idx
-            # move to the next vertex/edge
-            v1 = v2
-            edge_idx += 1
-
-        offset = edge_idx
-
-    coords = np.concatenate(list_of_polygons, axis=0, dtype=configs.DTYPE_FLOAT)
-    extremity_mask = np.concatenate(extremity_masks, axis=0, dtype=bool)
-    # Attention: since polygons are allowed to overlap, only consider extremities that are actually within the map
-    for extremity_idx in np.where(extremity_mask)[0]:
-        if not within_map(coords[extremity_idx]):
-            extremity_mask[extremity_idx] = False
-    extremity_indices = np.where(extremity_mask)[0]
-    return coords, extremity_indices, extremity_mask, vertex_edge_idxs, edge_vertex_idxs

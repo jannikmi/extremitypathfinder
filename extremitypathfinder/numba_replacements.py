@@ -44,6 +44,10 @@ class i4(SubscriptAndCallable):
     pass
 
 
+class i8(SubscriptAndCallable):
+    pass
+
+
 class u2(SubscriptAndCallable):
     pass
 
