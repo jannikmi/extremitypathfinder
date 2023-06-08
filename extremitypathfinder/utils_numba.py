@@ -33,37 +33,36 @@ def _compute_repr_n_dist(np_vector: np.ndarray) -> Tuple[float, float]:
     angle(p): counterclockwise angle between the two line segments (0,0)'--(1,0)' and (0,0)'--p
     with (0,0)' being the vector representing the origin
 
-    :param np_vector:
+    :param np_vector: v = (dx, dy) 2D vector as numpy array
     :return:
     """
     dx, dy = np_vector
     distance = math.sqrt(dx**2 + dy**2)  # l-2 norm
     if distance == 0.0:
         angle_measure = np.nan
+        return angle_measure, distance
+
+    dx_positive = dx >= 0
+    dy_positive = dy >= 0
+    if dx_positive and dy_positive:
+        quadrant = 0.0
+        angle_measure = dy
+
+    elif not dx_positive and dy_positive:
+        quadrant = 1.0
+        angle_measure = -dx
+
+    elif not dx_positive and not dy_positive:
+        quadrant = 2.0
+        angle_measure = -dy
+
     else:
-        # 2D vector: (dx, dy) = np_vector
-        dx_positive = dx >= 0
-        dy_positive = dy >= 0
+        quadrant = 3.0
+        angle_measure = dx
 
-        if dx_positive and dy_positive:
-            quadrant = 0.0
-            angle_measure = dy
-
-        elif not dx_positive and dy_positive:
-            quadrant = 1.0
-            angle_measure = -dx
-
-        elif not dx_positive and not dy_positive:
-            quadrant = 2.0
-            angle_measure = -dy
-
-        else:
-            quadrant = 3.0
-            angle_measure = dx
-
-        # normalise angle measure to [0; 1]
-        angle_measure /= distance
-        angle_measure += quadrant
+    # normalise angle measure to [0; 1]
+    angle_measure /= distance
+    angle_measure += quadrant
 
     return angle_measure, distance
 
