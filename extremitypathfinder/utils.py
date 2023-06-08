@@ -82,14 +82,18 @@ def _compute_repr_n_dist(np_vector: np.ndarray) -> Tuple[float, float]:
     return angle_measure, distance
 
 
-# TODO own implementation, efficient
-# @njit(f8[:,:](i8, f8[:,:]), cache=True)
-# @njit( cache=True)
 def cmp_reps_n_distances(orig_idx: int, coords: np.ndarray) -> np.ndarray:
     coords_orig = coords[orig_idx]
     coords_translated = coords - coords_orig
     repr_n_dists = np.apply_along_axis(_compute_repr_n_dist, axis=1, arr=coords_translated)
     return repr_n_dists.T
+
+
+# TODO own implementation, efficient, exploit symmetric relation, inverse representation same distance
+# @njit(f8[:,:](i8, f8[:,:]), cache=True)
+# @njit( cache=True)
+def cmp_reps_n_distance_dict(coords: np.ndarray, extremity_indices: np.ndarray) -> Dict[int, np.ndarray]:
+    return {i: cmp_reps_n_distances(i, coords) for i in extremity_indices}
 
 
 @njit(b1(f8[:], f8[:, :], b1), cache=True)

@@ -100,7 +100,7 @@ class PolygonEnvironment:
 
         nr_total_pts = self.edge_vertex_idxs.shape[0]
         self.nr_vertices = nr_total_pts
-        self.reprs_n_distances = {i: utils.cmp_reps_n_distances(i, self.coords) for i in self.extremity_indices}
+        self.reprs_n_distances = utils.cmp_reps_n_distance_dict(self.coords, self.extremity_indices)
 
         # start and goal points will be stored after all polygon coordinates
         self.idx_start = nr_total_pts
