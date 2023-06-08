@@ -1,6 +1,14 @@
 Changelog
 =========
 
+
+2.7.0 (2023-06-08)
+-------------------
+
+- optional Numba JIT compilation offering significant speedup
+- extra: `pip install extremitypathfinder[numba]`
+
+
 2.6.0 (2023-06-04)
 -------------------
 
