@@ -16,13 +16,18 @@ Installation with pip:
     pip install extremitypathfinder
 
 
+Installation with Numba for a significant speedup, with the tradeoff of a larger installation footprint and slight initial compilation time (until caching kicks in):
+
+.. code-block:: console
+
+    pip install extremitypathfinder[numba]
+
 
 
 Dependencies
 ------------
 
-(``python3.6+``), ``numpy``
-
+please refer to the ``pyproject.toml`` file for current dependency specification.
 
 
 

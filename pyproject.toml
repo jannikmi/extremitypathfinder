@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "extremitypathfinder"
-version = "2.6.0"
+version = "2.7.0"
 license = "MIT"
 readme = "README.rst"
 repository = "https://github.com/jannikmi/extremitypathfinder"
@@ -42,6 +42,7 @@ extremitypathfinder = "extremitypathfinder.command_line:main"
 python = "^3.8"
 numpy = "^1.22"
 networkx = "^3"
+numba = {version = "^0.56.0", optional = true}
 
 [tool.poetry.group.dev.dependencies]
 pre-commit = "*"
@@ -57,8 +58,8 @@ tox = "*"
 Sphinx = "*"
 sphinx-rtd-theme = "*"
 
-
 [tool.poetry.extras]
+numba = ["numba"]
 plot = ["matplotlib"]
 test = ["pytest", "tox"]
 docs = ["Sphinx", "sphinx-rtd-theme"]

@@ -1,70 +1,25 @@
 import itertools
 import json
-import math
 import pickle
 from itertools import combinations
-from typing import Dict, Iterable, List, Optional, Set, Tuple
+from typing import Dict, Iterable, List, Set, Tuple
 
 import networkx as nx
 import numpy as np
 import numpy.linalg
 
+from extremitypathfinder import configs
 from extremitypathfinder import types as t
 from extremitypathfinder.configs import BOUNDARY_JSON_KEY, DEFAULT_PICKLE_NAME, HOLES_JSON_KEY
-
-
-def _compute_repr_n_dist(np_vector: np.ndarray) -> Tuple[float, float]:
-    """computing representation for the angle from the origin to a given vector
-
-    value in [0.0 : 4.0[
-    every quadrant contains angle measures from 0.0 to 1.0
-    there are 4 quadrants (counterclockwise numbering)
-    0 / 360 degree -> 0.0
-    90 degree -> 1.0
-    180 degree -> 2.0
-    270 degree -> 3.0
-    ...
-    Useful for comparing angles without actually computing expensive trigonometrical functions
-    This representation does not grow directly proportional to its represented angle,
-    but it its bijective and monotonous:
-    rep(p1) > rep(p2) <=> angle(p1) > angle(p2)
-    rep(p1) = rep(p2) <=> angle(p1) = angle(p2)
-    angle(p): counterclockwise angle between the two line segments (0,0)'--(1,0)' and (0,0)'--p
-    with (0,0)' being the vector representing the origin
-
-    :param np_vector:
-    :return:
-    """
-    dx, dy = np_vector
-    distance = math.sqrt(dx**2 + dy**2)  # l-2 norm
-    if distance == 0.0:
-        angle_measure = np.nan
-    else:
-        # 2D vector: (dx, dy) = np_vector
-        dx_positive = dx >= 0
-        dy_positive = dy >= 0
-
-        if dx_positive and dy_positive:
-            quadrant = 0.0
-            angle_measure = dy
-
-        elif not dx_positive and dy_positive:
-            quadrant = 1.0
-            angle_measure = -dx
-
-        elif not dx_positive and not dy_positive:
-            quadrant = 2.0
-            angle_measure = -dy
-
-        else:
-            quadrant = 3.0
-            angle_measure = dx
-
-        # normalise angle measure to [0; 1]
-        angle_measure /= distance
-        angle_measure += quadrant
-
-    return angle_measure, distance
+from extremitypathfinder.utils_numba import (
+    _angle_rep_inverse,
+    _compute_repr_n_dist,
+    _fill_edge_vertex_idxs,
+    _fill_extremity_mask,
+    _has_clockwise_numbering,
+    _inside_polygon,
+    _no_identical_consequent_vertices,
+)
 
 
 def cmp_reps_n_distances(orig_idx: int, coords: np.ndarray) -> np.ndarray:
@@ -74,65 +29,11 @@ def cmp_reps_n_distances(orig_idx: int, coords: np.ndarray) -> np.ndarray:
     return repr_n_dists.T
 
 
-def _inside_polygon(p: np.ndarray, coords: np.ndarray, border_value: bool) -> bool:
-    # should return the border value for point equal to any polygon vertex
-    # TODO overflow possible with large values when comparing slopes, change procedure
-    # and if the point p lies on any polygon edge
-    p1 = coords[-1, :]
-    for p2 in coords[:]:
-        if np.array_equal(p2, p):
-            return border_value
-        rep_p1_p, _ = _compute_repr_n_dist(p1 - p)
-        rep_p2_p, _ = _compute_repr_n_dist(p2 - p)
-        if abs(rep_p1_p - rep_p2_p) == 2.0:
-            return border_value
-        p1 = p2
-
-    # regular point in polygon algorithm: ray casting
-    x, y = p
-    x_coords = coords[:, 0]
-    y_coords = coords[:, 1]
-    nr_coords = len(x_coords)
-    inside = False
-
-    # the edge from the last to the first point is checked first
-    y1 = y_coords[-1]
-    y_gt_y1 = y > y1
-    for i in range(nr_coords):
-        y2 = y_coords[i]
-        y_gt_y2 = y > y2
-        if y_gt_y1 ^ y_gt_y2:  # XOR
-            # [p1-p2] crosses horizontal line in p
-            x1 = x_coords[i - 1]
-            x2 = x_coords[i]
-            # only count crossings "right" of the point ( >= x)
-            x_le_x1 = x <= x1
-            x_le_x2 = x <= x2
-            if x_le_x1 or x_le_x2:
-                if x_le_x1 and x_le_x2:
-                    # p1 and p2 are both to the right -> valid crossing
-                    inside = not inside
-                else:
-                    # compare the slope of the line [p1-p2] and [p-p2]
-                    # depending on the position of p2 this determines whether
-                    # the polygon edge is right or left of the point
-                    # to avoid expensive division the divisors (of the slope dy/dx) are brought to the other side
-                    # ( dy/dx > a  ==  dy > a * dx )
-                    # only one of the points is to the right
-                    slope1 = (y2 - y) * (x2 - x1)
-                    slope2 = (y2 - y1) * (x2 - x)
-                    # NOTE: accept slope equality to also detect if p lies directly on an edge
-                    if y_gt_y1:
-                        if slope1 <= slope2:
-                            inside = not inside
-                    elif slope1 >= slope2:  # NOT y_gt_y1
-                        inside = not inside
-
-        # next point
-        y1 = y2
-        y_gt_y1 = y_gt_y2
-
-    return inside
+def cmp_reps_n_distance_dict(coords: np.ndarray, extremity_indices: np.ndarray) -> Dict[int, np.ndarray]:
+    # Note: distance and angle representation relation are symmetric,
+    # but exploiting this has been found to be slower than using the numpy functionality with slight overhead
+    reps_n_distance_dict = {i: cmp_reps_n_distances(i, coords) for i in extremity_indices}
+    return reps_n_distance_dict
 
 
 def is_within_map(p: np.ndarray, boundary: np.ndarray, holes: Iterable[np.ndarray]) -> bool:
@@ -141,17 +42,6 @@ def is_within_map(p: np.ndarray, boundary: np.ndarray, holes: Iterable[np.ndarra
     for hole in holes:
         if _inside_polygon(p, hole, border_value=False):
             return False
-    return True
-
-
-def _no_identical_consequent_vertices(coords):
-    p1 = coords[-1]
-    for p2 in coords:
-        # TODO adjust allowed difference: rtol, atol
-        if np.array_equal(p1, p2):
-            return False
-        p1 = p2
-
     return True
 
 
@@ -242,24 +132,6 @@ def _no_self_intersection(coords):
     return True
 
 
-def _has_clockwise_numbering(coords: np.ndarray) -> bool:
-    """tests if a polygon has clockwise vertex numbering
-    approach: Sum over the edges, (x2 − x1)(y2 + y1). If the result is positive the curve is clockwise.
-    from:
-    https://stackoverflow.com/questions/1165647/how-to-determine-if-a-list-of-polygon-points-are-in-clockwise-order
-    :param coords: the list of (x,y) coordinates representing the polygon to be tested
-    :return: true if the polygon has been given in clockwise numbering
-    """
-    total_sum = 0.0
-    p1 = coords[-1]
-    for p2 in coords:
-        x1, y1 = p1
-        x2, y2 = p2
-        total_sum += (x2 - x1) * (y2 + y1)
-        p1 = p2
-    return total_sum > 0
-
-
 def _check_polygon(polygon):
     """ensures that all the following conditions on the polygons are fulfilled:
     - must at least contain 3 vertices
@@ -282,10 +154,6 @@ def check_data_requirements(boundary_coords: np.ndarray, list_hole_coords: List[
         - edge numbering has to follow this convention (for easier computations):
             * outer boundary polygon: counter clockwise
             * holes: clockwise
-
-    TODO test
-    todo - polygons must not intersect each other
-    TODO data rectification
 
     :param boundary_coords:
     :param list_hole_coords:
@@ -365,57 +233,6 @@ def _find_within_range(
     return idxs_within
 
 
-def lies_within_range(
-    repr1: float,
-    repr2: float,
-    repr: float,
-    angle_range_less_180: bool,
-    equal_repr_allowed: bool,
-) -> bool:
-    """
-    filters out all vertices whose representation lies within the range between
-      the two given angle representations
-    which range ('clockwise' or 'counter-clockwise') should be checked is determined by:
-      - query angle (range) is < 180deg or not (>= 180deg)
-    :param repr1:
-    :param repr2:
-    :param candidate_idxs:
-    :param angle_range_less_180: whether the angle between repr1 and repr2 is < 180 deg
-    :param equal_repr_allowed: whether vertices with the same representation should also be returned
-    :param representations:
-    :return:
-    """
-    eq_repr = (repr == repr1) or (repr == repr2)
-    if eq_repr:
-        return equal_repr_allowed
-
-    min_repr = min(repr1, repr2)
-    max_repr = max(repr1, repr2)  # = min_angle + angle_diff
-
-    # Note: vertices with the same representation will NOT be returned!
-    res = min_repr < repr < max_repr
-
-    # depending on the angle, the included range is clockwise or anti-clockwise
-    # (from min_repr to max_val or the other way around)
-    # when the range contains the 0.0 value (transition from 3.99... -> 0.0)
-    # it is easier to check if a representation does NOT lie within this range
-    # -> invert filter condition
-    # special case: angle == 180deg <-> lies on the line
-    repr_diff = max_repr - min_repr
-    on_line_inv = repr_diff == 2.0 and repr1 >= repr2
-    # which range to filter is determined by the order of the points
-    # since the polygons follow a numbering convention,
-    # the 'left' side of p1-p2 always lies inside the map
-    # -> filter out everything on the right side (='outside')
-    # ^: XOR
-    inversion_condition = on_line_inv or ((repr_diff < 2.0) ^ angle_range_less_180)
-
-    if inversion_condition:
-        res = not res
-
-    return res
-
-
 def get_neighbour_idxs(i: int, vertex_edge_idxs: np.ndarray, edge_vertex_idxs: np.ndarray) -> Tuple[int, int]:
     edge_idx1, edge_idx2 = vertex_edge_idxs[i]
     neigh_idx1 = edge_vertex_idxs[edge_idx1, 0]
@@ -468,7 +285,6 @@ def find_visible(
     candidates_sorted = _eliminate_eq_candidates(candidates, distances, representations)
     print(candidates_sorted)
 
-    # TODO test
     (
         crossing_edges,
         edges_is_crossing,
@@ -1204,15 +1020,7 @@ def convert_gridworld(size_x: int, size_y: int, obstacle_iter: iter, simplify: b
     return boundary_edges, hole_list
 
 
-def _angle_rep_inverse(repr: Optional[float]) -> Optional[float]:
-    if repr is None:
-        repr_inv = None
-    else:
-        repr_inv = (repr + 2.0) % 4.0
-    return repr_inv
-
-
-def _compute_extremity_idxs(coordinates: np.ndarray) -> List[int]:
+def _cmp_extremity_mask(coordinates: np.ndarray) -> np.ndarray:
     """identify all protruding points = vertices with an inside angle of > 180 degree ('extremities')
     expected edge numbering:
         outer boundary polygon: counterclockwise
@@ -1230,74 +1038,56 @@ def _compute_extremity_idxs(coordinates: np.ndarray) -> List[int]:
     :param coordinates:
     :return:
     """
-    nr_coordinates = len(coordinates)
-    extr_idxs = []
-    p1 = coordinates[-2]
-    p2 = coordinates[-1]
-    for i, p3 in enumerate(coordinates):
-        # since consequent vertices are not permitted to be equal,
-        #   the angle representation of the difference is well-defined
-        diff_p3_p2 = p3 - p2
-        diff_p1_p2 = p1 - p2
-        repr_p3_p2, _ = _compute_repr_n_dist(diff_p3_p2)
-        repr_p1_p2, _ = _compute_repr_n_dist(diff_p1_p2)
-        rep_diff = repr_p3_p2 - repr_p1_p2
-        if rep_diff % 4.0 < 2.0:  # inside angle > 180 degree
-            # p2 is an extremity
-            idx_p2 = (i - 1) % nr_coordinates
-            extr_idxs.append(idx_p2)
+    extremity_mask = np.full(len(coordinates), False, dtype=bool)
+    _fill_extremity_mask(coordinates, extremity_mask)
+    return extremity_mask
 
-        # move to the next point
-        p1 = p2
-        p2 = p3
-    return extr_idxs
+
+def _cmp_extremities(list_of_polygons, coords, boundary_coordinates, list_of_hole_coordinates):
+    extremity_masks = [_cmp_extremity_mask(coords_poly) for coords_poly in list_of_polygons]
+    extremity_mask = np.concatenate(extremity_masks, axis=0, dtype=bool)
+    # Attention: since polygons are allowed to overlap, only consider extremities that are actually within the map
+    for extremity_idx in np.where(extremity_mask)[0]:
+        extrimity_coords = coords[extremity_idx]
+        if not is_within_map(extrimity_coords, boundary_coordinates, list_of_hole_coordinates):
+            extremity_mask[extremity_idx] = False
+    extremity_indices = np.where(extremity_mask)[0]
+    return extremity_indices, extremity_mask
+
+
+def _cmp_edge_vertex_idxs(coordinates: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+    nr_coords = len(coordinates)
+    edge_vertex_idxs = np.empty((nr_coords, 2), dtype=int)
+    vertex_edge_idxs = np.empty((nr_coords, 2), dtype=int)
+    _fill_edge_vertex_idxs(edge_vertex_idxs, vertex_edge_idxs)
+    return edge_vertex_idxs, vertex_edge_idxs
+
+
+def _cmp_edge_and_vertex_idxs(list_of_polygons):
+    # compute edge and vertex indices from polygon data structure
+    edge_and_vertex_indices = [_cmp_edge_vertex_idxs(coords_poly) for coords_poly in list_of_polygons]
+    offset = 0
+    for edge_vertex_idxs, vertex_edge_idxs in edge_and_vertex_indices:
+        edge_vertex_idxs += offset
+        vertex_edge_idxs += offset
+        offset += len(edge_vertex_idxs)
+    edge_vertex_idxs, vertex_edge_idxs = zip(*edge_and_vertex_indices)
+    edge_vertex_idxs = np.concatenate(edge_vertex_idxs, axis=0)
+    vertex_edge_idxs = np.concatenate(vertex_edge_idxs, axis=0)
+    return edge_vertex_idxs, vertex_edge_idxs
+
+
+def compile_polygon_datastructs(boundary_coordinates: np.ndarray, list_of_hole_coordinates: List[np.ndarray]):
+    list_of_polygons = [boundary_coordinates] + list_of_hole_coordinates
+    coords = np.concatenate(list_of_polygons, axis=0, dtype=configs.DTYPE_FLOAT)
+    edge_vertex_idxs, vertex_edge_idxs = _cmp_edge_and_vertex_idxs(list_of_polygons)
+    extremity_indices, extremity_mask = _cmp_extremities(
+        list_of_polygons, coords, boundary_coordinates, list_of_hole_coordinates
+    )
+    return coords, extremity_indices, extremity_mask, vertex_edge_idxs, edge_vertex_idxs
 
 
 def load_pickle(path=DEFAULT_PICKLE_NAME):
     print("loading map from:", path)
     with open(path, "rb") as f:
         return pickle.load(f)
-
-
-def compile_boundary_data_fr_polys(boundary_coordinates, list_of_hole_coordinates):
-    def within_map(coord):
-        return is_within_map(coord, boundary_coordinates, list_of_hole_coordinates)
-
-    list_of_polygons = [boundary_coordinates] + list_of_hole_coordinates
-    nr_total_pts = sum(map(len, list_of_polygons))
-
-    # compute edge and vertex indices from polygon data structure
-    vertex_edge_idxs = np.empty((nr_total_pts, 2), dtype=int)
-    # TODO required? inverse of the other. get_neighbours function
-    edge_vertex_idxs = np.empty((nr_total_pts, 2), dtype=int)
-    edge_idx = 0
-    offset = 0
-    extremity_indices = set()
-    for poly in list_of_polygons:
-        poly_extr_idxs = _compute_extremity_idxs(poly)
-        poly_extr_idxs = {i + offset for i in poly_extr_idxs}
-        extremity_indices |= poly_extr_idxs
-
-        nr_coords = len(poly)
-        v1 = -1 % nr_coords
-        # TODO col 1 is just np.arange?!
-        for v2 in range(nr_coords):
-            v1_idx = v1 + offset
-            v2_idx = v2 + offset
-            edge_vertex_idxs[edge_idx, 0] = v1_idx
-            edge_vertex_idxs[edge_idx, 1] = v2_idx
-            vertex_edge_idxs[v1_idx, 1] = edge_idx
-            vertex_edge_idxs[v2_idx, 0] = edge_idx
-            # move to the next vertex/edge
-            v1 = v2
-            edge_idx += 1
-
-        offset = edge_idx
-
-    coords = np.concatenate(list_of_polygons, axis=0)
-    # Attention: only consider extremities that are actually within the map (polygons are allowed to overlap)
-    extremity_indices = [i for i in extremity_indices if within_map(coords[i])]
-    extremity_mask = np.full(nr_total_pts, False, dtype=bool)
-    for i in extremity_indices:
-        extremity_mask[i] = True
-    return coords, extremity_indices, extremity_mask, vertex_edge_idxs, edge_vertex_idxs

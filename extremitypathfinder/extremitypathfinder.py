@@ -5,6 +5,7 @@ from typing import Dict, Iterable, List, Optional, Set, Tuple
 import networkx as nx
 import numpy as np
 
+from extremitypathfinder import configs
 from extremitypathfinder import types as t
 from extremitypathfinder import utils
 from extremitypathfinder.configs import DEFAULT_PICKLE_NAME
@@ -27,7 +28,7 @@ class PolygonEnvironment:
     nr_edges: int
     prepared: bool = False
     holes: List[np.ndarray]
-    extremity_indices: List[int]
+    extremity_indices: np.ndarray
     reprs_n_distances: Dict[int, np.ndarray]
     graph: t.Graph
     # TODO
@@ -77,8 +78,10 @@ class PolygonEnvironment:
         """
         self.prepared = False
         # loading the map
-        boundary_coordinates = np.array(boundary_coordinates, dtype=float)
-        list_of_hole_coordinates = [np.array(hole_coords, dtype=float) for hole_coords in list_of_hole_coordinates]
+        boundary_coordinates = np.array(boundary_coordinates, dtype=configs.DTYPE_FLOAT)
+        list_of_hole_coordinates = [
+            np.array(hole_coords, dtype=configs.DTYPE_FLOAT) for hole_coords in list_of_hole_coordinates
+        ]
         if validate:
             utils.check_data_requirements(boundary_coordinates, list_of_hole_coordinates)
 
@@ -86,17 +89,18 @@ class PolygonEnvironment:
         self.holes = list_of_hole_coordinates
         self.boundary_polygon = boundary_coordinates
 
+        # TODO redundant data. refactor all functions to only use one format
         (
             self.coords,
             self.extremity_indices,
             self.extremity_mask,
             self.vertex_edge_idxs,
             self.edge_vertex_idxs,
-        ) = utils.compile_boundary_data_fr_polys(boundary_coordinates, list_of_hole_coordinates)
+        ) = utils.compile_polygon_datastructs(boundary_coordinates, list_of_hole_coordinates)
 
         nr_total_pts = self.edge_vertex_idxs.shape[0]
         self.nr_vertices = nr_total_pts
-        self.reprs_n_distances = {i: utils.cmp_reps_n_distances(i, self.coords) for i in self.extremity_indices}
+        self.reprs_n_distances = utils.cmp_reps_n_distance_dict(self.coords, self.extremity_indices)
 
         # start and goal points will be stored after all polygon coordinates
         self.idx_start = nr_total_pts

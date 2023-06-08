@@ -13,7 +13,7 @@ from typing import Set, Tuple
 import numpy as np
 import pytest
 
-from extremitypathfinder import PolygonEnvironment, utils
+from extremitypathfinder import PolygonEnvironment, configs, utils
 from extremitypathfinder.utils import _find_within_range, _lies_behind, get_neighbour_idxs
 from tests.test_cases import GRID_ENV_PARAMS, POLYGON_ENVS
 
@@ -222,10 +222,10 @@ def find_visible_reference(
 
 def compile_boundary_data(env):
     boundary, holes = env
-    boundary = np.array(boundary)
-    holes = [np.array(hole) for hole in holes]
+    boundary = np.array(boundary, dtype=configs.DTYPE_FLOAT)
+    holes = [np.array(hole, dtype=configs.DTYPE_FLOAT) for hole in holes]
     # (coords, extremity_indices, extremity_mask, vertex_edge_idxs, edge_vertex_idxs)
-    return utils.compile_boundary_data_fr_polys(boundary, holes)
+    return utils.compile_polygon_datastructs(boundary, holes)
 
 
 def _yield_input_args(boundary_data):
@@ -255,8 +255,6 @@ def _yield_input_args(boundary_data):
 
 
 def _yield_reference(boundary_data):
-    # TODO move old implementation to tests test_cases.FIND_VISIBLE_TEST_CASES
-    # TODO compile test cases with output from ref. impl.
     for (
         origin,
         candidates,

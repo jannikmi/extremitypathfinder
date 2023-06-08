@@ -9,9 +9,9 @@ from typing import Dict, Set
 import numpy as np
 import pytest
 
-from extremitypathfinder import PolygonEnvironment
+from extremitypathfinder import PolygonEnvironment, configs
 from extremitypathfinder.utils import (
-    _compute_extremity_idxs,
+    _cmp_extremity_mask,
     _compute_repr_n_dist,
     _has_clockwise_numbering,
     _inside_polygon,
@@ -22,11 +22,12 @@ from tests.test_find_visible import _clean_visibles
 
 
 def test_inside_polygon():
+    polygon_test_case = np.array([(-1.0, -1.0), (1.0, -1.0), (1.0, 1.0), (-1.0, 1.0)], dtype=configs.DTYPE_FLOAT)
+
     for border_value in [True, False]:
 
         def test_fct(input):
-            polygon_test_case = np.array([(-1.0, -1.0), (1.0, -1.0), (1.0, 1.0), (-1.0, 1.0)])
-            p = np.array(input, dtype=float)
+            p = np.array(input, dtype=configs.DTYPE_FLOAT)
             return _inside_polygon(p, polygon_test_case, border_value)
 
         p_test_cases = [
@@ -149,8 +150,9 @@ def test_clean_visible_idxs(
     ],
 )
 def test_compute_extremity_idxs(coords, expected):
-    coords = np.array(coords)
-    res = _compute_extremity_idxs(coords)
+    coords = np.array(coords, dtype=configs.DTYPE_FLOAT)
+    extremity_mask = _cmp_extremity_mask(coords)
+    res = list(np.where(extremity_mask)[0])
     assert set(res) == expected
 
 
@@ -170,7 +172,8 @@ def test_compute_extremity_idxs(coords, expected):
 )
 def test_clockwise_numering(input, expected):
     def clockwise_test_fct(input):
-        return _has_clockwise_numbering(np.array(input))
+        inp = np.array(input, dtype=configs.DTYPE_FLOAT)
+        return _has_clockwise_numbering(inp)
 
     assert clockwise_test_fct(input) == expected
 
@@ -189,7 +192,8 @@ def test_clockwise_numering(input, expected):
 )
 def test_compute_repr_n_dist(input, expected):
     def test_fct(input):
-        return _compute_repr_n_dist(np.array(input))
+        inp = np.array(input, dtype=configs.DTYPE_FLOAT)
+        return _compute_repr_n_dist(inp)
 
     assert test_fct(input) == expected
 
@@ -209,7 +213,8 @@ def test_compute_repr_n_dist(input, expected):
 )
 def test_angle_representation(input, expected):
     def func(input):
-        repr, dist = _compute_repr_n_dist(np.array(input))
+        inp = np.array(input, dtype=configs.DTYPE_FLOAT)
+        repr, dist = _compute_repr_n_dist(inp)
         return repr
 
     assert func(input) == expected
@@ -242,7 +247,8 @@ def test_angle_representation(input, expected):
 )
 def test_angle_repr_quadrant(input, expected):
     def func(input):
-        repr, dist = _compute_repr_n_dist(np.array(input))
+        inp = np.array(input, dtype=configs.DTYPE_FLOAT)
+        repr, dist = _compute_repr_n_dist(inp)
         return repr
 
     res = func(input)
