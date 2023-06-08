@@ -39,9 +39,11 @@ python package for fast geometric shortest path computation in 2D multi-polygon 
 
 Quick Guide:
 
+Install the package with the optional Numba extra for a significant speedup:
+
 .. code-block:: console
 
-    pip install extremitypathfinder
+    pip install extremitypathfinder[numba]
 
 
 .. code-block:: python
