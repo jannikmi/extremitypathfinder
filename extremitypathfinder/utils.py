@@ -6,7 +6,6 @@ from itertools import combinations
 from typing import Dict, Iterable, List, Optional, Set, Tuple
 
 import networkx as nx
-import numba
 import numpy as np
 import numpy.linalg
 
@@ -14,7 +13,6 @@ from extremitypathfinder import configs
 from extremitypathfinder import types as t
 from extremitypathfinder.configs import BOUNDARY_JSON_KEY, DEFAULT_PICKLE_NAME, HOLES_JSON_KEY
 
-#  f8, i2, i4, njit, u2
 try:
     from numba import b1, f8, i8, njit, typeof, void
 
@@ -24,7 +22,6 @@ except ImportError:
     # replace Numba functionality with "transparent" implementations
     from extremitypathfinder.numba_replacements import b1, f8, i8, njit, typeof, void
 
-# TODO cleaner way? or add to replacements
 FloatTuple = typeof((1.0, 1.0))
 
 
@@ -92,56 +89,6 @@ def _angle_rep_inverse(repr: Optional[float]) -> Optional[float]:
     return repr_inv
 
 
-def cmp_reps_n_distances(orig_idx: int, coords: np.ndarray) -> np.ndarray:
-    coords_orig = coords[orig_idx]
-    coords_translated = coords - coords_orig
-    repr_n_dists = np.apply_along_axis(_compute_repr_n_dist, axis=1, arr=coords_translated)
-    return repr_n_dists.T
-
-
-@njit(cache=True)
-def _fill_reps_n_distance_dict(coords, extremity_indices, reps_n_distance_dict, non_extremity_indices):
-    for origin_idx in extremity_indices:
-        coords_origin = coords[origin_idx]
-        reps_n_distances_origin = reps_n_distance_dict[origin_idx]
-
-        # diagonal
-        reps_n_distances_origin[:, origin_idx] = np.nan, 0.0
-
-        # non-extremities (all have to be computed)
-        for target_idx in non_extremity_indices:
-            angle_rep, distance = _compute_repr_n_dist(coords[target_idx] - coords_origin)
-            reps_n_distances_origin[:, target_idx] = angle_rep, distance
-
-        # extremities: exploit symmetric relation
-        for target_idx in extremity_indices:
-            if origin_idx == target_idx:
-                continue
-            angle_rep, distance = _compute_repr_n_dist(coords[target_idx] - coords_origin)
-            reps_n_distances_origin[:, target_idx] = angle_rep, distance
-            reps_n_distances_target = reps_n_distance_dict[target_idx]
-            # inverse representation
-            reps_n_distances_target[0, origin_idx] = _angle_rep_inverse(angle_rep)
-            # same distance
-            reps_n_distances_target[1, origin_idx] = distance
-
-
-def cmp_reps_n_distance_dict(coords: np.ndarray, extremity_indices: np.ndarray) -> Dict[int, np.ndarray]:
-    # alternative: TODO benchmark
-    # reps_n_distance_dict = {i: cmp_reps_n_distances(i, coords) for i in extremity_indices}
-    # efficient implementation exploiting symmetries
-    nr_coords = coords.shape[0]
-    reps_n_distance_dict = numba.typed.Dict.empty(
-        key_type=i8,
-        value_type=f8[:, :],
-    )
-    for i in extremity_indices:
-        reps_n_distance_dict[i] = np.empty((2, nr_coords), dtype=configs.DTYPE_FLOAT)
-    non_extremity_indices = np.setdiff1d(np.arange(nr_coords), extremity_indices)
-    _fill_reps_n_distance_dict(coords, extremity_indices, reps_n_distance_dict, non_extremity_indices)
-    return reps_n_distance_dict
-
-
 @njit(b1(f8[:], f8[:, :], b1), cache=True)
 def _inside_polygon(p: np.ndarray, coords: np.ndarray, border_value: bool) -> bool:
     # should return the border value for point equal to any polygon vertex
@@ -204,17 +151,6 @@ def _inside_polygon(p: np.ndarray, coords: np.ndarray, border_value: bool) -> bo
     return inside
 
 
-# TODO list as argument
-# @njit(cache=True)
-def is_within_map(p: np.ndarray, boundary: np.ndarray, holes: Iterable[np.ndarray]) -> bool:
-    if not _inside_polygon(p, boundary, border_value=True):
-        return False
-    for hole in holes:
-        if _inside_polygon(p, hole, border_value=False):
-            return False
-    return True
-
-
 @njit(b1(f8[:, :]), cache=True)
 def _no_identical_consequent_vertices(coords: np.ndarray) -> bool:
     p1 = coords[-1]
@@ -224,6 +160,88 @@ def _no_identical_consequent_vertices(coords: np.ndarray) -> bool:
             return False
         p1 = p2
 
+    return True
+
+
+@njit(b1(f8[:, :]), cache=True)
+def _has_clockwise_numbering(coords: np.ndarray) -> bool:
+    """tests if a polygon has clockwise vertex numbering
+    approach: Sum over the edges, (x2 − x1)(y2 + y1). If the result is positive the curve is clockwise.
+    from:
+    https://stackoverflow.com/questions/1165647/how-to-determine-if-a-list-of-polygon-points-are-in-clockwise-order
+    :param coords: the list of (x,y) coordinates representing the polygon to be tested
+    :return: true if the polygon has been given in clockwise numbering
+    """
+    total_sum = 0.0
+    p1 = coords[-1]
+    for p2 in coords:
+        x1, y1 = p1
+        x2, y2 = p2
+        total_sum += (x2 - x1) * (y2 + y1)
+        p1 = p2
+    return total_sum > 0
+
+
+@njit(void(f8[:, :], b1[:]), cache=True)
+def _fill_extremity_mask(coordinates, extremity_mask):
+    nr_coordinates = len(extremity_mask)
+    p1 = coordinates[-2]
+    p2 = coordinates[-1]
+    for i, p3 in enumerate(coordinates):
+        # since consequent vertices are not permitted to be equal,
+        #   the angle representation of the difference is well-defined
+        diff_p3_p2 = p3 - p2
+        diff_p1_p2 = p1 - p2
+        repr_p3_p2, _ = _compute_repr_n_dist(diff_p3_p2)
+        repr_p1_p2, _ = _compute_repr_n_dist(diff_p1_p2)
+        rep_diff = repr_p3_p2 - repr_p1_p2
+        if rep_diff % 4.0 < 2.0:  # inside angle > 180 degree
+            # p2 is an extremity
+            idx_p2 = (i - 1) % nr_coordinates
+            extremity_mask[idx_p2] = True
+
+        # move to the next point
+        p1 = p2
+        p2 = p3
+
+
+# TODO
+@njit(void(i8[:, :], i8[:, :]), cache=True)
+def _fill_edge_vertex_idxs(edge_vertex_idxs, vertex_edge_idxs):
+    nr_coords = len(edge_vertex_idxs)
+    v1 = -1 % nr_coords
+    # TODO col 1 is just np.arange?!
+    for edge_idx, v2 in enumerate(range(nr_coords)):
+        v1_idx = v1
+        v2_idx = v2
+        edge_vertex_idxs[edge_idx, 0] = v1_idx
+        edge_vertex_idxs[edge_idx, 1] = v2_idx
+        vertex_edge_idxs[v1_idx, 1] = edge_idx
+        vertex_edge_idxs[v2_idx, 0] = edge_idx
+        # move to the next vertex/edge
+        v1 = v2
+
+
+def cmp_reps_n_distances(orig_idx: int, coords: np.ndarray) -> np.ndarray:
+    coords_orig = coords[orig_idx]
+    coords_translated = coords - coords_orig
+    repr_n_dists = np.apply_along_axis(_compute_repr_n_dist, axis=1, arr=coords_translated)
+    return repr_n_dists.T
+
+
+def cmp_reps_n_distance_dict(coords: np.ndarray, extremity_indices: np.ndarray) -> Dict[int, np.ndarray]:
+    # Note: distance and angle representation relation are symmetric,
+    # but exploiting this has been found to be slower than using the numpy functionality with slight overhead
+    reps_n_distance_dict = {i: cmp_reps_n_distances(i, coords) for i in extremity_indices}
+    return reps_n_distance_dict
+
+
+def is_within_map(p: np.ndarray, boundary: np.ndarray, holes: Iterable[np.ndarray]) -> bool:
+    if not _inside_polygon(p, boundary, border_value=True):
+        return False
+    for hole in holes:
+        if _inside_polygon(p, hole, border_value=False):
+            return False
     return True
 
 
@@ -312,25 +330,6 @@ def _no_self_intersection(coords):
     # TODO check for intersections across 2 edges! use computed intersection
 
     return True
-
-
-@njit(b1(f8[:, :]), cache=True)
-def _has_clockwise_numbering(coords: np.ndarray) -> bool:
-    """tests if a polygon has clockwise vertex numbering
-    approach: Sum over the edges, (x2 − x1)(y2 + y1). If the result is positive the curve is clockwise.
-    from:
-    https://stackoverflow.com/questions/1165647/how-to-determine-if-a-list-of-polygon-points-are-in-clockwise-order
-    :param coords: the list of (x,y) coordinates representing the polygon to be tested
-    :return: true if the polygon has been given in clockwise numbering
-    """
-    total_sum = 0.0
-    p1 = coords[-1]
-    for p2 in coords:
-        x1, y1 = p1
-        x2, y2 = p2
-        total_sum += (x2 - x1) * (y2 + y1)
-        p1 = p2
-    return total_sum > 0
 
 
 def _check_polygon(polygon):
@@ -1221,29 +1220,6 @@ def convert_gridworld(size_x: int, size_y: int, obstacle_iter: iter, simplify: b
     return boundary_edges, hole_list
 
 
-@njit(void(f8[:, :], b1[:]), cache=True)
-def _fill_extremity_mask(coordinates, extremity_mask):
-    nr_coordinates = len(extremity_mask)
-    p1 = coordinates[-2]
-    p2 = coordinates[-1]
-    for i, p3 in enumerate(coordinates):
-        # since consequent vertices are not permitted to be equal,
-        #   the angle representation of the difference is well-defined
-        diff_p3_p2 = p3 - p2
-        diff_p1_p2 = p1 - p2
-        repr_p3_p2, _ = _compute_repr_n_dist(diff_p3_p2)
-        repr_p1_p2, _ = _compute_repr_n_dist(diff_p1_p2)
-        rep_diff = repr_p3_p2 - repr_p1_p2
-        if rep_diff % 4.0 < 2.0:  # inside angle > 180 degree
-            # p2 is an extremity
-            idx_p2 = (i - 1) % nr_coordinates
-            extremity_mask[idx_p2] = True
-
-        # move to the next point
-        p1 = p2
-        p2 = p3
-
-
 def _cmp_extremity_mask(coordinates: np.ndarray) -> np.ndarray:
     """identify all protruding points = vertices with an inside angle of > 180 degree ('extremities')
     expected edge numbering:
@@ -1277,23 +1253,6 @@ def _cmp_extremities(list_of_polygons, coords, boundary_coordinates, list_of_hol
             extremity_mask[extremity_idx] = False
     extremity_indices = np.where(extremity_mask)[0]
     return extremity_indices, extremity_mask
-
-
-# TODO
-@njit(void(i8[:, :], i8[:, :]), cache=True)
-def _fill_edge_vertex_idxs(edge_vertex_idxs, vertex_edge_idxs):
-    nr_coords = len(edge_vertex_idxs)
-    v1 = -1 % nr_coords
-    # TODO col 1 is just np.arange?!
-    for edge_idx, v2 in enumerate(range(nr_coords)):
-        v1_idx = v1
-        v2_idx = v2
-        edge_vertex_idxs[edge_idx, 0] = v1_idx
-        edge_vertex_idxs[edge_idx, 1] = v2_idx
-        vertex_edge_idxs[v1_idx, 1] = edge_idx
-        vertex_edge_idxs[v2_idx, 0] = edge_idx
-        # move to the next vertex/edge
-        v1 = v2
 
 
 def _cmp_edge_vertex_idxs(coordinates: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
