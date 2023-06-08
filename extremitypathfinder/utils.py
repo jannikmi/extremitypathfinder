@@ -165,7 +165,8 @@ def is_within_map(p: np.ndarray, boundary: np.ndarray, holes: Iterable[np.ndarra
     return True
 
 
-def _no_identical_consequent_vertices(coords):
+@njit(b1(f8[:, :]), cache=True)
+def _no_identical_consequent_vertices(coords: np.ndarray) -> bool:
     p1 = coords[-1]
     for p2 in coords:
         # TODO adjust allowed difference: rtol, atol
@@ -263,6 +264,7 @@ def _no_self_intersection(coords):
     return True
 
 
+@njit(b1(f8[:, :]), cache=True)
 def _has_clockwise_numbering(coords: np.ndarray) -> bool:
     """tests if a polygon has clockwise vertex numbering
     approach: Sum over the edges, (x2 − x1)(y2 + y1). If the result is positive the curve is clockwise.
