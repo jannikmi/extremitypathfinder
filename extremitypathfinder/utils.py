@@ -386,57 +386,6 @@ def _find_within_range(
     return idxs_within
 
 
-def lies_within_range(
-    repr1: float,
-    repr2: float,
-    repr: float,
-    angle_range_less_180: bool,
-    equal_repr_allowed: bool,
-) -> bool:
-    """
-    filters out all vertices whose representation lies within the range between
-      the two given angle representations
-    which range ('clockwise' or 'counter-clockwise') should be checked is determined by:
-      - query angle (range) is < 180deg or not (>= 180deg)
-    :param repr1:
-    :param repr2:
-    :param candidate_idxs:
-    :param angle_range_less_180: whether the angle between repr1 and repr2 is < 180 deg
-    :param equal_repr_allowed: whether vertices with the same representation should also be returned
-    :param representations:
-    :return:
-    """
-    eq_repr = (repr == repr1) or (repr == repr2)
-    if eq_repr:
-        return equal_repr_allowed
-
-    min_repr = min(repr1, repr2)
-    max_repr = max(repr1, repr2)  # = min_angle + angle_diff
-
-    # Note: vertices with the same representation will NOT be returned!
-    res = min_repr < repr < max_repr
-
-    # depending on the angle, the included range is clockwise or anti-clockwise
-    # (from min_repr to max_val or the other way around)
-    # when the range contains the 0.0 value (transition from 3.99... -> 0.0)
-    # it is easier to check if a representation does NOT lie within this range
-    # -> invert filter condition
-    # special case: angle == 180deg <-> lies on the line
-    repr_diff = max_repr - min_repr
-    on_line_inv = repr_diff == 2.0 and repr1 >= repr2
-    # which range to filter is determined by the order of the points
-    # since the polygons follow a numbering convention,
-    # the 'left' side of p1-p2 always lies inside the map
-    # -> filter out everything on the right side (='outside')
-    # ^: XOR
-    inversion_condition = on_line_inv or ((repr_diff < 2.0) ^ angle_range_less_180)
-
-    if inversion_condition:
-        res = not res
-
-    return res
-
-
 def get_neighbour_idxs(i: int, vertex_edge_idxs: np.ndarray, edge_vertex_idxs: np.ndarray) -> Tuple[int, int]:
     edge_idx1, edge_idx2 = vertex_edge_idxs[i]
     neigh_idx1 = edge_vertex_idxs[edge_idx1, 0]
