@@ -21,7 +21,7 @@ try:
 except ImportError:
     using_numba = False
     # replace Numba functionality with "transparent" implementations
-    from extremitypathfinder.numba_replacements import b1, f8, njit
+    from extremitypathfinder.numba_replacements import b1, f8, njit, typeof
 
 # TODO cleaner way? or add to replacements
 FloatTuple = typeof((1.0, 1.0))
@@ -306,10 +306,6 @@ def check_data_requirements(boundary_coords: np.ndarray, list_hole_coords: List[
             * outer boundary polygon: counter clockwise
             * holes: clockwise
 
-    TODO test
-    todo - polygons must not intersect each other
-    TODO data rectification
-
     :param boundary_coords:
     :param list_hole_coords:
     :return:
@@ -440,7 +436,6 @@ def find_visible(
     candidates_sorted = _eliminate_eq_candidates(candidates, distances, representations)
     print(candidates_sorted)
 
-    # TODO test
     (
         crossing_edges,
         edges_is_crossing,
