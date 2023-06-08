@@ -170,7 +170,7 @@ def _has_clockwise_numbering(coords: np.ndarray) -> bool:
 
 
 @njit(void(f8[:, :], b1[:]), cache=True)
-def _fill_extremity_mask(coordinates, extremity_mask):
+def _fill_extremity_mask(coordinates: np.ndarray, extremity_mask: np.ndarray) -> None:
     nr_coordinates = len(extremity_mask)
     p1 = coordinates[-2]
     p2 = coordinates[-1]
@@ -194,7 +194,7 @@ def _fill_extremity_mask(coordinates, extremity_mask):
 
 # TODO
 @njit(void(i8[:, :], i8[:, :]), cache=True)
-def _fill_edge_vertex_idxs(edge_vertex_idxs, vertex_edge_idxs):
+def _fill_edge_vertex_idxs(edge_vertex_idxs: np.ndarray, vertex_edge_idxs: np.ndarray) -> None:
     nr_coords = len(edge_vertex_idxs)
     v1 = -1 % nr_coords
     # TODO col 1 is just np.arange?!
