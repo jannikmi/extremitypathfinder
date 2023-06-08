@@ -13,15 +13,15 @@ from extremitypathfinder import configs
 from extremitypathfinder import types as t
 from extremitypathfinder.configs import BOUNDARY_JSON_KEY, DEFAULT_PICKLE_NAME, HOLES_JSON_KEY
 
-# b1, f8, i2, i4, njit, u2
+#  f8, i2, i4, njit, u2
 try:
-    from numba import f8, njit, typeof
+    from numba import b1, f8, njit, typeof
 
     using_numba = True
 except ImportError:
     using_numba = False
     # replace Numba functionality with "transparent" implementations
-    from extremitypathfinder.numba_replacements import f8, njit
+    from extremitypathfinder.numba_replacements import b1, f8, njit
 
 # TODO cleaner way? or add to replacements
 FloatTuple = typeof((1.0, 1.0))
@@ -82,6 +82,9 @@ def _compute_repr_n_dist(np_vector: np.ndarray) -> Tuple[float, float]:
     return angle_measure, distance
 
 
+# TODO own implementation, efficient
+# @njit(f8[:,:](i8, f8[:,:]), cache=True)
+# @njit( cache=True)
 def cmp_reps_n_distances(orig_idx: int, coords: np.ndarray) -> np.ndarray:
     coords_orig = coords[orig_idx]
     coords_translated = coords - coords_orig
@@ -89,6 +92,7 @@ def cmp_reps_n_distances(orig_idx: int, coords: np.ndarray) -> np.ndarray:
     return repr_n_dists.T
 
 
+@njit(b1(f8[:], f8[:, :], b1), cache=True)
 def _inside_polygon(p: np.ndarray, coords: np.ndarray, border_value: bool) -> bool:
     # should return the border value for point equal to any polygon vertex
     # TODO overflow possible with large values when comparing slopes, change procedure
@@ -150,6 +154,8 @@ def _inside_polygon(p: np.ndarray, coords: np.ndarray, border_value: bool) -> bo
     return inside
 
 
+# TODO list as argument
+# @njit(cache=True)
 def is_within_map(p: np.ndarray, boundary: np.ndarray, holes: Iterable[np.ndarray]) -> bool:
     if not _inside_polygon(p, boundary, border_value=True):
         return False
