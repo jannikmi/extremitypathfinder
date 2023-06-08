@@ -1231,8 +1231,8 @@ def load_pickle(path=DEFAULT_PICKLE_NAME):
         return pickle.load(f)
 
 
-def compile_boundary_data_fr_polys(boundary_coordinates, list_of_hole_coordinates):
-    def within_map(coord):
+def compile_boundary_data_fr_polys(boundary_coordinates: np.ndarray, list_of_hole_coordinates: List[np.ndarray]):
+    def within_map(coord: np.ndarray) -> bool:
         return is_within_map(coord, boundary_coordinates, list_of_hole_coordinates)
 
     list_of_polygons = [boundary_coordinates] + list_of_hole_coordinates
@@ -1267,11 +1267,9 @@ def compile_boundary_data_fr_polys(boundary_coordinates, list_of_hole_coordinate
 
     coords = np.concatenate(list_of_polygons, axis=0, dtype=configs.DTYPE_FLOAT)
     extremity_mask = np.concatenate(extremity_masks, axis=0, dtype=bool)
+    # Attention: since polygons are allowed to overlap, only consider extremities that are actually within the map
+    for extremity_idx in np.where(extremity_mask)[0]:
+        if not within_map(coords[extremity_idx]):
+            extremity_mask[extremity_idx] = False
     extremity_indices = np.where(extremity_mask)[0]
-    # Attention: only consider extremities that are actually within the map (polygons are allowed to overlap)
-    extremities_outside = [i for i in extremity_indices if not within_map(coords[i])]
-    extremity_indices = list(extremity_indices)
-    for i in extremities_outside:
-        extremity_mask[i] = False
-        extremity_indices.remove(i)
     return coords, extremity_indices, extremity_mask, vertex_edge_idxs, edge_vertex_idxs

@@ -28,7 +28,7 @@ class PolygonEnvironment:
     nr_edges: int
     prepared: bool = False
     holes: List[np.ndarray]
-    extremity_indices: List[int]
+    extremity_indices: np.ndarray
     reprs_n_distances: Dict[int, np.ndarray]
     graph: t.Graph
     # TODO
