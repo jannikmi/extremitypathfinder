@@ -255,8 +255,6 @@ def _yield_input_args(boundary_data):
 
 
 def _yield_reference(boundary_data):
-    # TODO move old implementation to tests test_cases.FIND_VISIBLE_TEST_CASES
-    # TODO compile test cases with output from ref. impl.
     for (
         origin,
         candidates,
