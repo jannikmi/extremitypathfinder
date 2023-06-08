@@ -48,5 +48,9 @@ class u2(SubscriptAndCallable):
     pass
 
 
+class void(SubscriptAndCallable):
+    pass
+
+
 def typeof(*args, **kwargs):
-    return b1
+    return void

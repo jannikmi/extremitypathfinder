@@ -11,7 +11,7 @@ import pytest
 
 from extremitypathfinder import PolygonEnvironment, configs
 from extremitypathfinder.utils import (
-    _compute_extremity_idxs,
+    _cmp_extremity_mask,
     _compute_repr_n_dist,
     _has_clockwise_numbering,
     _inside_polygon,
@@ -151,7 +151,8 @@ def test_clean_visible_idxs(
 )
 def test_compute_extremity_idxs(coords, expected):
     coords = np.array(coords, dtype=configs.DTYPE_FLOAT)
-    res = _compute_extremity_idxs(coords)
+    extremity_mask = _cmp_extremity_mask(coords)
+    res = list(np.where(extremity_mask)[0])
     assert set(res) == expected
 
 

@@ -15,13 +15,13 @@ from extremitypathfinder.configs import BOUNDARY_JSON_KEY, DEFAULT_PICKLE_NAME, 
 
 #  f8, i2, i4, njit, u2
 try:
-    from numba import b1, f8, njit, typeof
+    from numba import b1, f8, njit, typeof, void
 
     using_numba = True
 except ImportError:
     using_numba = False
     # replace Numba functionality with "transparent" implementations
-    from extremitypathfinder.numba_replacements import b1, f8, njit, typeof
+    from extremitypathfinder.numba_replacements import b1, f8, njit, typeof, void
 
 # TODO cleaner way? or add to replacements
 FloatTuple = typeof((1.0, 1.0))
@@ -1179,7 +1179,30 @@ def _angle_rep_inverse(repr: Optional[float]) -> Optional[float]:
     return repr_inv
 
 
-def _compute_extremity_idxs(coordinates: np.ndarray) -> List[int]:
+@njit(void(f8[:, :], b1[:]), cache=True)
+def _fill_extremity_mask(coordinates, extremity_mask):
+    nr_coordinates = len(extremity_mask)
+    p1 = coordinates[-2]
+    p2 = coordinates[-1]
+    for i, p3 in enumerate(coordinates):
+        # since consequent vertices are not permitted to be equal,
+        #   the angle representation of the difference is well-defined
+        diff_p3_p2 = p3 - p2
+        diff_p1_p2 = p1 - p2
+        repr_p3_p2, _ = _compute_repr_n_dist(diff_p3_p2)
+        repr_p1_p2, _ = _compute_repr_n_dist(diff_p1_p2)
+        rep_diff = repr_p3_p2 - repr_p1_p2
+        if rep_diff % 4.0 < 2.0:  # inside angle > 180 degree
+            # p2 is an extremity
+            idx_p2 = (i - 1) % nr_coordinates
+            extremity_mask[idx_p2] = True
+
+        # move to the next point
+        p1 = p2
+        p2 = p3
+
+
+def _cmp_extremity_mask(coordinates: np.ndarray) -> np.ndarray:
     """identify all protruding points = vertices with an inside angle of > 180 degree ('extremities')
     expected edge numbering:
         outer boundary polygon: counterclockwise
@@ -1197,27 +1220,9 @@ def _compute_extremity_idxs(coordinates: np.ndarray) -> List[int]:
     :param coordinates:
     :return:
     """
-    nr_coordinates = len(coordinates)
-    extr_idxs = []
-    p1 = coordinates[-2]
-    p2 = coordinates[-1]
-    for i, p3 in enumerate(coordinates):
-        # since consequent vertices are not permitted to be equal,
-        #   the angle representation of the difference is well-defined
-        diff_p3_p2 = p3 - p2
-        diff_p1_p2 = p1 - p2
-        repr_p3_p2, _ = _compute_repr_n_dist(diff_p3_p2)
-        repr_p1_p2, _ = _compute_repr_n_dist(diff_p1_p2)
-        rep_diff = repr_p3_p2 - repr_p1_p2
-        if rep_diff % 4.0 < 2.0:  # inside angle > 180 degree
-            # p2 is an extremity
-            idx_p2 = (i - 1) % nr_coordinates
-            extr_idxs.append(idx_p2)
-
-        # move to the next point
-        p1 = p2
-        p2 = p3
-    return extr_idxs
+    extremity_mask = np.full(len(coordinates), False, dtype=bool)
+    _fill_extremity_mask(coordinates, extremity_mask)
+    return extremity_mask
 
 
 def load_pickle(path=DEFAULT_PICKLE_NAME):
@@ -1239,13 +1244,12 @@ def compile_boundary_data_fr_polys(boundary_coordinates, list_of_hole_coordinate
     edge_vertex_idxs = np.empty((nr_total_pts, 2), dtype=int)
     edge_idx = 0
     offset = 0
-    extremity_indices = set()
-    for poly in list_of_polygons:
-        poly_extr_idxs = _compute_extremity_idxs(poly)
-        poly_extr_idxs = {i + offset for i in poly_extr_idxs}
-        extremity_indices |= poly_extr_idxs
+    extremity_masks = []
+    for coords_poly in list_of_polygons:
+        poly_extr_mask = _cmp_extremity_mask(coords_poly)
+        extremity_masks.append(poly_extr_mask)
 
-        nr_coords = len(poly)
+        nr_coords = len(coords_poly)
         v1 = -1 % nr_coords
         # TODO col 1 is just np.arange?!
         for v2 in range(nr_coords):
@@ -1262,9 +1266,12 @@ def compile_boundary_data_fr_polys(boundary_coordinates, list_of_hole_coordinate
         offset = edge_idx
 
     coords = np.concatenate(list_of_polygons, axis=0, dtype=configs.DTYPE_FLOAT)
+    extremity_mask = np.concatenate(extremity_masks, axis=0, dtype=bool)
+    extremity_indices = np.where(extremity_mask)[0]
     # Attention: only consider extremities that are actually within the map (polygons are allowed to overlap)
-    extremity_indices = [i for i in extremity_indices if within_map(coords[i])]
-    extremity_mask = np.full(nr_total_pts, False, dtype=bool)
-    for i in extremity_indices:
-        extremity_mask[i] = True
+    extremities_outside = [i for i in extremity_indices if not within_map(coords[i])]
+    extremity_indices = list(extremity_indices)
+    for i in extremities_outside:
+        extremity_mask[i] = False
+        extremity_indices.remove(i)
     return coords, extremity_indices, extremity_mask, vertex_edge_idxs, edge_vertex_idxs
