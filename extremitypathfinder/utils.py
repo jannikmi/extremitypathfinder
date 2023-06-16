@@ -257,14 +257,12 @@ def find_visible(
     :param edges_to_check: the set of edges which determine visibility
     :return: a set of all vertices visible from the origin
     """
-    print("\n\nNEW:")
     nr_candidates_total = len(candidates)
     if nr_candidates_total == 0:
         return candidates
     # TODO immutable
     # eliminate candidates with equal representations: only keep the closest (min dist)
     candidates_sorted = _eliminate_eq_candidates(candidates, distances, representations)
-    print(candidates_sorted)
 
     (
         crossing_edges,
@@ -279,8 +277,6 @@ def find_visible(
     )
 
     # check non-crossing edges
-    print("non-crossing edges")
-
     # TODO skipped edges. argsort
     # sort after the minimum representation
     edge_idxs_sorted = sorted(non_crossing_edges, key=lambda e: edges_min_rep[e])
@@ -326,7 +322,7 @@ def find_visible(
     return candidates_
 
 
-def _eliminate_eq_candidates(candidates, distances, representations):
+def _eliminate_eq_candidates(candidates: List[int], distances: np.ndarray, representations: np.ndarray) -> List[int]:
     # sort after angle representation, then after distance ascending
     candidates_sorted = sorted(candidates, key=lambda i: (representations[i], distances[i]))
     rep_prev = representations[candidates_sorted[0]]
@@ -349,8 +345,6 @@ def _eliminate_eq_candidates(candidates, distances, representations):
 def _compile_visibility_datastructs(
     distances, edge_vertex_idxs, edges_to_check, extremity_mask, representations, vertex_edge_idxs
 ):
-    print(edge_vertex_idxs)
-
     edges = list(edges_to_check)
     nr_edges_total = len(edge_vertex_idxs)
     edges_min_rep = np.zeros(nr_edges_total, dtype=float)
@@ -405,9 +399,6 @@ def _compile_visibility_datastructs(
             # point to the neighbouring vertices (used for looking up the coordinates)
             edge_vertex_idxs[e] = (i1, i2)
 
-            print(e)
-            print(edge_vertex_idxs)
-
             # the "outside the polygon" angle range should be eliminated
             # this angle range is greater than 180 degree if the node identical to the origin is NOT an extremity
             deg_gr_180_exp = not extremity_mask[identical_node]
@@ -457,7 +448,6 @@ def _compile_visibility_datastructs(
         edges_max_dist[e] = max_dist
         edges_is_crossing[e] = is_crossing
 
-    print(edge_vertex_idxs)
     return (
         crossing_edges,
         edges_is_crossing,
@@ -601,16 +591,16 @@ def check_candidates_one_edge(
 
 
 def _check_candidates(
-    candidate_idxs: np.ndarray,
-    edge_idxs_sorted: Iterable[int],
-    edges_max_rep,
-    edges_min_rep,
-    origin,
-    distances,
-    representations,
-    coords,
-    edge_vertex_idxs,
-    edges_max_dist,
+    candidate_idxs: List[int],
+    edge_idxs_sorted: List[int],
+    edges_max_rep: np.ndarray,
+    edges_min_rep: np.ndarray,
+    origin: int,
+    distances: np.ndarray,
+    representations: np.ndarray,
+    coords: np.ndarray,
+    edge_vertex_idxs: np.ndarray,
+    edges_max_dist: np.ndarray,
 ):
     candidate_ptr = 0
     for edge_idx in edge_idxs_sorted:
