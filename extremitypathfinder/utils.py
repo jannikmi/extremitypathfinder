@@ -5,11 +5,8 @@ from itertools import combinations
 from typing import Dict, Iterable, List, Set, Tuple
 
 import networkx as nx
-import numba.types as nbt
 import numpy as np
 import numpy.linalg
-from numba import f8, i8, njit
-from numba.typed import List as TypedList
 
 from extremitypathfinder import configs
 from extremitypathfinder import types as t
@@ -78,6 +75,18 @@ def _get_intersection_status(p1, p2, q1, q2):
     #     return 2
     else:
         return 1
+
+
+# try:
+#     from numba import b1, f8, i8, njit, typeof, void
+#
+#     using_numba = True
+# except ImportError:
+#     using_numba = False
+#     # replace Numba functionality with "transparent" implementations
+#     from extremitypathfinder.numba_replacements import b1, f8, i8, njit, typeof, void
+#
+# FloatTuple = typeof((1.0, 1.0))
 
 
 def _no_self_intersection(coords):
@@ -267,14 +276,11 @@ def find_visible(
         distances, edge_vertex_idxs, edges_to_check, extremity_mask, representations, vertex_edge_idxs
     )
 
+    # check non-crossing edges
     # TODO skipped edges. argsort
     # sort after the minimum representation
     edge_idxs_sorted = sorted(non_crossing_edges, key=lambda e: edges_min_rep[e])
     # edge_ptr_iter = iter(ptr for ptr in edge_ptrs if not edges_is_crossing[ptr])
-
-    # TODO
-    candidates_sorted = TypedList(candidates_sorted)
-    edge_idxs_sorted = TypedList(edge_idxs_sorted)
     _check_candidates(
         candidates_sorted,
         edge_idxs_sorted,
@@ -299,8 +305,6 @@ def find_visible(
 
     # start with checking the first candidate again
     edge_idxs_sorted = sorted(crossing_edges, key=lambda e: edges_min_rep[e])
-
-    candidates_sorted = TypedList(candidates_sorted)
     _check_candidates(
         candidates_sorted,
         edge_idxs_sorted,
@@ -499,7 +503,6 @@ def rotate_crossing(candidate_idxs, edges_is_crossing, edges_max_rep, edges_min_
     return candidate_idxs, edges_max_rep, edges_min_rep, representations
 
 
-@njit(i8(f8, f8, f8, i8, i8, i8, i8, nbt.ListType(i8), f8[:, :], f8[:], f8[:]), cache=True)
 def check_candidates_one_edge(
     edge_min_rep: float,
     edge_max_rep: float,
@@ -508,11 +511,15 @@ def check_candidates_one_edge(
     p2: int,
     candidate_ptr: int,
     origin: int,
-    candidate_indices: TypedList[int],
+    candidate_indices: List[int],
     coords: np.ndarray,
     distances: np.ndarray,
     representations: np.ndarray,
 ):
+    candidate_indices_fixed = candidate_indices.copy()
+    is_candidate = np.empty(len(candidate_indices), dtype=bool)
+    is_candidate.fill(True)
+
     # start over at the same candidate than the previous edge
     # TODO Note: check within range: edge case, same representation than edge vertex.
     #  do not include (edge does not block view)
@@ -528,17 +535,19 @@ def check_candidates_one_edge(
 
     # start at the start candidate index again
     candidate_ptr_curr = candidate_ptr
+    candidate_ptr_curr_ = candidate_ptr
     while 1:
         # Note: candidate list shrinks during the iteration -> avoid index error
         try:
             candidate_idx = candidate_indices[candidate_ptr_curr]
-        except Exception:  # IndexError
+        except IndexError:
             break
 
         if candidate_idx == p1 or candidate_idx == p2:
             # an edge cannot block its own vertices
             # move pointer to the next candidate
             candidate_ptr_curr += 1
+            candidate_ptr_curr_ += 1
             continue
 
         candidate_rep = representations[candidate_idx]
@@ -567,16 +576,20 @@ def check_candidates_one_edge(
             visibility_is_blocked = further_away or _lies_behind(p1, p2, candidate_idx, origin, coords)
 
         if visibility_is_blocked:
+            is_candidate[candidate_ptr_curr_] = False
             candidate_indices.pop(candidate_ptr_curr)
             # Note: keep ptr at the same position (list shrank)
         else:
             # move pointer to the next candidate
             candidate_ptr_curr += 1
 
+        candidate_ptr_curr_ += 1
+
+    candidate_indices_ = [candidate_indices_fixed[i] for i, is_cand in enumerate(is_candidate) if is_cand]
+    assert candidate_indices_ == candidate_indices
     return candidate_ptr
 
 
-# @njit(void(nbt.ListType(i8), nbt.ListType(i8), f8[:], f8[:], i8, f8[:], f8[:], f8[:, :], i8[:, :], f8[:]), cache=True)
 def _check_candidates(
     candidate_idxs: List[int],
     edge_idxs_sorted: List[int],
@@ -590,7 +603,6 @@ def _check_candidates(
     edges_max_dist: np.ndarray,
 ):
     candidate_ptr = 0
-
     for edge_idx in edge_idxs_sorted:
         if len(candidate_idxs) == 0:
             # Note: length is decreasing
