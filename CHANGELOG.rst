@@ -1,6 +1,16 @@
 Changelog
 =========
 
+2.7.1 (2023-05-16)
+-------------------
+
+internal:
+
+- JIT compile more utility functions (including numpy.linalg.solve)
+- add scipy dependency for JIT compiling numpy.linalg.solve
+- updated supported python versions to ">=3.8,<3.12" (required by scipy)
+- remove debug print statements and assertions
+
 
 2.7.0 (2023-06-08)
 -------------------
