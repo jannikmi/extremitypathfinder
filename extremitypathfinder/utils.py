@@ -504,10 +504,6 @@ def check_candidates_one_edge(
     distances: np.ndarray,
     representations: np.ndarray,
 ):
-    candidate_indices_fixed = candidate_indices.copy()
-    is_candidate = np.empty(len(candidate_indices), dtype=bool)
-    is_candidate.fill(True)
-
     # start over at the same candidate than the previous edge
     # TODO Note: check within range: edge case, same representation than edge vertex.
     #  do not include (edge does not block view)
@@ -523,7 +519,6 @@ def check_candidates_one_edge(
 
     # start at the start candidate index again
     candidate_ptr_curr = candidate_ptr
-    candidate_ptr_curr_ = candidate_ptr
     while 1:
         # Note: candidate list shrinks during the iteration -> avoid index error
         try:
@@ -535,7 +530,6 @@ def check_candidates_one_edge(
             # an edge cannot block its own vertices
             # move pointer to the next candidate
             candidate_ptr_curr += 1
-            candidate_ptr_curr_ += 1
             continue
 
         candidate_rep = representations[candidate_idx]
@@ -564,17 +558,12 @@ def check_candidates_one_edge(
             visibility_is_blocked = further_away or _lies_behind(p1, p2, candidate_idx, origin, coords)
 
         if visibility_is_blocked:
-            is_candidate[candidate_ptr_curr_] = False
             candidate_indices.pop(candidate_ptr_curr)
             # Note: keep ptr at the same position (list shrank)
         else:
             # move pointer to the next candidate
             candidate_ptr_curr += 1
 
-        candidate_ptr_curr_ += 1
-
-    candidate_indices_ = [candidate_indices_fixed[i] for i, is_cand in enumerate(is_candidate) if is_cand]
-    assert candidate_indices_ == candidate_indices
     return candidate_ptr
 
 
