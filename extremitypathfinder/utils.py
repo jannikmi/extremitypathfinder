@@ -77,18 +77,6 @@ def _get_intersection_status(p1, p2, q1, q2):
         return 1
 
 
-# try:
-#     from numba import b1, f8, i8, njit, typeof, void
-#
-#     using_numba = True
-# except ImportError:
-#     using_numba = False
-#     # replace Numba functionality with "transparent" implementations
-#     from extremitypathfinder.numba_replacements import b1, f8, i8, njit, typeof, void
-#
-# FloatTuple = typeof((1.0, 1.0))
-
-
 def _no_self_intersection(coords):
     polygon_length = len(coords)
     # again_check = []
@@ -487,19 +475,19 @@ def rotate_crossing(candidate_idxs, edges_is_crossing, edges_max_rep, edges_min_
     representations[candidate_idxs] = (representations[candidate_idxs] + infimum_to_0) % 4.0
     # Note: new sorting is required
     candidate_idxs = sorted(candidate_idxs, key=lambda i: representations[i])
-    non_nan_reps = representations[np.logical_not(np.isnan(representations))]
-    # TODO remove
-    assert np.all(non_nan_reps >= 0.0)
-    assert np.all(non_nan_reps <= 4.0)
-    if not np.all(edges_min_rep >= 0.0):
-        raise ValueError
-    assert np.all(edges_min_rep <= 4.0)
-    assert np.min(edges_min_rep[edges_is_crossing]) == 0.0
-    assert np.all(edges_max_rep >= 0.0)
-    assert np.all(edges_max_rep <= 4.0)
-    for r_min, r_max in zip(edges_min_rep[edges_is_crossing], edges_max_rep[edges_is_crossing]):
-        if r_min > r_max:
-            raise ValueError
+    # TODO move to tests
+    # non_nan_reps = representations[np.logical_not(np.isnan(representations))]
+    # assert np.all(non_nan_reps >= 0.0)
+    # assert np.all(non_nan_reps <= 4.0)
+    # if not np.all(edges_min_rep >= 0.0):
+    #     raise ValueError
+    # assert np.all(edges_min_rep <= 4.0)
+    # assert np.min(edges_min_rep[edges_is_crossing]) == 0.0
+    # assert np.all(edges_max_rep >= 0.0)
+    # assert np.all(edges_max_rep <= 4.0)
+    # for r_min, r_max in zip(edges_min_rep[edges_is_crossing], edges_max_rep[edges_is_crossing]):
+    #     if r_min > r_max:
+    #         raise ValueError
     return candidate_idxs, edges_max_rep, edges_min_rep, representations
 
 
