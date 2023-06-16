@@ -3,6 +3,8 @@ from typing import Optional, Tuple
 
 import numpy as np
 
+from extremitypathfinder import configs
+
 try:
     from numba import b1, f8, i8, njit, typeof, void
 except ImportError:
@@ -208,3 +210,41 @@ def _fill_edge_vertex_idxs(edge_vertex_idxs, vertex_edge_idxs):
         vertex_edge_idxs[v2_idx, 0] = edge_idx
         # move to the next vertex/edge
         v1 = v2
+
+
+@njit(b1(f8[:], f8[:], f8[:]), cache=True)
+def _lies_behind_inner(p1: np.ndarray, p2: np.ndarray, v: np.ndarray) -> bool:
+    # special case of get_intersection_status()
+    # solve the set of equations
+    # (p2-p1) lambda + (p1) = (v) mu
+    #  in matrix form A x = b:
+    # [(p1-p2) (v)] (lambda, mu)' = (p1)
+    # because the vertex lies within the angle range between the two edge vertices
+    #    (together with the other conditions on the polygons)
+    #   this set of linear equations is always solvable (the matrix is regular)
+    A = np.empty((2, 2), dtype=configs.DTYPE_FLOAT)
+    A[:, 0] = p1 - p2
+    A[:, 1] = v
+    # A = np.array([p1 - p2, v]).T
+    x = np.linalg.solve(A, p1)
+    # Note: parallel lines are not possible here (singular matrix)
+    # try:
+    #     x = np.linalg.solve(A, p1)
+    # except np.linalg.LinAlgError:
+    #     raise Exception("parallel lines")
+
+    # Debug:
+    # assert np.allclose((p2 - p1) * x[0] + p1, v * x[1])
+    # assert np.allclose(np.dot(A, x), b)
+
+    # vertices on the edge are possibly visible! ( < not <=)
+    return x[1] < 1.0
+
+
+@njit(b1(i8, i8, i8, i8, f8[:, :]), cache=True)
+def _lies_behind(idx_p1: int, idx_p2: int, idx_v: int, idx_orig: int, coords: np.ndarray) -> bool:
+    coords_origin = coords[idx_orig]
+    coords_p1_rel = coords[idx_p1] - coords_origin
+    coords_p2_rel = coords[idx_p2] - coords_origin
+    coords_v_rel = coords[idx_v] - coords_origin
+    return _lies_behind_inner(coords_p1_rel, coords_p2_rel, coords_v_rel)

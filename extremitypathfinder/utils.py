@@ -18,6 +18,7 @@ from extremitypathfinder.utils_numba import (
     _fill_extremity_mask,
     _has_clockwise_numbering,
     _inside_polygon,
+    _lies_behind,
     _no_identical_consequent_vertices,
 )
 
@@ -76,36 +77,16 @@ def _get_intersection_status(p1, p2, q1, q2):
         return 1
 
 
-def _lies_behind_inner(p1: np.ndarray, p2: np.ndarray, v: np.ndarray) -> bool:
-    # special case of get_intersection_status()
-    # solve the set of equations
-    # (p2-p1) lambda + (p1) = (v) mu
-    #  in matrix form A x = b:
-    # [(p1-p2) (v)] (lambda, mu)' = (p1)
-    # because the vertex lies within the angle range between the two edge vertices
-    #    (together with the other conditions on the polygons)
-    #   this set of linear equations is always solvable (the matrix is regular)
-    A = np.array([p1 - p2, v]).T
-    try:
-        x = np.linalg.solve(A, p1)
-    except np.linalg.LinAlgError:
-        # parallel lines -> lie in
-        raise ValueError
-
-    # Debug:
-    # assert np.allclose((p2 - p1) * x[0] + p1, v * x[1])
-    # assert np.allclose(np.dot(A, x), b)
-
-    # vertices on the edge are possibly visible! ( < not <=)
-    return x[1] < 1.0
-
-
-def _lies_behind(idx_p1: int, idx_p2: int, idx_v: int, idx_orig: int, coords: np.ndarray) -> bool:
-    coords_origin = coords[idx_orig]
-    coords_p1_rel = coords[idx_p1] - coords_origin
-    coords_p2_rel = coords[idx_p2] - coords_origin
-    coords_v_rel = coords[idx_v] - coords_origin
-    return _lies_behind_inner(coords_p1_rel, coords_p2_rel, coords_v_rel)
+# try:
+#     from numba import b1, f8, i8, njit, typeof, void
+#
+#     using_numba = True
+# except ImportError:
+#     using_numba = False
+#     # replace Numba functionality with "transparent" implementations
+#     from extremitypathfinder.numba_replacements import b1, f8, i8, njit, typeof, void
+#
+# FloatTuple = typeof((1.0, 1.0))
 
 
 def _no_self_intersection(coords):
@@ -517,6 +498,7 @@ def rotate_crossing(candidate_idxs, edges_is_crossing, edges_max_rep, edges_min_
     # Note: new sorting is required
     candidate_idxs = sorted(candidate_idxs, key=lambda i: representations[i])
     non_nan_reps = representations[np.logical_not(np.isnan(representations))]
+    # TODO remove
     assert np.all(non_nan_reps >= 0.0)
     assert np.all(non_nan_reps <= 4.0)
     if not np.all(edges_min_rep >= 0.0):
@@ -532,18 +514,22 @@ def rotate_crossing(candidate_idxs, edges_is_crossing, edges_max_rep, edges_min_
 
 
 def check_candidates_one_edge(
-    edge_min_rep,
-    edge_max_rep,
-    edge_max_dist,
-    p1,
-    p2,
-    candidate_ptr,
-    origin,
-    candidate_indices,
-    coords,
-    distances,
-    representations,
+    edge_min_rep: float,
+    edge_max_rep: float,
+    edge_max_dist: float,
+    p1: int,
+    p2: int,
+    candidate_ptr: int,
+    origin: int,
+    candidate_indices: List[int],
+    coords: np.ndarray,
+    distances: np.ndarray,
+    representations: np.ndarray,
 ):
+    candidate_indices_fixed = candidate_indices.copy()
+    is_candidate = np.empty(len(candidate_indices), dtype=bool)
+    is_candidate.fill(True)
+
     # start over at the same candidate than the previous edge
     # TODO Note: check within range: edge case, same representation than edge vertex.
     #  do not include (edge does not block view)
@@ -559,6 +545,7 @@ def check_candidates_one_edge(
 
     # start at the start candidate index again
     candidate_ptr_curr = candidate_ptr
+    candidate_ptr_curr_ = candidate_ptr
     while 1:
         # Note: candidate list shrinks during the iteration -> avoid index error
         try:
@@ -570,6 +557,7 @@ def check_candidates_one_edge(
             # an edge cannot block its own vertices
             # move pointer to the next candidate
             candidate_ptr_curr += 1
+            candidate_ptr_curr_ += 1
             continue
 
         candidate_rep = representations[candidate_idx]
@@ -598,18 +586,23 @@ def check_candidates_one_edge(
             visibility_is_blocked = further_away or _lies_behind(p1, p2, candidate_idx, origin, coords)
 
         if visibility_is_blocked:
+            is_candidate[candidate_ptr_curr_] = False
             candidate_indices.pop(candidate_ptr_curr)
             # Note: keep ptr at the same position (list shrank)
         else:
             # move pointer to the next candidate
             candidate_ptr_curr += 1
 
+        candidate_ptr_curr_ += 1
+
+    candidate_indices_ = [candidate_indices_fixed[i] for i, is_cand in enumerate(is_candidate) if is_cand]
+    assert candidate_indices_ == candidate_indices
     return candidate_ptr
 
 
 def _check_candidates(
-    candidate_idxs,
-    edge_idxs_sorted,
+    candidate_idxs: np.ndarray,
+    edge_idxs_sorted: Iterable[int],
     edges_max_rep,
     edges_min_rep,
     origin,
