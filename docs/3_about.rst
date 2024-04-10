@@ -1,4 +1,3 @@
-
 =====
 About
 =====
@@ -90,7 +89,7 @@ ______________
 
 
 Visibility detection: "Angle Range Elimination Algorithm" (AREA, Contribution of this package)
-********************************************************************
+****************************************************************************************************
 
 AREA is an algorithm for computing the visibility graph.
 
@@ -101,11 +100,12 @@ Simple fundamental idea: points (extremities) are visible when there is no edge 
 Rough procedure: For all edges delete the points lying behind them. Points that remain at the end are visible.
 
 Optimisations:
-- for each edge only checking the relevant candidates ("within the angle range"):
-    - By sorting the edges after their angle representation (similar to Lee's algorith, s. below), only the candidates with a bigger representation have to be checked.
-    - By also sorting the candidates, the candidates with a smaller representation than the edge don't have to be checked.
-- angle representations: instead of computing with angles in degree or radians, it is much more efficient and still sufficient to use a representation that is mapping an angle to a range :math:`a \in [0.0 ; 4.0[` (:math:`[0.0 ; 1.0[` in all 4 quadrants). This can be done without computationally expensive trigonometric functions!
-- deciding if a point lies behind an edge can often be done without computing intersections by just comparing distances. This can be used to reduce the needed computations.
+
+* for each edge only checking the relevant candidates ("within the angle range"):
+  * By sorting the edges after their angle representation (similar to Lee's algorith, s. below), only the candidates with a bigger representation have to be checked.
+  * By also sorting the candidates, the candidates with a smaller representation than the edge don't have to be checked.
+* angle representations: instead of computing with angles in degree or radians, it is much more efficient and still sufficient to use a representation that is mapping an angle to a range :math:`a \in [0.0 ; 4.0[` (:math:`[0.0 ; 1.0[` in all 4 quadrants). This can be done without computationally expensive trigonometric functions!
+* deciding if a point lies behind an edge can often be done without computing intersections by just comparing distances. This can be used to reduce the needed computations.
 
 
 Properties:
