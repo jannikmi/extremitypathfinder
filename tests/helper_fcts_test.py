@@ -3,6 +3,7 @@ TODO test find_visible(), ...
 TODO test if relation is really bidirectional (y in find_visible(x,y) <=> x in find_visible(y,x))
 TODO test input data validation
 """
+
 from os.path import abspath, join, pardir
 from typing import Dict, Set
 
