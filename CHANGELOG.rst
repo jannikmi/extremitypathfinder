@@ -1,6 +1,21 @@
 Changelog
 =========
 
+
+2.7.2 (2024-04-10)
+-------------------
+
+- added support for python 3.12
+
+internal:
+
+- added tests for python 3.12
+- use ruff pre-commit hooks
+- made dependency groups docs and plot optional
+- added tox tes for documentation build
+
+
+
 2.7.1 (2023-05-16)
 -------------------
 
