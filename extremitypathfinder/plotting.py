@@ -214,11 +214,11 @@ class PlottingEnvironment(PolygonEnvironment):
     Stores all graphs in the folder defined by plotting_dir parameter."""
 
     def __init__(self, plotting_dir=PLOTTING_DIR):
-        super().__init__()
         global PLOTTING_DIR
         PLOTTING_DIR = plotting_dir
         if not exists(plotting_dir):
             makedirs(plotting_dir)
+        super().__init__()
 
     def store(self, *args, **kwargs):
         """In addition to storing, also plots a graph of the input polygons."""
@@ -227,6 +227,7 @@ class PlottingEnvironment(PolygonEnvironment):
 
     def prepare(self):
         """Also draws a prepared map with the computed visibility graph."""
+        super().prepare()
         draw_prepared_map(self)
 
     def find_shortest_path(self, start_coordinates, goal_coordinates, *args, **kwargs):
