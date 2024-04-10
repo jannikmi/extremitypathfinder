@@ -84,8 +84,29 @@ ________________
     polygon environment with optimised visibility graph overlay. visualised edges added to the visibility graph in yellow, found shortest path in green.
 
 
+Edge Case: Overlapping Vertices and Edges
+_________________________________________
+
+
+.. warning::
+    Overlapping edges and vertices are considered "non-blocking".
+    Shortest paths can run through either.
+    Ensure Holes and Boundary Polygons are truly intersecting and not just touching in order to "block" paths.
+
+.. figure:: _static/path_overlapping_vertices.png
+
+    example of a shortest path running through overlapping vertices
+
+
+.. figure:: _static/path_overlapping_edges.png
+
+    example of a shortest path running along two overlapping edges
+
+
+
+
 Implementation
-______________
+==============
 
 
 Visibility detection: "Angle Range Elimination Algorithm" (AREA, Contribution of this package)
