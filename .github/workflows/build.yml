@@ -1,11 +1,12 @@
 name: build
 
 on:
+  # allows running this workflow manually from the Actions tab
+  workflow_dispatch:
   pull_request:
   push:
     branches:
       - master
-  workflow_dispatch:
 
 jobs:
   test:
@@ -21,19 +22,19 @@ jobs:
           - "3.9"
           - "3.10"
           - "3.11"
+          - "3.12"
     env:
       TOXENV: ${{ matrix.tox-env }}
       TOX_SKIP_MISSING_INTERPRETERS: False
+
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - name: Run pre-commit hook
-        uses: pre-commit/action@v2.0.3
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+        uses: pre-commit/action@v3.0.1
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
 
@@ -41,23 +42,23 @@ jobs:
         run: pip install -U pip
 
       - name: Install test dependencies
-        run: pip install tox==3.24.4 tox-gh-actions poetry>=1.4.2
+        run: pip install tox tox-gh-actions poetry
 
       - name: Run tox
         run: tox
 
   deploy:
     runs-on: ubuntu-latest
-    permissions:
-        id-token: write
-        contents: write
     needs: test
     if: endsWith(github.ref, '/master')
+    permissions:
+      id-token: write
+      contents: write
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: 3.8
 
@@ -70,7 +71,6 @@ jobs:
         run: echo "version_nr=$(poetry version -s)" >> $GITHUB_OUTPUT
 
       - name: Build a binary wheel and a source tarball
-        # Note: poetry build required to support CLI script entrypoint in pyproject.toml?!
         run: |
           poetry build --no-interaction
 
