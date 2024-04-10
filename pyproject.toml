@@ -69,3 +69,36 @@ docs = ["Sphinx", "sphinx-rtd-theme"]
 [build-system]
 requires = ["poetry-core>=1.5", "poetry>=1.4"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.tox]
+legacy_tox_ini = """
+[tox]
+isolated_build = true
+envlist =
+    docs,py{38,39,310,311,312}{,-numba}
+
+[gh-actions]
+python =
+    3.8: py38{,-numba}
+    3.9: py39{,-numba}
+    3.10: py310{,-numba}
+    3.11: py311{,-numba}
+    3.12: py312{,-numba}
+
+
+[testenv:docs]
+description = build documentation
+basepython = python3.12
+allowlist_externals = poetry,sphinx-build
+commands =
+  poetry install -v --with docs
+  sphinx-build -d "{envtmpdir}{/}doctree" docs "{toxworkdir}{/}docs_out" --color -b html
+  python -c 'print(r"documentation available under file://{toxworkdir}{/}docs_out{/}index.html")'
+
+[testenv]
+allowlist_externals = poetry
+commands =
+    !numba: poetry install -v
+    numba:  poetry install -v --extras numba
+    poetry run pytest {posargs}
+"""
