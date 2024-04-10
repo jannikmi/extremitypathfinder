@@ -1,7 +1,7 @@
 # NOTE: install the package itselt to make the CLI commands available (required for the tests)
 install:
 	@echo "installing the development dependencies..."
-	@poetry install --all-extras --sync --with docs,plot
+	@poetry install --all-extras --sync --with dev,docs,plot
 	@#poetry install --no-dev
 
 
