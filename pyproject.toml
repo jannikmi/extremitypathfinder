@@ -55,6 +55,7 @@ pytest = "*"
 tox = "*"
 
 [tool.poetry.group.plot.dependencies]
+# also required for runnin the tests
 matplotlib = "*"
 
 [tool.poetry.group.docs.dependencies]
@@ -103,7 +104,7 @@ commands =
 [testenv]
 allowlist_externals = poetry
 commands =
-    !numba: poetry install -v
-    numba:  poetry install -v --extras numba
+    !numba: poetry install -v --with dev,plot
+    numba:  poetry install -v --with dev,plot --extras numba
     poetry run pytest {posargs}
 """
