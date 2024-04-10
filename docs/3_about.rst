@@ -1,4 +1,3 @@
-
 =====
 About
 =====
@@ -85,12 +84,33 @@ ________________
     polygon environment with optimised visibility graph overlay. visualised edges added to the visibility graph in yellow, found shortest path in green.
 
 
+Edge Case: Overlapping Vertices and Edges
+_________________________________________
+
+
+.. warning::
+    Overlapping edges and vertices are considered "non-blocking".
+    Shortest paths can run through either.
+    Ensure Holes and Boundary Polygons are truly intersecting and not just touching in order to "block" paths.
+
+.. figure:: _static/path_overlapping_vertices.png
+
+    example of a shortest path running through overlapping vertices
+
+
+.. figure:: _static/path_overlapping_edges.png
+
+    example of a shortest path running along two overlapping edges
+
+
+
+
 Implementation
-______________
+==============
 
 
 Visibility detection: "Angle Range Elimination Algorithm" (AREA, Contribution of this package)
-********************************************************************
+****************************************************************************************************
 
 AREA is an algorithm for computing the visibility graph.
 
@@ -101,11 +121,12 @@ Simple fundamental idea: points (extremities) are visible when there is no edge 
 Rough procedure: For all edges delete the points lying behind them. Points that remain at the end are visible.
 
 Optimisations:
-- for each edge only checking the relevant candidates ("within the angle range"):
-    - By sorting the edges after their angle representation (similar to Lee's algorith, s. below), only the candidates with a bigger representation have to be checked.
-    - By also sorting the candidates, the candidates with a smaller representation than the edge don't have to be checked.
-- angle representations: instead of computing with angles in degree or radians, it is much more efficient and still sufficient to use a representation that is mapping an angle to a range :math:`a \in [0.0 ; 4.0[` (:math:`[0.0 ; 1.0[` in all 4 quadrants). This can be done without computationally expensive trigonometric functions!
-- deciding if a point lies behind an edge can often be done without computing intersections by just comparing distances. This can be used to reduce the needed computations.
+
+* for each edge only checking the relevant candidates ("within the angle range"):
+  * By sorting the edges after their angle representation (similar to Lee's algorith, s. below), only the candidates with a bigger representation have to be checked.
+  * By also sorting the candidates, the candidates with a smaller representation than the edge don't have to be checked.
+* angle representations: instead of computing with angles in degree or radians, it is much more efficient and still sufficient to use a representation that is mapping an angle to a range :math:`a \in [0.0 ; 4.0[` (:math:`[0.0 ; 1.0[` in all 4 quadrants). This can be done without computationally expensive trigonometric functions!
+* deciding if a point lies behind an edge can often be done without computing intersections by just comparing distances. This can be used to reduce the needed computations.
 
 
 Properties:
@@ -224,5 +245,5 @@ Acknowledgements
 
 Thanks to:
 
-`Georg Hess <https://github.com/georghess>`__ for improving the package in order to allow intersecting polygons.
-`Ivan Doria <https://github.com/idoria75 >`__ for adding the command line interface.
+- `Georg Hess <https://github.com/georghess>`__ for improving the package in order to allow intersecting polygons.
+- `Ivan Doria <https://github.com/idoria75>`__ for adding the command line interface.

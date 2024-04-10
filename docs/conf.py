@@ -24,7 +24,8 @@ project_root = os.path.dirname(cwd)
 # This ensures that the source package is importable
 sys.path.insert(0, os.path.join(project_root))
 
-import extremitypathfinder  # needed for auto document, ATTENTION: must then be installed during online build!
+# needed for auto document, ATTENTION: must then be installed during online build!
+import extremitypathfinder  # noqa: E402 Module level import not at top of file
 
 print(extremitypathfinder)
 

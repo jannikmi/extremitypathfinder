@@ -9,7 +9,13 @@ from extremitypathfinder import configs
 from extremitypathfinder import types as t
 from extremitypathfinder import utils
 from extremitypathfinder.configs import DEFAULT_PICKLE_NAME
-from extremitypathfinder.types import InputCoord, InputCoordList, Length, ObstacleIterator, Path
+from extremitypathfinder.types import (
+    InputCoord,
+    InputCoordList,
+    Length,
+    ObstacleIterator,
+    Path,
+)
 
 
 class PolygonEnvironment:
@@ -32,7 +38,9 @@ class PolygonEnvironment:
     reprs_n_distances: Dict[int, np.ndarray]
     graph: t.Graph
     # TODO
-    temp_graph: Optional[t.Graph] = None  # for storing and plotting the graph during a query
+    temp_graph: Optional[t.Graph] = (
+        None  # for storing and plotting the graph during a query
+    )
     boundary_polygon: np.ndarray
     coords: np.ndarray
     edge_vertex_idxs: np.ndarray
@@ -80,10 +88,13 @@ class PolygonEnvironment:
         # loading the map
         boundary_coordinates = np.array(boundary_coordinates, dtype=configs.DTYPE_FLOAT)
         list_of_hole_coordinates = [
-            np.array(hole_coords, dtype=configs.DTYPE_FLOAT) for hole_coords in list_of_hole_coordinates
+            np.array(hole_coords, dtype=configs.DTYPE_FLOAT)
+            for hole_coords in list_of_hole_coordinates
         ]
         if validate:
-            utils.check_data_requirements(boundary_coordinates, list_of_hole_coordinates)
+            utils.check_data_requirements(
+                boundary_coordinates, list_of_hole_coordinates
+            )
 
         # Note: independent copy!
         self.holes = list_of_hole_coordinates
@@ -96,11 +107,15 @@ class PolygonEnvironment:
             self.extremity_mask,
             self.vertex_edge_idxs,
             self.edge_vertex_idxs,
-        ) = utils.compile_polygon_datastructs(boundary_coordinates, list_of_hole_coordinates)
+        ) = utils.compile_polygon_datastructs(
+            boundary_coordinates, list_of_hole_coordinates
+        )
 
         nr_total_pts = self.edge_vertex_idxs.shape[0]
         self.nr_vertices = nr_total_pts
-        self.reprs_n_distances = utils.cmp_reps_n_distance_dict(self.coords, self.extremity_indices)
+        self.reprs_n_distances = utils.cmp_reps_n_distance_dict(
+            self.coords, self.extremity_indices
+        )
 
         # start and goal points will be stored after all polygon coordinates
         self.idx_start = nr_total_pts
@@ -160,7 +175,9 @@ class PolygonEnvironment:
             A* would visit every node in the graph at least once (-> disadvantage!).
         """
         if self.prepared:  # idempotent
-            warnings.warn("called .prepare() on already prepared map. skipping...", stacklevel=1)
+            warnings.warn(
+                "called .prepare() on already prepared map. skipping...", stacklevel=1
+            )
             return
 
         self.graph = utils.compute_graph(
@@ -255,7 +272,9 @@ class PolygonEnvironment:
         repr_n_dists = utils.cmp_reps_n_distances(origin, coords)
         self.reprs_n_distances[origin] = repr_n_dists
         vert_idx2repr, vert_idx2dist = repr_n_dists
-        visibles_goal = self.get_visible_idxs(origin, candidate_idxs, coords, vert_idx2repr, vert_idx2dist)
+        visibles_goal = self.get_visible_idxs(
+            origin, candidate_idxs, coords, vert_idx2repr, vert_idx2dist
+        )
         if len(visibles_goal) == 0:
             # The goal node does not have any neighbours. Hence there is not possible path to the goal.
             return [], None
@@ -288,7 +307,9 @@ class PolygonEnvironment:
         repr_n_dists = utils.cmp_reps_n_distances(origin, coords)
         self.reprs_n_distances[origin] = repr_n_dists
         vert_idx2repr, vert_idx2dist = repr_n_dists
-        visibles_start = self.get_visible_idxs(origin, candidate_idxs, coords, vert_idx2repr, vert_idx2dist)
+        visibles_start = self.get_visible_idxs(
+            origin, candidate_idxs, coords, vert_idx2repr, vert_idx2dist
+        )
 
         if len(visibles_start) == 0:
             # The start node does not have any neighbours. Hence there is no possible path to the goal.
@@ -299,21 +320,30 @@ class PolygonEnvironment:
             graph.add_edge(start, i, weight=vert_idx2dist[i])
 
         # apply mapping to start and goal index as well
-        start_mapped = utils.find_identical_single(start, graph.nodes, self.reprs_n_distances)
+        start_mapped = utils.find_identical_single(
+            start, graph.nodes, self.reprs_n_distances
+        )
         if start_mapped != start:
             nx.relabel_nodes(graph, {start: start_mapped}, copy=False)
 
-        goal_mapped = utils.find_identical_single(goal, graph.nodes, self.reprs_n_distances)
+        goal_mapped = utils.find_identical_single(
+            goal, graph.nodes, self.reprs_n_distances
+        )
         if goal_mapped != goal_mapped:
             nx.relabel_nodes(graph, {goal: goal_mapped}, copy=False)
 
-        self._idx_start_tmp, self._idx_goal_tmp = start_mapped, goal_mapped  # for plotting
+        self._idx_start_tmp, self._idx_goal_tmp = (
+            start_mapped,
+            goal_mapped,
+        )  # for plotting
 
         def l2_distance(n1, n2):
             return utils.get_distance(n1, n2, self.reprs_n_distances)
 
         try:
-            id_path = nx.astar_path(graph, start_mapped, goal_mapped, heuristic=l2_distance, weight="weight")
+            id_path = nx.astar_path(
+                graph, start_mapped, goal_mapped, heuristic=l2_distance, weight="weight"
+            )
         except nx.exception.NetworkXNoPath:
             return [], None
 

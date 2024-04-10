@@ -14,12 +14,21 @@ import numpy as np
 import pytest
 
 from extremitypathfinder import PolygonEnvironment, configs, utils
-from extremitypathfinder.utils import _find_within_range, _lies_behind, get_neighbour_idxs
+from extremitypathfinder.utils import (
+    _find_within_range,
+    _lies_behind,
+    get_neighbour_idxs,
+)
 from tests.test_cases import GRID_ENV_PARAMS, POLYGON_ENVS
 
 
 def find_candidates_behind(
-    origin: int, v1: int, v2: int, candidates: Set[int], distances: np.ndarray, coords: np.ndarray
+    origin: int,
+    v1: int,
+    v2: int,
+    candidates: Set[int],
+    distances: np.ndarray,
+    coords: np.ndarray,
 ) -> Set[int]:
     dist_v1 = distances[v1]
     dist_v2 = distances[v2]
@@ -40,7 +49,9 @@ def find_candidates_behind(
     return idxs_behind
 
 
-def _clean_visibles(visible_idxs: Set[int], cand_idx2repr: np.ndarray, vert_idx2dist: np.ndarray) -> Set[int]:
+def _clean_visibles(
+    visible_idxs: Set[int], cand_idx2repr: np.ndarray, vert_idx2dist: np.ndarray
+) -> Set[int]:
     # in case some vertices have the same representation, only return (link) the closest vertex
     if len(visible_idxs) <= 1:
         return visible_idxs
@@ -162,7 +173,9 @@ def find_visible_reference(
         samples[edge] = (v1, v2, repr1, repr2, lies_on_edge, range_less_180)
 
     # edges with the highest angle range first
-    edges_prioritised = sorted(edge_angle_range.keys(), reverse=True, key=lambda e: edge_angle_range[e])
+    edges_prioritised = sorted(
+        edge_angle_range.keys(), reverse=True, key=lambda e: edge_angle_range[e]
+    )
 
     visibles = set()
     # goal: eliminating all vertices lying behind any edge ("blocking the view")
@@ -205,11 +218,20 @@ def find_visible_reference(
             #   they may be visible, but must be ruled out if they lie behind any edge!
             equal_repr_allowed = True
 
-        idxs_behind = _find_within_range(repr1, repr2, idxs_behind, range_less_180, equal_repr_allowed, representations)
+        idxs_behind = _find_within_range(
+            repr1,
+            repr2,
+            idxs_behind,
+            range_less_180,
+            equal_repr_allowed,
+            representations,
+        )
         if not lies_on_edge:
             # Note: when the origin lies on the edge, all candidates within the angle range lie behind the edge
             # -> actual "behind/in front" checks can be skipped!
-            idxs_behind = find_candidates_behind(origin, v1, v2, idxs_behind, distances, coords)
+            idxs_behind = find_candidates_behind(
+                origin, v1, v2, idxs_behind, distances, coords
+            )
 
         # vertices behind any edge are not visible and should not be considered any further
         candidates.difference_update(idxs_behind)
@@ -229,7 +251,9 @@ def compile_boundary_data(env):
 
 
 def _yield_input_args(boundary_data):
-    coords, extremity_indices, extremity_mask, vertex_edge_idxs, edge_vertex_idxs = boundary_data
+    coords, extremity_indices, extremity_mask, vertex_edge_idxs, edge_vertex_idxs = (
+        boundary_data
+    )
     candidates = set(np.where(extremity_mask)[0])
     nr_edges = len(edge_vertex_idxs)
     edges_to_check = set(range(nr_edges))
@@ -328,4 +352,6 @@ def test_find_visible(
         vertex_edge_idxs,
         extremity_mask,
     )
-    assert visibles_found == visibles_expected, f"expected {visibles_expected} but got {visibles_found}"
+    assert (
+        visibles_found == visibles_expected
+    ), f"expected {visibles_expected} but got {visibles_found}"

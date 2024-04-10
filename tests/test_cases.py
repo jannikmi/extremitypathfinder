@@ -1,9 +1,6 @@
 # size_x, size_y, obstacle_iter
 from math import sqrt
 
-import numpy as np
-
-from extremitypathfinder import utils
 
 GRID_ENV_PARAMS = (
     19,
@@ -338,7 +335,9 @@ TEST_DATA_OVERLAP_POLY_ENV = [
 
 SEPARATED_ENV = (
     [(5, 5), (-5, 5), (-5, -5), (5, -5)],
-    [[(-5.1, 1), (-5.1, 2), (5.1, 2), (5.1, 1)]],  # intersecting polygons -> no path possible
+    [
+        [(-5.1, 1), (-5.1, 2), (5.1, 2), (5.1, 1)]
+    ],  # intersecting polygons -> no path possible
     # [[(-5, 1), (-5, 2), (5, 2), (5, 1)]], # hole lies on the edges -> path possible
 )
 

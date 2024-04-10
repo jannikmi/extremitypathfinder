@@ -37,14 +37,18 @@ else:
 
 def try_test_cases(environment, test_cases):
     def validate(start_coordinates, goal_coordinates, expected_output):
-        output = environment.find_shortest_path(start_coordinates, goal_coordinates, verify=True)
+        output = environment.find_shortest_path(
+            start_coordinates, goal_coordinates, verify=True
+        )
         path, length = output
-        assert type(path) is list
+        assert isinstance(path, list), "path should be a list"
         expected_path, expected_length = expected_output
         if expected_length is None:
             correct_result = length is None and path == expected_path
         else:
-            correct_result = path == expected_path and length == pytest.approx(expected_length)
+            correct_result = path == expected_path and length == pytest.approx(
+                expected_length
+            )
         if correct_result:
             status_str = "OK"
         else:
@@ -80,11 +84,10 @@ def test_grid_env():
     # when the deep copy mechanism works correctly
     # even after many queries the internal graph should have the same structure as before
     # otherwise the temporarily added vertices during a query stay stored
-    nr_graph_nodes = len(grid_env.graph.nodes)
+    # nr_graph_nodes = len(grid_env.graph.nodes)
     # TODO
     # assert nr_graph_nodes == 16, "the graph should stay unchanged by shortest path queries!"
-
-    nr_nodes_env1_old = len(grid_env.graph.nodes)
+    # nr_nodes_env1_old = len(grid_env.graph.nodes)
 
 
 def test_poly_env():
@@ -94,7 +97,7 @@ def test_poly_env():
     assert (
         len(list(poly_env.all_extremities)) == nr_exp_extremities
     ), f"the environment should detect all {nr_exp_extremities} extremities!"
-    nr_nodes_env2 = len(poly_env.graph.nodes)
+    # nr_nodes_env2 = len(poly_env.graph.nodes)
     # TODO
     # assert nr_nodes_env2 == nr_exp_extremities, (
     #     f"the visibility graph should store all {nr_exp_extremities} extremities {list(poly_env.all_extremities)}!"
@@ -154,7 +157,9 @@ def test_extremity_neighbour_connection(env_data):
     def connection_as_expected(i1: int, i2: int):
         if i2 not in extremities:
             return
-        should_be_connected = not other_edge_intersects(i1, i2, edge_vertex_idxs, coords)
+        should_be_connected = not other_edge_intersects(
+            i1, i2, edge_vertex_idxs, coords
+        )
         graph_neighbors_e = set(graph.neighbors(i1))
         are_connected = i2 in graph_neighbors_e
         assert should_be_connected == are_connected

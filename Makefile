@@ -1,6 +1,7 @@
+# NOTE: install the package itselt to make the CLI commands available (required for the tests)
 install:
 	@echo "installing the development dependencies..."
-	@poetry install --all-extras
+	@poetry install --all-extras --sync --with dev,docs,plot
 	@#poetry install --no-dev
 
 
@@ -15,15 +16,18 @@ lock:
 
 
 test:
-	#pytest
-	@tox
+	poetry run pytest
+
+tox:
+	@poetry run tox
 
 hook:
 	@pre-commit install
 	@pre-commit run --all-files
 
-hook2:
+hookup:
 	@pre-commit autoupdate
+	@pre-commit install
 
 clean:
 	rm -rf .pytest_cache .coverage coverage.xml tests/__pycache__ .mypyp_cache/ .tox

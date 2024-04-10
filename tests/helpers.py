@@ -8,11 +8,17 @@ def proto_test_case(data, fct):
         # print(input, expected_output, fct(input))
         actual_output = fct(input)
         if actual_output != expected_output:
-            print("input: {} expected: {} got: {}".format(input, expected_output, actual_output))
+            print(
+                "input: {} expected: {} got: {}".format(
+                    input, expected_output, actual_output
+                )
+            )
         assert actual_output == expected_output
 
 
-def other_edge_intersects(n1: int, n2: int, edge_vertex_idxs: np.ndarray, coords: np.ndarray) -> bool:
+def other_edge_intersects(
+    n1: int, n2: int, edge_vertex_idxs: np.ndarray, coords: np.ndarray
+) -> bool:
     p1 = coords[n1]
     p2 = coords[n2]
     for i1, i2 in edge_vertex_idxs:

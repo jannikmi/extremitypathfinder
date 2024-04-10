@@ -3,6 +3,7 @@ TODO test find_visible(), ...
 TODO test if relation is really bidirectional (y in find_visible(x,y) <=> x in find_visible(y,x))
 TODO test input data validation
 """
+
 from os.path import abspath, join, pardir
 from typing import Dict, Set
 
@@ -22,7 +23,9 @@ from tests.test_find_visible import _clean_visibles
 
 
 def test_inside_polygon():
-    polygon_test_case = np.array([(-1.0, -1.0), (1.0, -1.0), (1.0, 1.0), (-1.0, 1.0)], dtype=configs.DTYPE_FLOAT)
+    polygon_test_case = np.array(
+        [(-1.0, -1.0), (1.0, -1.0), (1.0, 1.0), (-1.0, 1.0)], dtype=configs.DTYPE_FLOAT
+    )
 
     for border_value in [True, False]:
 
@@ -107,7 +110,10 @@ def test_read_json():
     ],
 )
 def test_clean_visible_idxs(
-    visible_idxs: Set[int], cand_idx2repr: Dict[int, float], vert_idx2dist: Dict[int, float], expected: Set[int]
+    visible_idxs: Set[int],
+    cand_idx2repr: Dict[int, float],
+    vert_idx2dist: Dict[int, float],
+    expected: Set[int],
 ):
     res = _clean_visibles(visible_idxs, cand_idx2repr, vert_idx2dist)
     assert res == expected
