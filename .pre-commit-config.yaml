@@ -19,19 +19,13 @@ repos:
       #            -   id: detect-aws-credentials
       - id: detect-private-key
 
-  - repo: https://github.com/pycqa/isort
-    rev: 5.13.2
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.3.5
     hooks:
-      - id: isort
-        args: [ "--profile", "black", "--filter-files" ]
-
-  - repo: https://github.com/psf/black
-    rev: 24.3.0
-    hooks:
-      - id: black
-        language_version: python3
-        args:
-          - --line-length=120
+      # linter.
+      - id: ruff
+        args: [ --fix ]
+      - id: ruff-format
 
   - repo: https://github.com/asottile/blacken-docs
     rev: 1.16.0

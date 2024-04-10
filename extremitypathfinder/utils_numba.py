@@ -242,7 +242,9 @@ def _lies_behind_inner(p1: np.ndarray, p2: np.ndarray, v: np.ndarray) -> bool:
 
 
 @njit(b1(i8, i8, i8, i8, f8[:, :]), cache=True)
-def _lies_behind(idx_p1: int, idx_p2: int, idx_v: int, idx_orig: int, coords: np.ndarray) -> bool:
+def _lies_behind(
+    idx_p1: int, idx_p2: int, idx_v: int, idx_orig: int, coords: np.ndarray
+) -> bool:
     coords_origin = coords[idx_orig]
     coords_p1_rel = coords[idx_p1] - coords_origin
     coords_p2_rel = coords[idx_p2] - coords_origin

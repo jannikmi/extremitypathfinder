@@ -10,7 +10,11 @@ import numpy.linalg
 
 from extremitypathfinder import configs
 from extremitypathfinder import types as t
-from extremitypathfinder.configs import BOUNDARY_JSON_KEY, DEFAULT_PICKLE_NAME, HOLES_JSON_KEY
+from extremitypathfinder.configs import (
+    BOUNDARY_JSON_KEY,
+    DEFAULT_PICKLE_NAME,
+    HOLES_JSON_KEY,
+)
 from extremitypathfinder.utils_numba import (
     _angle_rep_inverse,
     _compute_repr_n_dist,
@@ -26,18 +30,26 @@ from extremitypathfinder.utils_numba import (
 def cmp_reps_n_distances(orig_idx: int, coords: np.ndarray) -> np.ndarray:
     coords_orig = coords[orig_idx]
     coords_translated = coords - coords_orig
-    repr_n_dists = np.apply_along_axis(_compute_repr_n_dist, axis=1, arr=coords_translated)
+    repr_n_dists = np.apply_along_axis(
+        _compute_repr_n_dist, axis=1, arr=coords_translated
+    )
     return repr_n_dists.T
 
 
-def cmp_reps_n_distance_dict(coords: np.ndarray, extremity_indices: np.ndarray) -> Dict[int, np.ndarray]:
+def cmp_reps_n_distance_dict(
+    coords: np.ndarray, extremity_indices: np.ndarray
+) -> Dict[int, np.ndarray]:
     # Note: distance and angle representation relation are symmetric,
     # but exploiting this has been found to be slower than using the numpy functionality with slight overhead
-    reps_n_distance_dict = {i: cmp_reps_n_distances(i, coords) for i in extremity_indices}
+    reps_n_distance_dict = {
+        i: cmp_reps_n_distances(i, coords) for i in extremity_indices
+    }
     return reps_n_distance_dict
 
 
-def is_within_map(p: np.ndarray, boundary: np.ndarray, holes: Iterable[np.ndarray]) -> bool:
+def is_within_map(
+    p: np.ndarray, boundary: np.ndarray, holes: Iterable[np.ndarray]
+) -> bool:
     if not _inside_polygon(p, boundary, border_value=True):
         return False
     for hole in holes:
@@ -117,7 +129,9 @@ def _check_polygon(polygon):
         raise ValueError("The given polygon has self intersections")
 
 
-def check_data_requirements(boundary_coords: np.ndarray, list_hole_coords: List[np.ndarray]):
+def check_data_requirements(
+    boundary_coords: np.ndarray, list_hole_coords: List[np.ndarray]
+):
     """ensures that all the following conditions on the polygons are fulfilled:
         - basic polygon requirements (s. above)
         - edge numbering has to follow this convention (for easier computations):
@@ -130,7 +144,9 @@ def check_data_requirements(boundary_coords: np.ndarray, list_hole_coords: List[
     """
     _check_polygon(boundary_coords)
     if _has_clockwise_numbering(boundary_coords):
-        raise ValueError("Vertex numbering of the boundary polygon must be counter clockwise.")
+        raise ValueError(
+            "Vertex numbering of the boundary polygon must be counter clockwise."
+        )
     for hole_coords in list_hole_coords:
         _check_polygon(hole_coords)
         if not _has_clockwise_numbering(hole_coords):
@@ -202,7 +218,9 @@ def _find_within_range(
     return idxs_within
 
 
-def get_neighbour_idxs(i: int, vertex_edge_idxs: np.ndarray, edge_vertex_idxs: np.ndarray) -> Tuple[int, int]:
+def get_neighbour_idxs(
+    i: int, vertex_edge_idxs: np.ndarray, edge_vertex_idxs: np.ndarray
+) -> Tuple[int, int]:
     edge_idx1, edge_idx2 = vertex_edge_idxs[i]
     neigh_idx1 = edge_vertex_idxs[edge_idx1, 0]
     neigh_idx2 = edge_vertex_idxs[edge_idx2, 1]
@@ -261,7 +279,12 @@ def find_visible(
         non_crossing_edges,
         edge_vertex_idxs,
     ) = _compile_visibility_datastructs(
-        distances, edge_vertex_idxs, edges_to_check, extremity_mask, representations, vertex_edge_idxs
+        distances,
+        edge_vertex_idxs,
+        edges_to_check,
+        extremity_mask,
+        representations,
+        vertex_edge_idxs,
     )
 
     # check non-crossing edges
@@ -288,7 +311,11 @@ def find_visible(
 
     # check origin-crossing edges
     candidates_sorted, edges_max_rep, edges_min_rep, representations = rotate_crossing(
-        candidates_sorted, edges_is_crossing, edges_max_rep, edges_min_rep, representations
+        candidates_sorted,
+        edges_is_crossing,
+        edges_max_rep,
+        edges_min_rep,
+        representations,
     )
 
     # start with checking the first candidate again
@@ -310,9 +337,13 @@ def find_visible(
     return candidates_
 
 
-def _eliminate_eq_candidates(candidates: List[int], distances: np.ndarray, representations: np.ndarray) -> List[int]:
+def _eliminate_eq_candidates(
+    candidates: List[int], distances: np.ndarray, representations: np.ndarray
+) -> List[int]:
     # sort after angle representation, then after distance ascending
-    candidates_sorted = sorted(candidates, key=lambda i: (representations[i], distances[i]))
+    candidates_sorted = sorted(
+        candidates, key=lambda i: (representations[i], distances[i])
+    )
     rep_prev = representations[candidates_sorted[0]]
     i = 1
     while i < len(candidates_sorted):
@@ -331,7 +362,12 @@ def _eliminate_eq_candidates(candidates: List[int], distances: np.ndarray, repre
 
 
 def _compile_visibility_datastructs(
-    distances, edge_vertex_idxs, edges_to_check, extremity_mask, representations, vertex_edge_idxs
+    distances,
+    edge_vertex_idxs,
+    edges_to_check,
+    extremity_mask,
+    representations,
+    vertex_edge_idxs,
 ):
     edges = list(edges_to_check)
     nr_edges_total = len(edge_vertex_idxs)
@@ -365,7 +401,9 @@ def _compile_visibility_datastructs(
             # however if one considers the point neighbouring in the other direction (<-> two edges)
             # these two neighbouring edges define an invisible angle range
             # -> simply move the pointer
-            i1, i2 = get_neighbour_idxs(identical_node, vertex_edge_idxs, edge_vertex_idxs)
+            i1, i2 = get_neighbour_idxs(
+                identical_node, vertex_edge_idxs, edge_vertex_idxs
+            )
             r1, r2 = representations[i1], representations[i2]
             min_rep = min(r1, r2)
             max_rep = max(r1, r2)
@@ -447,7 +485,9 @@ def _compile_visibility_datastructs(
     )
 
 
-def rotate_crossing(candidate_idxs, edges_is_crossing, edges_max_rep, edges_min_rep, representations):
+def rotate_crossing(
+    candidate_idxs, edges_is_crossing, edges_max_rep, edges_min_rep, representations
+):
     if not np.all(edges_min_rep >= 0.0):
         raise ValueError
 
@@ -463,7 +503,9 @@ def rotate_crossing(candidate_idxs, edges_is_crossing, edges_max_rep, edges_min_
     infimum_to_0 = 4.0 - supremum_cross_edge_rep
     # Note: adding an angle < 180deg to the minimum edge_idx representations (quadrant 1 & 2) cannot lead to "overflow"
     edges_min_rep[edges_is_crossing] = edges_min_rep[edges_is_crossing] + infimum_to_0
-    edges_max_rep[edges_is_crossing] = (edges_max_rep[edges_is_crossing] + infimum_to_0) % 4.0
+    edges_max_rep[edges_is_crossing] = (
+        edges_max_rep[edges_is_crossing] + infimum_to_0
+    ) % 4.0
     # Note: all maximum representations were moved to 1. or 2. quadrant
     # -> became the smaller that the previously min rep! -> swap
     tmp = edges_min_rep
@@ -472,7 +514,9 @@ def rotate_crossing(candidate_idxs, edges_is_crossing, edges_max_rep, edges_min_
     # apply same transformation also to candidate representations
     # TODO avoid large copy. use dict
     representations = representations.copy()  # IMPORTANT: work on independent copy
-    representations[candidate_idxs] = (representations[candidate_idxs] + infimum_to_0) % 4.0
+    representations[candidate_idxs] = (
+        representations[candidate_idxs] + infimum_to_0
+    ) % 4.0
     # Note: new sorting is required
     candidate_idxs = sorted(candidate_idxs, key=lambda i: representations[i])
     # TODO move to tests
@@ -555,7 +599,9 @@ def check_candidates_one_edge(
             # ATTENTION: even if a candidate is closer to the query point than both vertices of the edge,
             #   it still needs to be checked!
             further_away = dist_to_candidate > edge_max_dist
-            visibility_is_blocked = further_away or _lies_behind(p1, p2, candidate_idx, origin, coords)
+            visibility_is_blocked = further_away or _lies_behind(
+                p1, p2, candidate_idx, origin, coords
+            )
 
         if visibility_is_blocked:
             candidate_indices.pop(candidate_ptr_curr)
@@ -706,7 +752,9 @@ def get_distance(n1, n2, reprs_n_distances):
     return distance
 
 
-def _find_identical(candidates: Iterable[int], reprs_n_distances: Dict[int, np.ndarray]) -> Dict[int, int]:
+def _find_identical(
+    candidates: Iterable[int], reprs_n_distances: Dict[int, np.ndarray]
+) -> Dict[int, int]:
     # for shortest path computations all graph nodes should be unique
     # join all nodes with the same coordinates
     merging_mapping = {}
@@ -719,7 +767,9 @@ def _find_identical(candidates: Iterable[int], reprs_n_distances: Dict[int, np.n
     return merging_mapping
 
 
-def find_identical_single(i: int, candidates: Iterable[int], reprs_n_distances: Dict[int, np.ndarray]) -> int:
+def find_identical_single(
+    i: int, candidates: Iterable[int], reprs_n_distances: Dict[int, np.ndarray]
+) -> int:
     # for shortest path computations all graph nodes should be unique
     # join all nodes with the same coordinates
     # symmetric relation -> only consider one direction
@@ -818,7 +868,9 @@ def read_json(path2json_file):
     return boundary_coordinates, list_of_holes
 
 
-def convert_gridworld(size_x: int, size_y: int, obstacle_iter: iter, simplify: bool = True) -> (list, list):
+def convert_gridworld(
+    size_x: int, size_y: int, obstacle_iter: iter, simplify: bool = True
+) -> (list, list):
     """
     prerequisites: grid world must not have non-obstacle cells which are surrounded by obstacles
     ("single white cell in black surrounding" = useless for path planning)
@@ -836,7 +888,10 @@ def convert_gridworld(size_x: int, size_y: int, obstacle_iter: iter, simplify: b
 
     if len(obstacle_iter) == 0:
         # there are no obstacles. return just the simple boundary rectangle
-        return [np.array(x, y) for x, y in [(0, 0), (size_x, 0), (size_x, size_y), (0, size_y)]], []
+        return [
+            np.array(x, y)
+            for x, y in [(0, 0), (size_x, 0), (size_x, size_y), (0, size_y)]
+        ], []
 
     # convert (x,y) into np.arrays
     # obstacle_iter = [np.array(o) for o in obstacle_iter]
@@ -895,7 +950,9 @@ def convert_gridworld(size_x: int, size_y: int, obstacle_iter: iter, simplify: b
             # left has to be checked first
             # do not check if just turned left or right (-> the left is blocked for sure)
             # left_pos = current_pos + left_vect
-            if not (just_turned or boundary_detect_fct(current_pos + directions[left_index])):
+            if not (
+                just_turned or boundary_detect_fct(current_pos + directions[left_index])
+            ):
                 # print('< turn left')
                 forward_index = left_index
                 left_index = (forward_index - 1) % 4
@@ -940,7 +997,9 @@ def convert_gridworld(size_x: int, size_y: int, obstacle_iter: iter, simplify: b
     start_pos = find_start(start_pos=(0, 0), boundary_detect_fct=is_unblocked)
     # print(start_pos+directions[3])
     # raise ValueError
-    boundary_edges = construct_polygon(start_pos, boundary_detect_fct=is_blocked, cntr_clockwise_wanted=True)
+    boundary_edges = construct_polygon(
+        start_pos, boundary_detect_fct=is_blocked, cntr_clockwise_wanted=True
+    )
 
     if simplify:
         # TODO
@@ -951,7 +1010,9 @@ def convert_gridworld(size_x: int, size_y: int, obstacle_iter: iter, simplify: b
     # shift coordinates by +(0.5,0.5) for correct detection
     # the border value does not matter here
 
-    def get_unchecked_obstacles(obstacles: Iterable, poly: np.ndarray, required_val: bool = True) -> List:
+    def get_unchecked_obstacles(
+        obstacles: Iterable, poly: np.ndarray, required_val: bool = True
+    ) -> List:
         unchecked_obstacles = []
         for o in obstacles:
             p = o + 0.5
@@ -964,12 +1025,18 @@ def convert_gridworld(size_x: int, size_y: int, obstacle_iter: iter, simplify: b
 
     hole_list = []
     while len(unchecked_obstacles) > 0:
-        start_pos = find_start(start_pos=(0, 0), boundary_detect_fct=pos_in_iter, iter=unchecked_obstacles)
-        hole = construct_polygon(start_pos, boundary_detect_fct=is_unblocked, cntr_clockwise_wanted=False)
+        start_pos = find_start(
+            start_pos=(0, 0), boundary_detect_fct=pos_in_iter, iter=unchecked_obstacles
+        )
+        hole = construct_polygon(
+            start_pos, boundary_detect_fct=is_unblocked, cntr_clockwise_wanted=False
+        )
 
         # detect which of the obstacles still do not belong to any hole:
         # delete the obstacles which are included in the just constructed hole
-        unchecked_obstacles = get_unchecked_obstacles(unchecked_obstacles, hole, required_val=False)
+        unchecked_obstacles = get_unchecked_obstacles(
+            unchecked_obstacles, hole, required_val=False
+        )
 
         if simplify:
             # TODO
@@ -1003,13 +1070,19 @@ def _cmp_extremity_mask(coordinates: np.ndarray) -> np.ndarray:
     return extremity_mask
 
 
-def _cmp_extremities(list_of_polygons, coords, boundary_coordinates, list_of_hole_coordinates):
-    extremity_masks = [_cmp_extremity_mask(coords_poly) for coords_poly in list_of_polygons]
+def _cmp_extremities(
+    list_of_polygons, coords, boundary_coordinates, list_of_hole_coordinates
+):
+    extremity_masks = [
+        _cmp_extremity_mask(coords_poly) for coords_poly in list_of_polygons
+    ]
     extremity_mask = np.concatenate(extremity_masks, axis=0, dtype=bool)
     # Attention: since polygons are allowed to overlap, only consider extremities that are actually within the map
     for extremity_idx in np.where(extremity_mask)[0]:
         extrimity_coords = coords[extremity_idx]
-        if not is_within_map(extrimity_coords, boundary_coordinates, list_of_hole_coordinates):
+        if not is_within_map(
+            extrimity_coords, boundary_coordinates, list_of_hole_coordinates
+        ):
             extremity_mask[extremity_idx] = False
     extremity_indices = np.where(extremity_mask)[0]
     return extremity_indices, extremity_mask
@@ -1025,7 +1098,9 @@ def _cmp_edge_vertex_idxs(coordinates: np.ndarray) -> Tuple[np.ndarray, np.ndarr
 
 def _cmp_edge_and_vertex_idxs(list_of_polygons):
     # compute edge and vertex indices from polygon data structure
-    edge_and_vertex_indices = [_cmp_edge_vertex_idxs(coords_poly) for coords_poly in list_of_polygons]
+    edge_and_vertex_indices = [
+        _cmp_edge_vertex_idxs(coords_poly) for coords_poly in list_of_polygons
+    ]
     offset = 0
     for edge_vertex_idxs, vertex_edge_idxs in edge_and_vertex_indices:
         edge_vertex_idxs += offset
@@ -1037,7 +1112,9 @@ def _cmp_edge_and_vertex_idxs(list_of_polygons):
     return edge_vertex_idxs, vertex_edge_idxs
 
 
-def compile_polygon_datastructs(boundary_coordinates: np.ndarray, list_of_hole_coordinates: List[np.ndarray]):
+def compile_polygon_datastructs(
+    boundary_coordinates: np.ndarray, list_of_hole_coordinates: List[np.ndarray]
+):
     list_of_polygons = [boundary_coordinates] + list_of_hole_coordinates
     coords = np.concatenate(list_of_polygons, axis=0, dtype=configs.DTYPE_FLOAT)
     edge_vertex_idxs, vertex_edge_idxs = _cmp_edge_and_vertex_idxs(list_of_polygons)

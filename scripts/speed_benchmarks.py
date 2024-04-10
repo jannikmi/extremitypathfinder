@@ -52,7 +52,9 @@ def test_env_preparation_speed():
     t = timefunc(run_func, RUNS_ENV_PREP)
     t_avg = t / RUNS_ENV_PREP
     pts_p_sec = t_avg**-1
-    print(f"avg. environment preparation time {t_avg:.1e} s/run, {pts_p_sec:.1e} runs/s")
+    print(
+        f"avg. environment preparation time {t_avg:.1e} s/run, {pts_p_sec:.1e} runs/s"
+    )
     print(f"averaged over {RUNS_ENV_PREP:,} runs")
 
 
@@ -63,7 +65,6 @@ def test_query_speed():
         env = random.choice(prepared_envs)
         goal, start = get_rnd_query_pts(env)
         p, d = env.find_shortest_path(start, goal, verify=False)
-        x = 1
 
     print()
     t = timefunc(run_func, RUNS_QUERY)

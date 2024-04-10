@@ -24,7 +24,9 @@ PLOT_FILE_ENDING = ".svg"
 
 
 def get_plot_name(file_name="plot"):
-    return abspath(join(PLOTTING_DIR, file_name + "_" + str(time.time())[:-7] + PLOT_FILE_ENDING))
+    return abspath(
+        join(PLOTTING_DIR, file_name + "_" + str(time.time())[:-7] + PLOT_FILE_ENDING)
+    )
 
 
 def export_plot(fig, file_name):
@@ -235,7 +237,9 @@ class PlottingEnvironment(PolygonEnvironment):
         )
 
         draw_only_path(self, vertex_path, start_coordinates, goal_coordinates)
-        if self.temp_graph:  # in some cases (e.g. direct path possible) no graph is being created!
+        if (
+            self.temp_graph
+        ):  # in some cases (e.g. direct path possible) no graph is being created!
             draw_graph(self, self.temp_graph)
             draw_with_path(self, self.temp_graph, vertex_path)
             del self.temp_graph  # free the memory
