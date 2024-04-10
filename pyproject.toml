@@ -40,9 +40,15 @@ extremitypathfinder = "extremitypathfinder.command_line:main"
 
 [tool.poetry.dependencies]
 python = ">=3.8,<4"
-numpy = "^1.22"
 networkx = "^3"
-numba = {version = "^0.56.0", optional = true}
+numpy = [
+    { version = ">=1.21,<2", python = "<3.9" },
+    { version = ">=1.23,<2", python = ">=3.9" }
+]
+numba = [
+    { version = ">=0.56,<1", python = "<3.12", optional = true },
+    { version = ">=0.59,<1", python = ">=3.12", optional = true }
+]
 # required for jit of np.linalg.solve with numba
 scipy = [
     { version = ">=1.9,<2", python = "<3.12", optional = true },
