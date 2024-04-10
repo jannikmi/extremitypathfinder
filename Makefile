@@ -22,8 +22,9 @@ hook:
 	@pre-commit install
 	@pre-commit run --all-files
 
-hook2:
+hookup:
 	@pre-commit autoupdate
+	@pre-commit install
 
 clean:
 	rm -rf .pytest_cache .coverage coverage.xml tests/__pycache__ .mypyp_cache/ .tox
