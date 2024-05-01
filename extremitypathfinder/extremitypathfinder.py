@@ -86,6 +86,14 @@ class PolygonEnvironment:
         """
         self.prepared = False
         # loading the map
+        
+        if boundary_coordinates is None:
+            min_x = min(coord[0] for hole in list_of_hole_coordinates for coord in hole)
+            max_x = max(coord[0] for hole in list_of_hole_coordinates for coord in hole)
+            min_y = min(coord[1] for hole in list_of_hole_coordinates for coord in hole)
+            max_y = max(coord[1] for hole in list_of_hole_coordinates for coord in hole)
+            boundary_coordinates = [(min_x, min_y), (max_x, min_y), (max_x, max_y), (min_x, max_y)]
+
         boundary_coordinates = np.array(boundary_coordinates, dtype=configs.DTYPE_FLOAT)
         list_of_hole_coordinates = [
             np.array(hole_coords, dtype=configs.DTYPE_FLOAT)
