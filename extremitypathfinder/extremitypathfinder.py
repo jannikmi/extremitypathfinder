@@ -93,11 +93,14 @@ class PolygonEnvironment:
             np.array(hole_coords, dtype=configs.DTYPE_FLOAT)
             for hole_coords in list_of_hole_coordinates
         ]
-        if boundary_coordinates is None:
+        boundary_was_inferred = boundary_coordinates is None
+        if boundary_was_inferred:
             if not list_of_hole_coordinates:
                 raise ValueError(
                     "At least one hole is required when boundary_coordinates is None."
                 )
+            if validate:
+                utils.check_hole_data_requirements(list_of_hole_coordinates)
             all_hole_coordinates = np.concatenate(list_of_hole_coordinates)
             min_x, min_y = np.min(all_hole_coordinates, axis=0)
             max_x, max_y = np.max(all_hole_coordinates, axis=0)
@@ -110,7 +113,8 @@ class PolygonEnvironment:
         boundary_coordinates = np.array(boundary_coordinates, dtype=configs.DTYPE_FLOAT)
         if validate:
             utils.check_data_requirements(
-                boundary_coordinates, list_of_hole_coordinates
+                boundary_coordinates,
+                [] if boundary_was_inferred else list_of_hole_coordinates,
             )
 
         # Note: independent copy!

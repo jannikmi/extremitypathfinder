@@ -147,6 +147,11 @@ def check_data_requirements(
         raise ValueError(
             "Vertex numbering of the boundary polygon must be counter clockwise."
         )
+    check_hole_data_requirements(list_hole_coords)
+
+
+def check_hole_data_requirements(list_hole_coords: List[np.ndarray]):
+    """Validate the shape and clockwise numbering of hole polygons."""
     for hole_coords in list_hole_coords:
         _check_polygon(hole_coords)
         if not _has_clockwise_numbering(hole_coords):

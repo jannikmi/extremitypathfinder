@@ -152,6 +152,23 @@ def test_poly_env_without_boundary_or_holes():
         environment.store(None, [], validate=True)
 
 
+@pytest.mark.parametrize(
+    ("holes", "message"),
+    [
+        ([[]], "at least contain 3 vertices"),
+        (
+            [[(0.0, 0.0, 0.0), (1.0, 1.0, 1.0), (2.0, 2.0, 2.0)]],
+            "must consist of two values",
+        ),
+    ],
+)
+def test_poly_env_without_boundary_validates_holes_before_inference(holes, message):
+    environment = PolygonEnvironment()
+
+    with pytest.raises(TypeError, match=message):
+        environment.store(None, holes, validate=True)
+
+
 def test_overlapping_polygon():
     overlap_poly_env = ENVIRONMENT_CLASS(**CONSTRUCTION_KWARGS)
     overlap_poly_env.store(*OVERLAP_POLY_ENV_PARAMS)
