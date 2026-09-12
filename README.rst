@@ -40,7 +40,7 @@ python package for fast geometric shortest path computation in 2D multi-polygon 
 Supported versions
 ------------------
 
-Python >=3.10 is accepted; CI currently tests CPython 3.10–3.14.
+Python >=3.10,<4 is accepted; CI currently tests CPython 3.10–3.14.
 Dependencies are NetworkX 3.x and NumPy >=2.2,<3
 (NumPy >=2.3.3 on Python 3.14). Python <3.10 and NumPy 1.x, 2.0 and 2.1
 are no longer supported.

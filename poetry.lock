@@ -1976,5 +1976,5 @@ numba = ["numba", "numba", "scipy", "scipy"]
 
 [metadata]
 lock-version = "2.1"
-python-versions = ">=3.10"
-content-hash = "b58afdf5dbc16999cd66a66b572356b9500673300f8ec33a6b8ceff35713e8fc"
+python-versions = ">=3.10,<4"
+content-hash = "52db1a5e639394d4c17561a1c40b3df2ed7062bcb328b33455fce3bfe690f3bd"
