@@ -27,7 +27,8 @@ Installation with Numba for a significant speedup, with the tradeoff of a larger
 Supported versions and dependencies
 -----------------------------------
 
-CPython 3.10–3.14 is supported with NetworkX 3.x and NumPy >=2.2,<3
+Python >=3.10 is accepted; CI currently tests CPython 3.10–3.14.
+Dependencies are NetworkX 3.x and NumPy >=2.2,<3
 (NumPy >=2.3.3 on Python 3.14). Python <3.10 and NumPy 1.x, 2.0 and 2.1
 are no longer supported.
 
