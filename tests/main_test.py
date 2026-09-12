@@ -1,11 +1,12 @@
 import itertools
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 
 from extremitypathfinder import utils
 from extremitypathfinder.extremitypathfinder import PolygonEnvironment
-from extremitypathfinder.plotting import PlottingEnvironment
+from extremitypathfinder.plotting import PlottingEnvironment, set_limits
 from tests.helpers import other_edge_intersects
 from tests.test_cases import (
     GRID_ENV_PARAMS,
@@ -126,23 +127,24 @@ def test_poly_env():
     # (extremities lying in front of each other need not be connected)
 
 
-def test_poly_env_without_explicit_boundary():
-    holes = [
-        [(1.0, 3.0), (2.0, 2.0), (1.0, 1.0)],
-        [(4.0, 4.0), (5.0, 3.0), (4.0, 2.0)],
-    ]
+def test_unbounded_poly_env():
+    holes = [[(0.0, 2.0), (2.0, 2.0), (2.0, 0.0), (0.0, 0.0)]]
     environment = PolygonEnvironment()
 
     environment.store(None, holes, validate=True)
 
-    np.testing.assert_array_equal(
-        environment.boundary_polygon,
-        [(1.0, 1.0), (5.0, 1.0), (5.0, 4.0), (1.0, 4.0)],
-    )
-    assert environment.within_map(np.array((3.0, 3.0)))
-    path, length = environment.find_shortest_path((2.0, 3.0), (4.0, 3.0))
-    assert path == [(2.0, 3.0), (4.0, 3.0)]
-    assert length == 2.0
+    assert environment.boundary_polygon is None
+    assert environment.within_map(np.array((-100.0, 1.0)))
+    assert environment.within_map(np.array((100.0, 1.0)))
+    assert not environment.within_map(np.array((1.0, 1.0)))
+    path, length = environment.find_shortest_path((-1.0, 0.5), (3.0, 0.5))
+    assert path == [(-1.0, 0.5), (0.0, 0.0), (2.0, 0.0), (3.0, 0.5)]
+    assert length == pytest.approx(2 * np.sqrt(1.25) + 2)
+
+    figure, axes = plt.subplots()
+    set_limits(environment, axes, np.array((path[0], path[-1])))
+    assert axes.get_xlim() == pytest.approx((-2.0, 4.0))
+    plt.close(figure)
 
 
 def test_poly_env_without_boundary_or_holes():

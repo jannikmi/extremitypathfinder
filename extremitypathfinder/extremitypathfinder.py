@@ -42,7 +42,7 @@ class PolygonEnvironment:
     temp_graph: Optional[t.Graph] = (
         None  # for storing and plotting the graph during a query
     )
-    boundary_polygon: np.ndarray
+    boundary_polygon: Optional[np.ndarray]
     coords: np.ndarray
     edge_vertex_idxs: np.ndarray
     extremity_mask: np.ndarray
@@ -80,8 +80,8 @@ class PolygonEnvironment:
             * edge numbering has to follow these conventions: boundary polygon counter clockwise, holes clockwise
 
         :param boundary_coordinates: array of coordinates with counter clockwise edge numbering.
-            When ``None``, an axis-aligned rectangular boundary spanning all hole
-            vertices is generated. At least one hole must be supplied in this case.
+            When ``None``, the environment is unbounded and at least one hole must
+            be supplied.
         :param list_of_hole_coordinates: array of coordinates with clockwise edge numbering
         :param validate: whether the requirements of the data should be tested
 
@@ -93,28 +93,21 @@ class PolygonEnvironment:
             np.array(hole_coords, dtype=configs.DTYPE_FLOAT)
             for hole_coords in list_of_hole_coordinates
         ]
-        boundary_was_inferred = boundary_coordinates is None
-        if boundary_was_inferred:
+        if boundary_coordinates is None:
             if not list_of_hole_coordinates:
                 raise ValueError(
                     "At least one hole is required when boundary_coordinates is None."
                 )
             if validate:
                 utils.check_hole_data_requirements(list_of_hole_coordinates)
-            all_hole_coordinates = np.concatenate(list_of_hole_coordinates)
-            min_x, min_y = np.min(all_hole_coordinates, axis=0)
-            max_x, max_y = np.max(all_hole_coordinates, axis=0)
-            boundary_coordinates = [
-                (min_x, min_y),
-                (max_x, min_y),
-                (max_x, max_y),
-                (min_x, max_y),
-            ]
-        boundary_coordinates = np.array(boundary_coordinates, dtype=configs.DTYPE_FLOAT)
-        if validate:
+        else:
+            boundary_coordinates = np.array(
+                boundary_coordinates, dtype=configs.DTYPE_FLOAT
+            )
+        if validate and boundary_coordinates is not None:
             utils.check_data_requirements(
                 boundary_coordinates,
-                [] if boundary_was_inferred else list_of_hole_coordinates,
+                list_of_hole_coordinates,
             )
 
         # Note: independent copy!
@@ -213,7 +206,7 @@ class PolygonEnvironment:
         self.prepared = True
 
     def within_map(self, coords: np.ndarray) -> bool:
-        """checks if the given coordinates lie within the boundary polygon and outside of all holes
+        """Check whether coordinates lie outside holes and within any boundary.
 
         :param coords: numerical tuple representing coordinates
         :return: whether the given coordinate is a valid query point
@@ -262,7 +255,7 @@ class PolygonEnvironment:
         """
         # path planning query:
         # make sure the map has been loaded and prepared
-        if self.boundary_polygon is None:
+        if not self.prepared:
             raise ValueError("No Polygons have been loaded into the map yet.")
 
         coords_start = np.array(start_coordinates, dtype=float)

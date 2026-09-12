@@ -3,6 +3,7 @@ from os import makedirs
 from os.path import abspath, exists, join
 
 import matplotlib.pyplot as plt
+import numpy as np
 from matplotlib.patches import Polygon
 
 from extremitypathfinder import types as t
@@ -60,7 +61,8 @@ def draw_polygon(ax, coords, **kwargs):
 def draw_boundaries(map, ax):
     # TODO outside dark grey
     # TODO fill holes light grey
-    draw_polygon(ax, map.boundary_polygon)
+    if map.boundary_polygon is not None:
+        draw_polygon(ax, map.boundary_polygon)
     for h in map.holes:
         draw_polygon(ax, h, facecolor="grey", fill=True)
 
@@ -78,17 +80,22 @@ def draw_internal_graph(map: PolygonEnvironment, ax):
             draw_edge(start, goal, c="red", alpha=0.2, linewidth=2)
 
 
-def set_limits(map, ax):
+def set_limits(map, ax, query_coordinates=None):
+    coordinates = map.boundary_polygon
+    if coordinates is None:
+        coordinates = map.coords
+    if query_coordinates is not None:
+        coordinates = np.concatenate((coordinates, query_coordinates))
     ax.set_xlim(
         (
-            min(map.boundary_polygon[:, 0]) - 1,
-            max(map.boundary_polygon[:, 0]) + 1,
+            min(coordinates[:, 0]) - 1,
+            max(coordinates[:, 0]) + 1,
         )
     )
     ax.set_ylim(
         (
-            min(map.boundary_polygon[:, 1]) - 1,
-            max(map.boundary_polygon[:, 1]) + 1,
+            min(coordinates[:, 1]) - 1,
+            max(coordinates[:, 1]) + 1,
         )
     )
 
@@ -133,7 +140,7 @@ def draw_with_path(map, graph: t.Graph, vertex_path):
     all_nodes = graph.nodes
     draw_boundaries(map, ax)
     draw_internal_graph(map, ax)
-    set_limits(map, ax)
+    set_limits(map, ax, coords[-2:])
 
     if len(vertex_path) > 0:
         # additionally draw:
@@ -166,7 +173,7 @@ def draw_only_path(map, vertex_path, start_coordinates, goal_coordinates):
     fig, ax = plt.subplots()
 
     draw_boundaries(map, ax)
-    set_limits(map, ax)
+    set_limits(map, ax, np.array((start_coordinates, goal_coordinates)))
     draw_path(vertex_path)
     mark_points([start_coordinates, goal_coordinates], c="g", s=100)
 
@@ -201,7 +208,7 @@ def draw_graph(map, graph: t.Graph):
                 length_includes_head=True,
             )
 
-    set_limits(map, ax)
+    set_limits(map, ax, coords[-2:])
 
     export_plot(fig, "graph_plot")
     if SHOW_PLOTS:

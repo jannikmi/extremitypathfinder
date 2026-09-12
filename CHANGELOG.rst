@@ -4,7 +4,7 @@ Changelog
 Unreleased
 ----------
 
-- allow deriving a rectangular boundary from hole polygons when no explicit boundary is supplied
+- allow unbounded polygon environments without an explicit boundary
 
 
 2.7.2 (2024-04-10)

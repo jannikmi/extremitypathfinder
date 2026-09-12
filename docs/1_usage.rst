@@ -61,8 +61,8 @@ Ensure that all the following conditions on the polygons are fulfilled:
 
 
 If there is no explicit boundary polygon, pass ``None`` instead. The environment
-then uses the smallest axis-aligned rectangle spanning all hole vertices as its
-boundary. At least one hole must be supplied.
+is then unbounded, so query points may lie anywhere outside the holes. At least one
+hole must be supplied.
 
 .. code-block:: python
 
