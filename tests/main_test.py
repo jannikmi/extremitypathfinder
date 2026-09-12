@@ -1,5 +1,6 @@
 import itertools
 
+import numpy as np
 import pytest
 
 from extremitypathfinder import utils
@@ -123,6 +124,32 @@ def test_poly_env():
     # when two nodes have the same angle representation there should only be an edge to the closer node!
     # test if property 1 is being properly exploited
     # (extremities lying in front of each other need not be connected)
+
+
+def test_poly_env_without_explicit_boundary():
+    holes = [
+        [(1.0, 3.0), (2.0, 2.0), (1.0, 1.0)],
+        [(4.0, 4.0), (5.0, 3.0), (4.0, 2.0)],
+    ]
+    environment = PolygonEnvironment()
+
+    environment.store(None, holes, validate=True)
+
+    np.testing.assert_array_equal(
+        environment.boundary_polygon,
+        [(1.0, 1.0), (5.0, 1.0), (5.0, 4.0), (1.0, 4.0)],
+    )
+    assert environment.within_map(np.array((3.0, 3.0)))
+    path, length = environment.find_shortest_path((2.0, 3.0), (4.0, 3.0))
+    assert path == [(2.0, 3.0), (4.0, 3.0)]
+    assert length == 2.0
+
+
+def test_poly_env_without_boundary_or_holes():
+    environment = PolygonEnvironment()
+
+    with pytest.raises(ValueError, match="At least one hole is required"):
+        environment.store(None, [], validate=True)
 
 
 def test_overlapping_polygon():

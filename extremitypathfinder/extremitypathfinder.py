@@ -14,6 +14,7 @@ from extremitypathfinder.types import (
     InputCoordList,
     Length,
     ObstacleIterator,
+    OptionalInputCoordList,
     Path,
 )
 
@@ -63,7 +64,7 @@ class PolygonEnvironment:
 
     def store(
         self,
-        boundary_coordinates: InputCoordList,
+        boundary_coordinates: OptionalInputCoordList,
         list_of_hole_coordinates: InputCoordList,
         validate: bool = False,
     ):
@@ -78,7 +79,9 @@ class PolygonEnvironment:
             * no self intersections
             * edge numbering has to follow these conventions: boundary polygon counter clockwise, holes clockwise
 
-        :param boundary_coordinates: array of coordinates with counter clockwise edge numbering
+        :param boundary_coordinates: array of coordinates with counter clockwise edge numbering.
+            When ``None``, an axis-aligned rectangular boundary spanning all hole
+            vertices is generated. At least one hole must be supplied in this case.
         :param list_of_hole_coordinates: array of coordinates with clockwise edge numbering
         :param validate: whether the requirements of the data should be tested
 
@@ -86,11 +89,25 @@ class PolygonEnvironment:
         """
         self.prepared = False
         # loading the map
-        boundary_coordinates = np.array(boundary_coordinates, dtype=configs.DTYPE_FLOAT)
         list_of_hole_coordinates = [
             np.array(hole_coords, dtype=configs.DTYPE_FLOAT)
             for hole_coords in list_of_hole_coordinates
         ]
+        if boundary_coordinates is None:
+            if not list_of_hole_coordinates:
+                raise ValueError(
+                    "At least one hole is required when boundary_coordinates is None."
+                )
+            all_hole_coordinates = np.concatenate(list_of_hole_coordinates)
+            min_x, min_y = np.min(all_hole_coordinates, axis=0)
+            max_x, max_y = np.max(all_hole_coordinates, axis=0)
+            boundary_coordinates = [
+                (min_x, min_y),
+                (max_x, min_y),
+                (max_x, max_y),
+                (min_x, max_y),
+            ]
+        boundary_coordinates = np.array(boundary_coordinates, dtype=configs.DTYPE_FLOAT)
         if validate:
             utils.check_data_requirements(
                 boundary_coordinates, list_of_hole_coordinates
