@@ -37,13 +37,38 @@ python package for fast geometric shortest path computation in 2D multi-polygon 
 .. image:: ./docs/_static/title_demo_plot.png
 
 
+Supported versions
+------------------
+
+CPython 3.10–3.14 is supported with NetworkX 3.x and NumPy >=2.2,<3
+(NumPy >=2.3.3 on Python 3.14). Python <3.10 and NumPy 1.x, 2.0 and 2.1
+are no longer supported.
+
+The Python range follows `CPython's official support schedule
+<https://devguide.python.org/versions/>`__, including security-only releases.
+Python 3.10 reaches end of life in October 2026; review the floor for the next
+release. The NumPy floor follows the September 2026 downstream support window
+in `NEP 29 <https://numpy.org/neps/nep-0029-deprecation_policy>`__.
+NEP 29 is a downstream compatibility recommendation, not a promise of upstream
+bug fixes for every included NumPy release.
+CI runs the full suite with minimum and latest compatible dependencies,
+both with and without the ``numba`` extra, on every supported Python version.
+
+The optional ``numba`` extra installs Numba >=0.61.2 and SciPy >=1.14.1
+(Numba >=0.63 and SciPy >=1.16.1 on Python 3.14). SciPy supplies the compiled
+linear algebra routines. Pip selects compatible versions; Numba may constrain
+NumPy more tightly than the ordinary installation.
+Acceleration depends on Numba/llvmlite platform support and adds installation
+size and initial compilation time. Standard, GIL-enabled CPython is tested;
+free-threaded builds and alternative interpreters are not covered by CI.
+
 Quick Guide:
 
 Install the package with the optional Numba extra for a significant speedup:
 
 .. code-block:: console
 
-    pip install extremitypathfinder[numba]
+    pip install "extremitypathfinder[numba]"
 
 
 .. code-block:: python

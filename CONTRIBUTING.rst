@@ -34,7 +34,7 @@ Implement Features
 Look through the GitHub issues for features. Anything tagged with "help wanted"
 and not assigned to anyone is open to whoever wants to implement it - please
 leave a comment to say you have started working on it, and open a pull request
-as soon as you have something working, so that Travis starts building it.
+as soon as you have something working, so that GitHub Actions starts building it.
 
 Issues without "help wanted" generally already have some code ready in the
 background (maybe it's not yet open source), but you can still contribute to
@@ -83,14 +83,13 @@ Ready to contribute? Here's how to set up this package for local development.
        $ pip install tox
        $ tox
 
-   The ``tox.ini`` file defines a large number of test environments, for
-   different Python etc., plus for checking codestyle. During
-   development of a feature/fix, you'll probably want to run just one plus the
-   relevant codestyle:
+   The tox configuration in ``pyproject.toml`` tests Python 3.10–3.14
+   with minimum and latest dependencies, with and without Numba. During
+   development, select a single environment:
 
    .. code-block:: sh
 
-       $ tox -e codestyle
+       $ tox -e py312-numba
 
 
 * Commit your changes and push your branch to GitHub:
@@ -101,7 +100,7 @@ Ready to contribute? Here's how to set up this package for local development.
        $ git commit -m "Your detailed description of your changes."
        $ git push origin name-of-your-bugfix-or-feature
 
-* Submit a pull request through the GitHub website. This will trigger the Travis CI build which runs the tests against all supported versions of Python.
+* Submit a pull request through the GitHub website. This will trigger the GitHub Actions build which runs the tests against all supported versions of Python.
 
 
 

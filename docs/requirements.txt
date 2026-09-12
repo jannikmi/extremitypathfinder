@@ -1,5 +1,3 @@
-networkx
-numpy
 Sphinx
 sphinx-rtd-theme
 urllib3<3

@@ -2,6 +2,15 @@ Changelog
 =========
 
 
+Unreleased
+----------
+
+- Support CPython 3.10–3.14 and NumPy 2.2+ (2.3.3+ on Python 3.14).
+- Drop end-of-life Python <3.10 and NumPy <2.2 (the NEP 29 window).
+- Test minimum and latest dependencies with and without Numba in isolated
+  wheel installations; update Numba and SciPy version constraints.
+
+
 2.7.2 (2024-04-10)
 -------------------
 
