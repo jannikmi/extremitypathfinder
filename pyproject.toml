@@ -39,7 +39,7 @@ include = [
 extremitypathfinder = "extremitypathfinder.command_line:main"
 
 [tool.poetry.dependencies]
-python = ">=3.10,<4"
+python = ">=3.12,<4"
 networkx = ">=3,<4"
 numpy = [
     { version = ">=2.2,<3", python = "<3.14" },
@@ -88,8 +88,8 @@ legacy_tox_ini = """
 minversion = 4
 isolated_build = true
 envlist =
-    py{310,311,312,313,314}{,-numba}
-    py{310,311,312,313,314}-minimum{,-numba}
+    py{312,313,314}{,-numba}
+    py{312,313,314}-minimum{,-numba}
 
 [testenv]
 package = wheel
@@ -99,11 +99,11 @@ deps =
     pytest
     matplotlib
     minimum: networkx==3.0
-    py310-minimum,py311-minimum,py312-minimum,py313-minimum: numpy==2.2.0
+    py312-minimum,py313-minimum: numpy==2.2.0
     py314-minimum: numpy==2.3.3
-    py310-minimum-numba,py311-minimum-numba,py312-minimum-numba,py313-minimum-numba: numba==0.61.2
+    py312-minimum-numba,py313-minimum-numba: numba==0.61.2
     py314-minimum-numba: numba==0.63.0
-    py310-minimum-numba,py311-minimum-numba,py312-minimum-numba,py313-minimum-numba: scipy==1.14.1
+    py312-minimum-numba,py313-minimum-numba: scipy==1.14.1
     py314-minimum-numba: scipy==1.16.1
 setenv =
     MPLBACKEND = Agg

@@ -18,10 +18,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - python-version: "3.10"
-            tox-env: py310,py310-numba,py310-minimum,py310-minimum-numba
-          - python-version: "3.11"
-            tox-env: py311,py311-numba,py311-minimum,py311-minimum-numba
           - python-version: "3.12"
             tox-env: py312,py312-numba,py312-minimum,py312-minimum-numba,docs
           - python-version: "3.13"
