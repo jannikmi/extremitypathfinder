@@ -41,19 +41,10 @@ extremitypathfinder = "extremitypathfinder.command_line:main"
 [tool.poetry.dependencies]
 python = ">=3.12,<4"
 networkx = ">=3,<4"
-numpy = [
-    { version = ">=2.2,<3", python = "<3.14" },
-    { version = ">=2.3.3,<3", python = ">=3.14" }
-]
-numba = [
-    { version = ">=0.61.2,<1", python = "<3.14", optional = true },
-    { version = ">=0.63,<1", python = ">=3.14", optional = true }
-]
+numpy = ">=2.3.3,<3"
+numba = { version = ">=0.63,<1", optional = true }
 # Required for Numba's np.linalg.solve implementation.
-scipy = [
-    { version = ">=1.14.1,<2", python = "<3.14", optional = true },
-    { version = ">=1.16.1,<2", python = ">=3.14", optional = true }
-]
+scipy = { version = ">=1.16.1,<2", optional = true }
 
 [tool.poetry.group.dev.dependencies]
 pre-commit = "*"
@@ -99,12 +90,9 @@ deps =
     pytest
     matplotlib
     minimum: networkx==3.0
-    py312-minimum,py313-minimum: numpy==2.2.0
-    py314-minimum: numpy==2.3.3
-    py312-minimum-numba,py313-minimum-numba: numba==0.61.2
-    py314-minimum-numba: numba==0.63.0
-    py312-minimum-numba,py313-minimum-numba: scipy==1.14.1
-    py314-minimum-numba: scipy==1.16.1
+    minimum: numpy==2.3.3
+    minimum-numba: numba==0.63.0
+    minimum-numba: scipy==1.16.1
 setenv =
     MPLBACKEND = Agg
     !numba: EXPECT_NUMBA = 0
