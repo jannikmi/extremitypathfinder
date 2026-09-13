@@ -60,6 +60,15 @@ Ensure that all the following conditions on the polygons are fulfilled:
     environment.store(boundary_coordinates, list_of_holes, validate=False)
 
 
+If there is no explicit boundary polygon, pass ``None`` instead. The environment
+is then unbounded, so query points may lie anywhere outside the holes. At least one
+hole must be supplied.
+
+.. code-block:: python
+
+    environment.store(None, list_of_holes, validate=False)
+
+
 .. note::
 
     Pass ``validate=True`` in order to check the condition on the data.

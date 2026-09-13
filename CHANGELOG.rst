@@ -1,6 +1,11 @@
 Changelog
 =========
 
+Unreleased
+----------
+
+- allow unbounded polygon environments without an explicit boundary
+
 
 2.7.2 (2024-04-10)
 -------------------

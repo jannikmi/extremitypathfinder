@@ -14,6 +14,7 @@ from extremitypathfinder.types import (
     InputCoordList,
     Length,
     ObstacleIterator,
+    OptionalInputCoordList,
     Path,
 )
 
@@ -41,7 +42,7 @@ class PolygonEnvironment:
     temp_graph: Optional[t.Graph] = (
         None  # for storing and plotting the graph during a query
     )
-    boundary_polygon: np.ndarray
+    boundary_polygon: Optional[np.ndarray]
     coords: np.ndarray
     edge_vertex_idxs: np.ndarray
     extremity_mask: np.ndarray
@@ -63,7 +64,7 @@ class PolygonEnvironment:
 
     def store(
         self,
-        boundary_coordinates: InputCoordList,
+        boundary_coordinates: OptionalInputCoordList,
         list_of_hole_coordinates: InputCoordList,
         validate: bool = False,
     ):
@@ -78,7 +79,9 @@ class PolygonEnvironment:
             * no self intersections
             * edge numbering has to follow these conventions: boundary polygon counter clockwise, holes clockwise
 
-        :param boundary_coordinates: array of coordinates with counter clockwise edge numbering
+        :param boundary_coordinates: array of coordinates with counter clockwise edge numbering.
+            When ``None``, the environment is unbounded and at least one hole must
+            be supplied.
         :param list_of_hole_coordinates: array of coordinates with clockwise edge numbering
         :param validate: whether the requirements of the data should be tested
 
@@ -86,14 +89,25 @@ class PolygonEnvironment:
         """
         self.prepared = False
         # loading the map
-        boundary_coordinates = np.array(boundary_coordinates, dtype=configs.DTYPE_FLOAT)
         list_of_hole_coordinates = [
             np.array(hole_coords, dtype=configs.DTYPE_FLOAT)
             for hole_coords in list_of_hole_coordinates
         ]
-        if validate:
+        if boundary_coordinates is None:
+            if not list_of_hole_coordinates:
+                raise ValueError(
+                    "At least one hole is required when boundary_coordinates is None."
+                )
+            if validate:
+                utils.check_hole_data_requirements(list_of_hole_coordinates)
+        else:
+            boundary_coordinates = np.array(
+                boundary_coordinates, dtype=configs.DTYPE_FLOAT
+            )
+        if validate and boundary_coordinates is not None:
             utils.check_data_requirements(
-                boundary_coordinates, list_of_hole_coordinates
+                boundary_coordinates,
+                list_of_hole_coordinates,
             )
 
         # Note: independent copy!
@@ -192,7 +206,7 @@ class PolygonEnvironment:
         self.prepared = True
 
     def within_map(self, coords: np.ndarray) -> bool:
-        """checks if the given coordinates lie within the boundary polygon and outside of all holes
+        """Check whether coordinates lie outside holes and within any boundary.
 
         :param coords: numerical tuple representing coordinates
         :return: whether the given coordinate is a valid query point
@@ -241,7 +255,7 @@ class PolygonEnvironment:
         """
         # path planning query:
         # make sure the map has been loaded and prepared
-        if self.boundary_polygon is None:
+        if not self.prepared:
             raise ValueError("No Polygons have been loaded into the map yet.")
 
         coords_start = np.array(start_coordinates, dtype=float)

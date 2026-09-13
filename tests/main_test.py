@@ -1,10 +1,12 @@
 import itertools
 
+import matplotlib.pyplot as plt
+import numpy as np
 import pytest
 
 from extremitypathfinder import utils
 from extremitypathfinder.extremitypathfinder import PolygonEnvironment
-from extremitypathfinder.plotting import PlottingEnvironment
+from extremitypathfinder.plotting import PlottingEnvironment, set_limits
 from tests.helpers import other_edge_intersects
 from tests.test_cases import (
     GRID_ENV_PARAMS,
@@ -123,6 +125,50 @@ def test_poly_env():
     # when two nodes have the same angle representation there should only be an edge to the closer node!
     # test if property 1 is being properly exploited
     # (extremities lying in front of each other need not be connected)
+
+
+def test_unbounded_poly_env():
+    holes = [[(0.0, 2.0), (2.0, 2.0), (2.0, 0.0), (0.0, 0.0)]]
+    environment = PolygonEnvironment()
+
+    environment.store(None, holes, validate=True)
+
+    assert environment.boundary_polygon is None
+    assert environment.within_map(np.array((-100.0, 1.0)))
+    assert environment.within_map(np.array((100.0, 1.0)))
+    assert not environment.within_map(np.array((1.0, 1.0)))
+    path, length = environment.find_shortest_path((-1.0, 0.5), (3.0, 0.5))
+    assert path == [(-1.0, 0.5), (0.0, 0.0), (2.0, 0.0), (3.0, 0.5)]
+    assert length == pytest.approx(2 * np.sqrt(1.25) + 2)
+
+    figure, axes = plt.subplots()
+    set_limits(environment, axes, np.array((path[0], path[-1])))
+    assert axes.get_xlim() == pytest.approx((-2.0, 4.0))
+    plt.close(figure)
+
+
+def test_poly_env_without_boundary_or_holes():
+    environment = PolygonEnvironment()
+
+    with pytest.raises(ValueError, match="At least one hole is required"):
+        environment.store(None, [], validate=True)
+
+
+@pytest.mark.parametrize(
+    ("holes", "message"),
+    [
+        ([[]], "at least contain 3 vertices"),
+        (
+            [[(0.0, 0.0, 0.0), (1.0, 1.0, 1.0), (2.0, 2.0, 2.0)]],
+            "must consist of two values",
+        ),
+    ],
+)
+def test_poly_env_without_boundary_validates_holes_before_inference(holes, message):
+    environment = PolygonEnvironment()
+
+    with pytest.raises(TypeError, match=message):
+        environment.store(None, holes, validate=True)
 
 
 def test_overlapping_polygon():

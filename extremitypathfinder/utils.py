@@ -2,7 +2,7 @@ import itertools
 import json
 import pickle
 from itertools import combinations
-from typing import Dict, Iterable, List, Set, Tuple
+from typing import Dict, Iterable, List, Optional, Set, Tuple
 
 import networkx as nx
 import numpy as np
@@ -48,9 +48,9 @@ def cmp_reps_n_distance_dict(
 
 
 def is_within_map(
-    p: np.ndarray, boundary: np.ndarray, holes: Iterable[np.ndarray]
+    p: np.ndarray, boundary: Optional[np.ndarray], holes: Iterable[np.ndarray]
 ) -> bool:
-    if not _inside_polygon(p, boundary, border_value=True):
+    if boundary is not None and not _inside_polygon(p, boundary, border_value=True):
         return False
     for hole in holes:
         if _inside_polygon(p, hole, border_value=False):
@@ -147,6 +147,11 @@ def check_data_requirements(
         raise ValueError(
             "Vertex numbering of the boundary polygon must be counter clockwise."
         )
+    check_hole_data_requirements(list_hole_coords)
+
+
+def check_hole_data_requirements(list_hole_coords: List[np.ndarray]):
+    """Validate the shape and clockwise numbering of hole polygons."""
     for hole_coords in list_hole_coords:
         _check_polygon(hole_coords)
         if not _has_clockwise_numbering(hole_coords):
@@ -1113,9 +1118,12 @@ def _cmp_edge_and_vertex_idxs(list_of_polygons):
 
 
 def compile_polygon_datastructs(
-    boundary_coordinates: np.ndarray, list_of_hole_coordinates: List[np.ndarray]
+    boundary_coordinates: Optional[np.ndarray],
+    list_of_hole_coordinates: List[np.ndarray],
 ):
-    list_of_polygons = [boundary_coordinates] + list_of_hole_coordinates
+    list_of_polygons = list_of_hole_coordinates
+    if boundary_coordinates is not None:
+        list_of_polygons = [boundary_coordinates] + list_of_polygons
     coords = np.concatenate(list_of_polygons, axis=0, dtype=configs.DTYPE_FLOAT)
     edge_vertex_idxs, vertex_edge_idxs = _cmp_edge_and_vertex_idxs(list_of_polygons)
     extremity_indices, extremity_mask = _cmp_extremities(
