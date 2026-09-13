@@ -17,12 +17,13 @@ jobs:
       # max-parallel: 8
       fail-fast: false
       matrix:
-        python-version:
-          - "3.8"
-          - "3.9"
-          - "3.10"
-          - "3.11"
-          - "3.12"
+        include:
+          - python-version: "3.12"
+            tox-env: py312,py312-numba,py312-minimum,py312-minimum-numba,docs
+          - python-version: "3.13"
+            tox-env: py313,py313-numba,py313-minimum,py313-minimum-numba
+          - python-version: "3.14"
+            tox-env: py314,py314-numba,py314-minimum,py314-minimum-numba
     env:
       TOXENV: ${{ matrix.tox-env }}
       TOX_SKIP_MISSING_INTERPRETERS: False
@@ -30,19 +31,17 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Run pre-commit hook
-        uses: pre-commit/action@v3.0.1
-
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Upgrade pip version
-        run: pip install -U pip
+      - name: Run pre-commit hook
+        if: matrix.python-version == '3.12'
+        uses: pre-commit/action@v3.0.1
 
       - name: Install test dependencies
-        run: pip install tox tox-gh-actions poetry
+        run: python -m pip install --upgrade pip tox
 
       - name: Run tox
         run: tox
@@ -60,7 +59,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v7
         with:
-          python-version: 3.8
+          python-version: "3.12"
 
       - name: Install build dependencies
         run: |

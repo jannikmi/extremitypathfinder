@@ -39,21 +39,12 @@ include = [
 extremitypathfinder = "extremitypathfinder.command_line:main"
 
 [tool.poetry.dependencies]
-python = ">=3.8,<4"
-networkx = "^3"
-numpy = [
-    { version = ">=1.21,<2", python = "<3.9" },
-    { version = ">=1.23,<2", python = ">=3.9" }
-]
-numba = [
-    { version = ">=0.56,<1", python = "<3.12", optional = true },
-    { version = ">=0.59,<1", python = ">=3.12", optional = true }
-]
-# required for jit of np.linalg.solve with numba
-scipy = [
-    { version = ">=1.9,<2", python = "<3.12", optional = true },
-    { version = ">=1.10,<2", python = ">=3.12", optional = true }
-]
+python = ">=3.12,<4"
+networkx = ">=3,<4"
+numpy = ">=2.3.3,<3"
+numba = { version = ">=0.63,<1", optional = true }
+# Required for Numba's np.linalg.solve implementation.
+scipy = { version = ">=1.16.1,<2", optional = true }
 
 [tool.poetry.group.dev.dependencies]
 pre-commit = "*"
@@ -79,38 +70,44 @@ optional = true
 numba = ["numba", "scipy"]
 
 [build-system]
-requires = ["poetry-core>=1.5", "poetry>=1.4"]
+requires = ["poetry-core>=2,<3"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.tox]
 legacy_tox_ini = """
 [tox]
+minversion = 4
 isolated_build = true
 envlist =
-    docs,py{38,39,310,311,312}{,-numba}
-
-[gh-actions]
-python =
-    3.8: py38{,-numba}
-    3.9: py39{,-numba}
-    3.10: py310{,-numba}
-    3.11: py311{,-numba}
-    3.12: py312{,-numba}
-
-
-[testenv:docs]
-description = build documentation
-basepython = python3.12
-allowlist_externals = poetry,sphinx-build
-commands =
-  poetry install -v --with docs
-  sphinx-build -d "{envtmpdir}{/}doctree" docs "{toxworkdir}{/}docs_out" --color -b html
-  python -c 'print(r"documentation available under file://{toxworkdir}{/}docs_out{/}index.html")'
+    py{312,313,314}{,-numba}
+    py{312,313,314}-minimum{,-numba}
 
 [testenv]
-allowlist_externals = poetry
+package = wheel
+extras =
+    numba: numba
+deps =
+    pytest
+    matplotlib
+    minimum: networkx==3.0
+    minimum: numpy==2.3.3
+    minimum-numba: numba==0.63.0
+    minimum-numba: scipy==1.16.1
+setenv =
+    MPLBACKEND = Agg
+    !numba: EXPECT_NUMBA = 0
+    numba: EXPECT_NUMBA = 1
 commands =
-    !numba: poetry install -v --with dev,plot
-    numba:  poetry install -v --with dev,plot --extras numba
-    poetry run pytest {posargs}
+    python -m pip check
+    python -m pytest {posargs}
+
+[testenv:docs]
+basepython = python3.12
+extras =
+deps =
+    Sphinx
+    sphinx-rtd-theme
+    matplotlib
+commands =
+    sphinx-build -d "{envtmpdir}{/}doctree" docs "{toxworkdir}{/}docs_out" --color -b html
 """
