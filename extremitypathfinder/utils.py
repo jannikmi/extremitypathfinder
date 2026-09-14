@@ -119,14 +119,30 @@ def _check_polygon(polygon):
     - no consequent vertices with identical coordinates in the polygons! In general might have the same coordinates
     - a polygon must not have self intersections (intersections with other polygons are allowed)
     """
-    if not polygon.shape[0] >= 3:
+    if polygon.size == 0:
         raise TypeError("Given polygons must at least contain 3 vertices.")
-    if not polygon.shape[1] == 2:
+    if polygon.ndim != 2:
         raise TypeError("Each point of a polygon must consist of two values (x,y).")
+    if polygon.shape[0] < 3:
+        raise TypeError("Given polygons must at least contain 3 vertices.")
+    if polygon.shape[1] != 2:
+        raise TypeError("Each point of a polygon must consist of two values (x,y).")
+    if not np.all(np.isfinite(polygon)):
+        raise ValueError("Polygon coordinates must be finite.")
     if not _no_identical_consequent_vertices(polygon):
         raise ValueError("Consequent vertices of a polynomial must not be identical.")
     if not _no_self_intersection(polygon):
         raise ValueError("The given polygon has self intersections")
+    # Translating near the origin avoids catastrophic cancellation for small
+    # polygons represented by large-magnitude coordinates.
+    translated = polygon - polygon[0]
+    x_coords = translated[:, 0]
+    y_coords = translated[:, 1]
+    area_twice = np.dot(x_coords, np.roll(y_coords, -1)) - np.dot(
+        y_coords, np.roll(x_coords, -1)
+    )
+    if area_twice == 0.0:
+        raise ValueError("Polygon area must be non-zero.")
 
 
 def check_data_requirements(
