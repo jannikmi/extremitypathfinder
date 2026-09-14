@@ -103,6 +103,23 @@ _________________________________________
     example of a shortest path running along two overlapping edges
 
 
+Supported Geometry and Validation
+_________________________________
+
+Polygon coordinates may use any finite scale supported by double-precision floating point numbers.
+Nearly collinear vertices are supported, but callers should avoid differences smaller than the
+precision available at their coordinate magnitude. Boundary vertices must be ordered counter
+clockwise and hole vertices clockwise. Polygons need at least three vertices, must not
+self-intersect, and must not repeat a vertex immediately (including repeating the first vertex at
+the end). Coordinates must be finite and polygons must have non-zero area. When ``validate=True``,
+violations of these input requirements raise ``TypeError`` or ``ValueError`` before preprocessing.
+
+Different polygons may share vertices or edges. These contacts are currently non-blocking: a
+shortest path can pass through a shared vertex or run along overlapping edges. This behavior is
+intentional for compatibility and is covered by regression tests; callers that need contacts to
+block traversal must make the polygons overlap rather than merely touch.
+
+
 
 
 Implementation

@@ -123,10 +123,19 @@ def _check_polygon(polygon):
         raise TypeError("Given polygons must at least contain 3 vertices.")
     if not polygon.shape[1] == 2:
         raise TypeError("Each point of a polygon must consist of two values (x,y).")
+    if not np.all(np.isfinite(polygon)):
+        raise ValueError("Polygon coordinates must be finite.")
     if not _no_identical_consequent_vertices(polygon):
         raise ValueError("Consequent vertices of a polynomial must not be identical.")
     if not _no_self_intersection(polygon):
         raise ValueError("The given polygon has self intersections")
+    x_coords = polygon[:, 0]
+    y_coords = polygon[:, 1]
+    area_twice = np.dot(x_coords, np.roll(y_coords, -1)) - np.dot(
+        y_coords, np.roll(x_coords, -1)
+    )
+    if area_twice == 0.0:
+        raise ValueError("Polygon area must be non-zero.")
 
 
 def check_data_requirements(
