@@ -1,6 +1,6 @@
 """Regression coverage for documented polygon geometry edge cases."""
 
-from math import sqrt
+from math import hypot, sqrt
 
 import networkx as nx
 import pytest
@@ -26,6 +26,63 @@ def _weighted_edges(graph):
     }
 
 
+def _orientation(point1, point2, point3):
+    return (point2[0] - point1[0]) * (point3[1] - point1[1]) - (
+        point2[1] - point1[1]
+    ) * (point3[0] - point1[0])
+
+
+def _properly_intersects(segment_start, segment_end, edge_start, edge_end):
+    return (
+        _orientation(segment_start, segment_end, edge_start)
+        * _orientation(segment_start, segment_end, edge_end)
+        < 0.0
+        and _orientation(edge_start, edge_end, segment_start)
+        * _orientation(edge_start, edge_end, segment_end)
+        < 0.0
+    )
+
+
+def _strictly_inside_polygon(point, polygon):
+    """Independent ray-casting check; polygon edges are considered outside."""
+    x, y = point
+    inside = False
+    for point1, point2 in zip(polygon, polygon[1:] + polygon[:1]):
+        if (
+            _orientation(point1, point2, point) == 0.0
+            and min(point1[0], point2[0]) <= x <= max(point1[0], point2[0])
+            and min(point1[1], point2[1]) <= y <= max(point1[1], point2[1])
+        ):
+            return False
+        if (point1[1] > y) != (point2[1] > y):
+            crossing_x = point1[0] + (y - point1[1]) * (point2[0] - point1[0]) / (
+                point2[1] - point1[1]
+            )
+            if x < crossing_x:
+                inside = not inside
+    return inside
+
+
+def _assert_valid_path(path, reported_distance, holes):
+    measured_distance = sum(
+        hypot(point2[0] - point1[0], point2[1] - point1[1])
+        for point1, point2 in zip(path, path[1:])
+    )
+    assert reported_distance == pytest.approx(measured_distance)
+
+    for segment_start, segment_end in zip(path, path[1:]):
+        midpoint = tuple((a + b) / 2.0 for a, b in zip(segment_start, segment_end))
+        for hole in holes:
+            assert not _strictly_inside_polygon(midpoint, hole)
+            for edge_start, edge_end in zip(hole, hole[1:] + hole[:1]):
+                assert not _properly_intersects(
+                    segment_start,
+                    segment_end,
+                    edge_start,
+                    edge_end,
+                )
+
+
 def test_near_collinear_hole_vertex_does_not_change_shortest_distance():
     # The fifth hole vertex lies only 1e-12 above the straight lower edge. It is
     # deliberately not part of the reference route; the lower corners remain
@@ -36,28 +93,33 @@ def test_near_collinear_hole_vertex_does_not_change_shortest_distance():
 
     path, distance = environment.find_shortest_path((1.0, 5.0), (9.0, 5.0))
 
-    assert path == [(1.0, 5.0), (3.0, 4.0), (7.0, 4.0), (9.0, 5.0)]
     assert distance == pytest.approx(DETOUR_DISTANCE)
+    _assert_valid_path(path, distance, [near_collinear_hole])
 
 
-@pytest.mark.parametrize("scale", [1e-6, 1.0, 1e9])
-def test_shortest_path_scales_with_coordinate_magnitude(scale):
+@pytest.mark.parametrize(
+    ("scale", "offset"),
+    [(1e-6, 0.0), (1.0, 0.0), (1e9, 0.0), (1.0, 1e9)],
+)
+def test_shortest_path_scales_with_coordinate_magnitude(scale, offset):
     def scaled(polygon):
-        return [(x * scale, y * scale) for x, y in polygon]
+        return [(x * scale + offset, y * scale + offset) for x, y in polygon]
 
     environment = PolygonEnvironment()
+    holes = [scaled(RECTANGULAR_HOLE)]
     environment.store(
         scaled(BOUNDARY),
-        [scaled(RECTANGULAR_HOLE)],
+        holes,
         validate=True,
     )
 
-    _, distance = environment.find_shortest_path(
-        (1.0 * scale, 5.0 * scale),
-        (9.0 * scale, 5.0 * scale),
+    path, distance = environment.find_shortest_path(
+        (1.0 * scale + offset, 5.0 * scale + offset),
+        (9.0 * scale + offset, 5.0 * scale + offset),
     )
 
     assert distance == pytest.approx(DETOUR_DISTANCE * scale, rel=1e-12)
+    _assert_valid_path(path, distance, holes)
 
 
 def test_touching_holes_keep_shared_vertex_non_blocking():
@@ -74,6 +136,7 @@ def test_touching_holes_keep_shared_vertex_non_blocking():
 
     assert (5.0, 5.0) in path
     assert distance == pytest.approx(8.0)
+    _assert_valid_path(path, distance, holes)
 
 
 @pytest.mark.parametrize(
@@ -84,6 +147,12 @@ def test_touching_holes_keep_shared_vertex_non_blocking():
             [],
             TypeError,
             "at least contain 3 vertices",
+        ),
+        (
+            [0.0, 1.0, 2.0],
+            [],
+            TypeError,
+            "must consist of two values",
         ),
         (
             [(0.0, 0.0), (1.0, 0.0), (1.0, 0.0), (0.0, 1.0)],
@@ -143,8 +212,9 @@ def test_repeated_queries_do_not_mutate_precomputed_graph():
 
     for _ in range(3):
         for start, goal, expected_distance in queries:
-            _, distance = environment.find_shortest_path(start, goal)
+            path, distance = environment.find_shortest_path(start, goal)
             assert distance == pytest.approx(expected_distance)
+            _assert_valid_path(path, distance, [RECTANGULAR_HOLE])
             assert set(environment.graph.nodes) == nodes_before
             assert _weighted_edges(environment.graph) == edges_before
             assert environment.idx_start not in environment.graph
