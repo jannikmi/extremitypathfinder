@@ -103,5 +103,21 @@ Ready to contribute? Here's how to set up this package for local development.
 * Submit a pull request through the GitHub website. This will trigger the GitHub Actions build which runs the tests against all supported versions of Python.
 
 
+Release validation
+------------------
+
+Before publishing a release candidate, build and validate the exact artifacts users will install:
+
+.. code-block:: sh
+
+   $ make release-check
+
+This command cleans ``dist/``, builds one wheel and one source distribution, and installs each in
+an isolated virtual environment outside the source checkout. It smoke-tests package metadata, the
+public API, the README example, the console command, dependency consistency, and the wheel with the
+optional Numba extra. The same validation gates pull requests and runs again on the artifacts built
+immediately before publishing.
+
+
 
 .. _Github Issues: https://github.com/MrMinimal64/extremitypathfinder/issues

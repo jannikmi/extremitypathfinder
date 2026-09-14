@@ -34,7 +34,11 @@ clean:
 
 
 build:
-	poetry build
+	poetry build --clean
+
+release-check:
+	poetry build --clean --no-interaction
+	poetry run python scripts/validate_release.py dist --version "$$(poetry version -s)"
 
 # documentation generation:
 # https://docs.readthedocs.io/en/stable/intro/getting-started-with-sphinx.html
@@ -42,4 +46,4 @@ docs:
 	(cd docs && make html)
 
 
-.PHONY: clean test build docs
+.PHONY: clean test build release-check docs
