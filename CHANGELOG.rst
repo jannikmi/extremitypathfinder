@@ -16,6 +16,8 @@ internal:
 
 - Build and install-test wheel and source artifacts before publishing, including
   the public API, CLI, README example, and optional Numba acceleration.
+- Gate publishing on a matching version tag and finalize the GitHub release only
+  after PyPI publication succeeds.
 
 
 2.7.2 (2024-04-10)

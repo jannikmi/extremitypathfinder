@@ -118,6 +118,11 @@ public API, the README example, the console command, dependency consistency, and
 optional Numba extra. The same validation gates pull requests and runs again on the artifacts built
 immediately before publishing.
 
+Publishing is tag-driven. Push a tag exactly matching the version in ``pyproject.toml`` only after
+the release-validation checks pass. The workflow verifies that the version is not already on PyPI,
+uploads the validated artifacts to a draft GitHub release, publishes them to PyPI, and makes the
+GitHub release public only after the PyPI upload succeeds.
+
 
 
 .. _Github Issues: https://github.com/MrMinimal64/extremitypathfinder/issues

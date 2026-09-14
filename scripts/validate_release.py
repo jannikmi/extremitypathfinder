@@ -73,6 +73,15 @@ def virtualenv_executable(environment: Path, executable: str) -> Path:
     return environment / scripts_directory / f"{executable}{suffix}"
 
 
+def create_virtualenv(environment: Path) -> None:
+    """Create an isolated environment without copying signed POSIX interpreters."""
+    venv.EnvBuilder(
+        with_pip=True,
+        clear=True,
+        symlinks=sys.platform != "win32",
+    ).create(environment)
+
+
 def validate_install(
     artifact: Path,
     *,
@@ -88,7 +97,7 @@ def validate_install(
     ) as directory:
         workspace = Path(directory)
         environment = workspace / "venv"
-        venv.EnvBuilder(with_pip=True, clear=True).create(environment)
+        create_virtualenv(environment)
         python = virtualenv_executable(environment, "python")
         pip = [str(python), "-m", "pip"]
         requirement = f"{artifact}[numba]" if install_numba else str(artifact)
