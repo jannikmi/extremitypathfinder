@@ -103,5 +103,26 @@ Ready to contribute? Here's how to set up this package for local development.
 * Submit a pull request through the GitHub website. This will trigger the GitHub Actions build which runs the tests against all supported versions of Python.
 
 
+Release validation
+------------------
+
+Before publishing a release candidate, build and validate the exact artifacts users will install:
+
+.. code-block:: sh
+
+   $ make release-check
+
+This command cleans ``dist/``, builds one wheel and one source distribution, and installs each in
+an isolated virtual environment outside the source checkout. It smoke-tests package metadata, the
+public API, the README example, the console command, dependency consistency, and the wheel with the
+optional Numba extra. The same validation gates pull requests and runs again on the artifacts built
+immediately before publishing.
+
+Publishing is tag-driven. Push a tag exactly matching the version in ``pyproject.toml`` only after
+the release-validation checks pass. The workflow verifies that the version is not already on PyPI,
+uploads the validated artifacts to a draft GitHub release, publishes them to PyPI, and makes the
+GitHub release public only after the PyPI upload succeeds.
+
+
 
 .. _Github Issues: https://github.com/MrMinimal64/extremitypathfinder/issues
