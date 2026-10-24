@@ -1,7 +1,7 @@
 Changelog
 =========
 
-2.8.0 (2026-09-14)
+2.8.0 (2026-09-18)
 -------------------
 
 - Add support for unbounded polygon environments without an explicit boundary.
@@ -34,7 +34,7 @@ internal:
 
 
 
-2.7.1 (2023-05-16)
+2.7.1 (2023-06-16)
 -------------------
 
 internal:
@@ -91,7 +91,7 @@ internal:
 * added test cases
 
 
-2.4.0 (2022-08-18)
+2.4.0 (2022-08-19)
 -------------------
 
 * A* and graph representation based on ``networkx`` library -> new dependency
@@ -110,7 +110,7 @@ internal:
 
 
 
-2.2.3 (2022-10-11)
+2.2.3 (2022-08-11)
 -------------------
 
 * reverting changes of version ``2.2.2``
