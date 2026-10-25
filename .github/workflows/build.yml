@@ -66,6 +66,9 @@ jobs:
       - name: Validate installed release artifacts
         run: python scripts/validate_release.py dist --version "$(poetry version -s)"
 
+      - name: Check the changelog section of the package version
+        run: python scripts/release.py check
+
   deploy:
     runs-on: ubuntu-latest
     needs: [test, release-validation]

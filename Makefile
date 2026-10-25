@@ -39,6 +39,11 @@ build:
 release-check:
 	poetry build --clean --no-interaction
 	poetry run python scripts/validate_release.py dist --version "$$(poetry version -s)"
+	poetry run python scripts/release.py check
+
+# usage: make release-prepare BUMP=patch (or minor, major, an explicit version)
+release-prepare:
+	poetry run python scripts/release.py prepare $(BUMP)
 
 # documentation generation:
 # https://docs.readthedocs.io/en/stable/intro/getting-started-with-sphinx.html
@@ -46,4 +51,4 @@ docs:
 	(cd docs && make html)
 
 
-.PHONY: clean test build release-check docs
+.PHONY: clean test build release-check release-prepare docs

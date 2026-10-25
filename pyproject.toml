@@ -32,6 +32,7 @@ include = [
     "tox.ini",
     "tests/*.py",
     "scripts/validate_release.py",
+    "scripts/release.py",
     "example.json",
 ]
 #exclude = ["my_package/excluded.py"]
