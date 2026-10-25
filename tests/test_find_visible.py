@@ -3,8 +3,6 @@
 testing against old reference implementation
 
 current test cases: all vertices of the test polygons
-TODO add more test cases, random but valid query points (within polygons)
-    hypothesis.readthedocs.io/
 """
 
 import itertools
@@ -355,3 +353,46 @@ def test_find_visible(
     assert (
         visibles_found == visibles_expected
     ), f"expected {visibles_expected} but got {visibles_found}"
+
+
+def _visibility_relation(boundary_data) -> Set[Tuple[Tuple[float, float], ...]]:
+    """all pairs of visible extremities, as computed for the graph construction
+
+    Note: without the (one-sided) elimination of extremities lying "in front"
+    Note: identified by their coordinates, since vertices with identical coordinates
+    get merged in the graph
+    """
+    coords, extremity_indices, extremity_mask, vertex_edge_idxs, edge_vertex_idxs = (
+        boundary_data
+    )
+    relation = set()
+    for origin in extremity_indices:
+        representations, distances = utils.cmp_reps_n_distances(origin, coords)
+        candidates = {
+            i
+            for i in extremity_indices
+            if not np.array_equal(coords[i], coords[origin])
+        }
+        _, visible_idxs = utils._find_visible_and_in_front(
+            origin,
+            len(edge_vertex_idxs),
+            coords,
+            candidates,
+            set(),
+            extremity_mask,
+            distances,
+            representations,
+            vertex_edge_idxs,
+            edge_vertex_idxs,
+        )
+        for i in visible_idxs:
+            relation.add((tuple(coords[origin]), tuple(coords[i])))
+    return relation
+
+
+@pytest.mark.parametrize("boundary_data", all_env_boundary_data)
+def test_visibility_is_symmetric(boundary_data):
+    # the graph construction only checks each pair of extremities in one direction
+    relation = _visibility_relation(boundary_data)
+    asymmetric = {(x, y) for x, y in relation if (y, x) not in relation}
+    assert not asymmetric, f"visible only in one direction: {sorted(asymmetric)}"

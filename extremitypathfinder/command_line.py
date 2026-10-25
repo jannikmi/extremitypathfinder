@@ -40,8 +40,6 @@ def main():
         required=True,
         help="the goal coordinates given as two float values, e.g. <7.9 6.8>",
     )
-    # TODO grid input requires different json data format
-    # parser.add_argument('-g', '--grid', type=bool, help='weather the input data is a specifying a grid')
     parsed_args = parser.parse_args()  # Takes input from sys.argv
 
     # Parse JSON file

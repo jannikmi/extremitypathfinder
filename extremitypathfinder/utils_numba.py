@@ -82,7 +82,6 @@ def _angle_rep_inverse(repr: Optional[float]) -> Optional[float]:
 @njit(b1(f8[:], f8[:, :], b1), cache=True)
 def _inside_polygon(p: np.ndarray, coords: np.ndarray, border_value: bool) -> bool:
     # should return the border value for point equal to any polygon vertex
-    # TODO overflow possible with large values when comparing slopes, change procedure
     # and if the point p lies on any polygon edge
     p1 = coords[-1, :]
     for p2 in coords[:]:
@@ -124,6 +123,7 @@ def _inside_polygon(p: np.ndarray, coords: np.ndarray, border_value: bool) -> bo
                     # the polygon edge is right or left of the point
                     # to avoid expensive division the divisors (of the slope dy/dx) are brought to the other side
                     # ( dy/dx > a  ==  dy > a * dx )
+                    # Note: the products overflow only for coordinate differences beyond ~1e154 (float64)
                     # only one of the points is to the right
                     slope1 = (y2 - y) * (x2 - x1)
                     slope2 = (y2 - y1) * (x2 - x)
@@ -145,7 +145,8 @@ def _inside_polygon(p: np.ndarray, coords: np.ndarray, border_value: bool) -> bo
 def _no_identical_consequent_vertices(coords: np.ndarray) -> bool:
     p1 = coords[-1]
     for p2 in coords:
-        # TODO adjust allowed difference: rtol, atol
+        # Note: an exact comparison suffices,
+        # the angle representation of an edge is only undefined for identical vertices
         if np.array_equal(p1, p2):
             return False
         p1 = p2
@@ -195,21 +196,19 @@ def _fill_extremity_mask(coordinates, extremity_mask):
         p2 = p3
 
 
-# TODO
 @njit(void(i8[:, :], i8[:, :]), cache=True)
 def _fill_edge_vertex_idxs(edge_vertex_idxs, vertex_edge_idxs):
+    """fills the edge <-> vertex index mappings of a single polygon
+
+    edge i connects the vertices i-1 and i: edge_vertex_idxs[i] = (i-1, i)
+    vertex i connects the edges i and i+1: vertex_edge_idxs[i] = (i, i+1)
+    """
     nr_coords = len(edge_vertex_idxs)
-    v1 = -1 % nr_coords
-    # TODO col 1 is just np.arange?!
-    for edge_idx, v2 in enumerate(range(nr_coords)):
-        v1_idx = v1
-        v2_idx = v2
-        edge_vertex_idxs[edge_idx, 0] = v1_idx
-        edge_vertex_idxs[edge_idx, 1] = v2_idx
-        vertex_edge_idxs[v1_idx, 1] = edge_idx
-        vertex_edge_idxs[v2_idx, 0] = edge_idx
-        # move to the next vertex/edge
-        v1 = v2
+    for i in range(nr_coords):
+        edge_vertex_idxs[i, 0] = (i - 1) % nr_coords
+        edge_vertex_idxs[i, 1] = i
+        vertex_edge_idxs[i, 0] = i
+        vertex_edge_idxs[i, 1] = (i + 1) % nr_coords
 
 
 @njit(b1(f8[:], f8[:], f8[:]), cache=True)

@@ -59,8 +59,6 @@ def draw_polygon(ax, coords, **kwargs):
 
 
 def draw_boundaries(map, ax):
-    # TODO outside dark grey
-    # TODO fill holes light grey
     if map.boundary_polygon is not None:
         draw_polygon(ax, map.boundary_polygon)
     for h in map.holes:
