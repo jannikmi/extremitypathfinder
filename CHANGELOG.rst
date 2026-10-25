@@ -4,11 +4,13 @@ Changelog
 Unreleased
 ----------
 
-- bugfix: a goal identical to an extremity is merged with it in the search graph.
+bugfixes:
+
+- a goal identical to an extremity is merged with it in the search graph.
   Previously such queries could return a longer path or no path at all.
-- bugfix: ``store_grid_world()`` works with its default arguments: ``simplify`` now defaults
+- ``store_grid_world()`` works with its default arguments: ``simplify`` now defaults
   to ``False``, since polygon simplification is not implemented (``True`` raises ``NotImplementedError``)
-- bugfix: ``store_grid_world()`` supports grid worlds without obstacles
+- ``store_grid_world()`` supports grid worlds without obstacles
 
 internal:
 
