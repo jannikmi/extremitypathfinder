@@ -6,7 +6,6 @@ import pytest
 from scripts.release import (
     CHANGELOG_NAME,
     PROJECT_DIR,
-    PYPROJECT_NAME,
     check_new_version,
     prepare,
     read_version,
@@ -45,6 +44,11 @@ bugfixes:
 """
 
 RELEASE_DATE = datetime.date(2026, 10, 26)
+PYPROJECT_NAME = "pyproject.toml"
+
+requires_poetry = pytest.mark.skipif(
+    shutil.which("poetry") is None, reason="requires poetry"
+)
 
 
 @pytest.mark.parametrize("new", ["2.8.1", "2.9.0", "3.0.0", "2.10.0"])
@@ -56,13 +60,6 @@ def test_check_new_version(new):
 def test_check_new_version_rejects_invalid_versions(new):
     with pytest.raises(ValueError):
         check_new_version("2.8.0", new)
-
-
-def test_read_version_reads_the_package_version():
-    assert read_version(PYPROJECT_EXAMPLE) == "2.8.0"
-
-    with pytest.raises(ValueError, match="no version found"):
-        read_version("[tool.other]\nversion = '1.0.0'\n")
 
 
 def test_release_changelog_dates_the_unreleased_section():
@@ -89,12 +86,6 @@ def test_release_date_requires_a_section_for_the_version():
         release_date(CHANGELOG_EXAMPLE, "2.8.1")
 
 
-def test_repository_changelog_matches_package_version():
-    # the same check guards the release tagging in CI
-    version = read_version((PROJECT_DIR / PYPROJECT_NAME).read_text(encoding="utf-8"))
-    release_date((PROJECT_DIR / CHANGELOG_NAME).read_text(encoding="utf-8"), version)
-
-
 @pytest.fixture
 def project_dir(tmp_path):
     if shutil.which("poetry") is None:
@@ -102,6 +93,18 @@ def project_dir(tmp_path):
     (tmp_path / PYPROJECT_NAME).write_text(PYPROJECT_EXAMPLE, encoding="utf-8")
     (tmp_path / CHANGELOG_NAME).write_text(CHANGELOG_EXAMPLE, encoding="utf-8")
     return tmp_path
+
+
+def test_read_version_reads_the_package_version(project_dir):
+    assert read_version(project_dir) == "2.8.0"
+
+
+@requires_poetry
+def test_repository_changelog_matches_package_version():
+    # the same check guards the release tagging in CI
+    release_date(
+        (PROJECT_DIR / CHANGELOG_NAME).read_text(encoding="utf-8"), read_version()
+    )
 
 
 @pytest.mark.parametrize(
@@ -113,7 +116,7 @@ def test_prepare_sets_version_and_dates_changelog(project_dir, target, expected)
 
     pyproject = (project_dir / PYPROJECT_NAME).read_text(encoding="utf-8")
     changelog = (project_dir / CHANGELOG_NAME).read_text(encoding="utf-8")
-    assert read_version(pyproject) == expected
+    assert read_version(project_dir) == expected
     assert 'version = "1.0.0"' in pyproject
     assert release_date(changelog, expected) == RELEASE_DATE
 
