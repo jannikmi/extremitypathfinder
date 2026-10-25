@@ -1,11 +1,13 @@
 """Regression coverage for documented polygon geometry edge cases."""
 
+import itertools
 from math import hypot, sqrt
 
 import networkx as nx
 import pytest
 
 from extremitypathfinder import PolygonEnvironment
+from tests.test_cases import POLYGON_ENVS
 
 
 BOUNDARY = [(0.0, 0.0), (10.0, 0.0), (10.0, 10.0), (0.0, 10.0)]
@@ -220,3 +222,44 @@ def test_repeated_queries_do_not_mutate_precomputed_graph():
             assert environment.idx_start not in environment.graph
             assert environment.idx_goal not in environment.graph
             assert nx.is_weighted(environment.graph)
+
+
+@pytest.mark.parametrize("env_params", POLYGON_ENVS)
+def test_paths_between_extremities_are_symmetric(env_params):
+    """A goal identical to an extremity must be merged with that graph node."""
+    environment = PolygonEnvironment()
+    environment.store(*env_params)
+
+    extremities = environment.all_extremities
+    for start, goal in itertools.combinations(extremities, 2):
+        try:
+            _, distance = environment.find_shortest_path(start, goal)
+        except ValueError:
+            # extremities of overlapping polygons may lie outside of the map
+            continue
+        _, reverse_distance = environment.find_shortest_path(goal, start)
+        if distance is None:
+            assert reverse_distance is None
+        else:
+            assert reverse_distance == pytest.approx(distance)
+
+
+@pytest.mark.parametrize(
+    "obstacles, expected_distance",
+    [
+        ([], hypot(4.0, 2.0)),
+        ([(2, 1), (3, 1)], hypot(1.5, 1.5) + hypot(2.5, 0.5)),
+    ],
+)
+def test_grid_world_with_default_arguments(obstacles, expected_distance):
+    environment = PolygonEnvironment()
+    environment.store_grid_world(5, 3, obstacles)
+
+    _, distance = environment.find_shortest_path((0.5, 0.5), (4.5, 2.5))
+    assert distance == pytest.approx(expected_distance)
+
+
+def test_grid_world_simplification_is_not_supported():
+    environment = PolygonEnvironment()
+    with pytest.raises(NotImplementedError):
+        environment.store_grid_world(5, 3, [(2, 1)], simplify=True)

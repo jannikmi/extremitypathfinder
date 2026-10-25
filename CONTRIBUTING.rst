@@ -103,11 +103,29 @@ Ready to contribute? Here's how to set up this package for local development.
 * Submit a pull request through the GitHub website. This will trigger the GitHub Actions build which runs the tests against all supported versions of Python.
 
 
+Performance
+-----------
+
+Measure before and after optimising, and include the numbers in the pull request:
+
+* ``scripts/speed_benchmarks.py`` benchmarks environment preparation and queries on the small test environments
+  (``pytest -s scripts/speed_benchmarks.py``, results in the performance section of the documentation).
+* ``prototypes/large_env_query_profile.py`` profiles queries on a large, configurable environment
+  and reports how much of the query time is spent copying the visibility graph:
+
+   .. code-block:: sh
+
+       $ python prototypes/large_env_query_profile.py --holes-per-side 10 --profile
+
+``prototypes/`` contains such development scripts. They are not part of the package and not run by the tests.
+
+
 Changelog
 ---------
 
 ``CHANGELOG.rst`` lists changes only, newest release first. Describe user-facing changes at the top
-of a release section and put purely internal changes under an ``internal:`` sub-list.
+of a release section, bugfixes under a ``bugfixes:`` sub-list and purely internal changes under an
+``internal:`` sub-list.
 Add entries for changes that are merged but not yet released to an ``Unreleased`` section at the
 top, and rename it to ``<version> (<date of the release tag>)`` when publishing.
 Ideas, TODOs and planned changes do not belong in the changelog: track them as `Github Issues`_.

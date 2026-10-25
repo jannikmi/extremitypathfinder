@@ -34,9 +34,6 @@ else:
     CONSTRUCTION_KWARGS = {}
 
 
-# TODO pytest parameterize
-
-
 def try_test_cases(environment, test_cases):
     def validate(start_coordinates, goal_coordinates, expected_output):
         output = environment.find_shortest_path(
@@ -83,13 +80,12 @@ def test_grid_env():
     print("testing grid environment")
     try_test_cases(grid_env, TEST_DATA_GRID_ENV)
 
-    # when the deep copy mechanism works correctly
     # even after many queries the internal graph should have the same structure as before
     # otherwise the temporarily added vertices during a query stay stored
-    # nr_graph_nodes = len(grid_env.graph.nodes)
-    # TODO
-    # assert nr_graph_nodes == 16, "the graph should stay unchanged by shortest path queries!"
-    # nr_nodes_env1_old = len(grid_env.graph.nodes)
+    nr_graph_nodes = len(grid_env.graph.nodes)
+    assert (
+        nr_graph_nodes == 16
+    ), "the graph should stay unchanged by shortest path queries!"
 
 
 def test_poly_env():
@@ -99,32 +95,26 @@ def test_poly_env():
     assert (
         len(list(poly_env.all_extremities)) == nr_exp_extremities
     ), f"the environment should detect all {nr_exp_extremities} extremities!"
-    # nr_nodes_env2 = len(poly_env.graph.nodes)
-    # TODO
-    # assert nr_nodes_env2 == nr_exp_extremities, (
-    #     f"the visibility graph should store all {nr_exp_extremities} extremities {list(poly_env.all_extremities)}!"
-    #     f"\n found: {poly_env.graph.nodes}"
-    # )
-
-    # nr_nodes_env1_new = len(grid_env.graph.nodes)
-    # assert (
-    #     nr_nodes_env1_new == nr_nodes_env1_old
-    # ), "node amount of an grid_env should not change by creating another grid_env!"
-    # assert grid_env.graph is not poly_env.graph, "different environments share the same graph object"
-    # assert (
-    #     grid_env.graph.nodes is not poly_env.graph.nodes
-    # ), "different environments share the same set of nodes"
+    nr_nodes_env2 = len(poly_env.graph.nodes)
+    assert nr_nodes_env2 == nr_exp_extremities, (
+        f"the visibility graph should store all {nr_exp_extremities} extremities {list(poly_env.all_extremities)}!"
+        f"\n found: {poly_env.graph.nodes}"
+    )
 
     print("\ntesting polygon environment")
     try_test_cases(poly_env, TEST_DATA_POLY_ENV)
 
-    # TODO test: When the paths should be blocked, use a single polygon with multiple identical
-    #   vertices instead (also allowed?! change data requirements in doc!).
 
-    # TODO test graph construction
-    # when two nodes have the same angle representation there should only be an edge to the closer node!
-    # test if property 1 is being properly exploited
-    # (extremities lying in front of each other need not be connected)
+@pytest.mark.parametrize("env_params", POLYGON_ENVS)
+def test_graph_links_only_closest_node_per_direction(env_params):
+    # when two nodes have the same angle representation there should only be an edge to the closer node
+    environment = PolygonEnvironment()
+    environment.store(*env_params)
+    graph = environment.graph
+    for node in graph.nodes:
+        representations, _ = environment.reprs_n_distances[node]
+        neighbour_reprs = [representations[n] for n in graph.neighbors(node)]
+        assert len(neighbour_reprs) == len(set(neighbour_reprs))
 
 
 def test_unbounded_poly_env():

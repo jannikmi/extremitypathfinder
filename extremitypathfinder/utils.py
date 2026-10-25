@@ -62,9 +62,8 @@ def _get_intersection_status(p1, p2, q1, q2):
     # return:
     #   0: no intersection
     #   1: intersection in ]p1;p2[
-    # TODO support 2 remaining possibilities
-    #   2: intersection directly in p1 or p2
-    #   3: intersection directly in q1 or q2
+    # Note: intersections directly in p1, p2, q1 or q2 are not detected
+    #   (https://github.com/jannikmi/extremitypathfinder/issues/135)
     # solve the set of equations
     # (p2-p1) lambda + (p1) = (q2-q1) mu + (q1)
     #  in matrix form A x = b:
@@ -91,7 +90,6 @@ def _get_intersection_status(p1, p2, q1, q2):
 
 def _no_self_intersection(coords):
     polygon_length = len(coords)
-    # again_check = []
     for index_p1, index_q1 in combinations(range(polygon_length), 2):
         # always: index_p1 < index_q1
         if index_p1 == index_q1 - 1 or index_p1 == index_q1 + 1:
@@ -102,13 +100,6 @@ def _no_self_intersection(coords):
         intersect_status = _get_intersection_status(p1, p2, q1, q2)
         if intersect_status == 1:
             return False
-        # if intersect_status == 2:
-        # TODO 4 different options. check which side the other edge lies on.
-        # if edge changes sides this is a an intersection
-        # again_check.append((p1, p2, q1, q2))
-        # print(p1, p2, q1, q2)
-
-    # TODO check for intersections across 2 edges! use computed intersection
 
     return True
 
@@ -259,9 +250,9 @@ def find_visible(
     vertex_edge_idxs: np.ndarray,
     extremity_mask: np.ndarray,
 ) -> Set[int]:
-    """
-    TODO
-    for all origin extremities
+    """finds all candidates visible from the origin
+
+    approach:
     precompute all required ranges etc for all edges
     sort all edges after their minimum representation
     also sort the candidate extremities after their angle representation
@@ -279,7 +270,6 @@ def find_visible(
 
     :param origin: the vertex for which the visibility to the other candidates should be checked.
     :param candidates: the set of all vertex ids which should be checked for visibility.
-        IMPORTANT: is being manipulated, so has to be a copy!
         IMPORTANT: must not contain any vertices with equal coordinates (e.g. the origin vertex itself)!
     :param edges_to_check: the set of edges which determine visibility
     :return: a set of all vertices visible from the origin
@@ -287,7 +277,6 @@ def find_visible(
     nr_candidates_total = len(candidates)
     if nr_candidates_total == 0:
         return candidates
-    # TODO immutable
     # eliminate candidates with equal representations: only keep the closest (min dist)
     candidates_sorted = _eliminate_eq_candidates(candidates, distances, representations)
 
@@ -309,7 +298,6 @@ def find_visible(
     )
 
     # check non-crossing edges
-    # TODO skipped edges. argsort
     # sort after the minimum representation
     edge_idxs_sorted = sorted(non_crossing_edges, key=lambda e: edges_min_rep[e])
     # edge_ptr_iter = iter(ptr for ptr in edge_ptrs if not edges_is_crossing[ptr])
@@ -353,9 +341,7 @@ def find_visible(
         edge_vertex_idxs,
         edges_max_dist,
     )
-    # TODO avoid conversion?
-    candidates_ = set(candidates_sorted)
-    return candidates_
+    return set(candidates_sorted)
 
 
 def _eliminate_eq_candidates(
@@ -435,9 +421,6 @@ def _compile_visibility_datastructs(
                 edges_to_skip.add(e1)
             if e2 != e:
                 edges_to_skip.add(e2)
-            # TODO remove
-            if e1 != e and e2 != e:
-                raise ValueError()
 
             if not copied_indices:
                 edge_vertex_idxs = edge_vertex_idxs.copy()
@@ -456,11 +439,6 @@ def _compile_visibility_datastructs(
 
             # set distance to 0 in order to mark all candidates within range as "lying behind"
             max_dist = 0.0
-
-            # mark the identical vertex as not visible (would otherwise add 0 distance edge in the graph)
-            # # TODO needs to be added and will be combined later?! check in separate function?!
-            # if i1 != origin:
-            #     candidates.discard(i1)
         else:
             min_rep = min(r1, r2)
             max_rep = max(r1, r2)
@@ -476,7 +454,7 @@ def _compile_visibility_datastructs(
                 # it is easier to check if a representation does NOT lie within this range
                 # -> invert filter condition
                 is_crossing = r1 > r2
-                # TODO edge case one of the reps is 0?!
+                # Note: also correct when one of the representations is 0.0 (vertices in direction (1,0))
                 # set distance to 0 in order to mark all candidates within range as "lying behind"
                 max_dist = 0.0
             else:
@@ -512,10 +490,6 @@ def rotate_crossing(
     if not np.all(edges_min_rep >= 0.0):
         raise ValueError
 
-    # TODO refactor
-    if not np.any(edges_is_crossing):
-        return set(candidate_idxs)
-
     # special case: edges cross the origin
     # trick: rotate coordinate system to avoid dealing with origin crossings
     # -> implementation for regular edges can be reused!
@@ -533,26 +507,12 @@ def rotate_crossing(
     edges_min_rep = edges_max_rep
     edges_max_rep = tmp
     # apply same transformation also to candidate representations
-    # TODO avoid large copy. use dict
     representations = representations.copy()  # IMPORTANT: work on independent copy
     representations[candidate_idxs] = (
         representations[candidate_idxs] + infimum_to_0
     ) % 4.0
     # Note: new sorting is required
     candidate_idxs = sorted(candidate_idxs, key=lambda i: representations[i])
-    # TODO move to tests
-    # non_nan_reps = representations[np.logical_not(np.isnan(representations))]
-    # assert np.all(non_nan_reps >= 0.0)
-    # assert np.all(non_nan_reps <= 4.0)
-    # if not np.all(edges_min_rep >= 0.0):
-    #     raise ValueError
-    # assert np.all(edges_min_rep <= 4.0)
-    # assert np.min(edges_min_rep[edges_is_crossing]) == 0.0
-    # assert np.all(edges_max_rep >= 0.0)
-    # assert np.all(edges_max_rep <= 4.0)
-    # for r_min, r_max in zip(edges_min_rep[edges_is_crossing], edges_max_rep[edges_is_crossing]):
-    #     if r_min > r_max:
-    #         raise ValueError
     return candidate_idxs, edges_max_rep, edges_min_rep, representations
 
 
@@ -570,8 +530,7 @@ def check_candidates_one_edge(
     representations: np.ndarray,
 ):
     # start over at the same candidate than the previous edge
-    # TODO Note: check within range: edge case, same representation than edge vertex.
-    #  do not include (edge does not block view)
+    # Note: candidates with the same representation as an edge vertex are not blocked by the edge (s. below)
     for candidate_idx in candidate_indices[candidate_ptr:]:
         candidate_rep = representations[candidate_idx]
         # a candidate does not have to be considered,
@@ -743,7 +702,6 @@ def _find_visible_and_in_front(
     candidates.difference_update(idxs_behind)
 
     # all edges have to be checked, except the 2 neighbouring edges (handled above!)
-    # TODO edge set to ignore instead
     edge_idxs2check = set(range(nr_edges))
     edge_idxs2check.difference_update(vertex_edge_idxs[origin])
     visible_idxs = find_visible(
@@ -890,7 +848,7 @@ def read_json(path2json_file):
 
 
 def convert_gridworld(
-    size_x: int, size_y: int, obstacle_iter: iter, simplify: bool = True
+    size_x: int, size_y: int, obstacle_iter: iter, simplify: bool = False
 ) -> (list, list):
     """
     prerequisites: grid world must not have non-obstacle cells which are surrounded by obstacles
@@ -899,6 +857,7 @@ def convert_gridworld(
     :param size_y: the vertical grid world size
     :param obstacle_iter: an iterable of coordinate pairs (x,y) representing blocked grid cells (obstacles)
     :param simplify: whether the polygons should be simplified or not. reduces edge amount, allow diagonal edges
+        NOTE: simplification is not implemented, ``True`` raises a ``NotImplementedError``
     :return: a boundary polygon (counterclockwise numbering) and a list of hole polygons (clockwise numbering)
     NOTE: convert grid world into polygons in a way that coordinates coincide with grid!
         -> no conversion of obtained graphs needed!
@@ -907,12 +866,15 @@ def convert_gridworld(
 
     assert size_x > 0 and size_y > 0
 
+    if simplify:
+        raise NotImplementedError("simplifying grid world polygons is not supported")
+
     if len(obstacle_iter) == 0:
         # there are no obstacles. return just the simple boundary rectangle
-        return [
-            np.array(x, y)
-            for x, y in [(0, 0), (size_x, 0), (size_x, size_y), (0, size_y)]
-        ], []
+        boundary = np.array(
+            [(0, 0), (size_x, 0), (size_x, size_y), (0, size_y)], dtype=float
+        )
+        return boundary, []
 
     # convert (x,y) into np.arrays
     # obstacle_iter = [np.array(o) for o in obstacle_iter]
@@ -1022,10 +984,6 @@ def convert_gridworld(
         start_pos, boundary_detect_fct=is_blocked, cntr_clockwise_wanted=True
     )
 
-    if simplify:
-        # TODO
-        raise NotImplementedError()
-
     # detect which of the obstacles have to be converted into holes
     # just the obstacles inside the boundary polygon are part of holes
     # shift coordinates by +(0.5,0.5) for correct detection
@@ -1058,10 +1016,6 @@ def convert_gridworld(
         unchecked_obstacles = get_unchecked_obstacles(
             unchecked_obstacles, hole, required_val=False
         )
-
-        if simplify:
-            # TODO
-            pass
 
         hole_list.append(hole)
 

@@ -29,7 +29,15 @@ class PolygonEnvironment:
     "`Pathfinding in Two-dimensional Worlds
     <https://www.cs.au.dk/~gerth/advising/thesis/anders-strand-holm-vinther_magnus-strand-holm-vinther.pdf>`__"
 
-    TODO document parameters
+    The environment is populated with :meth:`store` or :meth:`store_grid_world`.
+    Afterwards these attributes are available:
+
+    * ``boundary_polygon``: the boundary coordinates (``None`` for unbounded environments)
+    * ``holes``: the list of hole coordinates
+    * ``coords``: the coordinates of all polygon vertices (boundary first, then all holes)
+    * ``extremity_indices``: the indices of all extremities in ``coords``
+    * ``graph``: the precomputed visibility graph (:class:`networkx.Graph`) of the extremities
+    * ``temp_graph``: the search graph of the last query, when queried with ``free_space_after=False``
     """
 
     nr_edges: int
@@ -38,7 +46,6 @@ class PolygonEnvironment:
     extremity_indices: np.ndarray
     reprs_n_distances: Dict[int, np.ndarray]
     graph: t.Graph
-    # TODO
     temp_graph: Optional[t.Graph] = (
         None  # for storing and plotting the graph during a query
     )
@@ -114,7 +121,6 @@ class PolygonEnvironment:
         self.holes = list_of_hole_coordinates
         self.boundary_polygon = boundary_coordinates
 
-        # TODO redundant data. refactor all functions to only use one format
         (
             self.coords,
             self.extremity_indices,
@@ -142,7 +148,7 @@ class PolygonEnvironment:
         size_x: int,
         size_y: int,
         obstacle_iter: ObstacleIterator,
-        simplify: bool = True,
+        simplify: bool = False,
         validate: bool = False,
     ):
         """Convert a grid-like into a polygon environment and save it
@@ -155,6 +161,7 @@ class PolygonEnvironment:
         :param obstacle_iter: an iterable of coordinate pairs (x,y) representing blocked grid cells (obstacles)
         :param validate: whether the input should be validated
         :param simplify: whether the polygons should be simplified or not. reduces edge amount, allow diagonal edges
+            NOTE: simplification is not implemented, ``True`` raises a ``NotImplementedError``
         """
         boundary_coordinates, list_of_hole_coordinates = utils.convert_gridworld(
             size_x, size_y, obstacle_iter, simplify
@@ -300,13 +307,10 @@ class PolygonEnvironment:
             d = vert_idx2dist[start]
             return [start_coordinates, goal_coordinates], d
 
-        # create temporary graph
-        # DirectedHeuristicGraph implements __deepcopy__() to not change the original precomputed self.graph
-        # but to still not create real copies of vertex instances!
+        # create temporary graph, the original precomputed self.graph must not be changed
+        # Note: copying makes up a large part of the query time for large graphs
+        #   (https://github.com/jannikmi/extremitypathfinder/issues/136)
         graph = self.graph.copy()
-        # TODO avoid real copy to make make more performant
-        # graph = self.graph
-        # nr_edges_before = len(graph.edges)
 
         # add edges: extremity (i) <-> goal
         # Note: also here unnecessary edges in the graph could be deleted
@@ -343,7 +347,7 @@ class PolygonEnvironment:
         goal_mapped = utils.find_identical_single(
             goal, graph.nodes, self.reprs_n_distances
         )
-        if goal_mapped != goal_mapped:
+        if goal_mapped != goal:
             nx.relabel_nodes(graph, {goal: goal_mapped}, copy=False)
 
         self._idx_start_tmp, self._idx_goal_tmp = (
@@ -360,16 +364,6 @@ class PolygonEnvironment:
             )
         except nx.exception.NetworkXNoPath:
             return [], None
-
-        # clean up
-        # TODO re-use the same graph. need to keep track of all merged edges
-        # if start_mapped == start:
-        #     graph.remove_node(start)
-        # if goal_mapped==goal:
-        #     graph.remove_node(goal)
-        # nr_edges_after = len(graph.edges)
-        # if not nr_edges_after == nr_edges_before:
-        #     raise ValueError
 
         if free_space_after:
             del graph  # free the memory
