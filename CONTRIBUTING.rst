@@ -103,6 +103,23 @@ Ready to contribute? Here's how to set up this package for local development.
 * Submit a pull request through the GitHub website. This will trigger the GitHub Actions build which runs the tests against all supported versions of Python.
 
 
+Performance
+-----------
+
+Measure before and after optimising, and include the numbers in the pull request:
+
+* ``scripts/speed_benchmarks.py`` benchmarks environment preparation and queries on the small test environments
+  (``pytest -s scripts/speed_benchmarks.py``, results in the performance section of the documentation).
+* ``prototypes/large_env_query_profile.py`` profiles queries on a large, configurable environment
+  and reports how much of the query time is spent copying the visibility graph:
+
+   .. code-block:: sh
+
+       $ python prototypes/large_env_query_profile.py --holes-per-side 10 --profile
+
+``prototypes/`` contains such development scripts. They are not part of the package and not run by the tests.
+
+
 Changelog
 ---------
 
