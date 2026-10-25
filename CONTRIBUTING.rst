@@ -103,6 +103,16 @@ Ready to contribute? Here's how to set up this package for local development.
 * Submit a pull request through the GitHub website. This will trigger the GitHub Actions build which runs the tests against all supported versions of Python.
 
 
+Changelog
+---------
+
+``CHANGELOG.rst`` lists changes only, newest release first. Describe user-facing changes at the top
+of a release section and put purely internal changes under an ``internal:`` sub-list.
+Add entries for changes that are merged but not yet released to an ``Unreleased`` section at the
+top, and rename it to ``<version> (<date of the release tag>)`` when publishing.
+Ideas, TODOs and planned changes do not belong in the changelog: track them as `Github Issues`_.
+
+
 Release validation
 ------------------
 
