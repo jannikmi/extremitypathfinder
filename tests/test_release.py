@@ -1,4 +1,5 @@
 import datetime
+import os
 import shutil
 
 import pytest
@@ -46,10 +47,6 @@ bugfixes:
 RELEASE_DATE = datetime.date(2026, 10, 26)
 PYPROJECT_NAME = "pyproject.toml"
 
-requires_poetry = pytest.mark.skipif(
-    shutil.which("poetry") is None, reason="requires poetry"
-)
-
 
 @pytest.mark.parametrize("new", ["2.8.1", "2.9.0", "3.0.0", "2.10.0"])
 def test_check_new_version(new):
@@ -87,9 +84,17 @@ def test_release_date_requires_a_section_for_the_version():
 
 
 @pytest.fixture
-def project_dir(tmp_path):
-    if shutil.which("poetry") is None:
-        pytest.skip("requires poetry")
+def poetry():
+    # the tox environment "release" provides poetry and sets EXPECT_POETRY
+    if shutil.which("poetry") is not None:
+        return
+    if os.environ.get("EXPECT_POETRY") == "1":
+        pytest.fail("poetry is expected (EXPECT_POETRY=1), but not installed")
+    pytest.skip("requires poetry")
+
+
+@pytest.fixture
+def project_dir(poetry, tmp_path):
     (tmp_path / PYPROJECT_NAME).write_text(PYPROJECT_EXAMPLE, encoding="utf-8")
     (tmp_path / CHANGELOG_NAME).write_text(CHANGELOG_EXAMPLE, encoding="utf-8")
     return tmp_path
@@ -99,8 +104,7 @@ def test_read_version_reads_the_package_version(project_dir):
     assert read_version(project_dir) == "2.8.0"
 
 
-@requires_poetry
-def test_repository_changelog_matches_package_version():
+def test_repository_changelog_matches_package_version(poetry):
     # the same check guards the release tagging in CI
     release_date(
         (PROJECT_DIR / CHANGELOG_NAME).read_text(encoding="utf-8"), read_version()

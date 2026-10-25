@@ -91,6 +91,13 @@ Ready to contribute? Here's how to set up this package for local development.
 
        $ tox -e py312-numba
 
+   The release tooling (``scripts/release.py``) needs Poetry and is tested in a separate environment,
+   which also runs in CI:
+
+   .. code-block:: sh
+
+       $ tox -e release
+
 
 * Commit your changes and push your branch to GitHub:
 
