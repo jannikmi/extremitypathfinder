@@ -95,6 +95,18 @@ Install the package with the optional Numba extra for a significant speedup:
     path, length = environment.find_shortest_path(start_coordinates, goal_coordinates)
 
 
+Grid worlds can be converted into polygon environments as well.
+Coordinates refer to the corners of the grid cells, i.e. cell ``(x, y)`` spans ``[x, x+1] x [y, y+1]``:
+
+.. code-block:: python
+
+    environment = PolygonEnvironment()
+    size_x, size_y = 5, 3
+    obstacle_iter = [(2, 1), (3, 1)]  # blocked grid cells (x, y)
+    environment.store_grid_world(size_x, size_y, obstacle_iter)
+    path, length = environment.find_shortest_path((0.5, 0.5), (4.5, 2.5))
+
+
 For more refer to the `documentation <https://extremitypathfinder.readthedocs.io/en/latest/>`__.
 
 

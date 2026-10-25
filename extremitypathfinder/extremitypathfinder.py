@@ -92,7 +92,9 @@ class PolygonEnvironment:
         :param list_of_hole_coordinates: array of coordinates with clockwise edge numbering
         :param validate: whether the requirements of the data should be tested
 
-        :raises AssertionError: when validate=True and the input is invalid.
+        :raises TypeError: when validate=True and the input has an invalid shape.
+        :raises ValueError: when validate=True and the input violates the requirements above,
+            and when ``boundary_coordinates`` is ``None`` and no holes are given.
         """
         self.prepared = False
         # loading the map

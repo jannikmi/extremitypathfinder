@@ -156,9 +156,7 @@ Converting and storing a grid world
         # hole 2
         (7, 5),
     ]
-    environment.store_grid_world(
-        size_x, size_y, obstacle_iter, simplify=False, validate=False
-    )
+    environment.store_grid_world(size_x, size_y, obstacle_iter)
 
 
 
@@ -170,7 +168,8 @@ Converting and storing a grid world
 **Note:** As mentioned in
 `[1, Ch. III 6.3] <http://www.cs.au.dk/~gerth/advising/thesis/anders-strand-holm-vinther_magnus-strand-holm-vinther.pdf>`__
 in "chessboard-like grid worlds" (many small obstacles have a lot of extremities!)
-it can be better to use A* right away (implemented in ``graph_search.py``).
+it can be better to run A* directly on the grid cells,
+e.g. with ``networkx.astar_path()`` on a ``networkx.grid_2d_graph()``.
 
 
 Cache and import the environment
