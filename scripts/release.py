@@ -5,26 +5,24 @@ usage:
     python scripts/release.py check              # the changelog has a dated section for the package version
     python scripts/release.py prepare patch      # or: minor, major, an explicit version like 2.9.0
 
-``prepare`` sets the new package version in ``pyproject.toml`` and turns the ``Unreleased``
-changelog section into the section of the new version, dated today.
+``prepare`` sets the new package version with ``poetry version`` and turns the ``Unreleased``
+changelog section into the section of the new version, dated today. It requires Poetry.
 """
 
 import argparse
 import datetime
 import re
+import subprocess
+import tomllib
 from pathlib import Path
 
 PROJECT_DIR = Path(__file__).parent.parent
-PYPROJECT = PROJECT_DIR / "pyproject.toml"
-CHANGELOG = PROJECT_DIR / "CHANGELOG.rst"
+PYPROJECT_NAME = "pyproject.toml"
+CHANGELOG_NAME = "CHANGELOG.rst"
 
 UNRELEASED_TITLE = "Unreleased"
-BUMP_LEVELS = ("major", "minor", "patch")
+BUMP_RULES = ("major", "minor", "patch")
 VERSION_PATTERN = re.compile(r"^(\d+)\.(\d+)\.(\d+)$")
-# the package version is the first assignment in the [tool.poetry] table
-PYPROJECT_VERSION_PATTERN = re.compile(
-    r'^(\[tool\.poetry\]\n(?:(?!\[).*\n)*?)version = "([^"]+)"$', re.MULTILINE
-)
 
 
 def parse_version(version: str) -> tuple[int, int, int]:
@@ -34,34 +32,30 @@ def parse_version(version: str) -> tuple[int, int, int]:
     return tuple(int(part) for part in match.groups())
 
 
-def bump_version(current: str, target: str) -> str:
-    """Return the next version, given a bump level or an explicit version."""
-    major, minor, patch = parse_version(current)
-    if target == "major":
-        return f"{major + 1}.0.0"
-    if target == "minor":
-        return f"{major}.{minor + 1}.0"
-    if target == "patch":
-        return f"{major}.{minor}.{patch + 1}"
-    if parse_version(target) <= (major, minor, patch):
-        raise ValueError(f"version {target} is not higher than {current}")
-    return target
+def check_new_version(current: str, new: str) -> None:
+    # Note: poetry accepts any version, also lower ones
+    if parse_version(new) <= parse_version(current):
+        raise ValueError(f"version {new} is not higher than {current}")
 
 
 def read_version(pyproject: str) -> str:
-    match = PYPROJECT_VERSION_PATTERN.search(pyproject)
-    if match is None:
+    try:
+        return tomllib.loads(pyproject)["tool"]["poetry"]["version"]
+    except KeyError:
         raise ValueError(
             "no version found in the [tool.poetry] table of pyproject.toml"
         )
-    return match.group(2)
 
 
-def set_version(pyproject: str, version: str) -> str:
-    read_version(pyproject)  # fail early without a version
-    return PYPROJECT_VERSION_PATTERN.sub(
-        lambda match: f'{match.group(1)}version = "{version}"', pyproject, count=1
+def poetry_version(project_dir: Path, *args: str) -> str:
+    result = subprocess.run(
+        ["poetry", "version", "--short", *args],
+        cwd=project_dir,
+        check=True,
+        text=True,
+        capture_output=True,
     )
+    return result.stdout.strip()
 
 
 def _section_title_pattern(title: str) -> re.Pattern:
@@ -102,15 +96,19 @@ def release_changelog(changelog: str, version: str, date: datetime.date) -> str:
     )
 
 
-def prepare(target: str, date: datetime.date) -> str:
-    pyproject = PYPROJECT.read_text(encoding="utf-8")
-    changelog = CHANGELOG.read_text(encoding="utf-8")
-    version = bump_version(read_version(pyproject), target)
-    # compute both files before writing any of them
-    new_changelog = release_changelog(changelog, version, date)
-    new_pyproject = set_version(pyproject, version)
-    CHANGELOG.write_text(new_changelog, encoding="utf-8")
-    PYPROJECT.write_text(new_pyproject, encoding="utf-8")
+def prepare(target: str, date: datetime.date, project_dir: Path = PROJECT_DIR) -> str:
+    changelog_path = project_dir / CHANGELOG_NAME
+    current = read_version((project_dir / PYPROJECT_NAME).read_text(encoding="utf-8"))
+    if target not in BUMP_RULES:
+        parse_version(target)
+    version = poetry_version(project_dir, target, "--dry-run")
+    check_new_version(current, version)
+    # validate the changelog before changing any file
+    new_changelog = release_changelog(
+        changelog_path.read_text(encoding="utf-8"), version, date
+    )
+    poetry_version(project_dir, version)
+    changelog_path.write_text(new_changelog, encoding="utf-8")
     return version
 
 
@@ -127,7 +125,7 @@ def main() -> None:
         help="set the new version and date the 'Unreleased' changelog section",
     )
     prepare_parser.add_argument(
-        "target", help=f"one of {', '.join(BUMP_LEVELS)} or an explicit version"
+        "target", help=f"one of {', '.join(BUMP_RULES)} or an explicit version"
     )
     prepare_parser.add_argument(
         "--date",
@@ -137,17 +135,23 @@ def main() -> None:
     )
     args = parser.parse_args()
 
+    pyproject = (PROJECT_DIR / PYPROJECT_NAME).read_text(encoding="utf-8")
     try:
         if args.command == "version":
-            print(read_version(PYPROJECT.read_text(encoding="utf-8")))
+            print(read_version(pyproject))
         elif args.command == "check":
-            version = read_version(PYPROJECT.read_text(encoding="utf-8"))
-            date = release_date(CHANGELOG.read_text(encoding="utf-8"), version)
+            version = read_version(pyproject)
+            changelog = (PROJECT_DIR / CHANGELOG_NAME).read_text(encoding="utf-8")
+            date = release_date(changelog, version)
             print(f"CHANGELOG.rst: {version} ({date.isoformat()})")
         else:
             print(prepare(args.target, args.date))
     except ValueError as error:
         parser.exit(1, f"error: {error}\n")
+    except subprocess.CalledProcessError as error:
+        parser.exit(1, f"error: poetry version failed:\n{error.stderr}")
+    except FileNotFoundError:
+        parser.exit(1, "error: poetry is required for preparing a release\n")
 
 
 if __name__ == "__main__":

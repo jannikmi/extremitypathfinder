@@ -25,6 +25,9 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Install Poetry
+        run: python -m pip install --upgrade pip poetry
+
       - name: Set the version and date the changelog
         id: prepare
         env:

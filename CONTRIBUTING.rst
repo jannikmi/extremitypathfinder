@@ -155,7 +155,7 @@ Releasing
 Releases are automated with GitHub Actions:
 
 1. Run the "prepare release" workflow from the Actions tab and enter ``patch``, ``minor``, ``major``
-   or an explicit version. It sets the new version in ``pyproject.toml``, turns the ``Unreleased``
+   or an explicit version. It sets the new version with ``poetry version``, turns the ``Unreleased``
    changelog section into the section of the new version dated today, and pushes the branch
    ``release/<version>``. The job summary links to the pull request to open.
    Locally the same is done by ``make release-prepare BUMP=patch``.
