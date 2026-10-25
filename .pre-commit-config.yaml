@@ -51,7 +51,7 @@ repos:
     rev: "0.49"
     hooks:
       - id: check-manifest
-        args: [ "--no-build-isolation", "--ignore",  "*.png,docs/*,publish.py,readthedocs.yml,poetry.lock,setup.py,scripts/*" ]
+        args: [ "--no-build-isolation", "--ignore",  "*.png,docs/*,publish.py,readthedocs.yml,poetry.lock,setup.py,scripts/*,prototypes/*" ]
         additional_dependencies: [ numpy, poetry>=1.4 ]
 
   - repo: https://github.com/asottile/pyupgrade
