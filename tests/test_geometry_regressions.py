@@ -244,13 +244,13 @@ def test_paths_between_extremities_are_symmetric(env_params):
         ([(2, 1), (3, 1)], hypot(1.5, 1.5) + hypot(2.5, 0.5)),
     ],
 )
-def test_grid_world_with_default_arguments(obstacles, expected_distance):
-    environment = PolygonEnvironment.from_grid_world(5, 3, obstacles)
+def test_grid_with_default_arguments(obstacles, expected_distance):
+    environment = PolygonEnvironment.from_grid(5, 3, obstacles)
 
     _, distance = environment.find_shortest_path((0.5, 0.5), (4.5, 2.5))
     assert distance == pytest.approx(expected_distance)
 
 
-def test_grid_world_simplification_is_not_supported():
+def test_grid_simplification_is_not_supported():
     with pytest.raises(NotImplementedError):
-        PolygonEnvironment.from_grid_world(5, 3, [(2, 1)], simplify=True)
+        PolygonEnvironment.from_grid(5, 3, [(2, 1)], simplify=True)

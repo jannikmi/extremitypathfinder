@@ -70,7 +70,7 @@ def try_test_cases(environment, test_cases):
 
 
 def test_grid_env():
-    grid_env = PolygonEnvironment.from_grid_world(
+    grid_env = PolygonEnvironment.from_grid(
         *GRID_ENV_PARAMS, simplify=False, validate=False
     )
     nr_extremities = len(grid_env.all_extremities)

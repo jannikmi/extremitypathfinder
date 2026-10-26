@@ -117,8 +117,11 @@ This is required if points lie really close to polygon edges and
 
 
 
-Converting and storing a grid world
------------------------------------
+Converting a grid
+-----------------
+
+A grid of ``size_x`` times ``size_y`` cells with blocked cells (obstacles) can be converted into a polygon environment.
+Coordinates refer to the corners of the grid cells, i.e. cell ``(x, y)`` spans ``[x, x+1] x [y, y+1]``.
 
 
 .. code-block:: python
@@ -148,7 +151,7 @@ Converting and storing a grid world
         # hole 2
         (7, 5),
     ]
-    environment = PolygonEnvironment.from_grid_world(size_x, size_y, obstacle_iter)
+    environment = PolygonEnvironment.from_grid(size_x, size_y, obstacle_iter)
 
 
 

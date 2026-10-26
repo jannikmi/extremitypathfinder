@@ -313,7 +313,7 @@ def _yield_reference(boundary_data):
         )
 
 
-grid_env = PolygonEnvironment.from_grid_world(
+grid_env = PolygonEnvironment.from_grid(
     *GRID_ENV_PARAMS, simplify=False, validate=False
 )
 grid_env_polygons = grid_env.boundary_polygon, grid_env.holes

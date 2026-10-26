@@ -53,7 +53,7 @@ class PolygonEnvironment:
     <https://www.cs.au.dk/~gerth/advising/thesis/anders-strand-holm-vinther_magnus-strand-holm-vinther.pdf>`__"
 
     The environment is initialised in one step: the polygons are passed to the constructor
-    (or a grid world to :meth:`from_grid_world`) and the visibility graph is computed right away.
+    (or a grid with blocked cells to :meth:`from_grid`) and the visibility graph is computed right away.
     Afterwards these attributes are available:
 
     * ``boundary_polygon``: the boundary coordinates (``None`` for unbounded environments)
@@ -150,7 +150,7 @@ class PolygonEnvironment:
         self._compute_graph()
 
     @classmethod
-    def from_grid_world(
+    def from_grid(
         cls,
         size_x: int,
         size_y: int,
@@ -158,19 +158,19 @@ class PolygonEnvironment:
         simplify: bool = False,
         validate: bool = False,
     ) -> "PolygonEnvironment":
-        """Convert a grid-like into a polygon environment
+        """Convert a grid with blocked cells (obstacles) into a polygon environment
 
-        Prerequisites: grid world must not have single non-obstacle cells which are surrounded by obstacles
+        Prerequisites: the grid must not have single non-obstacle cells which are surrounded by obstacles
         ("white cells in black surrounding" = useless for path planning)
 
-        :param size_x: the horizontal grid world size
-        :param size_y: the vertical grid world size
+        :param size_x: the horizontal grid size
+        :param size_y: the vertical grid size
         :param obstacle_iter: an iterable of coordinate pairs (x,y) representing blocked grid cells (obstacles)
         :param validate: whether the input should be validated
         :param simplify: whether the polygons should be simplified or not. reduces edge amount, allow diagonal edges
             NOTE: simplification is not implemented, ``True`` raises a ``NotImplementedError``
         """
-        boundary_coordinates, list_of_hole_coordinates = utils.convert_gridworld(
+        boundary_coordinates, list_of_hole_coordinates = utils.convert_grid(
             size_x, size_y, obstacle_iter, simplify
         )
         return cls(boundary_coordinates, list_of_hole_coordinates, validate)
