@@ -32,6 +32,13 @@ Ensure that all the following conditions on the polygons are fulfilled:
     - outer boundary polygon: counter clockwise
     - holes: clockwise
 
+.. note::
+
+    Simplifying the input geometries (e.g. reducing the number of vertices, smoothing or merging polygons)
+    is out of scope of this package. The polygons are used exactly as given.
+    If needed, simplify them beforehand, e.g. with the ``simplify()`` method of `Shapely <https://shapely.readthedocs.io/>`__
+    (the result must still meet the requirements above).
+
 
 .. code-block:: python
 
@@ -122,6 +129,7 @@ Converting a grid
 
 A grid of ``size_x`` times ``size_y`` cells with blocked cells (obstacles) can be converted into a polygon environment.
 Coordinates refer to the corners of the grid cells, i.e. cell ``(x, y)`` spans ``[x, x+1] x [y, y+1]``.
+The polygons follow the borders of the blocked cells, they are not simplified (no diagonal edges).
 
 
 .. code-block:: python

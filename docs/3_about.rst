@@ -114,6 +114,10 @@ self-intersect, and must not repeat a vertex immediately (including repeating th
 the end). Coordinates must be finite and polygons must have non-zero area. When ``validate=True``,
 violations of these input requirements raise ``TypeError`` or ``ValueError`` before preprocessing.
 
+Geometry simplification is out of scope: the polygons are used exactly as given (grids are converted
+into polygons following the borders of the blocked cells). Simplify the input beforehand if fewer
+vertices are needed, e.g. with Shapely.
+
 Different polygons may share vertices or edges. These contacts are currently non-blocking: a
 shortest path can pass through a shared vertex or run along overlapping edges. This behavior is
 intentional for compatibility and is covered by regression tests; callers that need contacts to
@@ -127,7 +131,7 @@ Implementation
 
 
 Visibility detection: "Angle Range Elimination Algorithm" (AREA, Contribution of this package)
-****************************************************************************************************
+______________________________________________________________________________________________
 
 AREA is an algorithm for computing the visibility graph.
 
@@ -171,7 +175,7 @@ The core visibility algorithm (for one origin) is implemented in ``find_visible(
 
 
 Comparison:
-***********
+___________
 
 **Lee's visibility graph algorithm**:
 
@@ -186,7 +190,7 @@ complexity: :math:`O(n^2 log_2 n)` (cf. `these slides <https://dav.ee/papers/Vis
 
 
 Optimised Pathfinding:
-**********************
+______________________
 
 The shortest path is computed with the default ``A*`` implementation of the ``networkx`` package
 (``networkx.astar_path()``), using the euclidean distance as heuristic.
