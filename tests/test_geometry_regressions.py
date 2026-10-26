@@ -90,8 +90,7 @@ def test_near_collinear_hole_vertex_does_not_change_shortest_distance():
     # deliberately not part of the reference route; the lower corners remain
     # mutually visible through free space.
     near_collinear_hole = RECTANGULAR_HOLE + [(5.0, 4.0 + 1e-12)]
-    environment = PolygonEnvironment()
-    environment.store(BOUNDARY, [near_collinear_hole], validate=True)
+    environment = PolygonEnvironment(BOUNDARY, [near_collinear_hole], validate=True)
 
     path, distance = environment.find_shortest_path((1.0, 5.0), (9.0, 5.0))
 
@@ -107,9 +106,8 @@ def test_shortest_path_scales_with_coordinate_magnitude(scale, offset):
     def scaled(polygon):
         return [(x * scale + offset, y * scale + offset) for x, y in polygon]
 
-    environment = PolygonEnvironment()
     holes = [scaled(RECTANGULAR_HOLE)]
-    environment.store(
+    environment = PolygonEnvironment(
         scaled(BOUNDARY),
         holes,
         validate=True,
@@ -131,8 +129,7 @@ def test_touching_holes_keep_shared_vertex_non_blocking():
         [(3.0, 5.0), (3.0, 7.0), (5.0, 7.0), (5.0, 5.0)],
         [(5.0, 3.0), (5.0, 5.0), (7.0, 5.0), (7.0, 3.0)],
     ]
-    environment = PolygonEnvironment()
-    environment.store(BOUNDARY, holes, validate=True)
+    environment = PolygonEnvironment(BOUNDARY, holes, validate=True)
 
     path, distance = environment.find_shortest_path((1.0, 5.0), (9.0, 5.0))
 
@@ -195,15 +192,12 @@ def test_touching_holes_keep_shared_vertex_non_blocking():
     ],
 )
 def test_invalid_polygons_fail_predictably(boundary, holes, error, message):
-    environment = PolygonEnvironment()
-
     with pytest.raises(error, match=message):
-        environment.store(boundary, holes, validate=True)
+        PolygonEnvironment(boundary, holes, validate=True)
 
 
 def test_repeated_queries_do_not_mutate_precomputed_graph():
-    environment = PolygonEnvironment()
-    environment.store(BOUNDARY, [RECTANGULAR_HOLE], validate=True)
+    environment = PolygonEnvironment(BOUNDARY, [RECTANGULAR_HOLE], validate=True)
     nodes_before = set(environment.graph.nodes)
     edges_before = _weighted_edges(environment.graph)
     queries = [
@@ -227,8 +221,7 @@ def test_repeated_queries_do_not_mutate_precomputed_graph():
 @pytest.mark.parametrize("env_params", POLYGON_ENVS)
 def test_paths_between_extremities_are_symmetric(env_params):
     """A goal identical to an extremity must be merged with that graph node."""
-    environment = PolygonEnvironment()
-    environment.store(*env_params)
+    environment = PolygonEnvironment(*env_params)
 
     extremities = environment.all_extremities
     for start, goal in itertools.combinations(extremities, 2):
@@ -251,15 +244,13 @@ def test_paths_between_extremities_are_symmetric(env_params):
         ([(2, 1), (3, 1)], hypot(1.5, 1.5) + hypot(2.5, 0.5)),
     ],
 )
-def test_grid_world_with_default_arguments(obstacles, expected_distance):
-    environment = PolygonEnvironment()
-    environment.store_grid_world(5, 3, obstacles)
+def test_grid_with_default_arguments(obstacles, expected_distance):
+    environment = PolygonEnvironment.from_grid(5, 3, obstacles)
 
     _, distance = environment.find_shortest_path((0.5, 0.5), (4.5, 2.5))
     assert distance == pytest.approx(expected_distance)
 
 
-def test_grid_world_simplification_is_not_supported():
-    environment = PolygonEnvironment()
+def test_grid_simplification_is_not_supported():
     with pytest.raises(NotImplementedError):
-        environment.store_grid_world(5, 3, [(2, 1)], simplify=True)
+        PolygonEnvironment.from_grid(5, 3, [(2, 1)], simplify=True)

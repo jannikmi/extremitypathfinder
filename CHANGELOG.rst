@@ -4,17 +4,34 @@ Changelog
 Unreleased
 ----------
 
-- added a grid world example to the README
+BREAKING: the environment is initialised in one step:
+
+- ``PolygonEnvironment(boundary_coordinates, list_of_hole_coordinates, validate=False)`` stores the polygons
+  and computes the visibility graph. Replaces ``PolygonEnvironment()`` followed by ``.store()``.
+- ``PolygonEnvironment.from_grid(size_x, size_y, obstacle_iter)`` replaces ``.store_grid_world()`` (``utils.convert_gridworld()`` is renamed to ``utils.convert_grid()``)
+- removed the ``.prepare()`` method and the ``prepared`` attribute
+  (a separate ``.prepare()`` call has not been needed since 2.5.0)
+- removed the ``free_space_after`` parameter of ``find_shortest_path()`` and the ``temp_graph`` attribute.
+  The search graph of a query is returned by ``search()`` instead of being stored in the environment.
+- new ``search()`` method: performs the same search as ``find_shortest_path()``, but returns a ``SearchResult``
+  with the search data (search graph, start and goal nodes, coordinates) in addition to the path and its length
+- removed ``PlottingEnvironment``. Use the functions ``plot_environment(environment, plotting_dir)``
+  and ``plot_search(environment, result, plotting_dir)`` in ``extremitypathfinder.plotting`` instead.
+  The plotting directory is a parameter of the plotting functions instead of a global setting.
+
+other changes:
+
+- added a grid example to the README
 - support CPython 3.15: tested in CI with the latest and the oldest dependencies providing 3.15 wheels
 
 bugfixes:
 
 - a goal identical to an extremity is merged with it in the search graph.
   Previously such queries could return a longer path or no path at all.
-- ``store_grid_world()`` works with its default arguments: ``simplify`` now defaults
+- ``from_grid()`` works with its default arguments: ``simplify`` now defaults
   to ``False``, since polygon simplification is not implemented (``True`` raises ``NotImplementedError``)
-- ``store_grid_world()`` supports grid worlds without obstacles
-- documentation: describe the ``networkx`` A* search correctly, list the exceptions raised by ``store()``
+- ``from_grid()`` supports grids without obstacles
+- documentation: describe the ``networkx`` A* search correctly, list the exceptions raised by the ``PolygonEnvironment`` constructor
 
 internal:
 

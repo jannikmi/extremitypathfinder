@@ -214,7 +214,7 @@ This package is similar to `pyvisgraph <https://github.com/TaipanRex/pyvisgraph>
 
 - very reduced visibility graph (time and memory!)
 - algorithms optimized for path finding
-- possibility to convert and use grid worlds
+- possibility to convert and use grids with blocked cells
 
 
 **Cons:**

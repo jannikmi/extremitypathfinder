@@ -1,13 +1,12 @@
 import time
 from os import makedirs
-from os.path import abspath, exists, join
+from os.path import abspath, join
 
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.patches import Polygon
 
-from extremitypathfinder import types as t
-from extremitypathfinder.extremitypathfinder import PolygonEnvironment
+from extremitypathfinder.extremitypathfinder import PolygonEnvironment, SearchResult
 
 EXPORT_RESOLUTION = 200  # dpi
 EXPORT_SIZE_X = 19.0  # inch
@@ -24,15 +23,16 @@ PLOTTING_DIR = "all_plots"
 PLOT_FILE_ENDING = ".svg"
 
 
-def get_plot_name(file_name="plot"):
+def get_plot_name(file_name="plot", plotting_dir=PLOTTING_DIR):
     return abspath(
-        join(PLOTTING_DIR, file_name + "_" + str(time.time())[:-7] + PLOT_FILE_ENDING)
+        join(plotting_dir, file_name + "_" + str(time.time())[:-7] + PLOT_FILE_ENDING)
     )
 
 
-def export_plot(fig, file_name):
+def export_plot(fig, file_name, plotting_dir=PLOTTING_DIR):
+    makedirs(plotting_dir, exist_ok=True)
     fig.set_size_inches(EXPORT_SIZE_X, EXPORT_SIZE_Y, forward=True)
-    plt.savefig(get_plot_name(file_name), dpi=EXPORT_RESOLUTION)
+    plt.savefig(get_plot_name(file_name, plotting_dir), dpi=EXPORT_RESOLUTION)
     plt.close()
 
 
@@ -110,31 +110,33 @@ def draw_path(vertex_path):
         v1 = v2
 
 
-def draw_loaded_map(map):
+def draw_loaded_map(map, plotting_dir=PLOTTING_DIR):
     fig, ax = plt.subplots()
 
     draw_boundaries(map, ax)
     set_limits(map, ax)
-    export_plot(fig, "map_plot")
+    export_plot(fig, "map_plot", plotting_dir)
     if SHOW_PLOTS:
         plt.show()
 
 
-def draw_prepared_map(map):
+def draw_prepared_map(map, plotting_dir=PLOTTING_DIR):
     fig, ax = plt.subplots()
 
     draw_boundaries(map, ax)
     draw_internal_graph(map, ax)
     set_limits(map, ax)
-    export_plot(fig, "prepared_map_plot")
+    export_plot(fig, "prepared_map_plot", plotting_dir)
     if SHOW_PLOTS:
         plt.show()
 
 
-def draw_with_path(map, graph: t.Graph, vertex_path):
+def draw_with_path(map, result: SearchResult, plotting_dir=PLOTTING_DIR):
     fig, ax = plt.subplots()
 
-    coords = map._coords_tmp
+    graph = result.graph
+    coords = result.coords
+    vertex_path = result.path
     all_nodes = graph.nodes
     draw_boundaries(map, ax)
     draw_internal_graph(map, ax)
@@ -144,8 +146,8 @@ def draw_with_path(map, graph: t.Graph, vertex_path):
         # additionally draw:
         # new edges yellow
         start, goal = vertex_path[0], vertex_path[-1]
-        goal_idx = map._idx_goal_tmp
-        start_idx = map._idx_start_tmp
+        goal_idx = result.idx_goal
+        start_idx = result.idx_start
 
         if start_idx is not None:
             for n_idx in graph.neighbors(start_idx):
@@ -162,12 +164,14 @@ def draw_with_path(map, graph: t.Graph, vertex_path):
     # start, path and goal in green
     draw_path(vertex_path)
 
-    export_plot(fig, "graph_path_plot")
+    export_plot(fig, "graph_path_plot", plotting_dir)
     if SHOW_PLOTS:
         plt.show()
 
 
-def draw_only_path(map, vertex_path, start_coordinates, goal_coordinates):
+def draw_only_path(
+    map, vertex_path, start_coordinates, goal_coordinates, plotting_dir=PLOTTING_DIR
+):
     fig, ax = plt.subplots()
 
     draw_boundaries(map, ax)
@@ -175,16 +179,17 @@ def draw_only_path(map, vertex_path, start_coordinates, goal_coordinates):
     draw_path(vertex_path)
     mark_points([start_coordinates, goal_coordinates], c="g", s=100)
 
-    export_plot(fig, "path_plot")
+    export_plot(fig, "path_plot", plotting_dir)
     if SHOW_PLOTS:
         plt.show()
 
 
-def draw_graph(map, graph: t.Graph):
+def draw_graph(map, result: SearchResult, plotting_dir=PLOTTING_DIR):
     fig, ax = plt.subplots()
 
+    graph = result.graph
     nodes = graph.nodes
-    coords = map._coords_tmp
+    coords = result.coords
     all_nodes = [coords[i] for i in nodes]
     mark_points(all_nodes, c="black", s=30)
 
@@ -208,47 +213,37 @@ def draw_graph(map, graph: t.Graph):
 
     set_limits(map, ax, coords[-2:])
 
-    export_plot(fig, "graph_plot")
+    export_plot(fig, "graph_plot", plotting_dir)
     if SHOW_PLOTS:
         plt.show()
 
 
-class PlottingEnvironment(PolygonEnvironment):
-    """Extends PolygonEnvironment. In addition to the base functionality it
-    plots graphs of the polygons, the visibility graph and the computed path.
-    Stores all graphs in the folder defined by plotting_dir parameter."""
+def plot_environment(environment: PolygonEnvironment, plotting_dir=PLOTTING_DIR):
+    """Plots the input polygons and the visibility graph of an environment.
 
-    def __init__(self, plotting_dir=PLOTTING_DIR):
-        global PLOTTING_DIR
-        PLOTTING_DIR = plotting_dir
-        if not exists(plotting_dir):
-            makedirs(plotting_dir)
-        super().__init__()
+    :param environment: the environment to plot
+    :param plotting_dir: the folder to store the plots in
+    """
+    draw_loaded_map(environment, plotting_dir)
+    draw_prepared_map(environment, plotting_dir)
 
-    def store(self, *args, **kwargs):
-        """In addition to storing, also plots a graph of the input polygons."""
-        super().store(*args, **kwargs)
-        draw_loaded_map(self)
 
-    def prepare(self):
-        """Also draws a prepared map with the computed visibility graph."""
-        super().prepare()
-        draw_prepared_map(self)
+def plot_search(
+    environment: PolygonEnvironment, result: SearchResult, plotting_dir=PLOTTING_DIR
+):
+    """Plots the result of a search with :meth:`PolygonEnvironment.search`.
 
-    def find_shortest_path(self, start_coordinates, goal_coordinates, *args, **kwargs):
-        """Also draws the computed shortest path."""
-        # important to not delete the temp graph! for plotting
-        vertex_path, distance = super().find_shortest_path(
-            start_coordinates, goal_coordinates, *args, free_space_after=False, **kwargs
-        )
+    Plots the found path and, if the search built one, the search graph.
 
-        draw_only_path(self, vertex_path, start_coordinates, goal_coordinates)
-        if (
-            self.temp_graph
-        ):  # in some cases (e.g. direct path possible) no graph is being created!
-            draw_graph(self, self.temp_graph)
-            draw_with_path(self, self.temp_graph, vertex_path)
-            del self.temp_graph  # free the memory
-
-        # extract the coordinates from the path
-        return vertex_path, distance
+    :param environment: the environment the search was performed in
+    :param result: the result of the search
+    :param plotting_dir: the folder to store the plots in
+    """
+    start_coordinates, goal_coordinates = result.coords[-2:]
+    draw_only_path(
+        environment, result.path, start_coordinates, goal_coordinates, plotting_dir
+    )
+    # in some cases (e.g. direct path possible) no graph is being created!
+    if result.graph is not None:
+        draw_graph(environment, result, plotting_dir)
+        draw_with_path(environment, result, plotting_dir)

@@ -83,8 +83,7 @@ def test_read_json():
     first_hole = list_of_holes[0]
     assert len(first_hole) == 4
     assert len(first_hole[0]) == 2
-    environment = PolygonEnvironment()
-    environment.store(boundary_coordinates, list_of_holes, validate=True)
+    PolygonEnvironment(boundary_coordinates, list_of_holes, validate=True)
 
 
 @pytest.mark.parametrize(

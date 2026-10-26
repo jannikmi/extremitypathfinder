@@ -15,18 +15,8 @@ Initialisation
 --------------
 
 
-Create a new instance of the :ref:`PolygonEnvironment class <env>` to allow fast consequent timezone queries:
-
-.. code-block:: python
-
-    from extremitypathfinder import PolygonEnvironment
-
-    environment = PolygonEnvironment()
-
-
-
-Store environment
------------------
+Create a new instance of the :ref:`PolygonEnvironment class <env>` from the polygons of the environment.
+The environment is initialised in one step and allows fast consecutive shortest path queries.
 
 
 **Required data format:**
@@ -57,7 +47,9 @@ Ensure that all the following conditions on the polygons are fulfilled:
             (5.0, 4.0),
         ],
     ]
-    environment.store(boundary_coordinates, list_of_holes, validate=False)
+    from extremitypathfinder import PolygonEnvironment
+
+    environment = PolygonEnvironment(boundary_coordinates, list_of_holes, validate=False)
 
 
 If there is no explicit boundary polygon, pass ``None`` instead. The environment
@@ -66,7 +58,7 @@ hole must be supplied.
 
 .. code-block:: python
 
-    environment.store(None, list_of_holes, validate=False)
+    environment = PolygonEnvironment(None, list_of_holes, validate=False)
 
 
 .. note::
@@ -89,7 +81,7 @@ hole must be supplied.
 Visibility Graph Pre-computation
 --------------------------------
 
-Storing the map properties automatically computes the :ref:`visibility graph  <algorithm>` of the environment once.
+Creating the environment automatically computes the :ref:`visibility graph  <algorithm>` of the environment once.
 
 
 .. figure:: _static/prepared_map_plot.png
@@ -125,8 +117,11 @@ This is required if points lie really close to polygon edges and
 
 
 
-Converting and storing a grid world
------------------------------------
+Converting a grid
+-----------------
+
+A grid of ``size_x`` times ``size_y`` cells with blocked cells (obstacles) can be converted into a polygon environment.
+Coordinates refer to the corners of the grid cells, i.e. cell ``(x, y)`` spans ``[x, x+1] x [y, y+1]``.
 
 
 .. code-block:: python
@@ -156,7 +151,7 @@ Converting and storing a grid world
         # hole 2
         (7, 5),
     ]
-    environment.store_grid_world(size_x, size_y, obstacle_iter)
+    environment = PolygonEnvironment.from_grid(size_x, size_y, obstacle_iter)
 
 
 
@@ -190,15 +185,22 @@ Plotting
 --------
 
 
-The class ``PlottingEnvironment`` automatically generates plots for every step in the path finding process:
+``environment.search()`` performs the same search as ``find_shortest_path()``,
+but returns a ``SearchResult`` with the data of the search (e.g. the search graph) in addition to the path and its length.
+The functions in ``plotting.py`` plot an environment and the steps of a search:
 
 .. code-block:: python
 
-    from extremitypathfinder.plotting import PlottingEnvironment
+    from extremitypathfinder.plotting import plot_environment, plot_search
 
-    environment = PlottingEnvironment(plotting_dir="path/to/plots")
-    environment.store(boundary_coordinates, list_of_holes, validate=True)
-    path, distance = environment.find_shortest_path(start, end)
+    environment = PolygonEnvironment(boundary_coordinates, list_of_holes, validate=True)
+    # the input polygons and the visibility graph
+    plot_environment(environment, plotting_dir="path/to/plots")
+
+    result = environment.search(start, end)
+    path, distance = result.path, result.length
+    # the found path and the search graph
+    plot_search(environment, result, plotting_dir="path/to/plots")
 
 
 Other functions in ``plotting.py`` can be utilised to plot specific parts of an environment (extremities, edges, ...)

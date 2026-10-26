@@ -79,7 +79,6 @@ Install the package with the optional Numba extra for a significant speedup:
 
     from extremitypathfinder import PolygonEnvironment
 
-    environment = PolygonEnvironment()
     # counter clockwise vertex numbering!
     boundary_coordinates = [(0.0, 0.0), (10.0, 0.0), (9.0, 5.0), (10.0, 10.0), (0.0, 10.0)]
     # clockwise numbering!
@@ -91,21 +90,20 @@ Install the package with the optional Numba extra for a significant speedup:
             (5.0, 4.0),
         ],
     ]
-    environment.store(boundary_coordinates, list_of_holes, validate=False)
+    environment = PolygonEnvironment(boundary_coordinates, list_of_holes, validate=False)
     start_coordinates = (4.5, 1.0)
     goal_coordinates = (4.0, 8.5)
     path, length = environment.find_shortest_path(start_coordinates, goal_coordinates)
 
 
-Grid worlds can be converted into polygon environments as well.
+Grids with blocked cells (obstacles) can be converted into polygon environments as well.
 Coordinates refer to the corners of the grid cells, i.e. cell ``(x, y)`` spans ``[x, x+1] x [y, y+1]``:
 
 .. code-block:: python
 
-    environment = PolygonEnvironment()
     size_x, size_y = 5, 3
     obstacle_iter = [(2, 1), (3, 1)]  # blocked grid cells (x, y)
-    environment.store_grid_world(size_x, size_y, obstacle_iter)
+    environment = PolygonEnvironment.from_grid(size_x, size_y, obstacle_iter)
     path, length = environment.find_shortest_path((0.5, 0.5), (4.5, 2.5))
 
 
