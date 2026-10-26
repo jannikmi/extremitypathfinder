@@ -118,9 +118,16 @@ Obstacles with a tiny gap in between (near-contacts) do not touch, paths can pas
 Contacts computed from rounded coordinates might hence not be detected,
 use identical coordinates for touching polygons.
 
+The following examples have no boundary polygon (unbounded environments), only touching holes:
+
 .. figure:: _static/path_touching_vertices.png
 
     the shortest path goes around the holes, it does not pass through the shared vertex
+
+
+.. figure:: _static/path_touching_vertex_edge.png
+
+    the tip of the triangle touches the edge of the rectangle: the shortest path goes around the triangle
 
 
 .. figure:: _static/path_touching_edges.png

@@ -12,6 +12,7 @@ from math import hypot, sqrt
 import pytest
 
 from extremitypathfinder import PolygonEnvironment
+from extremitypathfinder.contacts import free_wedges
 from tests.test_geometry_regressions import _assert_valid_path
 
 BOUNDARY = [(0.0, 0.0), (10.0, 0.0), (10.0, 10.0), (0.0, 10.0)]
@@ -302,3 +303,15 @@ def test_contact_with_a_large_free_wedge_is_a_single_graph_node():
     assert environment.all_extremities.count((5.0, 5.0)) == 1
     assert len(environment.all_extremities) == 5
     assert environment.graph.number_of_nodes() == 5
+
+
+@pytest.mark.parametrize("boundary_polygon_idx", [0, None])
+def test_zero_width_spike_blocks_only_its_ray(boundary_polygon_idx):
+    # invalid input (validate=False): the tip of a zero-width spike of polygon 0
+    # (both rays at 1.0) touches the corner of hole 1 (obstacle from 2.5 to 3.5).
+    # The spike blocks its ray only, for the boundary and for a hole alike
+    incidences = [(0, 1.0, 1.0, 5, 5), (1, 2.5, 3.5, 7, 8)]
+
+    wedges = [wedge for wedge, _ in free_wedges(incidences, boundary_polygon_idx)]
+
+    assert wedges == [(1.0, 2.5), (3.5, 1.0)]

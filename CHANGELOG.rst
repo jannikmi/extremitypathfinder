@@ -36,6 +36,7 @@ BREAKING: touching obstacles block paths (#24):
 - at most one extremity per point: coincident vertices are no longer merged into one graph node.
   At a contact, a vertex is only an extremity when the free angle there is larger than 180 degree
   (e.g. two corners touching at a grid diagonal are no extremities anymore).
+- environments pickled with earlier versions cannot be loaded anymore (new attributes), recreate them
 - ``validate=True`` detects crossings at vertices (#135): a vertex lying on another edge of the same polygon
   with its neighbours on opposite sides, and identical vertices whose corners interleave.
   Collinear overlapping edges within a polygon (zero-width spikes or slits) are rejected as well.

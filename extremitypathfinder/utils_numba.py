@@ -239,6 +239,14 @@ def _lies_behind_inner(p1: np.ndarray, p2: np.ndarray, v: np.ndarray) -> bool:
     return x[1] < 1.0
 
 
+def get_neighbour_idxs(
+    i: int, vertex_edge_idxs: np.ndarray, edge_vertex_idxs: np.ndarray
+) -> tuple[int, int]:
+    """the indices of the previous and the next vertex of a polygon vertex"""
+    edge_idx1, edge_idx2 = vertex_edge_idxs[i]
+    return int(edge_vertex_idxs[edge_idx1, 0]), int(edge_vertex_idxs[edge_idx2, 1])
+
+
 @njit(b1(i8, i8, i8, i8, f8[:, :]), cache=True)
 def _lies_behind(
     idx_p1: int, idx_p2: int, idx_v: int, idx_orig: int, coords: np.ndarray

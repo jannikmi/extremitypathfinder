@@ -276,12 +276,16 @@ class PolygonEnvironment:
     ) -> set[int]:
         """finds the candidates visible from a query point (start or goal)
 
-        :param query_contacts: the contact points of the query points lying on a contact point
+        :param query_contacts: the contact points of the query points lying on a contact point.
+            Computed when not given.
         """
         # Note: points with equal coordinates should not be considered visible (will be merged later)
         candidates = {i for i in candidates if vert_idx2dist[i] != 0.0}
         edge_idxs2check = set(range(self.nr_edges))
-        contact = c.contact_at(coords[origin], self.coords, self.contacts)
+        if query_contacts is None:
+            contact = c.contact_at(coords[origin], self.coords, self.contacts)
+        else:
+            contact = query_contacts.get(origin)
         if contact is not None:
             # a query point on a contact point may leave through any of its free wedges
             # Note: the edges at the contact all lie outside of the wedges
@@ -379,6 +383,8 @@ class PolygonEnvironment:
         candidate_idxs: set[int] = set(self.graph.nodes)
         # Note: a graph node identical to the start is merged with the start later on.
         # It must not hide the start: the start may leave a contact point through any free wedge
+        #   (of candidates with equal representation and distance only one is kept, cf. find_visible())
+        # Note: the goal is no candidate in the visibility check of the start
         start_identical = np.all(
             self.coords[self.extremity_indices] == coords_start, axis=1
         )
@@ -387,8 +393,15 @@ class PolygonEnvironment:
         )
         candidate_idxs.add(start)
         candidates_goal.add(start)
-        contact_start = c.contact_at(coords_start, self.coords, self.contacts)
-        start_contacts = {} if contact_start is None else {start: contact_start}
+        # the contact points the query points lie on
+        query_contacts = {
+            i: contact
+            for i, contact in (
+                (start, c.contact_at(coords_start, self.coords, self.contacts)),
+                (goal, c.contact_at(coords_goal, self.coords, self.contacts)),
+            )
+            if contact is not None
+        }
         repr_n_dists = utils.cmp_reps_n_distances(origin, coords)
         self.reprs_n_distances[origin] = repr_n_dists
         vert_idx2repr, vert_idx2dist = repr_n_dists
@@ -398,7 +411,7 @@ class PolygonEnvironment:
             coords,
             vert_idx2repr,
             vert_idx2dist,
-            start_contacts,
+            query_contacts,
         )
         if len(visibles_goal) == 0:
             # The goal node does not have any neighbours. Hence there is not possible path to the goal.
@@ -430,7 +443,12 @@ class PolygonEnvironment:
         self.reprs_n_distances[origin] = repr_n_dists
         vert_idx2repr, vert_idx2dist = repr_n_dists
         visibles_start = self.get_visible_idxs(
-            origin, candidate_idxs, coords, vert_idx2repr, vert_idx2dist
+            origin,
+            candidate_idxs,
+            coords,
+            vert_idx2repr,
+            vert_idx2dist,
+            query_contacts,
         )
 
         if len(visibles_start) == 0:

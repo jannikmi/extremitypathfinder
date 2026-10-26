@@ -25,7 +25,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-from extremitypathfinder.utils_numba import _compute_repr_n_dist
+from extremitypathfinder.utils_numba import _compute_repr_n_dist, get_neighbour_idxs
 
 Wedge = tuple[float, float]
 # polygon index, angle representation of the rays to the previous and the next vertex,
@@ -125,13 +125,6 @@ def _find_edges_through_points(
     return edges_through
 
 
-def _neighbours(
-    i: int, vertex_edge_idxs: np.ndarray, edge_vertex_idxs: np.ndarray
-) -> tuple[int, int]:
-    edge_idx1, edge_idx2 = vertex_edge_idxs[i]
-    return int(edge_vertex_idxs[edge_idx1, 0]), int(edge_vertex_idxs[edge_idx2, 1])
-
-
 def _incidences(
     point: np.ndarray,
     vertex_idxs: list[int],
@@ -144,7 +137,9 @@ def _incidences(
     # vertices: the rays point to the previous and to the next vertex
     # edges passing through: the rays point to the start and to the end of the edge
     # in both cases the free side (left of the edges) reaches counter clockwise from the second to the first ray
-    pairs = [_neighbours(i, vertex_edge_idxs, edge_vertex_idxs) for i in vertex_idxs]
+    pairs = [
+        get_neighbour_idxs(i, vertex_edge_idxs, edge_vertex_idxs) for i in vertex_idxs
+    ]
     pairs += [tuple(int(i) for i in edge_vertex_idxs[e]) for e in edge_idxs]
     return [
         (
@@ -203,7 +198,10 @@ def free_wedges(
     blocking_counts = {}
     for polygon_idx in polygon_idxs:
         polygon_counts = {counts[polygon_idx] for counts in arc_counts}
-        if polygon_idx == boundary_polygon_idx:
+        if len(polygon_counts) == 1:
+            # only zero-width spikes: they block their rays only (the arcs are split by the rays)
+            blocking_counts[polygon_idx] = set()
+        elif polygon_idx == boundary_polygon_idx:
             blocking_counts[polygon_idx] = {min(polygon_counts)}
         else:
             blocking_counts[polygon_idx] = polygon_counts - {max(polygon_counts)}
@@ -254,7 +252,9 @@ def compute_contacts(
         if not is_contact:
             # a single vertex with a free angle <= 180 degree:
             # the wedge reaches counter clockwise from the next to the previous vertex
-            prev_idx, next_idx = _neighbours(idx, vertex_edge_idxs, edge_vertex_idxs)
+            prev_idx, next_idx = get_neighbour_idxs(
+                idx, vertex_edge_idxs, edge_vertex_idxs
+            )
             wedge = (_rep(coords[next_idx] - point), _rep(coords[prev_idx] - point))
             contacts.wedges[idx] = [wedge]
             continue
@@ -335,11 +335,11 @@ def filter_visible(
     if len(check_idxs) == 0 or len(visible) == 0:
         return visible
     check_reps = representations[check_idxs]
+    check_dists = distances[check_idxs]
     # Note: a python set is faster than np.isin() for the typical small number of candidates
     check_rep_set = set(check_reps.tolist())
     for candidate in [i for i in visible if representations[i] in check_rep_set]:
         # the points on the line of sight. Note: the points identical to the origin are not passed
-        check_dists = distances[check_idxs]
         on_line = check_reps == representations[candidate]
         passed = np.logical_and(on_line, check_dists < distances[candidate])
         passed = np.logical_and(passed, check_dists > 0.0)

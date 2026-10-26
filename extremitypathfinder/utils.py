@@ -28,6 +28,7 @@ from extremitypathfinder.utils_numba import (
     _inside_polygon,
     _lies_behind,
     _no_identical_consequent_vertices,
+    get_neighbour_idxs,
 )
 
 
@@ -238,15 +239,6 @@ def _find_within_range(
 
     idxs_within = {i for i in candidate_idxs if within_filter_func(representations[i])}
     return idxs_within
-
-
-def get_neighbour_idxs(
-    i: int, vertex_edge_idxs: np.ndarray, edge_vertex_idxs: np.ndarray
-) -> tuple[int, int]:
-    edge_idx1, edge_idx2 = vertex_edge_idxs[i]
-    neigh_idx1 = edge_vertex_idxs[edge_idx1, 0]
-    neigh_idx2 = edge_vertex_idxs[edge_idx2, 1]
-    return neigh_idx1, neigh_idx2
 
 
 def find_visible(
