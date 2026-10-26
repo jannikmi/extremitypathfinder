@@ -11,8 +11,8 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 
+import importlib.metadata
 import os
-import subprocess
 import sys
 
 # Get the project root dir, which is the parent dir of this
@@ -32,11 +32,11 @@ print(extremitypathfinder)
 # -- Project information -----------------------------------------------------
 
 project = "extremitypathfinder"
-copyright = "2018, Jannik Michelfeit"
-author = "Jannik Michelfeit"
+copyright = "2018, Jannik Kissinger"
+author = "Jannik Kissinger"
 
 # The full version, including alpha/beta/rc tags.
-release = subprocess.getoutput("poetry version -s")
+release = importlib.metadata.version("extremitypathfinder")
 print("release version:", release)
 
 # -- General configuration ---------------------------------------------------

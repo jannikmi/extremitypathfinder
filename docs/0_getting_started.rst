@@ -27,7 +27,7 @@ Installation with Numba for a significant speedup, with the tradeoff of a larger
 Supported versions and dependencies
 -----------------------------------
 
-Python >=3.12,<4 is accepted; CI currently tests CPython 3.12–3.14.
+Python >=3.12,<4 is accepted; CI currently tests CPython 3.12–3.15.
 Dependencies are NetworkX 3.x and NumPy >=2.3.3,<3.
 Python <3.12 and NumPy <2.3.3 are no longer supported.
 
@@ -37,7 +37,9 @@ now superseded by `SPEC 0 <https://scientific-python.org/specs/spec-0000/>`__.
 Both policies exclude Python 3.11 by this date. This compatibility window is
 narrower than CPython's security support lifetime. Review the floors for future
 releases; SPEC 0 recommends dropping Python 3.12 in October 2026.
-The dependency minimums are shared across all tested Python versions.
+The declared dependency minimums are the same for all Python versions.
+On Python 3.15 they provide no wheels, so CI tests the oldest releases that do instead:
+NumPy 2.5.2, SciPy 1.18.1 and Numba 0.68.0.
 These recommendations do not promise upstream bug fixes for every included
 NumPy release.
 CI runs the full suite with minimum and latest compatible dependencies,

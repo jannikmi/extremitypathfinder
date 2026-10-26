@@ -7,7 +7,7 @@ usage:
 
 ``prepare`` sets the new package version and turns the ``Unreleased`` changelog section
 into the section of the new version, dated today.
-The version is read and set with ``poetry version``, so all commands require Poetry.
+The version is read and set with ``uv version``, so all commands require uv.
 """
 
 import argparse
@@ -32,14 +32,14 @@ def parse_version(version: str) -> tuple[int, int, int]:
 
 
 def check_new_version(current: str, new: str) -> None:
-    # Note: poetry accepts any version, also lower ones
+    # Note: uv accepts any version, also lower ones
     if parse_version(new) <= parse_version(current):
         raise ValueError(f"version {new} is not higher than {current}")
 
 
-def poetry_version(project_dir: Path, *args: str) -> str:
+def uv_version(project_dir: Path, *args: str) -> str:
     result = subprocess.run(
-        ["poetry", "version", "--short", *args],
+        ["uv", "version", "--short", *args],
         cwd=project_dir,
         check=True,
         text=True,
@@ -49,7 +49,8 @@ def poetry_version(project_dir: Path, *args: str) -> str:
 
 
 def read_version(project_dir: Path = PROJECT_DIR) -> str:
-    return poetry_version(project_dir)
+    # Note: reading leaves the lock file and the environment untouched
+    return uv_version(project_dir)
 
 
 def _section_title_pattern(title: str) -> re.Pattern:
@@ -93,15 +94,19 @@ def release_changelog(changelog: str, version: str, date: datetime.date) -> str:
 def prepare(target: str, date: datetime.date, project_dir: Path = PROJECT_DIR) -> str:
     changelog_path = project_dir / CHANGELOG_NAME
     current = read_version(project_dir)
-    if target not in BUMP_RULES:
+    if target in BUMP_RULES:
+        version_args = ("--bump", target)
+    else:
         parse_version(target)
-    version = poetry_version(project_dir, target, "--dry-run")
+        version_args = (target,)
+    version = uv_version(project_dir, *version_args, "--dry-run")
     check_new_version(current, version)
     # validate the changelog before changing any file
     new_changelog = release_changelog(
         changelog_path.read_text(encoding="utf-8"), version, date
     )
-    poetry_version(project_dir, version)
+    # Note: also updates the version of the project in the lock file
+    uv_version(project_dir, version, "--no-sync")
     changelog_path.write_text(new_changelog, encoding="utf-8")
     return version
 
@@ -142,9 +147,9 @@ def main() -> None:
     except ValueError as error:
         parser.exit(1, f"error: {error}\n")
     except subprocess.CalledProcessError as error:
-        parser.exit(1, f"error: poetry version failed:\n{error.stderr}")
+        parser.exit(1, f"error: uv version failed:\n{error.stderr}")
     except FileNotFoundError:
-        parser.exit(1, "error: poetry is required\n")
+        parser.exit(1, "error: uv is required\n")
 
 
 if __name__ == "__main__":
