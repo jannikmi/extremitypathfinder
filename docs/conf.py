@@ -32,8 +32,8 @@ print(extremitypathfinder)
 # -- Project information -----------------------------------------------------
 
 project = "extremitypathfinder"
-copyright = "2018, Jannik Michelfeit"
-author = "Jannik Michelfeit"
+copyright = "2018, Jannik Kissinger"
+author = "Jannik Kissinger"
 
 # The full version, including alpha/beta/rc tags.
 release = importlib.metadata.version("extremitypathfinder")

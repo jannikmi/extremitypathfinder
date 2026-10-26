@@ -5,7 +5,7 @@ description = "python package for fast shortest path computation on 2D polygon o
 readme = "README.rst"
 license = "MIT"
 license-files = ["LICENSE"]
-authors = [{ name = "jannikmi", email = "github@michelfe.it" }]
+authors = [{ name = "Jannik Kissinger", email = "github@michelfe.it" }]
 requires-python = ">=3.12,<4"
 keywords = ["path-planning", "path-finding", "shortest-path", "visibility", "graph", "polygon", "grid", "map", "robotics", "navigation", "offline"]
 classifiers = [
