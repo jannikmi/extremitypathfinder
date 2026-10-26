@@ -1,11 +1,12 @@
-[tool.poetry]
+[project]
 name = "extremitypathfinder"
 version = "2.8.0"
-license = "MIT"
+description = "python package for fast shortest path computation on 2D polygon or grid maps"
 readme = "README.rst"
-repository = "https://github.com/jannikmi/extremitypathfinder"
-homepage = "https://extremitypathfinder.readthedocs.io/en/latest/"
-documentation = "https://extremitypathfinder.readthedocs.io/en/latest/"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "jannikmi", email = "github@michelfe.it" }]
+requires-python = ">=3.12,<4"
 keywords = ["path-planning", "path-finding", "shortest-path", "visibility", "graph", "polygon", "grid", "map", "robotics", "navigation", "offline"]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
@@ -14,66 +15,67 @@ classifiers = [
     "Intended Audience :: Science/Research",
     "Natural Language :: English",
     "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Scientific/Engineering",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "Topic :: Education",
     "Topic :: Games/Entertainment"
 ]
-description = "python package for fast shortest path computation on 2D polygon or grid maps"
-authors = ["jannikmi <github@michelfe.it>"]
-include = [
-    "LICENSE",
+dependencies = [
+    "networkx>=3,<4",
+    "numpy>=2.3.3,<3",
+]
+
+[project.optional-dependencies]
+numba = [
+    "numba>=0.63,<1",
+    # Required for Numba's np.linalg.solve implementation.
+    "scipy>=1.16.1,<2",
+]
+
+[project.scripts]
+extremitypathfinder = "extremitypathfinder.command_line:main"
+
+[project.urls]
+Homepage = "https://extremitypathfinder.readthedocs.io/en/latest/"
+Documentation = "https://extremitypathfinder.readthedocs.io/en/latest/"
+Repository = "https://github.com/jannikmi/extremitypathfinder"
+
+[dependency-groups]
+dev = [
+    "pre-commit",
+    "pytest",
+    "tox",
+]
+# also required for running the tests
+plot = ["matplotlib"]
+docs = [
+    "Sphinx",
+    "sphinx-rtd-theme",
+]
+
+[build-system]
+requires = ["uv_build>=0.13.5,<0.14"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+# flat layout: the package is not in a src/ directory
+module-root = ""
+# additional files of the source distribution
+source-include = [
     ".editorconfig",
     ".pre-commit-config.yaml",
     "CHANGELOG.rst",
     "CONTRIBUTING.rst",
     "Makefile",
-    "README.rst",
-    "tox.ini",
     "tests/*.py",
     "scripts/validate_release.py",
     "scripts/release.py",
     "example.json",
 ]
-#exclude = ["my_package/excluded.py"]
-
-[tool.poetry.scripts]
-extremitypathfinder = "extremitypathfinder.command_line:main"
-
-[tool.poetry.dependencies]
-python = ">=3.12,<4"
-networkx = ">=3,<4"
-numpy = ">=2.3.3,<3"
-numba = { version = ">=0.63,<1", optional = true }
-# Required for Numba's np.linalg.solve implementation.
-scipy = { version = ">=1.16.1,<2", optional = true }
-
-[tool.poetry.group.dev.dependencies]
-pre-commit = "*"
-pytest = "*"
-tox = "*"
-
-[tool.poetry.group.plot.dependencies]
-# also required for runnin the tests
-matplotlib = "*"
-
-[tool.poetry.group.docs.dependencies]
-Sphinx = "*"
-sphinx-rtd-theme = "*"
-
-[tool.poetry.group.plot]
-optional = true
-
-[tool.poetry.group.docs]
-optional = true
-
-
-[tool.poetry.extras]
-numba = ["numba", "scipy"]
-
-[build-system]
-requires = ["poetry-core>=2,<3"]
-build-backend = "poetry.core.masonry.api"
 
 [tool.tox]
 legacy_tox_ini = """
@@ -120,9 +122,9 @@ skip_install = true
 extras =
 deps =
     pytest
-    poetry
+    uv
 setenv =
-    EXPECT_POETRY = 1
+    EXPECT_UV = 1
 commands =
     python -m pytest tests/test_release.py {posargs}
 """

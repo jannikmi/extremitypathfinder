@@ -1,25 +1,23 @@
 # NOTE: install the package itselt to make the CLI commands available (required for the tests)
 install:
 	@echo "installing the development dependencies..."
-	@poetry install --all-extras --sync --with dev,docs,plot
-	@#poetry install --no-dev
+	@uv sync --all-extras --all-groups
 
 
 update:
-	@echo "updating the dependencies pinned in 'pyproject.toml':"
-	@poetry update -vvv
-	#poetry export -f requirements.txt --output docs/requirements.txt --without-hashes
+	@echo "updating the dependencies pinned in 'uv.lock':"
+	@uv lock --upgrade
 
 lock:
-	@echo "pinning the dependencies in 'pyproject.toml':"
-	@poetry lock -vvv
+	@echo "pinning the dependencies in 'uv.lock':"
+	@uv lock
 
 
 test:
-	poetry run pytest
+	uv run pytest
 
 tox:
-	@poetry run tox
+	@uv run tox
 
 hook:
 	@pre-commit install
@@ -34,16 +32,16 @@ clean:
 
 
 build:
-	poetry build --clean
+	uv build --clear
 
 release-check:
-	poetry build --clean --no-interaction
-	poetry run python scripts/validate_release.py dist --version "$$(poetry version -s)"
-	poetry run python scripts/release.py check
+	uv build --clear
+	uv run python scripts/validate_release.py dist --version "$$(uv version --short)"
+	uv run python scripts/release.py check
 
 # usage: make release-prepare BUMP=patch (or minor, major, an explicit version)
 release-prepare:
-	poetry run python scripts/release.py prepare $(BUMP)
+	uv run python scripts/release.py prepare $(BUMP)
 
 # documentation generation:
 # https://docs.readthedocs.io/en/stable/intro/getting-started-with-sphinx.html

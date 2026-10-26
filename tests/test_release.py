@@ -14,14 +14,12 @@ from scripts.release import (
     release_date,
 )
 
-PYPROJECT_EXAMPLE = """[tool.poetry]
+PYPROJECT_EXAMPLE = """[project]
 name = "extremitypathfinder"
 version = "2.8.0"
 description = "example"
-authors = ["example <example@example.com>"]
-
-[tool.poetry.dependencies]
-python = ">=3.12,<4"
+requires-python = ">=3.12,<4"
+dependencies = []
 
 [tool.other]
 version = "1.0.0"
@@ -84,17 +82,17 @@ def test_release_date_requires_a_section_for_the_version():
 
 
 @pytest.fixture
-def poetry():
-    # the tox environment "release" provides poetry and sets EXPECT_POETRY
-    if shutil.which("poetry") is not None:
+def uv():
+    # the tox environment "release" provides uv and sets EXPECT_UV
+    if shutil.which("uv") is not None:
         return
-    if os.environ.get("EXPECT_POETRY") == "1":
-        pytest.fail("poetry is expected (EXPECT_POETRY=1), but not installed")
-    pytest.skip("requires poetry")
+    if os.environ.get("EXPECT_UV") == "1":
+        pytest.fail("uv is expected (EXPECT_UV=1), but not installed")
+    pytest.skip("requires uv")
 
 
 @pytest.fixture
-def project_dir(poetry, tmp_path):
+def project_dir(uv, tmp_path):
     (tmp_path / PYPROJECT_NAME).write_text(PYPROJECT_EXAMPLE, encoding="utf-8")
     (tmp_path / CHANGELOG_NAME).write_text(CHANGELOG_EXAMPLE, encoding="utf-8")
     return tmp_path
@@ -104,7 +102,7 @@ def test_read_version_reads_the_package_version(project_dir):
     assert read_version(project_dir) == "2.8.0"
 
 
-def test_repository_changelog_matches_package_version(poetry):
+def test_repository_changelog_matches_package_version(uv):
     # the same check guards the release tagging in CI
     release_date(
         (PROJECT_DIR / CHANGELOG_NAME).read_text(encoding="utf-8"), read_version()
@@ -123,6 +121,9 @@ def test_prepare_sets_version_and_dates_changelog(project_dir, target, expected)
     assert read_version(project_dir) == expected
     assert 'version = "1.0.0"' in pyproject
     assert release_date(changelog, expected) == RELEASE_DATE
+    # the lock file records the version of the project as well
+    lock = (project_dir / "uv.lock").read_text(encoding="utf-8")
+    assert f'name = "extremitypathfinder"\nversion = "{expected}"' in lock
 
 
 @pytest.mark.parametrize("target", ["2.7.0", "2.9", "prerelease"])
@@ -136,6 +137,7 @@ def test_prepare_rejects_invalid_targets_without_changes(project_dir, target):
     assert (project_dir / CHANGELOG_NAME).read_text(
         encoding="utf-8"
     ) == CHANGELOG_EXAMPLE
+    assert not (project_dir / "uv.lock").exists()
 
 
 def test_prepare_requires_unreleased_entries_without_changes(project_dir):

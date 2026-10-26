@@ -20,6 +20,8 @@ internal:
 - resolved or removed the ``TODO`` comments in the code, open topics are tracked as GitHub issues
 - added tests for symmetric visibility, symmetric shortest paths and the graph construction
 - automated releases: "prepare release" and "tag release" GitHub workflows, ``scripts/release.py``
+- switched the project tooling from Poetry to uv: standard ``[project]`` metadata and ``[dependency-groups]``,
+  ``uv_build`` build backend, ``uv.lock`` (#142)
 
 
 2.8.0 (2026-09-18)

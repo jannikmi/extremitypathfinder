@@ -73,7 +73,12 @@ Ready to contribute? Here's how to set up this package for local development.
 
        $ git checkout -b name-of-your-bugfix-or-feature
 
+* The project is managed with `uv <https://docs.astral.sh/uv/>`__.
+  Install the package with all extras and development dependencies into a local virtual environment:
 
+   .. code-block:: sh
+
+       $ make install  # uv sync --all-extras --all-groups
 
 * Check out the instructions and notes in ``publish.py``
 * Install ``tox`` and run the tests:
@@ -91,7 +96,7 @@ Ready to contribute? Here's how to set up this package for local development.
 
        $ tox -e py312-numba
 
-   The release tooling (``scripts/release.py``) needs Poetry and is tested in a separate environment,
+   The release tooling (``scripts/release.py``) needs uv and is tested in a separate environment,
    which also runs in CI:
 
    .. code-block:: sh
@@ -162,7 +167,7 @@ Releasing
 Releases are automated with GitHub Actions:
 
 1. Run the "prepare release" workflow from the Actions tab and enter ``patch``, ``minor``, ``major``
-   or an explicit version. It sets the new version with ``poetry version``, turns the ``Unreleased``
+   or an explicit version. It sets the new version with ``uv version``, turns the ``Unreleased``
    changelog section into the section of the new version dated today, and pushes the branch
    ``release/<version>``. The job summary links to the pull request to open.
    Locally the same is done by ``make release-prepare BUMP=patch``.
