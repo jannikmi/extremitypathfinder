@@ -17,9 +17,6 @@ JSON_HELP_MSG = (
     "a list of possibly multiple hole polygon lists."
 )
 
-# environment = PlottingEnvironment()
-environment = PolygonEnvironment()
-
 
 def main():
     parser = argparse.ArgumentParser(description="parse extremitypathfinder parameters")
@@ -50,6 +47,8 @@ def main():
     goal_coordinates = tuple(parsed_args.goal)
 
     # Execute search for the given parameters
-    environment.store(boundary_coordinates, list_of_holes, validate=False)
+    environment = PolygonEnvironment(
+        boundary_coordinates, list_of_holes, validate=False
+    )
     path, distance = environment.find_shortest_path(start_coordinates, goal_coordinates)
     print(path, distance)

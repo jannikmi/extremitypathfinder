@@ -4,19 +4,28 @@ Changelog
 Unreleased
 ----------
 
-- BREAKING: removed the public ``.prepare()`` method and the ``prepared`` attribute.
-  Storing an environment (``store()``, ``store_grid_world()``) computes the visibility graph in one step,
-  a separate ``.prepare()`` call has not been needed since 2.5.0.
+BREAKING: the environment is initialised in one step:
+
+- ``PolygonEnvironment(boundary_coordinates, list_of_hole_coordinates, validate=False)`` stores the polygons
+  and computes the visibility graph. Replaces ``PolygonEnvironment()`` followed by ``.store()``.
+- ``PolygonEnvironment.from_grid_world(size_x, size_y, obstacle_iter)`` replaces ``.store_grid_world()``
+- removed the ``.prepare()`` method and the ``prepared`` attribute
+  (a separate ``.prepare()`` call has not been needed since 2.5.0)
+- ``PlottingEnvironment`` wraps an existing environment: ``PlottingEnvironment(environment, plotting_dir=...)``.
+  It plots the input polygons and the visibility graph on construction and each path in ``find_shortest_path()``.
+
+other changes:
+
 - added a grid world example to the README
 
 bugfixes:
 
 - a goal identical to an extremity is merged with it in the search graph.
   Previously such queries could return a longer path or no path at all.
-- ``store_grid_world()`` works with its default arguments: ``simplify`` now defaults
+- ``from_grid_world()`` works with its default arguments: ``simplify`` now defaults
   to ``False``, since polygon simplification is not implemented (``True`` raises ``NotImplementedError``)
-- ``store_grid_world()`` supports grid worlds without obstacles
-- documentation: describe the ``networkx`` A* search correctly, list the exceptions raised by ``store()``
+- ``from_grid_world()`` supports grid worlds without obstacles
+- documentation: describe the ``networkx`` A* search correctly, list the exceptions raised by the ``PolygonEnvironment`` constructor
 
 internal:
 

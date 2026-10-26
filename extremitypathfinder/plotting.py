@@ -213,42 +213,36 @@ def draw_graph(map, graph: t.Graph):
         plt.show()
 
 
-class PlottingEnvironment(PolygonEnvironment):
-    """Extends PolygonEnvironment. In addition to the base functionality it
-    plots graphs of the polygons, the visibility graph and the computed path.
+class PlottingEnvironment:
+    """Wraps a :class:`PolygonEnvironment` and plots graphs of the polygons,
+    the visibility graph and the computed paths.
     Stores all graphs in the folder defined by plotting_dir parameter."""
 
-    def __init__(self, plotting_dir=PLOTTING_DIR):
+    def __init__(self, environment: PolygonEnvironment, plotting_dir=PLOTTING_DIR):
+        """Plots the input polygons and the visibility graph of the given environment."""
         global PLOTTING_DIR
         PLOTTING_DIR = plotting_dir
         if not exists(plotting_dir):
             makedirs(plotting_dir)
-        super().__init__()
-
-    def store(self, *args, **kwargs):
-        """In addition to storing, also plots a graph of the input polygons."""
-        super().store(*args, **kwargs)
-        draw_loaded_map(self)
-
-    def _compute_graph(self):
-        """Also draws a prepared map with the computed visibility graph."""
-        super()._compute_graph()
-        draw_prepared_map(self)
+        self.environment = environment
+        draw_loaded_map(environment)
+        draw_prepared_map(environment)
 
     def find_shortest_path(self, start_coordinates, goal_coordinates, *args, **kwargs):
-        """Also draws the computed shortest path."""
+        """Computes the shortest path with the wrapped environment and draws it."""
+        environment = self.environment
         # important to not delete the temp graph! for plotting
-        vertex_path, distance = super().find_shortest_path(
+        vertex_path, distance = environment.find_shortest_path(
             start_coordinates, goal_coordinates, *args, free_space_after=False, **kwargs
         )
 
-        draw_only_path(self, vertex_path, start_coordinates, goal_coordinates)
+        draw_only_path(environment, vertex_path, start_coordinates, goal_coordinates)
+        temp_graph = environment.temp_graph
         if (
-            self.temp_graph
+            temp_graph
         ):  # in some cases (e.g. direct path possible) no graph is being created!
-            draw_graph(self, self.temp_graph)
-            draw_with_path(self, self.temp_graph, vertex_path)
-            del self.temp_graph  # free the memory
+            draw_graph(environment, temp_graph)
+            draw_with_path(environment, temp_graph, vertex_path)
+            environment.temp_graph = None  # free the memory
 
-        # extract the coordinates from the path
         return vertex_path, distance

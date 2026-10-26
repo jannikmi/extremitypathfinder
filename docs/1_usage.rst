@@ -15,18 +15,8 @@ Initialisation
 --------------
 
 
-Create a new instance of the :ref:`PolygonEnvironment class <env>` to allow fast consequent timezone queries:
-
-.. code-block:: python
-
-    from extremitypathfinder import PolygonEnvironment
-
-    environment = PolygonEnvironment()
-
-
-
-Store environment
------------------
+Create a new instance of the :ref:`PolygonEnvironment class <env>` from the polygons of the environment.
+The environment is initialised in one step and allows fast consecutive shortest path queries.
 
 
 **Required data format:**
@@ -57,7 +47,9 @@ Ensure that all the following conditions on the polygons are fulfilled:
             (5.0, 4.0),
         ],
     ]
-    environment.store(boundary_coordinates, list_of_holes, validate=False)
+    from extremitypathfinder import PolygonEnvironment
+
+    environment = PolygonEnvironment(boundary_coordinates, list_of_holes, validate=False)
 
 
 If there is no explicit boundary polygon, pass ``None`` instead. The environment
@@ -66,7 +58,7 @@ hole must be supplied.
 
 .. code-block:: python
 
-    environment.store(None, list_of_holes, validate=False)
+    environment = PolygonEnvironment(None, list_of_holes, validate=False)
 
 
 .. note::
@@ -89,7 +81,7 @@ hole must be supplied.
 Visibility Graph Pre-computation
 --------------------------------
 
-Storing the map properties automatically computes the :ref:`visibility graph  <algorithm>` of the environment once.
+Creating the environment automatically computes the :ref:`visibility graph  <algorithm>` of the environment once.
 
 
 .. figure:: _static/prepared_map_plot.png
@@ -156,7 +148,7 @@ Converting and storing a grid world
         # hole 2
         (7, 5),
     ]
-    environment.store_grid_world(size_x, size_y, obstacle_iter)
+    environment = PolygonEnvironment.from_grid_world(size_x, size_y, obstacle_iter)
 
 
 
@@ -190,15 +182,16 @@ Plotting
 --------
 
 
-The class ``PlottingEnvironment`` automatically generates plots for every step in the path finding process:
+The class ``PlottingEnvironment`` wraps an environment and automatically generates plots
+for every step in the path finding process:
 
 .. code-block:: python
 
     from extremitypathfinder.plotting import PlottingEnvironment
 
-    environment = PlottingEnvironment(plotting_dir="path/to/plots")
-    environment.store(boundary_coordinates, list_of_holes, validate=True)
-    path, distance = environment.find_shortest_path(start, end)
+    environment = PolygonEnvironment(boundary_coordinates, list_of_holes, validate=True)
+    plotting_environment = PlottingEnvironment(environment, plotting_dir="path/to/plots")
+    path, distance = plotting_environment.find_shortest_path(start, end)
 
 
 Other functions in ``plotting.py`` can be utilised to plot specific parts of an environment (extremities, edges, ...)

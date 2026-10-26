@@ -18,7 +18,6 @@ from extremitypathfinder import PolygonEnvironment
 
 assert version("extremitypathfinder") == {version!r}
 
-environment = PolygonEnvironment()
 boundary_coordinates = [
     (0.0, 0.0),
     (10.0, 0.0),
@@ -29,7 +28,7 @@ boundary_coordinates = [
 list_of_holes = [
     [(3.0, 7.0), (5.0, 9.0), (4.5, 7.0), (5.0, 4.0)],
 ]
-environment.store(boundary_coordinates, list_of_holes, validate=True)
+environment = PolygonEnvironment(boundary_coordinates, list_of_holes, validate=True)
 path, length = environment.find_shortest_path((4.5, 1.0), (4.0, 8.5))
 assert path[0] == (4.5, 1.0)
 assert path[-1] == (4.0, 8.5)

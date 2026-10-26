@@ -28,7 +28,8 @@ class PolygonEnvironment:
     "`Pathfinding in Two-dimensional Worlds
     <https://www.cs.au.dk/~gerth/advising/thesis/anders-strand-holm-vinther_magnus-strand-holm-vinther.pdf>`__"
 
-    The environment is populated with :meth:`store` or :meth:`store_grid_world`.
+    The environment is initialised in one step: the polygons are passed to the constructor
+    (or a grid world to :meth:`from_grid_world`) and the visibility graph is computed right away.
     Afterwards these attributes are available:
 
     * ``boundary_polygon``: the boundary coordinates (``None`` for unbounded environments)
@@ -43,7 +44,7 @@ class PolygonEnvironment:
     holes: List[np.ndarray]
     extremity_indices: np.ndarray
     reprs_n_distances: Dict[int, np.ndarray]
-    graph: Optional[t.Graph] = None
+    graph: t.Graph
     temp_graph: Optional[t.Graph] = (
         None  # for storing and plotting the graph during a query
     )
@@ -53,27 +54,13 @@ class PolygonEnvironment:
     extremity_mask: np.ndarray
     vertex_edge_idxs: np.ndarray
 
-    @property
-    def nr_edges(self) -> int:
-        return self.nr_vertices
-
-    @property
-    def all_extremities(self) -> List[Tuple]:
-        coords = self.coords
-        return [tuple(coords[i]) for i in self.extremity_indices]
-
-    @property
-    def all_vertices(self) -> List[Tuple]:
-        coords = self.coords
-        return [tuple(coords[i]) for i in range(self.nr_vertices)]
-
-    def store(
+    def __init__(
         self,
         boundary_coordinates: OptionalInputCoordList,
         list_of_hole_coordinates: InputCoordList,
         validate: bool = False,
     ):
-        """saves the passed input polygons in the environment and computes the visibility graph
+        """stores the passed input polygons in the environment and computes the visibility graph
 
         .. note:: the passed polygons must meet these requirements:
 
@@ -94,7 +81,6 @@ class PolygonEnvironment:
         :raises ValueError: when validate=True and the input violates the requirements above,
             and when ``boundary_coordinates`` is ``None`` and no holes are given.
         """
-        self.graph = None
         # loading the map
         list_of_hole_coordinates = [
             np.array(hole_coords, dtype=configs.DTYPE_FLOAT)
@@ -143,15 +129,16 @@ class PolygonEnvironment:
 
         self._compute_graph()
 
-    def store_grid_world(
-        self,
+    @classmethod
+    def from_grid_world(
+        cls,
         size_x: int,
         size_y: int,
         obstacle_iter: ObstacleIterator,
         simplify: bool = False,
         validate: bool = False,
-    ):
-        """Convert a grid-like into a polygon environment and save it
+    ) -> "PolygonEnvironment":
+        """Convert a grid-like into a polygon environment
 
         Prerequisites: grid world must not have single non-obstacle cells which are surrounded by obstacles
         ("white cells in black surrounding" = useless for path planning)
@@ -166,7 +153,21 @@ class PolygonEnvironment:
         boundary_coordinates, list_of_hole_coordinates = utils.convert_gridworld(
             size_x, size_y, obstacle_iter, simplify
         )
-        self.store(boundary_coordinates, list_of_hole_coordinates, validate)
+        return cls(boundary_coordinates, list_of_hole_coordinates, validate)
+
+    @property
+    def nr_edges(self) -> int:
+        return self.nr_vertices
+
+    @property
+    def all_extremities(self) -> List[Tuple]:
+        coords = self.coords
+        return [tuple(coords[i]) for i in self.extremity_indices]
+
+    @property
+    def all_vertices(self) -> List[Tuple]:
+        coords = self.coords
+        return [tuple(coords[i]) for i in range(self.nr_vertices)]
 
     def export_pickle(self, path: str = DEFAULT_PICKLE_NAME):
         print("storing map class in:", path)
@@ -253,11 +254,6 @@ class PolygonEnvironment:
          if points close to or on polygon edges should be accepted as valid input, set this to ``False``.
         :return: a tuple of shortest path and its length. ([], None) if there is no possible path.
         """
-        # path planning query:
-        # make sure the map has been loaded and the visibility graph computed
-        if self.graph is None:
-            raise ValueError("No Polygons have been loaded into the map yet.")
-
         coords_start = np.array(start_coordinates, dtype=float)
         coords_goal = np.array(goal_coordinates, dtype=float)
         if verify and not self.within_map(coords_start):

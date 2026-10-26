@@ -20,5 +20,4 @@ PolygonEnvironment
 PlottingEnvironment
 -------------------
 .. autoclass:: PlottingEnvironment
-   :members: store, find_shortest_path
-   :no-inherited-members:
+   :members: find_shortest_path

@@ -27,14 +27,14 @@ TEST_PLOT_OUTPUT_FOLDER = "plots"
 
 if PLOT_TEST_RESULTS:
     print("plotting test environment enabled.")
-    ENVIRONMENT_CLASS = PlottingEnvironment
-    CONSTRUCTION_KWARGS = {"plotting_dir": TEST_PLOT_OUTPUT_FOLDER}
-else:
-    ENVIRONMENT_CLASS = PolygonEnvironment
-    CONSTRUCTION_KWARGS = {}
 
 
 def try_test_cases(environment, test_cases):
+    if PLOT_TEST_RESULTS:
+        environment = PlottingEnvironment(
+            environment, plotting_dir=TEST_PLOT_OUTPUT_FOLDER
+        )
+
     def validate(start_coordinates, goal_coordinates, expected_output):
         output = environment.find_shortest_path(
             start_coordinates, goal_coordinates, verify=True
@@ -65,8 +65,9 @@ def try_test_cases(environment, test_cases):
 
 
 def test_grid_env():
-    grid_env = ENVIRONMENT_CLASS(**CONSTRUCTION_KWARGS)
-    grid_env.store_grid_world(*GRID_ENV_PARAMS, simplify=False, validate=False)
+    grid_env = PolygonEnvironment.from_grid_world(
+        *GRID_ENV_PARAMS, simplify=False, validate=False
+    )
     nr_extremities = len(grid_env.all_extremities)
     assert nr_extremities == 17, "extremities do not get detected correctly!"
     nr_graph_nodes = len(grid_env.graph.nodes)
@@ -89,8 +90,7 @@ def test_grid_env():
 
 
 def test_poly_env():
-    poly_env = ENVIRONMENT_CLASS(**CONSTRUCTION_KWARGS)
-    poly_env.store(*POLY_ENV_PARAMS, validate=True)
+    poly_env = PolygonEnvironment(*POLY_ENV_PARAMS, validate=True)
     nr_exp_extremities = 4
     assert (
         len(list(poly_env.all_extremities)) == nr_exp_extremities
@@ -108,8 +108,7 @@ def test_poly_env():
 @pytest.mark.parametrize("env_params", POLYGON_ENVS)
 def test_graph_links_only_closest_node_per_direction(env_params):
     # when two nodes have the same angle representation there should only be an edge to the closer node
-    environment = PolygonEnvironment()
-    environment.store(*env_params)
+    environment = PolygonEnvironment(*env_params)
     graph = environment.graph
     for node in graph.nodes:
         representations, _ = environment.reprs_n_distances[node]
@@ -119,9 +118,8 @@ def test_graph_links_only_closest_node_per_direction(env_params):
 
 def test_unbounded_poly_env():
     holes = [[(0.0, 2.0), (2.0, 2.0), (2.0, 0.0), (0.0, 0.0)]]
-    environment = PolygonEnvironment()
 
-    environment.store(None, holes, validate=True)
+    environment = PolygonEnvironment(None, holes, validate=True)
 
     assert environment.boundary_polygon is None
     assert environment.within_map(np.array((-100.0, 1.0)))
@@ -138,10 +136,8 @@ def test_unbounded_poly_env():
 
 
 def test_poly_env_without_boundary_or_holes():
-    environment = PolygonEnvironment()
-
     with pytest.raises(ValueError, match="At least one hole is required"):
-        environment.store(None, [], validate=True)
+        PolygonEnvironment(None, [], validate=True)
 
 
 @pytest.mark.parametrize(
@@ -155,22 +151,18 @@ def test_poly_env_without_boundary_or_holes():
     ],
 )
 def test_poly_env_without_boundary_validates_holes_before_inference(holes, message):
-    environment = PolygonEnvironment()
-
     with pytest.raises(TypeError, match=message):
-        environment.store(None, holes, validate=True)
+        PolygonEnvironment(None, holes, validate=True)
 
 
 def test_overlapping_polygon():
-    overlap_poly_env = ENVIRONMENT_CLASS(**CONSTRUCTION_KWARGS)
-    overlap_poly_env.store(*OVERLAP_POLY_ENV_PARAMS)
+    overlap_poly_env = PolygonEnvironment(*OVERLAP_POLY_ENV_PARAMS)
     print("\ntesting polygon environment with overlapping polygons")
     try_test_cases(overlap_poly_env, TEST_DATA_OVERLAP_POLY_ENV)
 
 
 def test_separated_environment():
-    env = ENVIRONMENT_CLASS(**CONSTRUCTION_KWARGS)
-    env.store(*SEPARATED_ENV)
+    env = PolygonEnvironment(*SEPARATED_ENV)
     print("\ntesting polygon environment with two separated areas")
     try_test_cases(env, TEST_DATA_SEPARATE_ENV)
 
@@ -183,8 +175,7 @@ def test_extremity_neighbour_connection(env_data):
     # if two extremities are direct neighbours in a polygon, they also must be connected in the prepared graph
     # exception: there is another polygon edge intersecting that
     print("\ntesting if all two direct extremity neighbour are connected")
-    env = PolygonEnvironment()
-    env.store(*env_data)
+    env = PolygonEnvironment(*env_data)
     coords = env.coords
     graph = env.graph
     extremities = env.extremity_indices
@@ -214,8 +205,7 @@ def test_all_coords_work_as_input(env_data):
     # if two extremities are direct neighbours in a polygon, they also must be connected in the prepared graph
     # exception: there is another polygon edge intersecting that
     print("\ntesting if all two direct extremity neighbour are connected")
-    env = PolygonEnvironment()
-    env.store(*env_data)
+    env = PolygonEnvironment(*env_data)
     coords = env.coords
     nr_vertices = env.nr_vertices
 
@@ -231,15 +221,22 @@ def test_all_coords_work_as_input(env_data):
         env.find_shortest_path(coords_start, coords_goal, verify=True)
 
 
-def test_query_without_stored_environment_raises():
-    environment = PolygonEnvironment()
-    with pytest.raises(ValueError, match="No Polygons have been loaded"):
-        environment.find_shortest_path((0.0, 0.0), (1.0, 1.0))
+def test_plotting_environment_wraps_environment(tmp_path):
+    environment = PolygonEnvironment(*POLY_ENV_PARAMS)
+    plotting_env = PlottingEnvironment(environment, plotting_dir=str(tmp_path))
+    assert plotting_env.environment is environment
+    nr_plots = len(list(tmp_path.iterdir()))
+    assert (
+        nr_plots == 2
+    ), "the input polygons and the visibility graph should be plotted"
 
-
-def test_store_computes_graph_in_one_step():
-    environment = PolygonEnvironment()
-    assert not hasattr(environment, "prepare")
-    environment.store(*POLY_ENV_PARAMS[:2])
-    assert environment.graph is not None
-    assert len(environment.graph.nodes) > 0
+    # a query without direct path, the search graph is plotted as well
+    (start_coordinates, goal_coordinates), _ = next(
+        case for case in TEST_DATA_POLY_ENV if len(case[1][0]) > 2
+    )
+    path, length = plotting_env.find_shortest_path(start_coordinates, goal_coordinates)
+    assert (path, length) == environment.find_shortest_path(
+        start_coordinates, goal_coordinates
+    )
+    assert len(list(tmp_path.iterdir())) > nr_plots, "the path should be plotted"
+    assert environment.temp_graph is None

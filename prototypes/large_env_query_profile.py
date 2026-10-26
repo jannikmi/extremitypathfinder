@@ -71,9 +71,8 @@ def main():
     rng = np.random.default_rng(args.seed)
     boundary, holes, size = build_environment(args.holes_per_side, rng)
 
-    env = PolygonEnvironment()
     t_start = time.perf_counter()
-    env.store(boundary, holes, validate=True)
+    env = PolygonEnvironment(boundary, holes, validate=True)
     t_prep = time.perf_counter() - t_start
     graph = env.graph
     print(
