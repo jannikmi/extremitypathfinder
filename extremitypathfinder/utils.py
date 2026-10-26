@@ -847,17 +847,13 @@ def read_json(path2json_file):
     return boundary_coordinates, list_of_holes
 
 
-def convert_grid(
-    size_x: int, size_y: int, obstacle_iter: iter, simplify: bool = False
-) -> (list, list):
+def convert_grid(size_x: int, size_y: int, obstacle_iter: iter) -> (list, list):
     """
     prerequisites: the grid must not have non-obstacle cells which are surrounded by obstacles
     ("single white cell in black surrounding" = useless for path planning)
     :param size_x: the horizontal grid size
     :param size_y: the vertical grid size
     :param obstacle_iter: an iterable of coordinate pairs (x,y) representing blocked grid cells (obstacles)
-    :param simplify: whether the polygons should be simplified or not. reduces edge amount, allow diagonal edges
-        NOTE: simplification is not implemented, ``True`` raises a ``NotImplementedError``
     :return: a boundary polygon (counterclockwise numbering) and a list of hole polygons (clockwise numbering)
     NOTE: convert the grid into polygons in a way that coordinates coincide with grid!
         -> no conversion of obtained graphs needed!
@@ -865,9 +861,6 @@ def convert_grid(
     """
 
     assert size_x > 0 and size_y > 0
-
-    if simplify:
-        raise NotImplementedError("simplifying grid polygons is not supported")
 
     if len(obstacle_iter) == 0:
         # there are no obstacles. return just the simple boundary rectangle

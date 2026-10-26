@@ -9,6 +9,9 @@ BREAKING: the environment is initialised in one step:
 - ``PolygonEnvironment(boundary_coordinates, list_of_hole_coordinates, validate=False)`` stores the polygons
   and computes the visibility graph. Replaces ``PolygonEnvironment()`` followed by ``.store()``.
 - ``PolygonEnvironment.from_grid(size_x, size_y, obstacle_iter)`` replaces ``.store_grid_world()`` (``utils.convert_gridworld()`` is renamed to ``utils.convert_grid()``)
+- removed the ``simplify`` parameter of ``from_grid()`` (and ``utils.convert_grid()``).
+  Polygon simplification was never implemented: ``store_grid_world()`` raised a ``NotImplementedError``
+  with its default ``simplify=True``. Simplifying geometries is out of scope of this package (#68).
 - removed the ``.prepare()`` method and the ``prepared`` attribute
   (a separate ``.prepare()`` call has not been needed since 2.5.0)
 - removed the ``free_space_after`` parameter of ``find_shortest_path()`` and the ``temp_graph`` attribute.
@@ -28,8 +31,6 @@ bugfixes:
 
 - a goal identical to an extremity is merged with it in the search graph.
   Previously such queries could return a longer path or no path at all.
-- ``from_grid()`` works with its default arguments: ``simplify`` now defaults
-  to ``False``, since polygon simplification is not implemented (``True`` raises ``NotImplementedError``)
 - ``from_grid()`` supports grids without obstacles
 - documentation: describe the ``networkx`` A* search correctly, list the exceptions raised by the ``PolygonEnvironment`` constructor
 

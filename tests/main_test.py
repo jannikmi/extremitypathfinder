@@ -70,9 +70,7 @@ def try_test_cases(environment, test_cases):
 
 
 def test_grid_env():
-    grid_env = PolygonEnvironment.from_grid(
-        *GRID_ENV_PARAMS, simplify=False, validate=False
-    )
+    grid_env = PolygonEnvironment.from_grid(*GRID_ENV_PARAMS, validate=False)
     nr_extremities = len(grid_env.all_extremities)
     assert nr_extremities == 17, "extremities do not get detected correctly!"
     nr_graph_nodes = len(grid_env.graph.nodes)

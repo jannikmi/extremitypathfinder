@@ -155,7 +155,6 @@ class PolygonEnvironment:
         size_x: int,
         size_y: int,
         obstacle_iter: ObstacleIterator,
-        simplify: bool = False,
         validate: bool = False,
     ) -> "PolygonEnvironment":
         """Convert a grid with blocked cells (obstacles) into a polygon environment
@@ -167,11 +166,9 @@ class PolygonEnvironment:
         :param size_y: the vertical grid size
         :param obstacle_iter: an iterable of coordinate pairs (x,y) representing blocked grid cells (obstacles)
         :param validate: whether the input should be validated
-        :param simplify: whether the polygons should be simplified or not. reduces edge amount, allow diagonal edges
-            NOTE: simplification is not implemented, ``True`` raises a ``NotImplementedError``
         """
         boundary_coordinates, list_of_hole_coordinates = utils.convert_grid(
-            size_x, size_y, obstacle_iter, simplify
+            size_x, size_y, obstacle_iter
         )
         return cls(boundary_coordinates, list_of_hole_coordinates, validate)
 

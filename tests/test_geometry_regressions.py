@@ -249,8 +249,3 @@ def test_grid_with_default_arguments(obstacles, expected_distance):
 
     _, distance = environment.find_shortest_path((0.5, 0.5), (4.5, 2.5))
     assert distance == pytest.approx(expected_distance)
-
-
-def test_grid_simplification_is_not_supported():
-    with pytest.raises(NotImplementedError):
-        PolygonEnvironment.from_grid(5, 3, [(2, 1)], simplify=True)
