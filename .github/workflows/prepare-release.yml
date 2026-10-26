@@ -1,0 +1,53 @@
+name: prepare release
+
+# sets the new version and dates the "Unreleased" changelog section on a release branch.
+# merging the pull request of that branch releases the version (cf. tag-release.yml)
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "patch, minor, major or an explicit version (e.g. 2.9.0)"
+        required: true
+        default: patch
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # push the release branch
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install Poetry
+        run: python -m pip install --upgrade pip poetry
+
+      - name: Set the version and date the changelog
+        id: prepare
+        env:
+          TARGET: ${{ inputs.version }}
+        run: |
+          version=$(python scripts/release.py prepare "${TARGET}")
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+
+      - name: Push the release branch
+        env:
+          VERSION: ${{ steps.prepare.outputs.version }}
+          BASE: ${{ github.event.repository.default_branch }}
+        run: |
+          branch="release/${VERSION}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch --create "${branch}"
+          git commit --all --message "release ${VERSION}"
+          git push origin "${branch}"
+          # Note: the pull request is opened by a person, so that its CI runs
+          # (events caused by the GITHUB_TOKEN do not trigger workflows)
+          url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/compare/${BASE}...${branch}?expand=1"
+          echo "Release ${VERSION} prepared. Open the pull request: ${url}" >> "$GITHUB_STEP_SUMMARY"

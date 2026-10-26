@@ -4,6 +4,8 @@ Changelog
 Unreleased
 ----------
 
+- added a grid world example to the README
+
 bugfixes:
 
 - a goal identical to an extremity is merged with it in the search graph.
@@ -11,11 +13,13 @@ bugfixes:
 - ``store_grid_world()`` works with its default arguments: ``simplify`` now defaults
   to ``False``, since polygon simplification is not implemented (``True`` raises ``NotImplementedError``)
 - ``store_grid_world()`` supports grid worlds without obstacles
+- documentation: describe the ``networkx`` A* search correctly, list the exceptions raised by ``store()``
 
 internal:
 
 - resolved or removed the ``TODO`` comments in the code, open topics are tracked as GitHub issues
 - added tests for symmetric visibility, symmetric shortest paths and the graph construction
+- automated releases: "prepare release" and "tag release" GitHub workflows, ``scripts/release.py``
 
 
 2.8.0 (2026-09-18)

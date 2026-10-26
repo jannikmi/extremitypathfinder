@@ -69,15 +69,15 @@ ________________
     polygon environment with optimised visibility graph overlay in red
 
 
-- **2. Including start and goal:** For each shortest path query the start and goal points are being connected to the internal graph depending on their visibility. Notice that the added edges are directed and also here the optimisation is being used to reduce the amount of edges:
+- **2. Including start and goal:** For each shortest path query the start and goal points are being connected to the internal graph depending on their visibility. The search graph is a temporary copy of the precomputed graph, which stays unchanged:
 
 .. figure:: _static/graph_plot.png
 
-    optimised directed heuristic graph for shortest path computation with added start and goal nodes
+    optimised visibility graph for shortest path computation with added start and goal nodes
 
 
 
-- **3. A-star shortest path computation :** Finding the shortest path on graphs is a standard computer science problem. This package uses a modified version of the popular ``A*-Algorithm`` optimized for this special use case.
+- **3. A-star shortest path computation :** Finding the shortest path on graphs is a standard computer science problem. This package uses the ``A*`` implementation of ``networkx`` (``networkx.astar_path()``) with the euclidean distance as heuristic. When the goal is directly visible from the start, the direct connection is returned without a graph search (cf. below).
 
 .. figure:: _static/graph_path_plot.png
 
@@ -167,7 +167,7 @@ Runtime Complexity:
 - :math:`O(m/n)` (average) for checking the visibility of target candidates. only the fraction relevant for each edge will be checked -> :math:`O(m (n log_2 n + (n m) / n) = O(m (n log_2 n + m) = O(m n log_2 n`
 - since :math:`m ~ n` the final complexity is :math:`O(m n log_2 n) = O(n^2 log_2 n)`
 
-The core visibility algorithm (for one origin) is implemented in ``PolygonEnvironment.get_visible_idxs()`` in ``extremitypathfinder.py``
+The core visibility algorithm (for one origin) is implemented in ``find_visible()`` in ``utils.py``
 
 
 Comparison:
@@ -188,18 +188,18 @@ complexity: :math:`O(n^2 log_2 n)` (cf. `these slides <https://dav.ee/papers/Vis
 Optimised Pathfinding:
 **********************
 
-Currently using the default implementation of A* from the `networkx` package.
+The shortest path is computed with the default ``A*`` implementation of the ``networkx`` package
+(``networkx.astar_path()``), using the euclidean distance as heuristic.
 
-Remark: This geometrical property of the specific task (the visibility graph) could be exploited in an optimised (e.g. A*) algorithm:
+A geometrical property of this specific task (the visibility graph) is already exploited:
+It is always shortest to directly reach a node instead of visiting other nodes first
+(there is never an advantage through reduced edge weight).
+Hence when the goal is directly visible from the start, there can be no shorter path to it
+and the direct connection is returned without running ``A*``.
 
-- It is always shortest to directly reach a node instead of visiting other nodes first
-    (there is never an advantage through reduced edge weight).
-
-Make A* terminate earlier than for general graphs:
+A custom ``A*`` could exploit this property further to terminate earlier than for general graphs:
 
 - no need to revisit nodes (path only gets longer)
-
-- when the goal is directly reachable, there can be no other shorter path to it -> terminate
 
 - not all neighbours of the current node have to be checked like in vanilla A* before continuing to the next node
 

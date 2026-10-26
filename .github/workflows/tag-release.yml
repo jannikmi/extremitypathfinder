@@ -1,0 +1,73 @@
+name: tag release
+
+# tags a new package version on the default branch and starts its build and deployment
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - pyproject.toml
+  # e.g. to retry after a failure
+  workflow_dispatch:
+
+concurrency:
+  group: tag-release
+  cancel-in-progress: false
+
+jobs:
+  tag:
+    if: github.ref_name == github.event.repository.default_branch
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # push the tag
+      actions: write # start the build workflow on the tag
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # including all tags
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install Poetry
+        run: python -m pip install --upgrade pip poetry
+
+      - name: Read the package version
+        id: version
+        run: |
+          version=$(python scripts/release.py version)
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          if git rev-parse --quiet --verify "refs/tags/${version}" > /dev/null; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "Tag ${version} already exists, nothing to release." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check the changelog
+        if: steps.version.outputs.exists == 'false'
+        run: python scripts/release.py check
+
+      - name: Create and push the tag
+        if: steps.version.outputs.exists == 'false'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag --annotate "${VERSION}" --message "Release ${VERSION}"
+          git push origin "refs/tags/${VERSION}"
+
+      # Note: a tag pushed with the GITHUB_TOKEN does not trigger the "push: tags" event of build.yml,
+      # a workflow_dispatch event does.
+      - name: Start the build and deployment of the tag
+        if: steps.version.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          gh workflow run build.yml --ref "${VERSION}"
+          url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/workflows/build.yml"
+          echo "Tagged ${VERSION} and started its build and deployment: ${url}" >> "$GITHUB_STEP_SUMMARY"

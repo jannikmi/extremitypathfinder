@@ -21,7 +21,7 @@ jobs:
       matrix:
         include:
           - python-version: "3.12"
-            tox-env: py312,py312-numba,py312-minimum,py312-minimum-numba,docs
+            tox-env: py312,py312-numba,py312-minimum,py312-minimum-numba,docs,release
           - python-version: "3.13"
             tox-env: py313,py313-numba,py313-minimum,py313-minimum-numba
           - python-version: "3.14"
@@ -65,6 +65,9 @@ jobs:
 
       - name: Validate installed release artifacts
         run: python scripts/validate_release.py dist --version "$(poetry version -s)"
+
+      - name: Check the changelog section of the package version
+        run: python scripts/release.py check
 
   deploy:
     runs-on: ubuntu-latest

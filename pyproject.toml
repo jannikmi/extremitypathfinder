@@ -32,6 +32,7 @@ include = [
     "tox.ini",
     "tests/*.py",
     "scripts/validate_release.py",
+    "scripts/release.py",
     "example.json",
 ]
 #exclude = ["my_package/excluded.py"]
@@ -111,4 +112,17 @@ deps =
     matplotlib
 commands =
     sphinx-build -d "{envtmpdir}{/}doctree" docs "{toxworkdir}{/}docs_out" --color -b html
+
+[testenv:release]
+# the release tooling, independent of the package and its dependencies
+basepython = python3.12
+skip_install = true
+extras =
+deps =
+    pytest
+    poetry
+setenv =
+    EXPECT_POETRY = 1
+commands =
+    python -m pytest tests/test_release.py {posargs}
 """
