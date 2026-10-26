@@ -72,9 +72,10 @@ def try_test_cases(environment, test_cases):
 def test_grid_env():
     grid_env = PolygonEnvironment.from_grid(*GRID_ENV_PARAMS, validate=False)
     nr_extremities = len(grid_env.all_extremities)
-    assert nr_extremities == 17, "extremities do not get detected correctly!"
+    # the two corners at the contact (7, 6) of the two holes are no extremities
+    assert nr_extremities == 15, "extremities do not get detected correctly!"
     nr_graph_nodes = len(grid_env.graph.nodes)
-    assert nr_graph_nodes == 16, "identical nodes should get joined in the graph!"
+    assert nr_graph_nodes == 15, "every extremity should be a graph node!"
 
     # test if points outside the map are being rejected
     for start_coordinates, goal_coordinates in INVALID_DESTINATION_DATA:
@@ -88,7 +89,7 @@ def test_grid_env():
     # otherwise the temporarily added vertices during a query stay stored
     nr_graph_nodes = len(grid_env.graph.nodes)
     assert (
-        nr_graph_nodes == 16
+        nr_graph_nodes == 15
     ), "the graph should stay unchanged by shortest path queries!"
 
 

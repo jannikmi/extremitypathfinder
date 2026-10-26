@@ -26,8 +26,10 @@ Ensure that all the following conditions on the polygons are fulfilled:
 - the first point is NOT repeated at the end
 - must at least contain 3 vertices
 - no consequent vertices with identical coordinates in the polygons (same coordinates in general are allowed)
-- a polygon must NOT have self intersections
-- different polygons may intersect each other
+- a polygon must NOT have self intersections. It may touch itself (identical vertices, a vertex on an edge),
+  but must not cross itself there
+- no collinear overlapping edges within a polygon (zero-width spikes or slits)
+- different polygons may touch or intersect each other
 - edge numbering has to follow this convention (for easier computations):
     - outer boundary polygon: counter clockwise
     - holes: clockwise
@@ -76,8 +78,11 @@ hole must be supplied.
 
 .. note::
 
-    If two Polygons have vertices with identical coordinates (this is allowed), paths through these vertices are theoretically possible!
-    When the paths should be blocked, use a single polygon with multiple identical vertices instead (also allowed).
+    Obstacles (the holes and everything outside the boundary polygon) that touch form a wall:
+    a path never passes between two touching polygons, e.g. through a shared vertex or along overlapping edges,
+    and never through a point where a polygon touches itself.
+    A contact means exactly equal coordinates or a vertex exactly on an edge. Near-contacts (tiny gaps) do not block.
+    Cf. :ref:`the edge case of touching obstacles <touching>`.
 
 
 .. figure:: _static/map_plot.png
@@ -130,6 +135,7 @@ Converting a grid
 A grid of ``size_x`` times ``size_y`` cells with blocked cells (obstacles) can be converted into a polygon environment.
 Coordinates refer to the corners of the grid cells, i.e. cell ``(x, y)`` spans ``[x, x+1] x [y, y+1]``.
 The polygons follow the borders of the blocked cells, they are not simplified (no diagonal edges).
+Diagonally adjacent blocked cells touch at a corner: paths cannot pass between them (no corner cutting).
 
 
 .. code-block:: python

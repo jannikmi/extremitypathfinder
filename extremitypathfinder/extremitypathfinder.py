@@ -6,6 +6,7 @@ import networkx as nx
 import numpy as np
 
 from extremitypathfinder import configs
+from extremitypathfinder import contacts as c
 from extremitypathfinder import types as t
 from extremitypathfinder import utils
 from extremitypathfinder.configs import DEFAULT_PICKLE_NAME
@@ -60,7 +61,15 @@ class PolygonEnvironment:
     * ``holes``: the list of hole coordinates
     * ``coords``: the coordinates of all polygon vertices (boundary first, then all holes)
     * ``extremity_indices``: the indices of all extremities in ``coords``
+      (at most one per point, contacts taken into account)
     * ``graph``: the precomputed visibility graph (:class:`networkx.Graph`) of the extremities
+
+    Obstacles are the holes and everything outside the boundary polygon.
+    Obstacles that touch form a wall: a path never passes between two obstacles that touch
+    (shared vertices, a vertex on an edge, overlapping edges), and never through a point where
+    an obstacle touches itself. Paths may run along obstacle edges and through the vertices of a single obstacle.
+    A contact means exactly equal coordinates or a vertex exactly on an edge, near-contacts (tiny gaps) do not block.
+    Overlapping polygons act as their union.
     """
 
     nr_edges: int
@@ -72,6 +81,8 @@ class PolygonEnvironment:
     coords: np.ndarray
     edge_vertex_idxs: np.ndarray
     extremity_mask: np.ndarray
+    polygon_extremity_mask: np.ndarray
+    contacts: c.Contacts
     vertex_edge_idxs: np.ndarray
 
     def __init__(
@@ -88,8 +99,12 @@ class PolygonEnvironment:
             * no repetition of the first point at the end
             * at least 3 vertices (no single points or lines allowed)
             * no consequent vertices with identical coordinates in the polygons (same coordinates allowed)
-            * no self intersections
+            * no self intersections. A polygon may touch itself (identical vertices, a vertex on an edge),
+              but must not cross itself there
+            * no collinear overlapping edges within a polygon (zero-width spikes or slits)
             * edge numbering has to follow these conventions: boundary polygon counter clockwise, holes clockwise
+
+            Polygons may touch or intersect each other. Touching obstacles block paths.
 
         :param boundary_coordinates: array of coordinates with counter clockwise edge numbering.
             When ``None``, the environment is unbounded and at least one hole must
@@ -129,13 +144,30 @@ class PolygonEnvironment:
 
         (
             self.coords,
-            self.extremity_indices,
-            self.extremity_mask,
+            _,
+            # the extremities of the single polygons, ignoring contacts
+            self.polygon_extremity_mask,
             self.vertex_edge_idxs,
             self.edge_vertex_idxs,
         ) = utils.compile_polygon_datastructs(
             boundary_coordinates, list_of_hole_coordinates
         )
+        polygons = list_of_hole_coordinates
+        if boundary_coordinates is not None:
+            polygons = [boundary_coordinates] + polygons
+        vertex_polygon_idxs = np.repeat(
+            np.arange(len(polygons)), [len(p) for p in polygons]
+        )
+        self.contacts, self.extremity_mask = c.compute_contacts(
+            self.coords,
+            self.edge_vertex_idxs,
+            self.vertex_edge_idxs,
+            self.polygon_extremity_mask,
+            vertex_polygon_idxs,
+            None if boundary_coordinates is None else 0,
+            self.within_map,
+        )
+        self.extremity_indices = np.where(self.extremity_mask)[0]
 
         nr_total_pts = self.edge_vertex_idxs.shape[0]
         self.nr_vertices = nr_total_pts
@@ -161,6 +193,8 @@ class PolygonEnvironment:
 
         Prerequisites: the grid must not have single non-obstacle cells which are surrounded by obstacles
         ("white cells in black surrounding" = useless for path planning)
+
+        Diagonally adjacent blocked cells touch at a corner and block paths (no corner cutting).
 
         :param size_x: the horizontal grid size
         :param size_y: the vertical grid size
@@ -204,9 +238,9 @@ class PolygonEnvironment:
         it must still be included!
 
         .. note::
-            Multiple polygon vertices might have identical coords_rel.
-            They must be treated as distinct vertices here, since their attached edges determine visibility.
-            In the created graph however, these nodes must be merged at the end to avoid ambiguities!
+            Multiple polygon vertices might have identical coordinates (contacts).
+            Touching obstacles block paths: at a contact point there is at most one extremity,
+            the free wedge > 180 degree (cf. :mod:`extremitypathfinder.contacts`).
 
         .. note::
             Pre computing the shortest paths between all directly reachable extremities
@@ -219,8 +253,9 @@ class PolygonEnvironment:
             self.reprs_n_distances,
             self.coords,
             self.edge_vertex_idxs,
-            self.extremity_mask,
+            self.polygon_extremity_mask,
             self.vertex_edge_idxs,
+            self.contacts,
         )
 
     def within_map(self, coords: np.ndarray) -> bool:
@@ -238,11 +273,27 @@ class PolygonEnvironment:
         coords: np.ndarray,
         vert_idx2repr: np.ndarray,
         vert_idx2dist: np.ndarray,
+        query_contacts: Optional[Dict[int, int]] = None,
     ) -> Set[int]:
+        """finds the candidates visible from a query point (start or goal)
+
+        :param query_contacts: the contact points of the query points lying on a contact point
+        """
         # Note: points with equal coordinates should not be considered visible (will be merged later)
         candidates = {i for i in candidates if not vert_idx2dist[i] == 0.0}
         edge_idxs2check = set(range(self.nr_edges))
-        return utils.find_visible(
+        contact = c.contact_at(coords[origin], self.coords, self.contacts)
+        if contact is not None:
+            # a query point on a contact point may leave through any of its free wedges
+            # Note: the edges at the contact all lie outside of the wedges
+            edge_idxs2check.difference_update(self.contacts.incident_edges[contact])
+            wedges = self.contacts.wedges[contact]
+            candidates = {
+                i
+                for i in candidates
+                if any(c.in_closure(vert_idx2repr[i], w) for w in wedges)
+            }
+        visible = utils.find_visible(
             origin,
             candidates,
             edge_idxs2check,
@@ -251,7 +302,17 @@ class PolygonEnvironment:
             vert_idx2dist,
             self.edge_vertex_idxs,
             self.vertex_edge_idxs,
-            self.extremity_mask,
+            self.polygon_extremity_mask,
+            self.contacts.exactly_checked,
+        )
+        return c.filter_visible(
+            origin,
+            visible,
+            coords,
+            vert_idx2repr,
+            vert_idx2dist,
+            self.contacts,
+            query_contacts,
         )
 
     def find_shortest_path(
@@ -266,6 +327,8 @@ class PolygonEnvironment:
         :param goal_coordinates:  a (x,y) coordinate tuple representing the goal node
         :param verify: whether it should be checked if start and goal points really lie inside the environment.
          if points close to or on polygon edges should be accepted as valid input, set this to ``False``.
+         Start and goal may lie on a contact point of touching obstacles, the path may leave through
+         any free space next to it. On an edge shared by two touching obstacles (inside a wall) there is no path.
         :return: a tuple of shortest path and its length. ([], None) if there is no possible path.
         """
         result = self.search(start_coordinates, goal_coordinates, verify)
@@ -315,12 +378,28 @@ class PolygonEnvironment:
         # the visibility of only the graph nodes has to be checked (not all extremities!)
         # IMPORTANT: also check if the start node is visible from the goal node!
         candidate_idxs: Set[int] = set(self.graph.nodes)
+        # Note: a graph node identical to the start is merged with the start later on.
+        # It must not hide the start: the start may leave a contact point through any free wedge
+        start_identical = np.all(
+            self.coords[self.extremity_indices] == coords_start, axis=1
+        )
+        candidates_goal = candidate_idxs.difference(
+            self.extremity_indices[start_identical].tolist()
+        )
         candidate_idxs.add(start)
+        candidates_goal.add(start)
+        contact_start = c.contact_at(coords_start, self.coords, self.contacts)
+        start_contacts = {} if contact_start is None else {start: contact_start}
         repr_n_dists = utils.cmp_reps_n_distances(origin, coords)
         self.reprs_n_distances[origin] = repr_n_dists
         vert_idx2repr, vert_idx2dist = repr_n_dists
         visibles_goal = self.get_visible_idxs(
-            origin, candidate_idxs, coords, vert_idx2repr, vert_idx2dist
+            origin,
+            candidates_goal,
+            coords,
+            vert_idx2repr,
+            vert_idx2dist,
+            start_contacts,
         )
         if len(visibles_goal) == 0:
             # The goal node does not have any neighbours. Hence there is not possible path to the goal.

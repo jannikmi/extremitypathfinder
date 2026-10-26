@@ -122,9 +122,10 @@ def test_shortest_path_scales_with_coordinate_magnitude(scale, offset):
     _assert_valid_path(path, distance, holes)
 
 
-def test_touching_holes_keep_shared_vertex_non_blocking():
-    # The two clockwise holes share (5, 5). The package's documented semantics
-    # permit a route through that duplicate vertex and along touching edges.
+def test_touching_holes_block_at_shared_vertex():
+    # The two clockwise holes share (5, 5). Touching obstacles form a wall (#24):
+    # the route along the touching edges through the shared vertex is blocked,
+    # the shortest path goes around the upper left hole.
     holes = [
         [(3.0, 5.0), (3.0, 7.0), (5.0, 7.0), (5.0, 5.0)],
         [(5.0, 3.0), (5.0, 5.0), (7.0, 5.0), (7.0, 3.0)],
@@ -133,8 +134,8 @@ def test_touching_holes_keep_shared_vertex_non_blocking():
 
     path, distance = environment.find_shortest_path((1.0, 5.0), (9.0, 5.0))
 
-    assert (5.0, 5.0) in path
-    assert distance == pytest.approx(8.0)
+    assert (5.0, 5.0) not in path
+    assert distance == pytest.approx(2.0 + 2.0 * sqrt(2.0) + 2.0 * sqrt(5.0))
     _assert_valid_path(path, distance, holes)
 
 
@@ -189,11 +190,121 @@ def test_touching_holes_keep_shared_vertex_non_blocking():
             ValueError,
             "hole polygon must be clockwise",
         ),
+        # https://github.com/jannikmi/extremitypathfinder/issues/135:
+        # the chain (2,2) -> (5,5) -> (9,9) crosses the edge (8,2) -> (2,8) at the vertex (5,5)
+        (
+            BOUNDARY,
+            [[(2.0, 2.0), (5.0, 5.0), (9.0, 9.0), (8.0, 2.0), (2.0, 8.0)]],
+            ValueError,
+            "self intersections",
+        ),
+        # the two corners at the identical vertices (5, 5) interleave: a figure eight
+        (
+            BOUNDARY,
+            [
+                [
+                    (3.0, 5.0),
+                    (3.0, 7.0),
+                    (5.0, 7.0),
+                    (5.0, 5.0),
+                    (5.0, 2.0),
+                    (8.0, 2.0),
+                    (8.0, 5.0),
+                    (5.0, 5.0),
+                ]
+            ],
+            ValueError,
+            "self intersections",
+        ),
+        # zero-width spike: the consecutive edges (6,3) -> (8,3) -> (5,3) overlap
+        (
+            BOUNDARY,
+            [[(3.0, 3.0), (3.0, 6.0), (6.0, 6.0), (6.0, 3.0), (8.0, 3.0), (5.0, 3.0)]],
+            ValueError,
+            "overlapping edges",
+        ),
+        # zero-width slit: the edges (2.5,5) -> (2.5,3) and (2.5,3) -> (2.5,5) overlap
+        (
+            BOUNDARY,
+            [
+                [
+                    (1.0, 1.0),
+                    (1.0, 5.0),
+                    (2.5, 5.0),
+                    (2.5, 3.0),
+                    (2.0, 2.0),
+                    (3.0, 2.0),
+                    (2.5, 3.0),
+                    (2.5, 5.0),
+                    (4.0, 5.0),
+                    (4.0, 1.0),
+                ]
+            ],
+            ValueError,
+            "overlapping edges",
+        ),
     ],
 )
 def test_invalid_polygons_fail_predictably(boundary, holes, error, message):
     with pytest.raises(error, match=message):
         PolygonEnvironment(boundary, holes, validate=True)
+
+
+@pytest.mark.parametrize(
+    ("boundary", "holes"),
+    [
+        # a hole touching itself at the vertex (5, 5)
+        (
+            BOUNDARY,
+            [
+                [
+                    (3.0, 5.0),
+                    (3.0, 7.0),
+                    (5.0, 7.0),
+                    (5.0, 5.0),
+                    (8.0, 5.0),
+                    (8.0, 2.0),
+                    (5.0, 2.0),
+                    (5.0, 5.0),
+                ]
+            ],
+        ),
+        # a boundary touching itself at the vertex (5, 5)
+        (
+            [
+                (0.0, 0.0),
+                (5.0, 0.0),
+                (5.0, 5.0),
+                (10.0, 5.0),
+                (10.0, 10.0),
+                (5.0, 10.0),
+                (5.0, 5.0),
+                (0.0, 5.0),
+            ],
+            [],
+        ),
+        # the vertex (7, 6) touches the edge (8, 6) -> (4, 6) of the same hole
+        (
+            BOUNDARY,
+            [
+                [
+                    (2.0, 2.0),
+                    (2.0, 8.0),
+                    (8.0, 8.0),
+                    (8.0, 6.0),
+                    (4.0, 6.0),
+                    (4.0, 4.0),
+                    (6.0, 4.0),
+                    (7.0, 6.0),
+                    (8.0, 4.0),
+                    (8.0, 2.0),
+                ]
+            ],
+        ),
+    ],
+)
+def test_polygons_touching_themselves_are_valid(boundary, holes):
+    PolygonEnvironment(boundary, holes, validate=True)
 
 
 def test_repeated_queries_do_not_mutate_precomputed_graph():

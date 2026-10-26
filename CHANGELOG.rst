@@ -22,12 +22,36 @@ BREAKING: the environment is initialised in one step:
   and ``plot_search(environment, result, plotting_dir)`` in ``extremitypathfinder.plotting`` instead.
   The plotting directory is a parameter of the plotting functions instead of a global setting.
 
+BREAKING: touching obstacles block paths (#24):
+
+- obstacles (the holes and everything outside the boundary polygon) that touch form a wall.
+  A path never passes between two obstacles that touch, and never through a point where an obstacle touches itself.
+  Previously contacts were "non-blocking". Every kind of contact blocks: shared vertices, a vertex on an edge,
+  overlapping collinear edges, holes touching the boundary polygon and polygons touching themselves.
+  Paths may still run along obstacle edges and through the vertices of a single obstacle.
+- grids: diagonally adjacent blocked cells block paths (no corner cutting)
+- a contact means exactly equal coordinates or a vertex exactly on an edge. Near-contacts (tiny gaps) do not block.
+- query points exactly on a contact point may leave through any free space next to it,
+  query points on an edge shared by two touching obstacles have no path
+- at most one extremity per point: coincident vertices are no longer merged into one graph node.
+  At a contact, a vertex is only an extremity when the free angle there is larger than 180 degree
+  (e.g. two corners touching at a grid diagonal are no extremities anymore).
+- ``validate=True`` detects crossings at vertices (#135): a vertex lying on another edge of the same polygon
+  with its neighbours on opposite sides, and identical vertices whose corners interleave.
+  Collinear overlapping edges within a polygon (zero-width spikes or slits) are rejected as well.
+  Polygons touching themselves without crossing stay valid.
+
 other changes:
 
 - added a grid example to the README
 - support CPython 3.15: tested in CI with the latest and the oldest dependencies providing 3.15 wheels
 
 bugfixes:
+
+- ``validate=True`` no longer rejects some valid triangles as self-intersecting
+  (the first and the last edge were not treated as neighbours)
+- a query point identical to a polygon vertex sees along the edges of that vertex,
+  and a query point on an edge sees along that edge (paths along polygon edges were partly blocked before)
 
 - a goal identical to an extremity is merged with it in the search graph.
   Previously such queries could return a longer path or no path at all.

@@ -1,4 +1,3 @@
-import itertools
 import json
 import pickle
 from itertools import combinations
@@ -10,6 +9,11 @@ import numpy.linalg
 
 from extremitypathfinder import configs
 from extremitypathfinder import types as t
+from extremitypathfinder.contacts import (
+    Contacts,
+    check_polygon_contacts,
+    filter_visible,
+)
 from extremitypathfinder.configs import (
     BOUNDARY_JSON_KEY,
     DEFAULT_PICKLE_NAME,
@@ -62,8 +66,8 @@ def _get_intersection_status(p1, p2, q1, q2):
     # return:
     #   0: no intersection
     #   1: intersection in ]p1;p2[
-    # Note: intersections directly in p1, p2, q1 or q2 are not detected
-    #   (https://github.com/jannikmi/extremitypathfinder/issues/135)
+    # Note: intersections directly in p1, p2, q1 or q2 are not detected,
+    #   crossings at vertices are detected by check_polygon_contacts()
     # solve the set of equations
     # (p2-p1) lambda + (p1) = (q2-q1) mu + (q1)
     #  in matrix form A x = b:
@@ -92,8 +96,11 @@ def _no_self_intersection(coords):
     polygon_length = len(coords)
     for index_p1, index_q1 in combinations(range(polygon_length), 2):
         # always: index_p1 < index_q1
-        if index_p1 == index_q1 - 1 or index_p1 == index_q1 + 1:
+        if index_p1 == index_q1 - 1 or (
+            index_p1 == 0 and index_q1 == polygon_length - 1
+        ):
             # neighbouring edges never have an intersection
+            # Note: solving for their common vertex might be imprecise
             continue
         p1, p2 = coords[index_p1], coords[(index_p1 + 1) % polygon_length]
         q1, q2 = coords[index_q1], coords[(index_q1 + 1) % polygon_length]
@@ -108,7 +115,9 @@ def _check_polygon(polygon):
     """ensures that all the following conditions on the polygons are fulfilled:
     - must at least contain 3 vertices
     - no consequent vertices with identical coordinates in the polygons! In general might have the same coordinates
-    - a polygon must not have self intersections (intersections with other polygons are allowed)
+    - a polygon must not have self intersections (intersections with other polygons are allowed).
+      A polygon may touch itself (identical vertices, a vertex on an edge), but must not cross itself there
+    - no collinear overlapping edges (zero-width spikes or slits)
     """
     if polygon.size == 0:
         raise TypeError("Given polygons must at least contain 3 vertices.")
@@ -134,6 +143,7 @@ def _check_polygon(polygon):
     )
     if area_twice == 0.0:
         raise ValueError("Polygon area must be non-zero.")
+    check_polygon_contacts(polygon)
 
 
 def check_data_requirements(
@@ -249,6 +259,7 @@ def find_visible(
     edge_vertex_idxs: np.ndarray,
     vertex_edge_idxs: np.ndarray,
     extremity_mask: np.ndarray,
+    exactly_checked: Optional[np.ndarray] = None,
 ) -> Set[int]:
     """finds all candidates visible from the origin
 
@@ -272,6 +283,9 @@ def find_visible(
     :param candidates: the set of all vertex ids which should be checked for visibility.
         IMPORTANT: must not contain any vertices with equal coordinates (e.g. the origin vertex itself)!
     :param edges_to_check: the set of edges which determine visibility
+    :param extremity_mask: the extremities of the single polygons (ignoring contacts)
+    :param exactly_checked: mask of the vertices where passing through is checked separately
+        (based on the free wedges, cf. ``contacts.filter_visible()``)
     :return: a set of all vertices visible from the origin
     """
     nr_candidates_total = len(candidates)
@@ -312,6 +326,7 @@ def find_visible(
         coords,
         edge_vertex_idxs,
         edges_max_dist,
+        exactly_checked,
     )
 
     # when there are no origin-crossing edges, we are done
@@ -340,6 +355,7 @@ def find_visible(
         coords,
         edge_vertex_idxs,
         edges_max_dist,
+        exactly_checked,
     )
     return set(candidates_sorted)
 
@@ -506,14 +522,18 @@ def rotate_crossing(
     tmp = edges_min_rep
     edges_min_rep = edges_max_rep
     edges_max_rep = tmp
-    # apply same transformation also to candidate representations
-    representations = representations.copy()  # IMPORTANT: work on independent copy
-    representations[candidate_idxs] = (
-        representations[candidate_idxs] + infimum_to_0
-    ) % 4.0
+    # apply same transformation also to the representations of the candidates (and of all other vertices)
+    # IMPORTANT: work on independent copy
+    representations = (representations + infimum_to_0) % 4.0
     # Note: new sorting is required
     candidate_idxs = sorted(candidate_idxs, key=lambda i: representations[i])
     return candidate_idxs, edges_max_rep, edges_min_rep, representations
+
+
+def _is_vertex(i: int, vertex: int, coords: np.ndarray, distances: np.ndarray) -> bool:
+    return i == vertex or (
+        distances[i] == distances[vertex] and bool(np.all(coords[i] == coords[vertex]))
+    )
 
 
 def check_candidates_one_edge(
@@ -528,6 +548,7 @@ def check_candidates_one_edge(
     coords: np.ndarray,
     distances: np.ndarray,
     representations: np.ndarray,
+    exactly_checked: Optional[np.ndarray] = None,
 ):
     # start over at the same candidate than the previous edge
     # Note: candidates with the same representation as an edge vertex are not blocked by the edge (s. below)
@@ -550,8 +571,15 @@ def check_candidates_one_edge(
         except IndexError:
             break
 
-        if candidate_idx == p1 or candidate_idx == p2:
+        is_edge_vertex = candidate_idx == p1 or candidate_idx == p2
+        if not is_edge_vertex and edge_max_dist == 0.0:
+            # Note: otherwise a candidate identical to a vertex is never farther than the edge
+            is_edge_vertex = _is_vertex(
+                candidate_idx, p1, coords, distances
+            ) or _is_vertex(candidate_idx, p2, coords, distances)
+        if is_edge_vertex:
             # an edge cannot block its own vertices
+            # (also not candidates with identical coordinates, e.g. a query point)
             # move pointer to the next candidate
             candidate_ptr_curr += 1
             continue
@@ -573,6 +601,21 @@ def check_candidates_one_edge(
             # edge of the candidate itself should not block visibility
             # distance must be truly larger to block visibility.
             visibility_is_blocked = dist_to_candidate > edge_max_dist
+            if visibility_is_blocked and exactly_checked is not None:
+                # the edge only touches the line of sight in its vertices (or lies on it)
+                touching = [p for p in (p1, p2) if representations[p] == candidate_rep]
+                if edge_max_dist == 0.0 and any(
+                    dist_to_candidate < distances[p] for p in touching
+                ):
+                    # the origin lies on the edge (or is identical to its vertex)
+                    # and the candidate lies on the edge as well
+                    visibility_is_blocked = False
+                else:
+                    # passing through the vertices which are checked exactly is decided by their free wedges
+                    passed = [p for p in touching if distances[p] < dist_to_candidate]
+                    visibility_is_blocked = not (
+                        passed and all(exactly_checked[p] for p in passed)
+                    )
         else:
             # optimisation: if a candidate is farther away from the query point than both vertices of the edge,
             #   it surely lies behind the edge
@@ -604,6 +647,7 @@ def _check_candidates(
     coords: np.ndarray,
     edge_vertex_idxs: np.ndarray,
     edges_max_dist: np.ndarray,
+    exactly_checked: Optional[np.ndarray] = None,
 ):
     candidate_ptr = 0
     for edge_idx in edge_idxs_sorted:
@@ -638,6 +682,7 @@ def _check_candidates(
             coords,
             distances,
             representations,
+            exactly_checked,
         )
 
 
@@ -652,9 +697,16 @@ def _find_visible_and_in_front(
     representations: np.ndarray,
     vertex_edge_idxs: np.ndarray,
     edge_vertex_idxs: np.ndarray,
+    contacts: Optional[Contacts] = None,
 ):
     # vertices all belong to a polygon
-    n1, n2 = get_neighbour_idxs(origin, vertex_edge_idxs, edge_vertex_idxs)
+    # at a contact the extremity is the wedge > 180 degree:
+    # its bounding rays take the role of the two neighbouring edges
+    is_contact = contacts is not None and origin in contacts.wedge_neighbours
+    if is_contact:
+        n1, n2 = contacts.wedge_neighbours[origin]
+    else:
+        n1, n2 = get_neighbour_idxs(origin, vertex_edge_idxs, edge_vertex_idxs)
     n1_repr = representations[n1]
     n2_repr = representations[n2]
     # as shown in [1, Ch. II 4.4.2 "Property One"]: Starting from any point lying "in front of" an extremity e,
@@ -702,8 +754,13 @@ def _find_visible_and_in_front(
     candidates.difference_update(idxs_behind)
 
     # all edges have to be checked, except the 2 neighbouring edges (handled above!)
+    # at a contact: except all edges at the contact point (they all lie outside of the wedge)
     edge_idxs2check = set(range(nr_edges))
-    edge_idxs2check.difference_update(vertex_edge_idxs[origin])
+    if is_contact:
+        edge_idxs2check.difference_update(contacts.incident_edges[origin])
+    else:
+        edge_idxs2check.difference_update(vertex_edge_idxs[origin])
+    exactly_checked = None if contacts is None else contacts.exactly_checked
     visible_idxs = find_visible(
         origin,
         candidates,
@@ -714,7 +771,12 @@ def _find_visible_and_in_front(
         edge_vertex_idxs,
         vertex_edge_idxs,
         extremity_mask,
+        exactly_checked,
     )
+    if contacts is not None:
+        visible_idxs = filter_visible(
+            origin, visible_idxs, coords, representations, distances, contacts
+        )
     return candidates_in_front, visible_idxs
 
 
@@ -729,21 +791,6 @@ def get_distance(n1, n2, reprs_n_distances):
     _, dists = reprs_n_distances[n1]
     distance = dists[n2]
     return distance
-
-
-def _find_identical(
-    candidates: Iterable[int], reprs_n_distances: Dict[int, np.ndarray]
-) -> Dict[int, int]:
-    # for shortest path computations all graph nodes should be unique
-    # join all nodes with the same coordinates
-    merging_mapping = {}
-    # symmetric relation -> only consider one direction
-    for n1, n2 in itertools.combinations(candidates, 2):
-        dist = get_distance(n1, n2, reprs_n_distances)
-        if dist == 0.0:  # same coordinates
-            merging_mapping[n2] = n1
-
-    return merging_mapping
 
 
 def find_identical_single(
@@ -769,7 +816,14 @@ def compute_graph(
     edge_vertex_idxs: np.ndarray,
     extremity_mask: np.ndarray,
     vertex_edge_idxs: np.ndarray,
+    contacts: Optional[Contacts] = None,
 ) -> t.Graph:
+    """computes the visibility graph of the extremities
+
+    :param extremity_mask: the extremities of the single polygons (ignoring contacts)
+    :param contacts: the contacts between the polygons.
+        Note: there is at most one extremity per point, no graph nodes have to be merged
+    """
     graph = t.Graph()
     # IMPORTANT: add all extremities (even if they turn out to be dangling in the end),
     # adding start and goal nodes at query time might connect them!
@@ -797,6 +851,7 @@ def compute_graph(
             vert_idx2repr,
             vertex_edge_idxs,
             edge_vertex_idxs,
+            contacts,
         )
         # "thin out" the graph:
         # remove already existing edges in the graph to the extremities in front
@@ -808,10 +863,6 @@ def compute_graph(
 
         for i in visible_idxs:
             graph.add_edge(origin_idx, i, weight=vert_idx2dist[i])
-
-    merge_mapping = _find_identical(graph.nodes, reprs_n_distances)
-    if len(merge_mapping) > 0:
-        nx.relabel_nodes(graph, merge_mapping, copy=False)
 
     return graph
 
