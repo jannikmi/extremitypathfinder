@@ -215,6 +215,30 @@ def test_touching_holes_block_at_shared_vertex():
             ValueError,
             "self intersections",
         ),
+        # the vertex (3,4) lies on the diagonal edge (0,0) -> (6,8), its neighbours on opposite sides
+        (
+            BOUNDARY,
+            [
+                [
+                    (0.0, 0.0),
+                    (6.0, 8.0),
+                    (11.0, 0.0),
+                    (4.0, 1.0),
+                    (3.0, 4.0),
+                    (2.0, 7.0),
+                    (-5.0, 7.0),
+                ]
+            ],
+            ValueError,
+            "self intersections",
+        ),
+        # zero-width spike along a diagonal: the rays (-3,-3) and (-2,-2) seen from (7,7) are identical
+        (
+            BOUNDARY,
+            [[(0.0, 0.0), (0.0, 4.0), (4.0, 4.0), (7.0, 7.0), (5.0, 5.0), (4.0, 0.0)]],
+            ValueError,
+            "overlapping edges",
+        ),
         # zero-width spike: the consecutive edges (6,3) -> (8,3) -> (5,3) overlap
         (
             BOUNDARY,

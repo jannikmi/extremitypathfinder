@@ -30,7 +30,8 @@ BREAKING: touching obstacles block paths (#24):
   overlapping collinear edges, holes touching the boundary polygon and polygons touching themselves.
   Paths may still run along obstacle edges and through the vertices of a single obstacle.
 - grids: diagonally adjacent blocked cells block paths (no corner cutting)
-- a contact means exactly equal coordinates or a vertex exactly on an edge. Near-contacts (tiny gaps) do not block.
+- a contact means exactly equal coordinates or a vertex exactly on an edge
+  (an exact cross product test, e.g. for integer coordinates). Near-contacts (tiny gaps) do not block.
 - query points exactly on a contact point may leave through any free space next to it,
   query points on an edge shared by two touching obstacles have no path
 - at most one extremity per point: coincident vertices are no longer merged into one graph node.

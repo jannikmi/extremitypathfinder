@@ -163,8 +163,8 @@ class PolygonEnvironment:
             self.vertex_edge_idxs,
             self.polygon_extremity_mask,
             vertex_polygon_idxs,
+            polygons,
             None if boundary_coordinates is None else 0,
-            self.within_map,
         )
         self.extremity_indices = np.where(self.extremity_mask)[0]
 
@@ -291,10 +291,16 @@ class PolygonEnvironment:
             # Note: the edges at the contact all lie outside of the wedges
             edge_idxs2check.difference_update(self.contacts.incident_edges[contact])
             wedges = self.contacts.wedges[contact]
+            point = coords[origin]
             candidates = {
                 i
                 for i in candidates
-                if any(c.in_closure(vert_idx2repr[i], w) for w in wedges)
+                if any(
+                    c.in_closure(
+                        c.direction_rep(contact, coords[i] - point, self.contacts), w
+                    )
+                    for w in wedges
+                )
             }
         visible = utils.find_visible(
             origin,

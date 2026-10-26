@@ -111,11 +111,14 @@ Query points lying on an edge shared by two touching obstacles lie inside a wall
 Overlapping polygons (intersecting areas) act as their union,
 e.g. a hole outside of the boundary polygon touching it has no effect.
 
-A contact means exactly equal coordinates, or a point lying exactly on an edge,
-determined with the same floating point computations as the rest of the algorithm
-(the angle representations of the edge vertices seen from the point differ by exactly 180 degree).
+A contact means exactly equal coordinates, or a vertex lying exactly on an edge:
+the cross product of the vectors from the vertex to the two edge vertices is exactly 0
+(exact for coordinates whose products have no rounding errors, e.g. integers),
+or the angle representations of the edge vertices seen from the vertex differ by exactly 180 degree
+(the computation used by the point in polygon test).
+Rays with exactly the same direction (e.g. along overlapping edges of different length) are treated as one ray.
 Obstacles with a tiny gap in between (near-contacts) do not touch, paths can pass through the gap.
-Contacts computed from rounded coordinates might hence not be detected,
+Contacts of rounded coordinates might hence not be detected,
 use identical coordinates for touching polygons.
 
 The following examples have no boundary polygon (unbounded environments), only touching holes:

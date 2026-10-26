@@ -315,3 +315,43 @@ def test_zero_width_spike_blocks_only_its_ray(boundary_polygon_idx):
     wedges = [wedge for wedge, _ in free_wedges(incidences, boundary_polygon_idx)]
 
     assert wedges == [(1.0, 2.5), (3.5, 1.0)]
+
+
+# the vertex (3, 4) of the upper hole lies on the diagonal edge (0, 0) -> (6, 8) of the lower hole.
+# Note: the angle representations of the edge vertices seen from (3, 4) do not differ by exactly 2.0
+DIAGONAL_EDGE_HOLES = [
+    [(0.0, 0.0), (6.0, 8.0), (6.0, 0.0)],
+    [(3.0, 4.0), (1.0, 5.0), (2.0, 7.0)],
+]
+
+
+def test_vertex_on_a_diagonal_edge_blocks():
+    environment = PolygonEnvironment(None, DIAGONAL_EDGE_HOLES, validate=True)
+    contact = [i for i, v in enumerate(environment.all_vertices) if v == (3.0, 4.0)]
+    assert contact[0] in environment.contacts.contact_of_vertex
+    assert (3.0, 4.0) not in environment.all_extremities
+
+    # from the pocket below the upper hole to the pocket right of it: around the upper hole
+    expected = [(2.0, 3.5), (1.0, 5.0), (2.0, 7.0), (3.3, 5.5)]
+    expected_length = hypot(1.0, 1.5) + hypot(1.0, 2.0) + hypot(1.3, 1.5)
+    for start, goal, path_expected in (
+        ((2.0, 3.5), (3.3, 5.5), expected),
+        ((3.3, 5.5), (2.0, 3.5), list(reversed(expected))),
+    ):
+        path, length = environment.find_shortest_path(start, goal)
+        assert path == path_expected
+        assert length == pytest.approx(expected_length)
+        _assert_valid_path(path, length, DIAGONAL_EDGE_HOLES)
+
+
+def test_collinear_edges_of_different_length_share_their_ray():
+    # the edges (0, 0) -> (1, 1) and (0, 0) -> (3, 3) overlap.
+    # Note: the angle representations of (1, 1) and (3, 3) differ in the last bit
+    holes = [
+        [(0.0, 0.0), (1.0, 1.0), (1.0, 0.0)],
+        [(0.0, 0.0), (0.0, 3.0), (3.0, 3.0)],
+    ]
+    environment = PolygonEnvironment(None, holes, validate=True)
+    contact = environment.contacts.contact_of_vertex[0]
+    # the free space around (0, 0): from 90 to 360 degree, no zero-width wedge along the shared edge
+    assert len(environment.contacts.wedges[contact]) == 1

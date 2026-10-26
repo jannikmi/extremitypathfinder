@@ -6,8 +6,13 @@ and never through a point where an obstacle touches itself.
 https://github.com/jannikmi/extremitypathfinder/issues/24
 
 A contact is a point where several polygon vertices have identical coordinates,
-or where a vertex lies exactly on an edge (``abs(rep1 - rep2) == 2.0``, as in ``_inside_polygon()``).
+or where a vertex lies exactly on an edge: the cross product of the vectors to the edge vertices is exactly 0
+(exact for coordinates without rounding errors in the products, e.g. integers),
+or ``abs(rep1 - rep2) == 2.0`` as in ``_inside_polygon()``.
 Polygons with a tiny gap in between do not touch.
+Rays of exactly the same direction (e.g. along overlapping edges of different length) share
+one angle representation, although the representations computed from vectors of different length
+might differ in the last bit.
 
 Around a point, the obstacles leave open "free wedges" (angle ranges) of free space.
 Wedges are represented by the angle representations ``(start, end)`` of their two bounding rays,
@@ -20,12 +25,15 @@ A path can only bend around a point within such a wedge: the point is an extremi
 
 import itertools
 from collections import defaultdict
-from collections.abc import Callable
 from dataclasses import dataclass, field
 
 import numpy as np
 
-from extremitypathfinder.utils_numba import _compute_repr_n_dist, get_neighbour_idxs
+from extremitypathfinder.utils_numba import (
+    _compute_repr_n_dist,
+    _inside_polygon,
+    get_neighbour_idxs,
+)
 
 Wedge = tuple[float, float]
 # polygon index, angle representation of the rays to the previous and the next vertex,
@@ -45,6 +53,7 @@ class Contacts:
     * ``incident_edges``: the edges having a vertex on or passing through a contact point
     * ``extremity_wedges``: the wedge > 180 degree of every contact point which is an extremity
     * ``wedge_neighbours``: the vertices in the direction of the two bounding rays of these wedges
+    * ``rays``: the directions and angle representations of the rays of every point in ``check_idxs``
     """
 
     check_idxs: np.ndarray
@@ -54,10 +63,37 @@ class Contacts:
     incident_edges: dict[int, set[int]] = field(default_factory=dict)
     extremity_wedges: dict[int, Wedge] = field(default_factory=dict)
     wedge_neighbours: dict[int, tuple[int, int]] = field(default_factory=dict)
+    rays: dict[int, list[tuple[np.ndarray, float]]] = field(default_factory=dict)
 
 
 def _rep(vector: np.ndarray) -> float:
     return _compute_repr_n_dist(vector)[0]
+
+
+def _cross(vector1: np.ndarray, vector2: np.ndarray) -> float:
+    return vector1[0] * vector2[1] - vector1[1] * vector2[0]
+
+
+def _ray_rep(vector: np.ndarray, rays: list[tuple[np.ndarray, float]]) -> float:
+    """the angle representation of a direction, identical for all rays with exactly the same direction"""
+    for ray, ray_rep in rays:
+        if _cross(ray, vector) == 0.0 and np.dot(ray, vector) > 0.0:
+            return ray_rep
+    return _rep(vector)
+
+
+def _add_ray(vector: np.ndarray, rays: list[tuple[np.ndarray, float]]) -> float:
+    rep = _ray_rep(vector, rays)
+    rays.append((vector, rep))
+    return rep
+
+
+def direction_rep(point_idx: int, vector: np.ndarray, contacts: "Contacts") -> float:
+    """the angle representation of a direction seen from a point in ``check_idxs``
+
+    identical to the representation of a ray of the point with exactly the same direction
+    """
+    return _ray_rep(vector, contacts.rays[point_idx])
 
 
 def in_closure(rep: float, wedge: Wedge) -> bool:
@@ -119,8 +155,12 @@ def _find_edges_through_points(
         for point_idx, edge_idx, p in zip(
             point_idxs[~is_vertex], edge_idxs[~is_vertex], pts[~is_vertex]
         ):
-            # the same computation as in _inside_polygon()
-            if abs(_rep(p1[edge_idx] - p) - _rep(p2[edge_idx] - p)) == 2.0:
+            vector1 = p1[edge_idx] - p
+            vector2 = p2[edge_idx] - p
+            # exact for coordinates without rounding errors (within the bounding box: on the edge),
+            # or the same computation as in _inside_polygon()
+            on_edge = _cross(vector1, vector2) == 0.0
+            if on_edge or abs(_rep(vector1) - _rep(vector2)) == 2.0:
                 edges_through[chunk_start + int(point_idx)].append(int(edge_idx))
     return edges_through
 
@@ -133,7 +173,12 @@ def _incidences(
     edge_vertex_idxs: np.ndarray,
     vertex_edge_idxs: np.ndarray,
     vertex_polygon_idxs: np.ndarray,
+    rays: list[tuple[np.ndarray, float]],
 ) -> list[Incidence]:
+    """the incidences of the polygons at a point
+
+    :param rays: filled with the directions and the angle representations of the rays
+    """
     # vertices: the rays point to the previous and to the next vertex
     # edges passing through: the rays point to the start and to the end of the edge
     # in both cases the free side (left of the edges) reaches counter clockwise from the second to the first ray
@@ -144,8 +189,8 @@ def _incidences(
     return [
         (
             int(vertex_polygon_idxs[i_a]),
-            _rep(coords[i_a] - point),
-            _rep(coords[i_b] - point),
+            _add_ray(coords[i_a] - point, rays),
+            _add_ray(coords[i_b] - point, rays),
             i_a,
             i_b,
         )
@@ -213,21 +258,41 @@ def free_wedges(
     ]
 
 
+def _within_map(
+    point: np.ndarray,
+    polygons: list[np.ndarray],
+    boundary_polygon_idx: int | None,
+    incident_polygon_idxs: set[int],
+) -> bool:
+    """whether a point lies within the map
+
+    Note: the point lies on the border of the polygons with an incidence at the point,
+    these are not checked (a contact found with the cross product might not be detected as border)
+    """
+    for polygon_idx, polygon in enumerate(polygons):
+        if polygon_idx in incident_polygon_idxs:
+            continue
+        is_boundary = polygon_idx == boundary_polygon_idx
+        if _inside_polygon(point, polygon, border_value=is_boundary) != is_boundary:
+            return False
+    return True
+
+
 def compute_contacts(
     coords: np.ndarray,
     edge_vertex_idxs: np.ndarray,
     vertex_edge_idxs: np.ndarray,
     polygon_extremity_mask: np.ndarray,
     vertex_polygon_idxs: np.ndarray,
+    polygons: list[np.ndarray],
     boundary_polygon_idx: int | None,
-    within_map: Callable[[np.ndarray], bool],
 ) -> tuple[Contacts, np.ndarray]:
     """finds all contacts and the free wedges at all vertices where passing through might be blocked
 
     :param polygon_extremity_mask: the extremities of the single polygons (within the map), ignoring contacts
     :param vertex_polygon_idxs: the index of the polygon of every vertex
+    :param polygons: the coordinates of all polygons (the boundary polygon first)
     :param boundary_polygon_idx: the index of the boundary polygon, ``None`` for unbounded environments
-    :param within_map: a function checking whether a point lies within the map
     :return: the contacts and the extremity mask taking the contacts into account
     """
     extremity_mask = polygon_extremity_mask.copy()
@@ -243,19 +308,29 @@ def compute_contacts(
         if not is_contact and polygon_extremity_mask[group[0]]:
             # a regular extremity: passing through is decided by the edges
             continue
-        if not within_map(point):
+        incident_polygon_idxs = {int(vertex_polygon_idxs[i]) for i in group}
+        incident_polygon_idxs.update(
+            int(vertex_polygon_idxs[edge_vertex_idxs[e, 0]]) for e in edge_idxs
+        )
+        if not _within_map(
+            point, polygons, boundary_polygon_idx, incident_polygon_idxs
+        ):
             # Note: also not an extremity
             continue
         idx = min(group)
         check_idxs.append(idx)
         contacts.exactly_checked[group] = True
+        rays = contacts.rays[idx] = []
         if not is_contact:
             # a single vertex with a free angle <= 180 degree:
             # the wedge reaches counter clockwise from the next to the previous vertex
             prev_idx, next_idx = get_neighbour_idxs(
                 idx, vertex_edge_idxs, edge_vertex_idxs
             )
-            wedge = (_rep(coords[next_idx] - point), _rep(coords[prev_idx] - point))
+            wedge = (
+                _add_ray(coords[next_idx] - point, rays),
+                _add_ray(coords[prev_idx] - point, rays),
+            )
             contacts.wedges[idx] = [wedge]
             continue
 
@@ -267,6 +342,7 @@ def compute_contacts(
             edge_vertex_idxs,
             vertex_edge_idxs,
             vertex_polygon_idxs,
+            rays,
         )
         wedges = free_wedges(incidences, boundary_polygon_idx)
         contacts.wedges[idx] = [wedge for wedge, _ in wedges]
@@ -290,8 +366,8 @@ def _passable(
 ) -> bool:
     """whether the line of sight from the origin to the candidate may pass through the point"""
     point = coords[point_idx]
-    rep_in = _rep(coords[origin] - point)
-    rep_out = _rep(coords[candidate] - point)
+    rep_in = direction_rep(point_idx, coords[origin] - point, contacts)
+    rep_out = direction_rep(point_idx, coords[candidate] - point, contacts)
     return any(
         in_closure(rep_in, wedge) and in_closure(rep_out, wedge)
         for wedge in contacts.wedges[point_idx]
@@ -321,13 +397,14 @@ def filter_visible(
         return visible
     visible = set(visible)
     for candidate in visible.intersection(contacts.extremity_wedges):
-        rep = _rep(coords[origin] - coords[candidate])
+        rep = direction_rep(candidate, coords[origin] - coords[candidate], contacts)
         if not in_closure(rep, contacts.extremity_wedges[candidate]):
             visible.discard(candidate)
     if query_contacts:
         for candidate in visible.intersection(query_contacts):
-            rep = _rep(coords[origin] - coords[candidate])
-            wedges = contacts.wedges[query_contacts[candidate]]
+            contact = query_contacts[candidate]
+            rep = direction_rep(contact, coords[origin] - coords[candidate], contacts)
+            wedges = contacts.wedges[contact]
             if not any(in_closure(rep, wedge) for wedge in wedges):
                 visible.discard(candidate)
 
@@ -392,6 +469,7 @@ def check_polygon_contacts(coords: np.ndarray):
             edge_vertex_idxs,
             vertex_edge_idxs,
             vertex_polygon_idxs,
+            [],
         )
         rays = [rep for _, rep_a, rep_b, _, _ in incidences for rep in (rep_a, rep_b)]
         if len(set(rays)) < len(rays):

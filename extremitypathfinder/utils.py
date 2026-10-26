@@ -17,7 +17,9 @@ from extremitypathfinder.configs import (
 from extremitypathfinder.contacts import (
     Contacts,
     check_polygon_contacts,
+    direction_rep,
     filter_visible,
+    in_closure,
 )
 from extremitypathfinder.utils_numba import (
     _angle_rep_inverse,
@@ -734,14 +736,25 @@ def _find_visible_and_in_front(
     # all vertices between the angle of the two neighbouring edges ('outer side')
     #   are not visible (no candidates!)
     # ATTENTION: vertices with the same angle representation might be visible and must NOT be deleted!
-    idxs_behind = _find_within_range(
-        n1_repr,
-        n2_repr,
-        candidates,
-        angle_range_less_180=True,
-        equal_repr_allowed=False,
-        representations=representations,
-    )
+    if is_contact:
+        # Note: rays with exactly the same direction as a bounding ray share its representation
+        wedge = contacts.extremity_wedges[origin]
+        idxs_behind = {
+            i
+            for i in candidates
+            if not in_closure(
+                direction_rep(origin, coords[i] - coords[origin], contacts), wedge
+            )
+        }
+    else:
+        idxs_behind = _find_within_range(
+            n1_repr,
+            n2_repr,
+            candidates,
+            angle_range_less_180=True,
+            equal_repr_allowed=False,
+            representations=representations,
+        )
     # do not consider points found to lie behind
     candidates.difference_update(idxs_behind)
 
