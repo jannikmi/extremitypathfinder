@@ -360,3 +360,44 @@ def test_grid_with_default_arguments(obstacles, expected_distance):
 
     _, distance = environment.find_shortest_path((0.5, 0.5), (4.5, 2.5))
     assert distance == pytest.approx(expected_distance)
+
+
+def test_path_does_not_pass_through_reflex_vertices():
+    # https://github.com/jannikmi/extremitypathfinder/issues/84:
+    # the path used to run along y = 172 through the reflex vertices (155.6, 172) and (252.4, 172)
+    # of the T-shaped hole, i.e. through the hole
+    boundary = [
+        (161.0, 47.0),
+        (247.0, 47.0),
+        (247.0, 7.0),
+        (361.0, 7.0),
+        (361.0, 441.0),
+        (7.0, 441.0),
+        (7.0, 7.0),
+        (161.0, 7.0),
+    ]
+    holes = [
+        [
+            (272.0, 172.0),
+            (272.0, 36.0),
+            (136.0, 36.0),
+            (136.0, 172.0),
+            (155.6, 172.0),
+            (155.6, 332.4),
+            (252.4, 332.4),
+            (252.4, 172.0),
+        ]
+    ]
+    environment = PolygonEnvironment(boundary, holes, validate=True)
+
+    path, distance = environment.find_shortest_path(
+        (50.004004, 44.004004), (318.004004, 44.004004)
+    )
+
+    assert path == [
+        (50.004004, 44.004004),
+        (155.6, 332.4),
+        (252.4, 332.4),
+        (318.004004, 44.004004),
+    ]
+    _assert_valid_path(path, distance, holes)

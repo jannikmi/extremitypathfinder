@@ -48,6 +48,8 @@ other changes:
 
 bugfixes:
 
+- lines of sight no longer pass straight through vertices with a free angle of at most 180 degree.
+  Previously paths could run through a hole along collinear edges and reflex vertices (#84)
 - ``validate=True`` no longer rejects some valid triangles as self-intersecting
   (the first and the last edge were not treated as neighbours)
 - a query point identical to a polygon vertex sees along the edges of that vertex,
