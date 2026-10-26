@@ -1,6 +1,6 @@
 import random
 import timeit
-from typing import Callable
+from collections.abc import Callable
 
 from extremitypathfinder import PolygonEnvironment
 from tests.test_cases import POLYGON_ENVS
@@ -36,12 +36,6 @@ def get_rnd_query_pts(env):
     return goal, start
 
 
-def eval_time_fct():
-    global tf, point_list
-    for point in point_list:
-        tf.timezone_at(lng=point[0], lat=point[1])
-
-
 def test_env_preparation_speed():
     def run_func():
         env_data = get_random_env()
@@ -63,7 +57,7 @@ def test_query_speed():
     def run_func():
         env = random.choice(prepared_envs)
         goal, start = get_rnd_query_pts(env)
-        p, d = env.find_shortest_path(start, goal, verify=False)
+        env.find_shortest_path(start, goal, verify=False)
 
     print()
     t = timefunc(run_func, RUNS_QUERY)

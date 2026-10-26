@@ -1,7 +1,7 @@
 import json
 import pickle
+from collections.abc import Iterable
 from itertools import combinations
-from typing import Dict, Iterable, List, Optional, Set, Tuple
 
 import networkx as nx
 import numpy as np
@@ -9,15 +9,15 @@ import numpy.linalg
 
 from extremitypathfinder import configs
 from extremitypathfinder import types as t
-from extremitypathfinder.contacts import (
-    Contacts,
-    check_polygon_contacts,
-    filter_visible,
-)
 from extremitypathfinder.configs import (
     BOUNDARY_JSON_KEY,
     DEFAULT_PICKLE_NAME,
     HOLES_JSON_KEY,
+)
+from extremitypathfinder.contacts import (
+    Contacts,
+    check_polygon_contacts,
+    filter_visible,
 )
 from extremitypathfinder.utils_numba import (
     _angle_rep_inverse,
@@ -42,7 +42,7 @@ def cmp_reps_n_distances(orig_idx: int, coords: np.ndarray) -> np.ndarray:
 
 def cmp_reps_n_distance_dict(
     coords: np.ndarray, extremity_indices: np.ndarray
-) -> Dict[int, np.ndarray]:
+) -> dict[int, np.ndarray]:
     # Note: distance and angle representation relation are symmetric,
     # but exploiting this has been found to be slower than using the numpy functionality with slight overhead
     reps_n_distance_dict = {
@@ -52,7 +52,7 @@ def cmp_reps_n_distance_dict(
 
 
 def is_within_map(
-    p: np.ndarray, boundary: Optional[np.ndarray], holes: Iterable[np.ndarray]
+    p: np.ndarray, boundary: np.ndarray | None, holes: Iterable[np.ndarray]
 ) -> bool:
     if boundary is not None and not _inside_polygon(p, boundary, border_value=True):
         return False
@@ -147,7 +147,7 @@ def _check_polygon(polygon):
 
 
 def check_data_requirements(
-    boundary_coords: np.ndarray, list_hole_coords: List[np.ndarray]
+    boundary_coords: np.ndarray, list_hole_coords: list[np.ndarray]
 ):
     """ensures that all the following conditions on the polygons are fulfilled:
         - basic polygon requirements (s. above)
@@ -167,7 +167,7 @@ def check_data_requirements(
     check_hole_data_requirements(list_hole_coords)
 
 
-def check_hole_data_requirements(list_hole_coords: List[np.ndarray]):
+def check_hole_data_requirements(list_hole_coords: list[np.ndarray]):
     """Validate the shape and clockwise numbering of hole polygons."""
     for hole_coords in list_hole_coords:
         _check_polygon(hole_coords)
@@ -178,11 +178,11 @@ def check_hole_data_requirements(list_hole_coords: List[np.ndarray]):
 def _find_within_range(
     repr1: float,
     repr2: float,
-    candidate_idxs: Set[int],
+    candidate_idxs: set[int],
     angle_range_less_180: bool,
     equal_repr_allowed: bool,
     representations: np.ndarray,
-) -> Set[int]:
+) -> set[int]:
     """
     filters out all vertices whose representation lies within the range between
       the two given angle representations
@@ -242,7 +242,7 @@ def _find_within_range(
 
 def get_neighbour_idxs(
     i: int, vertex_edge_idxs: np.ndarray, edge_vertex_idxs: np.ndarray
-) -> Tuple[int, int]:
+) -> tuple[int, int]:
     edge_idx1, edge_idx2 = vertex_edge_idxs[i]
     neigh_idx1 = edge_vertex_idxs[edge_idx1, 0]
     neigh_idx2 = edge_vertex_idxs[edge_idx2, 1]
@@ -251,16 +251,16 @@ def get_neighbour_idxs(
 
 def find_visible(
     origin: int,
-    candidates: Set[int],
-    edges_to_check: Set[int],
+    candidates: set[int],
+    edges_to_check: set[int],
     coords: np.ndarray,
     representations: np.ndarray,
     distances: np.ndarray,
     edge_vertex_idxs: np.ndarray,
     vertex_edge_idxs: np.ndarray,
     extremity_mask: np.ndarray,
-    exactly_checked: Optional[np.ndarray] = None,
-) -> Set[int]:
+    exactly_checked: np.ndarray | None = None,
+) -> set[int]:
     """finds all candidates visible from the origin
 
     approach:
@@ -361,8 +361,8 @@ def find_visible(
 
 
 def _eliminate_eq_candidates(
-    candidates: List[int], distances: np.ndarray, representations: np.ndarray
-) -> List[int]:
+    candidates: list[int], distances: np.ndarray, representations: np.ndarray
+) -> list[int]:
     # sort after angle representation, then after distance ascending
     candidates_sorted = sorted(
         candidates, key=lambda i: (representations[i], distances[i])
@@ -544,11 +544,11 @@ def check_candidates_one_edge(
     p2: int,
     candidate_ptr: int,
     origin: int,
-    candidate_indices: List[int],
+    candidate_indices: list[int],
     coords: np.ndarray,
     distances: np.ndarray,
     representations: np.ndarray,
-    exactly_checked: Optional[np.ndarray] = None,
+    exactly_checked: np.ndarray | None = None,
 ):
     # start over at the same candidate than the previous edge
     # Note: candidates with the same representation as an edge vertex are not blocked by the edge (s. below)
@@ -637,8 +637,8 @@ def check_candidates_one_edge(
 
 
 def _check_candidates(
-    candidate_idxs: List[int],
-    edge_idxs_sorted: List[int],
+    candidate_idxs: list[int],
+    edge_idxs_sorted: list[int],
     edges_max_rep: np.ndarray,
     edges_min_rep: np.ndarray,
     origin: int,
@@ -647,7 +647,7 @@ def _check_candidates(
     coords: np.ndarray,
     edge_vertex_idxs: np.ndarray,
     edges_max_dist: np.ndarray,
-    exactly_checked: Optional[np.ndarray] = None,
+    exactly_checked: np.ndarray | None = None,
 ):
     candidate_ptr = 0
     for edge_idx in edge_idxs_sorted:
@@ -690,14 +690,14 @@ def _find_visible_and_in_front(
     origin: int,
     nr_edges: int,
     coords: np.ndarray,
-    candidates: Set[int],
-    candidates_in_front: Set[int],
+    candidates: set[int],
+    candidates_in_front: set[int],
     extremity_mask: np.ndarray,
     distances: np.ndarray,
     representations: np.ndarray,
     vertex_edge_idxs: np.ndarray,
     edge_vertex_idxs: np.ndarray,
-    contacts: Optional[Contacts] = None,
+    contacts: Contacts | None = None,
 ):
     # vertices all belong to a polygon
     # at a contact the extremity is the wedge > 180 degree:
@@ -794,7 +794,7 @@ def get_distance(n1, n2, reprs_n_distances):
 
 
 def find_identical_single(
-    i: int, candidates: Iterable[int], reprs_n_distances: Dict[int, np.ndarray]
+    i: int, candidates: Iterable[int], reprs_n_distances: dict[int, np.ndarray]
 ) -> int:
     # for shortest path computations all graph nodes should be unique
     # join all nodes with the same coordinates
@@ -811,12 +811,12 @@ def find_identical_single(
 def compute_graph(
     nr_edges: int,
     extremity_indices: Iterable[int],
-    reprs_n_distances: Dict[int, np.ndarray],
+    reprs_n_distances: dict[int, np.ndarray],
     coords: np.ndarray,
     edge_vertex_idxs: np.ndarray,
     extremity_mask: np.ndarray,
     vertex_edge_idxs: np.ndarray,
-    contacts: Optional[Contacts] = None,
+    contacts: Contacts | None = None,
 ) -> t.Graph:
     """computes the visibility graph of the extremities
 
@@ -1035,7 +1035,7 @@ def convert_grid(size_x: int, size_y: int, obstacle_iter: iter) -> (list, list):
 
     def get_unchecked_obstacles(
         obstacles: Iterable, poly: np.ndarray, required_val: bool = True
-    ) -> List:
+    ) -> list:
         unchecked_obstacles = []
         for o in obstacles:
             p = o + 0.5
@@ -1107,7 +1107,7 @@ def _cmp_extremities(
     return extremity_indices, extremity_mask
 
 
-def _cmp_edge_vertex_idxs(coordinates: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+def _cmp_edge_vertex_idxs(coordinates: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     nr_coords = len(coordinates)
     edge_vertex_idxs = np.empty((nr_coords, 2), dtype=int)
     vertex_edge_idxs = np.empty((nr_coords, 2), dtype=int)
@@ -1132,8 +1132,8 @@ def _cmp_edge_and_vertex_idxs(list_of_polygons):
 
 
 def compile_polygon_datastructs(
-    boundary_coordinates: Optional[np.ndarray],
-    list_of_hole_coordinates: List[np.ndarray],
+    boundary_coordinates: np.ndarray | None,
+    list_of_hole_coordinates: list[np.ndarray],
 ):
     list_of_polygons = list_of_hole_coordinates
     if boundary_coordinates is not None:

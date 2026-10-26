@@ -4,7 +4,26 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+  # keep the GitHub Actions used in the workflows up to date
+  # (e.g. avoid deprecated Node.js runtimes, see #76)
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
+    commit-message:
+      prefix: "ci"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+  # keep the pre-commit hooks (also run in CI via pre-commit/action) up to date
+  - package-ecosystem: "pre-commit"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "pre-commit"
+    groups:
+      pre-commit:
+        patterns:
+          - "*"

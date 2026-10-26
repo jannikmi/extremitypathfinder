@@ -67,6 +67,8 @@ internal:
 - automated releases: "prepare release" and "tag release" GitHub workflows, ``scripts/release.py``
 - switched the project tooling from Poetry to uv: standard ``[project]`` metadata and ``[dependency-groups]``,
   ``uv_build`` build backend, ``uv.lock`` (#142)
+- Dependabot keeps the GitHub Actions (grouped into one PR) and the pre-commit hooks up to date (#76)
+- updated the pre-commit hooks (``make hookup``, e.g. ruff 0.17) and applied their fixes
 
 
 2.8.0 (2026-09-18)

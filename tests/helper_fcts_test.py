@@ -1,5 +1,4 @@
 from os.path import abspath, join, pardir
-from typing import Dict, Set
 
 import numpy as np
 import pytest
@@ -23,7 +22,7 @@ def test_inside_polygon():
 
     for border_value in [True, False]:
 
-        def test_fct(input):
+        def test_fct(input, border_value=border_value):
             p = np.array(input, dtype=configs.DTYPE_FLOAT)
             return _inside_polygon(p, polygon_test_case, border_value)
 
@@ -103,10 +102,10 @@ def test_read_json():
     ],
 )
 def test_clean_visible_idxs(
-    visible_idxs: Set[int],
-    cand_idx2repr: Dict[int, float],
-    vert_idx2dist: Dict[int, float],
-    expected: Set[int],
+    visible_idxs: set[int],
+    cand_idx2repr: dict[int, float],
+    vert_idx2dist: dict[int, float],
+    expected: set[int],
 ):
     res = _clean_visibles(visible_idxs, cand_idx2repr, vert_idx2dist)
     assert res == expected
@@ -213,7 +212,7 @@ def test_compute_repr_n_dist(input, expected):
 def test_angle_representation(input, expected):
     def func(input):
         inp = np.array(input, dtype=configs.DTYPE_FLOAT)
-        repr, dist = _compute_repr_n_dist(inp)
+        repr, _dist = _compute_repr_n_dist(inp)
         return repr
 
     assert func(input) == expected
@@ -247,7 +246,7 @@ def test_angle_representation(input, expected):
 def test_angle_repr_quadrant(input, expected):
     def func(input):
         inp = np.array(input, dtype=configs.DTYPE_FLOAT)
-        repr, dist = _compute_repr_n_dist(inp)
+        repr, _dist = _compute_repr_n_dist(inp)
         return repr
 
     res = func(input)

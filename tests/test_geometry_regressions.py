@@ -9,7 +9,6 @@ import pytest
 from extremitypathfinder import PolygonEnvironment
 from tests.test_cases import POLYGON_ENVS
 
-
 BOUNDARY = [(0.0, 0.0), (10.0, 0.0), (10.0, 10.0), (0.0, 10.0)]
 RECTANGULAR_HOLE = [
     (3.0, 4.0),
@@ -68,11 +67,11 @@ def _strictly_inside_polygon(point, polygon):
 def _assert_valid_path(path, reported_distance, holes):
     measured_distance = sum(
         hypot(point2[0] - point1[0], point2[1] - point1[1])
-        for point1, point2 in zip(path, path[1:])
+        for point1, point2 in itertools.pairwise(path)
     )
     assert reported_distance == pytest.approx(measured_distance)
 
-    for segment_start, segment_end in zip(path, path[1:]):
+    for segment_start, segment_end in itertools.pairwise(path):
         midpoint = tuple((a + b) / 2.0 for a, b in zip(segment_start, segment_end))
         for hole in holes:
             assert not _strictly_inside_polygon(midpoint, hole)

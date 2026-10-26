@@ -25,7 +25,7 @@ project_root = os.path.dirname(cwd)
 sys.path.insert(0, os.path.join(project_root))
 
 # needed for auto document, ATTENTION: must then be installed during online build!
-import extremitypathfinder  # noqa: E402 Module level import not at top of file
+import extremitypathfinder
 
 print(extremitypathfinder)
 

@@ -18,18 +18,19 @@ At most one wedge of a point can be larger than 180 degree.
 A path can only bend around a point within such a wedge: the point is an extremity.
 """
 
+import itertools
 from collections import defaultdict
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Callable, Dict, List, Optional, Set, Tuple
 
 import numpy as np
 
 from extremitypathfinder.utils_numba import _compute_repr_n_dist
 
-Wedge = Tuple[float, float]
+Wedge = tuple[float, float]
 # polygon index, angle representation of the rays to the previous and the next vertex,
 # indices of the previous and the next vertex
-Incidence = Tuple[int, float, float, int, int]
+Incidence = tuple[int, float, float, int, int]
 
 
 @dataclass
@@ -48,11 +49,11 @@ class Contacts:
 
     check_idxs: np.ndarray
     exactly_checked: np.ndarray
-    wedges: Dict[int, List[Wedge]] = field(default_factory=dict)
-    contact_of_vertex: Dict[int, int] = field(default_factory=dict)
-    incident_edges: Dict[int, Set[int]] = field(default_factory=dict)
-    extremity_wedges: Dict[int, Wedge] = field(default_factory=dict)
-    wedge_neighbours: Dict[int, Tuple[int, int]] = field(default_factory=dict)
+    wedges: dict[int, list[Wedge]] = field(default_factory=dict)
+    contact_of_vertex: dict[int, int] = field(default_factory=dict)
+    incident_edges: dict[int, set[int]] = field(default_factory=dict)
+    extremity_wedges: dict[int, Wedge] = field(default_factory=dict)
+    wedge_neighbours: dict[int, tuple[int, int]] = field(default_factory=dict)
 
 
 def _rep(vector: np.ndarray) -> float:
@@ -75,7 +76,7 @@ def wedge_size(wedge: Wedge) -> float:
     return (end - start) % 4.0
 
 
-def _group_identical(coords: np.ndarray) -> List[List[int]]:
+def _group_identical(coords: np.ndarray) -> list[list[int]]:
     """groups the indices of all vertices with exactly equal coordinates
 
     Note: np.unique(axis=0) would compare the bytes and distinguish 0.0 and -0.0
@@ -86,12 +87,12 @@ def _group_identical(coords: np.ndarray) -> List[List[int]]:
     is_new[1:] = np.any(coords_sorted[1:] != coords_sorted[:-1], axis=1)
     starts = np.flatnonzero(is_new).tolist() + [len(coords)]
     order = order.tolist()
-    return [order[start:end] for start, end in zip(starts, starts[1:])]
+    return [order[start:end] for start, end in itertools.pairwise(starts)]
 
 
 def _find_edges_through_points(
     points: np.ndarray, coords: np.ndarray, edge_vertex_idxs: np.ndarray
-) -> Dict[int, List[int]]:
+) -> dict[int, list[int]]:
     """finds the edges passing through the points (excluding the edge vertices)
 
     :return: the indices of the edges passing through every point (only for points with such edges)
@@ -126,20 +127,20 @@ def _find_edges_through_points(
 
 def _neighbours(
     i: int, vertex_edge_idxs: np.ndarray, edge_vertex_idxs: np.ndarray
-) -> Tuple[int, int]:
+) -> tuple[int, int]:
     edge_idx1, edge_idx2 = vertex_edge_idxs[i]
     return int(edge_vertex_idxs[edge_idx1, 0]), int(edge_vertex_idxs[edge_idx2, 1])
 
 
 def _incidences(
     point: np.ndarray,
-    vertex_idxs: List[int],
-    edge_idxs: List[int],
+    vertex_idxs: list[int],
+    edge_idxs: list[int],
     coords: np.ndarray,
     edge_vertex_idxs: np.ndarray,
     vertex_edge_idxs: np.ndarray,
     vertex_polygon_idxs: np.ndarray,
-) -> List[Incidence]:
+) -> list[Incidence]:
     # vertices: the rays point to the previous and to the next vertex
     # edges passing through: the rays point to the start and to the end of the edge
     # in both cases the free side (left of the edges) reaches counter clockwise from the second to the first ray
@@ -168,8 +169,8 @@ def _on_free_side(rep: float, incidence: Incidence) -> bool:
 
 
 def free_wedges(
-    incidences: List[Incidence], boundary_polygon_idx: Optional[int]
-) -> List[Tuple[Wedge, Tuple[int, int]]]:
+    incidences: list[Incidence], boundary_polygon_idx: int | None
+) -> list[tuple[Wedge, tuple[int, int]]]:
     """computes the free wedges around a point
 
     The rays of all incidences split the surrounding into elementary angle ranges ("arcs").
@@ -182,7 +183,7 @@ def free_wedges(
 
     :return: the free wedges and the vertex indices in the direction of their bounding rays
     """
-    ray_vertices: Dict[float, int] = {}
+    ray_vertices: dict[float, int] = {}
     for _, rep_a, rep_b, i_a, i_b in incidences:
         ray_vertices.setdefault(rep_a, i_a)
         ray_vertices.setdefault(rep_b, i_b)
@@ -220,9 +221,9 @@ def compute_contacts(
     vertex_edge_idxs: np.ndarray,
     polygon_extremity_mask: np.ndarray,
     vertex_polygon_idxs: np.ndarray,
-    boundary_polygon_idx: Optional[int],
+    boundary_polygon_idx: int | None,
     within_map: Callable[[np.ndarray], bool],
-) -> Tuple[Contacts, np.ndarray]:
+) -> tuple[Contacts, np.ndarray]:
     """finds all contacts and the free wedges at all vertices where passing through might be blocked
 
     :param polygon_extremity_mask: the extremities of the single polygons (within the map), ignoring contacts
@@ -299,13 +300,13 @@ def _passable(
 
 def filter_visible(
     origin: int,
-    visible: Set[int],
+    visible: set[int],
     coords: np.ndarray,
     representations: np.ndarray,
     distances: np.ndarray,
     contacts: Contacts,
-    query_contacts: Optional[Dict[int, int]] = None,
-) -> Set[int]:
+    query_contacts: dict[int, int] | None = None,
+) -> set[int]:
     """removes the visible candidates which are blocked by contacts
 
     * a line of sight to a contact extremity must arrive within its wedge
@@ -349,9 +350,7 @@ def filter_visible(
     return visible
 
 
-def contact_at(
-    point: np.ndarray, coords: np.ndarray, contacts: Contacts
-) -> Optional[int]:
+def contact_at(point: np.ndarray, coords: np.ndarray, contacts: Contacts) -> int | None:
     """the contact point identical to the given point, ``None`` if there is no such contact
 
     :param coords: the coordinates of all polygon vertices

@@ -182,7 +182,7 @@ def test_boundary_touching_itself_separates_the_map():
     environment = PolygonEnvironment(boundary, [], validate=True)
 
     assert environment.find_shortest_path((1.0, 1.0), (9.0, 9.0)) == ([], None)
-    path, length = environment.find_shortest_path((1.0, 1.0), (4.0, 2.0))
+    path, _ = environment.find_shortest_path((1.0, 1.0), (4.0, 2.0))
     assert path == [(1.0, 1.0), (4.0, 2.0)]
 
 
