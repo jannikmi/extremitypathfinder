@@ -1,7 +1,6 @@
 # size_x, size_y, obstacle_iter
 from math import sqrt
 
-
 GRID_ENV_PARAMS = (
     19,
     10,

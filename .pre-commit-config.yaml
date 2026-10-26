@@ -1,6 +1,6 @@
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.6.0
+    rev: v6.0.0
     hooks:
       - id: check-ast  # Is it valid Python?
       - id: debug-statements # no debbuging statements used
@@ -20,21 +20,21 @@ repos:
       - id: detect-private-key
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.3.5
+    rev: v0.17.2
     hooks:
       # linter.
-      - id: ruff
+      - id: ruff-check
         args: [ --fix ]
       - id: ruff-format
 
   - repo: https://github.com/asottile/blacken-docs
-    rev: 1.16.0
+    rev: 1.20.0
     hooks:
       - id: blacken-docs
         additional_dependencies: [ black ]
 
   - repo: https://github.com/pycqa/flake8
-    rev: 7.0.0
+    rev: 7.4.1
     hooks:
       - id: flake8
         exclude: ^(docs|scripts|tests)/
@@ -48,14 +48,14 @@ repos:
           - flake8-tidy-imports
 
   - repo: https://github.com/mgedmin/check-manifest
-    rev: "0.49"
+    rev: "0.51"
     hooks:
       - id: check-manifest
         args: [ "--no-build-isolation", "--ignore",  "*.png,docs/*,publish.py,readthedocs.yml,uv.lock,pyproject.toml.orig,setup.py,scripts/*,prototypes/*" ]
         additional_dependencies: [ numpy, "uv_build>=0.13.5,<0.14" ]
 
   - repo: https://github.com/asottile/pyupgrade
-    rev: v3.21.2
+    rev: v3.22.0
     hooks:
       - id: pyupgrade
 

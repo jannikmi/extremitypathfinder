@@ -1,5 +1,4 @@
 import math
-from typing import Optional, Tuple
 
 import numpy as np
 
@@ -16,7 +15,7 @@ FloatTuple = typeof((1.0, 1.0))
 
 
 @njit(FloatTuple(f8[:]), cache=True)
-def _compute_repr_n_dist(np_vector: np.ndarray) -> Tuple[float, float]:
+def _compute_repr_n_dist(np_vector: np.ndarray) -> tuple[float, float]:
     """computing representation for the angle from the origin to a given vector
 
     value in [0.0 : 4.0[
@@ -71,7 +70,7 @@ def _compute_repr_n_dist(np_vector: np.ndarray) -> Tuple[float, float]:
 
 
 @njit(cache=True)
-def _angle_rep_inverse(repr: Optional[float]) -> Optional[float]:
+def _angle_rep_inverse(repr: float | None) -> float | None:
     if repr is None:
         repr_inv = None
     else:

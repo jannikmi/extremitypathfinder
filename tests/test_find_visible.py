@@ -6,7 +6,6 @@ current test cases: all vertices of the test polygons
 """
 
 import itertools
-from typing import Set, Tuple
 
 import numpy as np
 import pytest
@@ -24,10 +23,10 @@ def find_candidates_behind(
     origin: int,
     v1: int,
     v2: int,
-    candidates: Set[int],
+    candidates: set[int],
     distances: np.ndarray,
     coords: np.ndarray,
-) -> Set[int]:
+) -> set[int]:
     dist_v1 = distances[v1]
     dist_v2 = distances[v2]
     max_distance = max(dist_v1, dist_v2)
@@ -48,8 +47,8 @@ def find_candidates_behind(
 
 
 def _clean_visibles(
-    visible_idxs: Set[int], cand_idx2repr: np.ndarray, vert_idx2dist: np.ndarray
-) -> Set[int]:
+    visible_idxs: set[int], cand_idx2repr: np.ndarray, vert_idx2dist: np.ndarray
+) -> set[int]:
     # in case some vertices have the same representation, only return (link) the closest vertex
     if len(visible_idxs) <= 1:
         return visible_idxs
@@ -78,15 +77,15 @@ def _clean_visibles(
 
 def find_visible_reference(
     origin: int,
-    candidates: Set[int],
-    edges_to_check: Set[int],
+    candidates: set[int],
+    edges_to_check: set[int],
     coords: np.ndarray,
     representations: np.ndarray,
     distances: np.ndarray,
     edge_vertex_idxs: np.ndarray,
     vertex_edge_idxs: np.ndarray,
     extremity_mask: np.ndarray,
-) -> Set[int]:
+) -> set[int]:
     """
     :param origin: the vertex for which the visibility to the other candidates should be checked.
     :param candidates: the set of all vertex ids which should be checked for visibility.
@@ -107,7 +106,7 @@ def find_visible_reference(
     samples = {}
     edges_to_skip = set()
 
-    def skip_edge(node: int, edge2discard: int) -> Tuple[int, bool, int, int]:
+    def skip_edge(node: int, edge2discard: int) -> tuple[int, bool, int, int]:
         # node identical to origin
         # mark this vertex as not visible (would otherwise add 0 distance edge in the graph)
         candidates.discard(node)
@@ -249,7 +248,7 @@ def compile_boundary_data(env):
 
 
 def _yield_input_args(boundary_data):
-    coords, extremity_indices, extremity_mask, vertex_edge_idxs, edge_vertex_idxs = (
+    coords, _extremity_indices, extremity_mask, vertex_edge_idxs, edge_vertex_idxs = (
         boundary_data
     )
     candidates = set(np.where(extremity_mask)[0])
@@ -349,12 +348,12 @@ def test_find_visible(
         vertex_edge_idxs,
         extremity_mask,
     )
-    assert (
-        visibles_found == visibles_expected
-    ), f"expected {visibles_expected} but got {visibles_found}"
+    assert visibles_found == visibles_expected, (
+        f"expected {visibles_expected} but got {visibles_found}"
+    )
 
 
-def _visibility_relation(boundary_data) -> Set[Tuple[Tuple[float, float], ...]]:
+def _visibility_relation(boundary_data) -> set[tuple[tuple[float, float], ...]]:
     """all pairs of visible extremities, as computed for the graph construction
 
     Note: without the (one-sided) elimination of extremities lying "in front"
