@@ -182,16 +182,22 @@ Plotting
 --------
 
 
-The class ``PlottingEnvironment`` wraps an environment and automatically generates plots
-for every step in the path finding process:
+``environment.search()`` performs the same search as ``find_shortest_path()``,
+but returns a ``SearchResult`` with the data of the search (e.g. the search graph) in addition to the path and its length.
+The functions in ``plotting.py`` plot an environment and the steps of a search:
 
 .. code-block:: python
 
-    from extremitypathfinder.plotting import PlottingEnvironment
+    from extremitypathfinder.plotting import plot_environment, plot_search
 
     environment = PolygonEnvironment(boundary_coordinates, list_of_holes, validate=True)
-    plotting_environment = PlottingEnvironment(environment, plotting_dir="path/to/plots")
-    path, distance = plotting_environment.find_shortest_path(start, end)
+    # the input polygons and the visibility graph
+    plot_environment(environment, plotting_dir="path/to/plots")
+
+    result = environment.search(start, end)
+    path, distance = result.path, result.length
+    # the found path and the search graph
+    plot_search(environment, result, plotting_dir="path/to/plots")
 
 
 Other functions in ``plotting.py`` can be utilised to plot specific parts of an environment (extremities, edges, ...)

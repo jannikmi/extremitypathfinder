@@ -6,7 +6,7 @@ import pytest
 
 from extremitypathfinder import utils
 from extremitypathfinder.extremitypathfinder import PolygonEnvironment
-from extremitypathfinder.plotting import PlottingEnvironment, set_limits
+from extremitypathfinder.plotting import plot_environment, plot_search, set_limits
 from tests.helpers import other_edge_intersects
 from tests.test_cases import (
     GRID_ENV_PARAMS,
@@ -31,14 +31,19 @@ if PLOT_TEST_RESULTS:
 
 def try_test_cases(environment, test_cases):
     if PLOT_TEST_RESULTS:
-        environment = PlottingEnvironment(
-            environment, plotting_dir=TEST_PLOT_OUTPUT_FOLDER
-        )
+        plot_environment(environment, TEST_PLOT_OUTPUT_FOLDER)
+
+    def find_shortest_path(start_coordinates, goal_coordinates):
+        if not PLOT_TEST_RESULTS:
+            return environment.find_shortest_path(
+                start_coordinates, goal_coordinates, verify=True
+            )
+        result = environment.search(start_coordinates, goal_coordinates, verify=True)
+        plot_search(environment, result, TEST_PLOT_OUTPUT_FOLDER)
+        return result.path, result.length
 
     def validate(start_coordinates, goal_coordinates, expected_output):
-        output = environment.find_shortest_path(
-            start_coordinates, goal_coordinates, verify=True
-        )
+        output = find_shortest_path(start_coordinates, goal_coordinates)
         path, length = output
         assert isinstance(path, list), "path should be a list"
         expected_path, expected_length = expected_output
@@ -221,22 +226,64 @@ def test_all_coords_work_as_input(env_data):
         env.find_shortest_path(coords_start, coords_goal, verify=True)
 
 
-def test_plotting_environment_wraps_environment(tmp_path):
-    environment = PolygonEnvironment(*POLY_ENV_PARAMS)
-    plotting_env = PlottingEnvironment(environment, plotting_dir=str(tmp_path))
-    assert plotting_env.environment is environment
-    nr_plots = len(list(tmp_path.iterdir()))
-    assert (
-        nr_plots == 2
-    ), "the input polygons and the visibility graph should be plotted"
+# start and goal in POLY_ENV_PARAMS with direct visibility (below the square hole)
+DIRECT_QUERY_POLY_ENV = ((0.5, 0.5), (1.5, 0.5))
 
-    # a query without direct path, the search graph is plotted as well
+
+@pytest.mark.parametrize(
+    "env_params, test_cases",
+    [
+        (POLY_ENV_PARAMS, TEST_DATA_POLY_ENV),
+        (OVERLAP_POLY_ENV_PARAMS, TEST_DATA_OVERLAP_POLY_ENV),
+        (SEPARATED_ENV, TEST_DATA_SEPARATE_ENV),
+    ],
+)
+def test_search_matches_find_shortest_path(env_params, test_cases):
+    environment = PolygonEnvironment(*env_params)
+    for (start_coordinates, goal_coordinates), _ in test_cases:
+        result = environment.search(start_coordinates, goal_coordinates)
+        assert (result.path, result.length) == environment.find_shortest_path(
+            start_coordinates, goal_coordinates
+        )
+        np.testing.assert_array_equal(
+            result.coords[-2:], [start_coordinates, goal_coordinates]
+        )
+        if result.graph is None:
+            assert result.idx_start is None and result.idx_goal is None
+        else:
+            assert result.idx_start in result.graph
+            assert result.idx_goal in result.graph
+
+
+def test_search_returns_search_graph_only_when_built():
+    environment = PolygonEnvironment(*POLY_ENV_PARAMS)
+    result = environment.search(*DIRECT_QUERY_POLY_ENV)
+    assert result.path == list(DIRECT_QUERY_POLY_ENV)
+    assert result.graph is None, "the goal is directly visible, no search graph needed"
+    indirect_cases = [c for c in TEST_DATA_POLY_ENV if len(c[1][0]) > 2]
+    assert indirect_cases
+    for (start_coordinates, goal_coordinates), _ in indirect_cases:
+        result = environment.search(start_coordinates, goal_coordinates)
+        assert result.graph is not None
+        # the precomputed visibility graph is not changed by the search
+        assert result.graph is not environment.graph
+        assert environment.idx_goal not in environment.graph
+
+
+def test_plotting(tmp_path):
+    environment = PolygonEnvironment(*POLY_ENV_PARAMS)
+    plot_environment(environment, plotting_dir=str(tmp_path / "environment"))
+    assert len(list((tmp_path / "environment").iterdir())) == 2
+
     (start_coordinates, goal_coordinates), _ = next(
         case for case in TEST_DATA_POLY_ENV if len(case[1][0]) > 2
     )
-    path, length = plotting_env.find_shortest_path(start_coordinates, goal_coordinates)
-    assert (path, length) == environment.find_shortest_path(
-        start_coordinates, goal_coordinates
-    )
-    assert len(list(tmp_path.iterdir())) > nr_plots, "the path should be plotted"
-    assert environment.temp_graph is None
+    result = environment.search(start_coordinates, goal_coordinates)
+    plot_search(environment, result, plotting_dir=str(tmp_path / "search"))
+    # path, search graph and search graph with path
+    assert len(list((tmp_path / "search").iterdir())) == 3
+
+    result = environment.search(*DIRECT_QUERY_POLY_ENV)
+    plot_search(environment, result, plotting_dir=str(tmp_path / "direct"))
+    # no search graph: only the path
+    assert len(list((tmp_path / "direct").iterdir())) == 1

@@ -14,10 +14,13 @@ PolygonEnvironment
 ------------------
 .. autoclass:: PolygonEnvironment
 
+.. autoclass:: SearchResult
+
 
 .. py:module:: extremitypathfinder.plotting
 
-PlottingEnvironment
--------------------
-.. autoclass:: PlottingEnvironment
-   :members: find_shortest_path
+Plotting
+--------
+.. autofunction:: plot_environment
+
+.. autofunction:: plot_search

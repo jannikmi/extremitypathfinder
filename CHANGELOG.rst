@@ -11,8 +11,13 @@ BREAKING: the environment is initialised in one step:
 - ``PolygonEnvironment.from_grid_world(size_x, size_y, obstacle_iter)`` replaces ``.store_grid_world()``
 - removed the ``.prepare()`` method and the ``prepared`` attribute
   (a separate ``.prepare()`` call has not been needed since 2.5.0)
-- ``PlottingEnvironment`` wraps an existing environment: ``PlottingEnvironment(environment, plotting_dir=...)``.
-  It plots the input polygons and the visibility graph on construction and each path in ``find_shortest_path()``.
+- removed the ``free_space_after`` parameter of ``find_shortest_path()`` and the ``temp_graph`` attribute.
+  The search graph of a query is returned by ``search()`` instead of being stored in the environment.
+- new ``search()`` method: performs the same search as ``find_shortest_path()``, but returns a ``SearchResult``
+  with the search data (search graph, start and goal nodes, coordinates) in addition to the path and its length
+- removed ``PlottingEnvironment``. Use the functions ``plot_environment(environment, plotting_dir)``
+  and ``plot_search(environment, result, plotting_dir)`` in ``extremitypathfinder.plotting`` instead.
+  The plotting directory is a parameter of the plotting functions instead of a global setting.
 
 other changes:
 
