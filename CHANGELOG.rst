@@ -4,6 +4,9 @@ Changelog
 Unreleased
 ----------
 
+- BREAKING: removed the public ``.prepare()`` method and the ``prepared`` attribute.
+  Storing an environment (``store()``, ``store_grid_world()``) computes the visibility graph in one step,
+  a separate ``.prepare()`` call has not been needed since 2.5.0.
 - added a grid world example to the README
 
 bugfixes:

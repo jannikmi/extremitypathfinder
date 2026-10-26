@@ -229,3 +229,17 @@ def test_all_coords_work_as_input(env_data):
             continue
 
         env.find_shortest_path(coords_start, coords_goal, verify=True)
+
+
+def test_query_without_stored_environment_raises():
+    environment = PolygonEnvironment()
+    with pytest.raises(ValueError, match="No Polygons have been loaded"):
+        environment.find_shortest_path((0.0, 0.0), (1.0, 1.0))
+
+
+def test_store_computes_graph_in_one_step():
+    environment = PolygonEnvironment()
+    assert not hasattr(environment, "prepare")
+    environment.store(*POLY_ENV_PARAMS[:2])
+    assert environment.graph is not None
+    assert len(environment.graph.nodes) > 0

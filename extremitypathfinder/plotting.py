@@ -230,9 +230,9 @@ class PlottingEnvironment(PolygonEnvironment):
         super().store(*args, **kwargs)
         draw_loaded_map(self)
 
-    def prepare(self):
+    def _compute_graph(self):
         """Also draws a prepared map with the computed visibility graph."""
-        super().prepare()
+        super()._compute_graph()
         draw_prepared_map(self)
 
     def find_shortest_path(self, start_coordinates, goal_coordinates, *args, **kwargs):

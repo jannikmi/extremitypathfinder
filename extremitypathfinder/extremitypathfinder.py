@@ -1,5 +1,4 @@
 import pickle
-import warnings
 from typing import Dict, Iterable, List, Optional, Set, Tuple
 
 import networkx as nx
@@ -22,7 +21,7 @@ from extremitypathfinder.types import (
 class PolygonEnvironment:
     """Class allowing to use polygons to represent "2D environments" and use them for path finding.
 
-    Keeps a "loaded" and prepared environment for consecutive path queries.
+    Keeps a "loaded" environment with a precomputed visibility graph for consecutive path queries.
     Internally uses a visibility graph optimised for shortest path finding.
     General approach and some optimisations theoretically described in:
     [1] Vinther, Anders Strand-Holm, Magnus Strand-Holm Vinther, and Peyman Afshani.
@@ -41,11 +40,10 @@ class PolygonEnvironment:
     """
 
     nr_edges: int
-    prepared: bool = False
     holes: List[np.ndarray]
     extremity_indices: np.ndarray
     reprs_n_distances: Dict[int, np.ndarray]
-    graph: t.Graph
+    graph: Optional[t.Graph] = None
     temp_graph: Optional[t.Graph] = (
         None  # for storing and plotting the graph during a query
     )
@@ -75,7 +73,7 @@ class PolygonEnvironment:
         list_of_hole_coordinates: InputCoordList,
         validate: bool = False,
     ):
-        """saves the passed input polygons in the environment
+        """saves the passed input polygons in the environment and computes the visibility graph
 
         .. note:: the passed polygons must meet these requirements:
 
@@ -96,7 +94,7 @@ class PolygonEnvironment:
         :raises ValueError: when validate=True and the input violates the requirements above,
             and when ``boundary_coordinates`` is ``None`` and no holes are given.
         """
-        self.prepared = False
+        self.graph = None
         # loading the map
         list_of_hole_coordinates = [
             np.array(hole_coords, dtype=configs.DTYPE_FLOAT)
@@ -143,7 +141,7 @@ class PolygonEnvironment:
         self.idx_start = nr_total_pts
         self.idx_goal = nr_total_pts + 1
 
-        self.prepare()
+        self._compute_graph()
 
     def store_grid_world(
         self,
@@ -176,7 +174,7 @@ class PolygonEnvironment:
             pickle.dump(self, f)
         print("done.\n")
 
-    def prepare(self):
+    def _compute_graph(self):
         """Computes a visibility graph optimized (=reduced) for path planning and stores it
 
         Computes all directly reachable extremities based on visibility and their distance to each other
@@ -197,12 +195,6 @@ class PolygonEnvironment:
             and storing them in the graph would not be an advantage, because then the graph is fully connected.
             A* would visit every node in the graph at least once (-> disadvantage!).
         """
-        if self.prepared:  # idempotent
-            warnings.warn(
-                "called .prepare() on already prepared map. skipping...", stacklevel=1
-            )
-            return
-
         self.graph = utils.compute_graph(
             self.nr_edges,
             self.extremity_indices,
@@ -212,7 +204,6 @@ class PolygonEnvironment:
             self.extremity_mask,
             self.vertex_edge_idxs,
         )
-        self.prepared = True
 
     def within_map(self, coords: np.ndarray) -> bool:
         """Check whether coordinates lie outside holes and within any boundary.
@@ -263,8 +254,8 @@ class PolygonEnvironment:
         :return: a tuple of shortest path and its length. ([], None) if there is no possible path.
         """
         # path planning query:
-        # make sure the map has been loaded and prepared
-        if not self.prepared:
+        # make sure the map has been loaded and the visibility graph computed
+        if self.graph is None:
             raise ValueError("No Polygons have been loaded into the map yet.")
 
         coords_start = np.array(start_coordinates, dtype=float)
