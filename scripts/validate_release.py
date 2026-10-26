@@ -8,7 +8,6 @@ import tempfile
 import venv
 from pathlib import Path
 
-
 SMOKE_TEST = """
 import json
 from importlib.metadata import version

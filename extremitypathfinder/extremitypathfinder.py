@@ -1,13 +1,12 @@
 import pickle
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Dict, Iterable, List, Optional, Set, Tuple
 
 import networkx as nx
 import numpy as np
 
-from extremitypathfinder import configs
+from extremitypathfinder import configs, utils
 from extremitypathfinder import types as t
-from extremitypathfinder import utils
 from extremitypathfinder.configs import DEFAULT_PICKLE_NAME
 from extremitypathfinder.types import (
     InputCoord,
@@ -37,9 +36,9 @@ class SearchResult:
     path: Path
     length: Length
     coords: np.ndarray
-    graph: Optional[t.Graph] = None
-    idx_start: Optional[int] = None
-    idx_goal: Optional[int] = None
+    graph: t.Graph | None = None
+    idx_start: int | None = None
+    idx_goal: int | None = None
 
 
 class PolygonEnvironment:
@@ -64,11 +63,11 @@ class PolygonEnvironment:
     """
 
     nr_edges: int
-    holes: List[np.ndarray]
+    holes: list[np.ndarray]
     extremity_indices: np.ndarray
-    reprs_n_distances: Dict[int, np.ndarray]
+    reprs_n_distances: dict[int, np.ndarray]
     graph: t.Graph
-    boundary_polygon: Optional[np.ndarray]
+    boundary_polygon: np.ndarray | None
     coords: np.ndarray
     edge_vertex_idxs: np.ndarray
     extremity_mask: np.ndarray
@@ -177,12 +176,12 @@ class PolygonEnvironment:
         return self.nr_vertices
 
     @property
-    def all_extremities(self) -> List[Tuple]:
+    def all_extremities(self) -> list[tuple]:
         coords = self.coords
         return [tuple(coords[i]) for i in self.extremity_indices]
 
     @property
-    def all_vertices(self) -> List[Tuple]:
+    def all_vertices(self) -> list[tuple]:
         coords = self.coords
         return [tuple(coords[i]) for i in range(self.nr_vertices)]
 
@@ -238,9 +237,9 @@ class PolygonEnvironment:
         coords: np.ndarray,
         vert_idx2repr: np.ndarray,
         vert_idx2dist: np.ndarray,
-    ) -> Set[int]:
+    ) -> set[int]:
         # Note: points with equal coordinates should not be considered visible (will be merged later)
-        candidates = {i for i in candidates if not vert_idx2dist[i] == 0.0}
+        candidates = {i for i in candidates if vert_idx2dist[i] != 0.0}
         edge_idxs2check = set(range(self.nr_edges))
         return utils.find_visible(
             origin,
@@ -259,7 +258,7 @@ class PolygonEnvironment:
         start_coordinates: InputCoord,
         goal_coordinates: InputCoord,
         verify: bool = True,
-    ) -> Tuple[Path, Length]:
+    ) -> tuple[Path, Length]:
         """computes the shortest path and its length between start and goal node
 
         :param start_coordinates: a (x,y) coordinate tuple representing the start node
@@ -314,7 +313,7 @@ class PolygonEnvironment:
         origin = goal
         # the visibility of only the graph nodes has to be checked (not all extremities!)
         # IMPORTANT: also check if the start node is visible from the goal node!
-        candidate_idxs: Set[int] = set(self.graph.nodes)
+        candidate_idxs: set[int] = set(self.graph.nodes)
         candidate_idxs.add(start)
         repr_n_dists = utils.cmp_reps_n_distances(origin, coords)
         self.reprs_n_distances[origin] = repr_n_dists

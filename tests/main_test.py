@@ -58,7 +58,9 @@ def try_test_cases(environment, test_cases):
         else:
             status_str = "XX"
         print(f"{status_str} input: {(start_coordinates, goal_coordinates)} ")
-        assert correct_result, f"unexpected result (path, length): got {output} instead of {expected_output} "
+        assert correct_result, (
+            f"unexpected result (path, length): got {output} instead of {expected_output} "
+        )
 
     print("testing if path and distance are correct:")
     for (start_coordinates, goal_coordinates), expected_output in test_cases:
@@ -87,17 +89,17 @@ def test_grid_env():
     # even after many queries the internal graph should have the same structure as before
     # otherwise the temporarily added vertices during a query stay stored
     nr_graph_nodes = len(grid_env.graph.nodes)
-    assert (
-        nr_graph_nodes == 16
-    ), "the graph should stay unchanged by shortest path queries!"
+    assert nr_graph_nodes == 16, (
+        "the graph should stay unchanged by shortest path queries!"
+    )
 
 
 def test_poly_env():
     poly_env = PolygonEnvironment(*POLY_ENV_PARAMS, validate=True)
     nr_exp_extremities = 4
-    assert (
-        len(list(poly_env.all_extremities)) == nr_exp_extremities
-    ), f"the environment should detect all {nr_exp_extremities} extremities!"
+    assert len(list(poly_env.all_extremities)) == nr_exp_extremities, (
+        f"the environment should detect all {nr_exp_extremities} extremities!"
+    )
     nr_nodes_env2 = len(poly_env.graph.nodes)
     assert nr_nodes_env2 == nr_exp_extremities, (
         f"the visibility graph should store all {nr_exp_extremities} extremities {list(poly_env.all_extremities)}!"
