@@ -131,7 +131,7 @@ Implementation
 
 
 Visibility detection: "Angle Range Elimination Algorithm" (AREA, Contribution of this package)
-****************************************************************************************************
+______________________________________________________________________________________________
 
 AREA is an algorithm for computing the visibility graph.
 
@@ -175,7 +175,7 @@ The core visibility algorithm (for one origin) is implemented in ``find_visible(
 
 
 Comparison:
-***********
+___________
 
 **Lee's visibility graph algorithm**:
 
@@ -190,7 +190,7 @@ complexity: :math:`O(n^2 log_2 n)` (cf. `these slides <https://dav.ee/papers/Vis
 
 
 Optimised Pathfinding:
-**********************
+______________________
 
 The shortest path is computed with the default ``A*`` implementation of the ``networkx`` package
 (``networkx.astar_path()``), using the euclidean distance as heuristic.
