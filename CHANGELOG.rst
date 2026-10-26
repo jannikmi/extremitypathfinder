@@ -5,6 +5,7 @@ Unreleased
 ----------
 
 - added a grid world example to the README
+- support CPython 3.15: tested in CI with the latest and the oldest dependencies providing 3.15 wheels
 
 bugfixes:
 

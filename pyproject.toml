@@ -19,6 +19,7 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.15",
     "Topic :: Scientific/Engineering",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "Topic :: Education",
@@ -83,8 +84,8 @@ legacy_tox_ini = """
 minversion = 4
 isolated_build = true
 envlist =
-    py{312,313,314}{,-numba}
-    py{312,313,314}-minimum{,-numba}
+    py{312,313,314,315}{,-numba}
+    py{312,313,314,315}-minimum{,-numba}
 
 [testenv]
 package = wheel
@@ -94,9 +95,14 @@ deps =
     pytest
     matplotlib
     minimum: networkx==3.0
-    minimum: numpy==2.3.3
-    minimum-numba: numba==0.63.0
-    minimum-numba: scipy==1.16.1
+    # the declared minimum versions
+    py{312,313,314}-minimum: numpy==2.3.3
+    py{312,313,314}-minimum-numba: numba==0.63.0
+    py{312,313,314}-minimum-numba: scipy==1.16.1
+    # the oldest versions providing Python 3.15 wheels
+    py315-minimum: numpy==2.5.2
+    py315-minimum-numba: numba==0.68.0
+    py315-minimum-numba: scipy==1.18.1
 setenv =
     MPLBACKEND = Agg
     !numba: EXPECT_NUMBA = 0

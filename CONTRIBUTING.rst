@@ -88,7 +88,7 @@ Ready to contribute? Here's how to set up this package for local development.
        $ pip install tox
        $ tox
 
-   The tox configuration in ``pyproject.toml`` tests Python 3.12–3.14
+   The tox configuration in ``pyproject.toml`` tests Python 3.12–3.15
    with minimum and latest dependencies, with and without Numba. During
    development, select a single environment:
 

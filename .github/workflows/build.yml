@@ -26,6 +26,8 @@ jobs:
             tox-env: py313,py313-numba,py313-minimum,py313-minimum-numba
           - python-version: "3.14"
             tox-env: py314,py314-numba,py314-minimum,py314-minimum-numba
+          - python-version: "3.15"
+            tox-env: py315,py315-numba,py315-minimum,py315-minimum-numba
     env:
       TOXENV: ${{ matrix.tox-env }}
       TOX_SKIP_MISSING_INTERPRETERS: False
