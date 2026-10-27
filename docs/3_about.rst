@@ -208,7 +208,28 @@ Runtime Complexity:
 - :math:`O(m/n)` (average) for checking the visibility of target candidates. only the fraction relevant for each edge will be checked -> :math:`O(m (n log_2 n + (n m) / n) = O(m (n log_2 n + m) = O(m n log_2 n`
 - since :math:`m ~ n` the final complexity is :math:`O(m n log_2 n) = O(n^2 log_2 n)`
 
-The core visibility algorithm (for one origin) is implemented in ``find_visible()`` in ``utils.py``
+The core visibility algorithm (for one origin) is implemented in ``find_visible()`` in ``utils.py``.
+It only considers the edges: a line of sight touching an edge in one of its vertices is not blocked by that edge.
+
+
+Points and free wedges:
+_______________________
+
+What happens at the vertices is decided by a single concept (``wedges.py``):
+every vertex position within the map is a *point* with *free wedges*, the angle ranges of free space around it.
+A convex vertex of a single polygon has one free wedge larger than 180 degree,
+touching obstacles split the free space around a contact point into several wedges.
+The same rules hold for every point:
+
+1. a point is an extremity (a graph node) when it has a free wedge larger than 180 degree
+2. a line of sight leaves a point within a free wedge
+   (an extremity within its wedge larger than 180 degree, a query point within any wedge)
+3. a line of sight passes through a point only within one wedge
+4. a line of sight arrives at a contact point within a free wedge
+
+``find_visible_from()`` in ``utils.py`` combines them: it applies rule 2 at the origin,
+checks the remaining edges with ``find_visible()`` and filters the result with rules 3 and 4.
+It is used for the extremities when computing the visibility graph and for the start and goal of a query.
 
 
 Comparison:

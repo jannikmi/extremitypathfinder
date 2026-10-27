@@ -1,4 +1,5 @@
 import math
+from collections.abc import Iterable
 
 import numpy as np
 
@@ -78,17 +79,31 @@ def _angle_rep_inverse(repr: float | None) -> float | None:
     return repr_inv
 
 
+@njit(b1(f8[:], f8[:], f8[:]), cache=True)
+def _lies_on_edge(p: np.ndarray, p1: np.ndarray, p2: np.ndarray) -> bool:
+    """whether the point lies exactly on the edge p1-p2 (its vertices included)
+
+    exact cross product test (exact for coordinates whose products have no rounding errors, e.g. integers)
+    or the angle representations of the edge vertices seen from the point differ by exactly 180 degree
+    """
+    v1 = p1 - p
+    v2 = p2 - p
+    collinear = v1[0] * v2[1] - v1[1] * v2[0] == 0.0
+    # collinear: on the edge when between its vertices
+    if collinear and v1[0] * v2[0] <= 0.0 and v1[1] * v2[1] <= 0.0:
+        return True
+    rep1, _ = _compute_repr_n_dist(v1)
+    rep2, _ = _compute_repr_n_dist(v2)
+    return abs(rep1 - rep2) == 2.0
+
+
 @njit(b1(f8[:], f8[:, :], b1), cache=True)
 def _inside_polygon(p: np.ndarray, coords: np.ndarray, border_value: bool) -> bool:
     # should return the border value for point equal to any polygon vertex
     # and if the point p lies on any polygon edge
     p1 = coords[-1, :]
     for p2 in coords[:]:
-        if np.array_equal(p2, p):
-            return border_value
-        rep_p1_p, _ = _compute_repr_n_dist(p1 - p)
-        rep_p2_p, _ = _compute_repr_n_dist(p2 - p)
-        if abs(rep_p1_p - rep_p2_p) == 2.0:
+        if _lies_on_edge(p, p1, p2):
             return border_value
         p1 = p2
 
@@ -172,29 +187,6 @@ def _has_clockwise_numbering(coords: np.ndarray) -> bool:
     return total_sum > 0
 
 
-@njit(void(f8[:, :], b1[:]), cache=True)
-def _fill_extremity_mask(coordinates, extremity_mask):
-    nr_coordinates = len(extremity_mask)
-    p1 = coordinates[-2]
-    p2 = coordinates[-1]
-    for i, p3 in enumerate(coordinates):
-        # since consequent vertices are not permitted to be equal,
-        #   the angle representation of the difference is well-defined
-        diff_p3_p2 = p3 - p2
-        diff_p1_p2 = p1 - p2
-        repr_p3_p2, _ = _compute_repr_n_dist(diff_p3_p2)
-        repr_p1_p2, _ = _compute_repr_n_dist(diff_p1_p2)
-        rep_diff = repr_p3_p2 - repr_p1_p2
-        if rep_diff % 4.0 < 2.0:  # inside angle > 180 degree
-            # p2 is an extremity
-            idx_p2 = (i - 1) % nr_coordinates
-            extremity_mask[idx_p2] = True
-
-        # move to the next point
-        p1 = p2
-        p2 = p3
-
-
 @njit(void(i8[:, :], i8[:, :]), cache=True)
 def _fill_edge_vertex_idxs(edge_vertex_idxs, vertex_edge_idxs):
     """fills the edge <-> vertex index mappings of a single polygon
@@ -237,6 +229,17 @@ def _lies_behind_inner(p1: np.ndarray, p2: np.ndarray, v: np.ndarray) -> bool:
 
     # vertices on the edge are possibly visible! ( < not <=)
     return x[1] < 1.0
+
+
+def is_within_map(
+    p: np.ndarray,
+    boundary: np.ndarray | None,
+    holes: Iterable[np.ndarray],
+) -> bool:
+    """whether the point lies within the boundary polygon (or on its border) and not inside any hole"""
+    if boundary is not None and not _inside_polygon(p, boundary, border_value=True):
+        return False
+    return not any(_inside_polygon(p, hole, border_value=False) for hole in holes)
 
 
 def get_neighbour_idxs(

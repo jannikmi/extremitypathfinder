@@ -5,7 +5,6 @@ import pytest
 
 from extremitypathfinder import PolygonEnvironment, configs
 from extremitypathfinder.utils import (
-    _cmp_extremity_mask,
     _compute_repr_n_dist,
     _has_clockwise_numbering,
     _inside_polygon,
@@ -148,10 +147,13 @@ def test_clean_visible_idxs(
     ],
 )
 def test_compute_extremity_idxs(coords, expected):
+    # the extremities of a single polygon: a boundary (counter clockwise) or a hole (clockwise)
     coords = np.array(coords, dtype=configs.DTYPE_FLOAT)
-    extremity_mask = _cmp_extremity_mask(coords)
-    res = list(np.where(extremity_mask)[0])
-    assert set(res) == expected
+    if _has_clockwise_numbering(coords):
+        environment = PolygonEnvironment(None, [coords], validate=True)
+    else:
+        environment = PolygonEnvironment(coords, [], validate=True)
+    assert set(environment.extremity_indices.tolist()) == expected
 
 
 @pytest.mark.parametrize(

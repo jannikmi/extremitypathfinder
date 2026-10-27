@@ -6,7 +6,6 @@ import networkx as nx
 import numpy as np
 
 from extremitypathfinder import configs, utils
-from extremitypathfinder import contacts as c
 from extremitypathfinder import types as t
 from extremitypathfinder.configs import DEFAULT_PICKLE_NAME
 from extremitypathfinder.types import (
@@ -17,6 +16,7 @@ from extremitypathfinder.types import (
     OptionalInputCoordList,
     Path,
 )
+from extremitypathfinder.wedges import Point, Points
 
 
 @dataclass
@@ -59,9 +59,10 @@ class PolygonEnvironment:
     * ``boundary_polygon``: the boundary coordinates (``None`` for unbounded environments)
     * ``holes``: the list of hole coordinates
     * ``coords``: the coordinates of all polygon vertices (boundary first, then all holes)
-    * ``extremity_indices``: the indices of all extremities in ``coords``
-      (at most one per point, contacts taken into account)
+    * ``extremity_indices``: the indices of all extremities in ``coords`` (at most one per vertex position)
     * ``graph``: the precomputed visibility graph (:class:`networkx.Graph`) of the extremities
+    * ``points``: the vertex positions within the map and the free space around them
+      (cf. :mod:`extremitypathfinder.wedges`)
 
     Obstacles are the holes and everything outside the boundary polygon.
     Obstacles that touch form a wall: a path never passes between two obstacles that touch
@@ -79,10 +80,8 @@ class PolygonEnvironment:
     boundary_polygon: np.ndarray | None
     coords: np.ndarray
     edge_vertex_idxs: np.ndarray
-    extremity_mask: np.ndarray
-    polygon_extremity_mask: np.ndarray
-    contacts: c.Contacts
     vertex_edge_idxs: np.ndarray
+    points: Points
 
     def __init__(
         self,
@@ -143,30 +142,13 @@ class PolygonEnvironment:
 
         (
             self.coords,
-            _,
-            # the extremities of the single polygons, ignoring contacts
-            self.polygon_extremity_mask,
-            self.vertex_edge_idxs,
             self.edge_vertex_idxs,
+            self.vertex_edge_idxs,
+            self.points,
         ) = utils.compile_polygon_datastructs(
             boundary_coordinates, list_of_hole_coordinates
         )
-        polygons = list_of_hole_coordinates
-        if boundary_coordinates is not None:
-            polygons = [boundary_coordinates] + polygons
-        vertex_polygon_idxs = np.repeat(
-            np.arange(len(polygons)), [len(p) for p in polygons]
-        )
-        self.contacts, self.extremity_mask = c.compute_contacts(
-            self.coords,
-            self.edge_vertex_idxs,
-            self.vertex_edge_idxs,
-            self.polygon_extremity_mask,
-            vertex_polygon_idxs,
-            polygons,
-            None if boundary_coordinates is None else 0,
-        )
-        self.extremity_indices = np.where(self.extremity_mask)[0]
+        self.extremity_indices = self.points.extremity_idxs
 
         nr_total_pts = self.edge_vertex_idxs.shape[0]
         self.nr_vertices = nr_total_pts
@@ -237,9 +219,8 @@ class PolygonEnvironment:
         it must still be included!
 
         .. note::
-            Multiple polygon vertices might have identical coordinates (contacts).
-            Touching obstacles block paths: at a contact point there is at most one extremity,
-            the free wedge > 180 degree (cf. :mod:`extremitypathfinder.contacts`).
+            The extremities are the vertex positions with a free wedge larger than 180 degree,
+            at most one per position (cf. :mod:`extremitypathfinder.wedges`).
 
         .. note::
             Pre computing the shortest paths between all directly reachable extremities
@@ -247,14 +228,11 @@ class PolygonEnvironment:
             A* would visit every node in the graph at least once (-> disadvantage!).
         """
         self.graph = utils.compute_graph(
-            self.nr_edges,
             self.extremity_indices,
             self.reprs_n_distances,
             self.coords,
             self.edge_vertex_idxs,
-            self.polygon_extremity_mask,
-            self.vertex_edge_idxs,
-            self.contacts,
+            self.points,
         )
 
     def within_map(self, coords: np.ndarray) -> bool:
@@ -272,56 +250,33 @@ class PolygonEnvironment:
         coords: np.ndarray,
         vert_idx2repr: np.ndarray,
         vert_idx2dist: np.ndarray,
-        query_contacts: dict[int, int] | None = None,
+        query_points: dict[int, Point | None] | None = None,
     ) -> set[int]:
         """finds the candidates visible from a query point (start or goal)
 
-        :param query_contacts: the contact points of the query points lying on a contact point.
-            Computed when not given.
+        A query point may leave through any free wedge of its point (cf. :mod:`extremitypathfinder.wedges`).
+
+        :param query_points: the points at the query points (``None``: no polygon passes the query point).
+            Looked up when not given.
         """
-        # Note: points with equal coordinates should not be considered visible (will be merged later)
-        candidates = {i for i in candidates if vert_idx2dist[i] != 0.0}
-        edge_idxs2check = set(range(self.nr_edges))
-        if query_contacts is None:
-            contact = c.contact_at(coords[origin], self.coords, self.contacts)
+        if query_points is not None and origin in query_points:
+            point = query_points[origin]
         else:
-            contact = query_contacts.get(origin)
-        if contact is not None:
-            # a query point on a contact point may leave through any of its free wedges
-            # Note: the edges at the contact all lie outside of the wedges
-            edge_idxs2check.difference_update(self.contacts.incident_edges[contact])
-            wedges = self.contacts.wedges[contact]
-            point = coords[origin]
-            candidates = {
-                i
-                for i in candidates
-                if any(
-                    c.in_closure(
-                        c.direction_rep(contact, coords[i] - point, self.contacts), w
-                    )
-                    for w in wedges
-                )
-            }
-        visible = utils.find_visible(
+            point = self.points.at(coords[origin], origin)
+        wedges = [] if point is None else point.wedges
+        # Note: candidates with identical coordinates are not visible (they get merged)
+        candidates = {i for i in candidates if vert_idx2dist[i] != 0.0}
+        return utils.find_visible_from(
             origin,
+            point,
+            wedges,
             candidates,
-            edge_idxs2check,
             coords,
             vert_idx2repr,
             vert_idx2dist,
             self.edge_vertex_idxs,
-            self.vertex_edge_idxs,
-            self.polygon_extremity_mask,
-            self.contacts.exactly_checked,
-        )
-        return c.filter_visible(
-            origin,
-            visible,
-            coords,
-            vert_idx2repr,
-            vert_idx2dist,
-            self.contacts,
-            query_contacts,
+            self.points,
+            query_points,
         )
 
     def find_shortest_path(
@@ -371,8 +326,6 @@ class PolygonEnvironment:
         start = self.idx_start
         goal = self.idx_goal
         # temporarily extend data structure
-        # Note: start and goal nodes could be identical with one ore more of the vertices
-        # BUT: this is an edge case -> compute visibility as usual and later try to merge with the graph
         coords = np.append(self.coords, (coords_start, coords_goal), axis=0)
 
         def no_graph_result(path: Path, length: Length) -> SearchResult:
@@ -382,32 +335,23 @@ class PolygonEnvironment:
             # start and goal are identical and can be reached instantly
             return no_graph_result([start_coordinates, goal_coordinates], 0.0)
 
+        # the points at start and goal, and the graph nodes at their positions (merged with them)
+        query_points = {
+            start: self.points.at(coords_start, start),
+            goal: self.points.at(coords_goal, goal),
+        }
+        start_node, goal_node = (_extremity(query_points[i]) for i in (start, goal))
+
         # check the goal node first (earlier termination possible)
         origin = goal
         # the visibility of only the graph nodes has to be checked (not all extremities!)
         # IMPORTANT: also check if the start node is visible from the goal node!
         candidate_idxs: set[int] = set(self.graph.nodes)
-        # Note: a graph node identical to the start is merged with the start later on.
-        # It must not hide the start: the start may leave a contact point through any free wedge
-        #   (of candidates with equal representation and distance only one is kept, cf. find_visible())
-        # Note: the goal is no candidate in the visibility check of the start
-        start_identical = np.all(
-            self.coords[self.extremity_indices] == coords_start, axis=1
-        )
-        candidates_goal = candidate_idxs.difference(
-            self.extremity_indices[start_identical].tolist()
-        )
         candidate_idxs.add(start)
-        candidates_goal.add(start)
-        # the contact points the query points lie on
-        query_contacts = {
-            i: contact
-            for i, contact in (
-                (start, c.contact_at(coords_start, self.coords, self.contacts)),
-                (goal, c.contact_at(coords_goal, self.coords, self.contacts)),
-            )
-            if contact is not None
-        }
+        # Note: the graph node at the start position must not hide the start
+        #   (only the closest of candidates in the same direction is visible, cf. find_visible()):
+        #   the start may leave its point through any free wedge, the graph node only through its own
+        candidates_goal = candidate_idxs - {start_node}
         repr_n_dists = utils.cmp_reps_n_distances(origin, coords)
         self.reprs_n_distances[origin] = repr_n_dists
         vert_idx2repr, vert_idx2dist = repr_n_dists
@@ -417,7 +361,7 @@ class PolygonEnvironment:
             coords,
             vert_idx2repr,
             vert_idx2dist,
-            query_contacts,
+            query_points,
         )
         if len(visibles_goal) == 0:
             # The goal node does not have any neighbours. Hence there is not possible path to the goal.
@@ -454,7 +398,7 @@ class PolygonEnvironment:
             coords,
             vert_idx2repr,
             vert_idx2dist,
-            query_contacts,
+            query_points,
         )
 
         if len(visibles_start) == 0:
@@ -465,18 +409,10 @@ class PolygonEnvironment:
         for i in visibles_start:
             graph.add_edge(start, i, weight=vert_idx2dist[i])
 
-        # apply mapping to start and goal index as well
-        start_mapped = utils.find_identical_single(
-            start, graph.nodes, self.reprs_n_distances
-        )
-        if start_mapped != start:
-            nx.relabel_nodes(graph, {start: start_mapped}, copy=False)
-
-        goal_mapped = utils.find_identical_single(
-            goal, graph.nodes, self.reprs_n_distances
-        )
-        if goal_mapped != goal:
-            nx.relabel_nodes(graph, {goal: goal_mapped}, copy=False)
+        # merge start and goal with the graph nodes at their positions
+        start_mapped = start if start_node is None else start_node
+        goal_mapped = goal if goal_node is None else goal_node
+        nx.relabel_nodes(graph, {start: start_mapped, goal: goal_mapped}, copy=False)
 
         def graph_result(path: Path, length: Length) -> SearchResult:
             return SearchResult(path, length, coords, graph, start_mapped, goal_mapped)
@@ -501,3 +437,10 @@ class PolygonEnvironment:
         # extract the coordinates from the path
         path = [tuple(coords[i]) for i in id_path]
         return graph_result(path, distance)
+
+
+def _extremity(point: Point | None) -> int | None:
+    """the graph node (extremity) of a point, ``None`` if the point is no extremity"""
+    if point is None or point.extremity is None:
+        return None
+    return point.idx

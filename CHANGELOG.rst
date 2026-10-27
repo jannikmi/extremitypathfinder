@@ -38,6 +38,8 @@ BREAKING: touching obstacles block paths (#24):
   At a contact, a vertex is only an extremity when the free angle there is larger than 180 degree
   (e.g. two corners touching at a grid diagonal are no extremities anymore).
 - environments pickled with earlier versions cannot be loaded anymore (new attributes), recreate them
+- removed the attribute ``PolygonEnvironment.extremity_mask``. New attribute ``points``:
+  the vertex positions within the map and the free space around them (``extremitypathfinder.wedges``)
 - ``validate=True`` detects crossings at vertices (#135): a vertex lying on another edge of the same polygon
   with its neighbours on opposite sides, and identical vertices whose corners interleave.
   Collinear overlapping edges within a polygon (zero-width spikes or slits) are rejected as well.
@@ -71,6 +73,10 @@ internal:
   ``uv_build`` build backend, ``uv.lock`` (#142)
 - Dependabot keeps the GitHub Actions (grouped into one PR) and the pre-commit hooks up to date (#76)
 - updated the pre-commit hooks (``make hookup``, e.g. ruff 0.17) and applied their fixes
+- one concept for the free space at the vertices (``wedges.py``): every vertex position is a point with free wedges.
+  Extremities, the directions leaving an origin and passing or arriving at vertices follow the same rules at every
+  point (contacts included). ``find_visible()`` only checks the edges (no special cases for edges touching the origin),
+  ``find_visible_from()`` applies the rules of the free wedges. Shared point on edge test ``_lies_on_edge()``.
 
 
 2.8.0 (2026-09-18)

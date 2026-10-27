@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 
-from extremitypathfinder import utils
+from extremitypathfinder import utils_numba
 from extremitypathfinder.extremitypathfinder import PolygonEnvironment
 from extremitypathfinder.plotting import plot_environment, plot_search, set_limits
 from tests.helpers import other_edge_intersects
@@ -198,7 +198,9 @@ def test_extremity_neighbour_connection(env_data):
         assert should_be_connected == are_connected
 
     for e in extremities:
-        n1, n2 = utils.get_neighbour_idxs(e, env.vertex_edge_idxs, edge_vertex_idxs)
+        n1, n2 = utils_numba.get_neighbour_idxs(
+            e, env.vertex_edge_idxs, edge_vertex_idxs
+        )
         connection_as_expected(e, n1)
         connection_as_expected(e, n2)
 

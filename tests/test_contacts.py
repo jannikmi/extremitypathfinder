@@ -9,10 +9,11 @@ if contacts did not block.
 
 from math import hypot, sqrt
 
+import numpy as np
 import pytest
 
 from extremitypathfinder import PolygonEnvironment
-from extremitypathfinder.contacts import free_wedges
+from extremitypathfinder.wedges import free_wedges
 from tests.test_geometry_regressions import _assert_valid_path
 
 BOUNDARY = [(0.0, 0.0), (10.0, 0.0), (10.0, 10.0), (0.0, 10.0)]
@@ -310,11 +311,9 @@ def test_zero_width_spike_blocks_only_its_ray(boundary_polygon_idx):
     # invalid input (validate=False): the tip of a zero-width spike of polygon 0
     # (both rays at 1.0) touches the corner of hole 1 (obstacle from 2.5 to 3.5).
     # The spike blocks its ray only, for the boundary and for a hole alike
-    incidences = [(0, 1.0, 1.0, 5, 5), (1, 2.5, 3.5, 7, 8)]
+    incidences = [(0, 1.0, 1.0), (1, 2.5, 3.5)]
 
-    wedges = [wedge for wedge, _ in free_wedges(incidences, boundary_polygon_idx)]
-
-    assert wedges == [(1.0, 2.5), (3.5, 1.0)]
+    assert free_wedges(incidences, boundary_polygon_idx) == [(1.0, 2.5), (3.5, 1.0)]
 
 
 # the vertex (3, 4) of the upper hole lies on the diagonal edge (0, 0) -> (6, 8) of the lower hole.
@@ -327,8 +326,8 @@ DIAGONAL_EDGE_HOLES = [
 
 def test_vertex_on_a_diagonal_edge_blocks():
     environment = PolygonEnvironment(None, DIAGONAL_EDGE_HOLES, validate=True)
-    contact = [i for i, v in enumerate(environment.all_vertices) if v == (3.0, 4.0)]
-    assert contact[0] in environment.contacts.contact_of_vertex
+    contact = environment.points.at(np.array((3.0, 4.0)), -1)
+    assert contact.is_contact
     assert (3.0, 4.0) not in environment.all_extremities
 
     # from the pocket below the upper hole to the pocket right of it: around the upper hole
@@ -352,6 +351,7 @@ def test_collinear_edges_of_different_length_share_their_ray():
         [(0.0, 0.0), (0.0, 3.0), (3.0, 3.0)],
     ]
     environment = PolygonEnvironment(None, holes, validate=True)
-    contact = environment.contacts.contact_of_vertex[0]
+    contact = environment.points.by_idx[0]
+    assert contact.is_contact
     # the free space around (0, 0): from 90 to 360 degree, no zero-width wedge along the shared edge
-    assert len(environment.contacts.wedges[contact]) == 1
+    assert len(contact.wedges) == 1
