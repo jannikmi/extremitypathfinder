@@ -108,6 +108,7 @@ Coordinates refer to the corners of the grid cells, i.e. cell ``(x, y)`` spans `
 
 
 For more refer to the `documentation <https://extremitypathfinder.readthedocs.io/en/latest/>`__.
+Upgrading from version 2.x? See the `upgrade guide <https://extremitypathfinder.readthedocs.io/en/latest/2_upgrading.html>`__.
 
 
 Also see:

@@ -19,6 +19,8 @@ from extremitypathfinder.types import (
 )
 from extremitypathfinder.wedges import Point, Points
 
+_PICKLE_FORMAT_KEY = "_pickle_format_version"
+
 
 @dataclass
 class SearchResult:
@@ -206,6 +208,21 @@ class PolygonEnvironment:
         with open(path, "wb") as f:
             pickle.dump(self, f)
         print("done.\n")
+
+    def __getstate__(self) -> dict:
+        state = self.__dict__.copy()
+        state[_PICKLE_FORMAT_KEY] = configs.PICKLE_FORMAT_VERSION
+        return state
+
+    def __setstate__(self, state: dict):
+        pickle_format = state.pop(_PICKLE_FORMAT_KEY, None)
+        if pickle_format != configs.PICKLE_FORMAT_VERSION:
+            raise ValueError(
+                "The environment was pickled with an incompatible version of extremitypathfinder "
+                f"(pickle format {pickle_format}, expected {configs.PICKLE_FORMAT_VERSION}). "
+                "Recreate the environment from its polygons and export it again."
+            )
+        self.__dict__.update(state)
 
     def _compute_graph(self):
         """Computes a visibility graph optimized (=reduced) for path planning and stores it

@@ -847,6 +847,11 @@ def compile_polygon_datastructs(
 
 
 def load_pickle(path=DEFAULT_PICKLE_NAME):
+    """loads an environment exported with :meth:`PolygonEnvironment.export_pickle`
+
+    :raises ValueError: when the environment was pickled with an incompatible version of this package.
+        Recreate the environment from its polygons instead.
+    """
     print("loading map from:", path)
     with open(path, "rb") as f:
         return pickle.load(f)

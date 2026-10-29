@@ -37,7 +37,8 @@ BREAKING: touching obstacles block paths (#24):
 - at most one extremity per point: coincident vertices are no longer merged into one graph node.
   At a contact, a vertex is only an extremity when the free angle there is larger than 180 degree
   (e.g. two corners touching at a grid diagonal are no extremities anymore).
-- environments pickled with earlier versions cannot be loaded anymore (new attributes), recreate them
+- environments pickled with earlier versions cannot be loaded anymore (new attributes), recreate them.
+  Loading them raises a ``ValueError`` explaining this (pickles now store a format version).
 - removed the attribute ``PolygonEnvironment.extremity_mask``. New attribute ``points``:
   the vertex positions within the map and the free space around them (``extremitypathfinder.wedges``)
 - ``validate=True`` detects crossings at vertices (#135): a vertex lying on another edge of the same polygon
@@ -47,6 +48,7 @@ BREAKING: touching obstacles block paths (#24):
 
 other changes:
 
+- documentation: upgrade guide from 2.x (migrating code and the changed handling of touching obstacles)
 - added a grid example to the README
 - support CPython 3.15: tested in CI with the latest and the oldest dependencies providing 3.15 wheels
 
@@ -64,6 +66,7 @@ bugfixes:
 - a goal identical to an extremity is merged with it in the search graph.
   Previously such queries could return a longer path or no path at all.
 - ``from_grid()`` supports grids without obstacles
+- documentation: ``load_pickle`` is imported from ``extremitypathfinder`` (the documented import failed)
 - documentation: describe the ``networkx`` A* search correctly, list the exceptions raised by the ``PolygonEnvironment`` constructor
 
 internal:
