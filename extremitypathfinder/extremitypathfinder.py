@@ -1,4 +1,5 @@
 import pickle
+from collections import ChainMap
 from collections.abc import Iterable
 from dataclasses import dataclass
 
@@ -72,10 +73,10 @@ class PolygonEnvironment:
     Overlapping polygons act as their union.
     """
 
-    nr_edges: int
+    nr_vertices: int
     holes: list[np.ndarray]
     extremity_indices: np.ndarray
-    reprs_n_distances: dict[int, np.ndarray]
+    reprs_n_distances: dict[int, tuple[np.ndarray, np.ndarray]]
     graph: t.Graph
     boundary_polygon: np.ndarray | None
     coords: np.ndarray
@@ -119,22 +120,21 @@ class PolygonEnvironment:
             np.array(hole_coords, dtype=configs.DTYPE_FLOAT)
             for hole_coords in list_of_hole_coordinates
         ]
-        if boundary_coordinates is None:
-            if not list_of_hole_coordinates:
-                raise ValueError(
-                    "At least one hole is required when boundary_coordinates is None."
-                )
-            if validate:
-                utils.check_hole_data_requirements(list_of_hole_coordinates)
-        else:
+        if boundary_coordinates is not None:
             boundary_coordinates = np.array(
                 boundary_coordinates, dtype=configs.DTYPE_FLOAT
             )
-        if validate and boundary_coordinates is not None:
-            utils.check_data_requirements(
-                boundary_coordinates,
-                list_of_hole_coordinates,
+        elif not list_of_hole_coordinates:
+            raise ValueError(
+                "At least one hole is required when boundary_coordinates is None."
             )
+        if validate:
+            if boundary_coordinates is None:
+                utils.check_hole_data_requirements(list_of_hole_coordinates)
+            else:
+                utils.check_data_requirements(
+                    boundary_coordinates, list_of_hole_coordinates
+                )
 
         # Note: independent copy!
         self.holes = list_of_hole_coordinates
@@ -150,15 +150,15 @@ class PolygonEnvironment:
         )
         self.extremity_indices = self.points.extremity_idxs
 
-        nr_total_pts = self.edge_vertex_idxs.shape[0]
-        self.nr_vertices = nr_total_pts
+        self.nr_vertices = len(self.coords)
+        # the angle representations and distances of all vertices seen from every extremity
         self.reprs_n_distances = utils.cmp_reps_n_distance_dict(
             self.coords, self.extremity_indices
         )
 
         # start and goal points will be stored after all polygon coordinates
-        self.idx_start = nr_total_pts
-        self.idx_goal = nr_total_pts + 1
+        self.idx_start = self.nr_vertices
+        self.idx_goal = self.nr_vertices + 1
 
         self._compute_graph()
 
@@ -340,7 +340,12 @@ class PolygonEnvironment:
             start: self.points.at(coords_start, start),
             goal: self.points.at(coords_goal, goal),
         }
-        start_node, goal_node = (_extremity(query_points[i]) for i in (start, goal))
+        start_node, goal_node = (_graph_node(query_points[i]) for i in (start, goal))
+
+        # the angle representations and distances seen from start and goal
+        # Note: the environment does not get modified by the query
+        query_reprs_n_distances = {}
+        reprs_n_distances = ChainMap(query_reprs_n_distances, self.reprs_n_distances)
 
         # check the goal node first (earlier termination possible)
         origin = goal
@@ -352,9 +357,9 @@ class PolygonEnvironment:
         #   (only the closest of candidates in the same direction is visible, cf. find_visible()):
         #   the start may leave its point through any free wedge, the graph node only through its own
         candidates_goal = candidate_idxs - {start_node}
-        repr_n_dists = utils.cmp_reps_n_distances(origin, coords)
-        self.reprs_n_distances[origin] = repr_n_dists
-        vert_idx2repr, vert_idx2dist = repr_n_dists
+        vert_idx2repr, vert_idx2dist = query_reprs_n_distances[origin] = (
+            utils.cmp_reps_n_distances(origin, coords)
+        )
         visibles_goal = self.get_visible_idxs(
             origin,
             candidates_goal,
@@ -389,9 +394,9 @@ class PolygonEnvironment:
         origin = start
         # the visibility of only the graphs nodes have to be checked
         # the goal node does not have to be considered, because of the earlier check
-        repr_n_dists = utils.cmp_reps_n_distances(origin, coords)
-        self.reprs_n_distances[origin] = repr_n_dists
-        vert_idx2repr, vert_idx2dist = repr_n_dists
+        vert_idx2repr, vert_idx2dist = query_reprs_n_distances[origin] = (
+            utils.cmp_reps_n_distances(origin, coords)
+        )
         visibles_start = self.get_visible_idxs(
             origin,
             candidate_idxs,
@@ -418,7 +423,7 @@ class PolygonEnvironment:
             return SearchResult(path, length, coords, graph, start_mapped, goal_mapped)
 
         def l2_distance(n1, n2):
-            return utils.get_distance(n1, n2, self.reprs_n_distances)
+            return utils.get_distance(n1, n2, reprs_n_distances)
 
         try:
             id_path = nx.astar_path(
@@ -439,8 +444,8 @@ class PolygonEnvironment:
         return graph_result(path, distance)
 
 
-def _extremity(point: Point | None) -> int | None:
-    """the graph node (extremity) of a point, ``None`` if the point is no extremity"""
-    if point is None or point.extremity is None:
+def _graph_node(point: Point | None) -> int | None:
+    """the graph node of a point (an extremity), ``None`` if the point is no extremity"""
+    if point is None or not point.is_extremity:
         return None
     return point.idx

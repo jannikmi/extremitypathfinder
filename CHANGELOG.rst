@@ -58,6 +58,8 @@ bugfixes:
   (the first and the last edge were not treated as neighbours)
 - a query point identical to a polygon vertex sees along the edges of that vertex,
   and a query point on an edge sees along that edge (paths along polygon edges were partly blocked before)
+  This also holds for edges whose vertex coordinates make the point only approximately lie on the edge.
+- queries no longer store data in the environment (the angle representations of every query point were kept)
 
 - a goal identical to an extremity is merged with it in the search graph.
   Previously such queries could return a longer path or no path at all.
@@ -77,6 +79,10 @@ internal:
   Extremities, the directions leaving an origin and passing or arriving at vertices follow the same rules at every
   point (contacts included). ``find_visible()`` only checks the edges (no special cases for edges touching the origin),
   ``find_visible_from()`` applies the rules of the free wedges. Shared point on edge test ``_lies_on_edge()``.
+- core review follow-up: the graph reduction ("in front of each other") also applies to the last extremity
+  and uses the free wedges of the points (``Point.in_front()``), passing a contact point is detected despite
+  rounding errors of the angle representations, vectorised angle representation computation,
+  removed unused helper functions, added regression tests (``tests/test_core_regressions.py``)
 
 
 2.8.0 (2026-09-18)

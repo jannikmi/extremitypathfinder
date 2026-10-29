@@ -15,30 +15,27 @@ from extremitypathfinder.configs import (
     HOLES_JSON_KEY,
 )
 from extremitypathfinder.utils_numba import (
-    _angle_rep_inverse,
-    _compute_repr_n_dist,
-    _fill_edge_vertex_idxs,
     _has_clockwise_numbering,
     _inside_polygon,
     _lies_behind,
     _no_identical_consequent_vertices,
+    edge_vertex_mappings,
     is_within_map,
+    reps_n_distances,
 )
 from extremitypathfinder.wedges import Point, Points, Wedge, check_polygon_contacts
 
 
-def cmp_reps_n_distances(orig_idx: int, coords: np.ndarray) -> np.ndarray:
-    coords_orig = coords[orig_idx]
-    coords_translated = coords - coords_orig
-    repr_n_dists = np.apply_along_axis(
-        _compute_repr_n_dist, axis=1, arr=coords_translated
-    )
-    return repr_n_dists.T
+def cmp_reps_n_distances(
+    orig_idx: int, coords: np.ndarray
+) -> tuple[np.ndarray, np.ndarray]:
+    """the angle representations and distances of all coordinates seen from the origin"""
+    return reps_n_distances(coords - coords[orig_idx])
 
 
 def cmp_reps_n_distance_dict(
     coords: np.ndarray, extremity_indices: np.ndarray
-) -> dict[int, np.ndarray]:
+) -> dict[int, tuple[np.ndarray, np.ndarray]]:
     # Note: distance and angle representation relation are symmetric,
     # but exploiting this has been found to be slower than using the numpy functionality with slight overhead
     reps_n_distance_dict = {
@@ -160,71 +157,6 @@ def check_hole_data_requirements(list_hole_coords: list[np.ndarray]):
             raise ValueError("Vertex numbering of hole polygon must be clockwise.")
 
 
-def _find_within_range(
-    repr1: float,
-    repr2: float,
-    candidate_idxs: set[int],
-    angle_range_less_180: bool,
-    equal_repr_allowed: bool,
-    representations: np.ndarray,
-) -> set[int]:
-    """
-    filters out all vertices whose representation lies within the range between
-      the two given angle representations
-    which range ('clockwise' or 'counter-clockwise') should be checked is determined by:
-      - query angle (range) is < 180deg or not (>= 180deg)
-    :param repr1:
-    :param repr2:
-    :param candidate_idxs:
-    :param angle_range_less_180: whether the angle between repr1 and repr2 is < 180 deg
-    :param equal_repr_allowed: whether vertices with the same representation should also be returned
-    :param representations:
-    :return:
-    """
-    if len(candidate_idxs) == 0:
-        return set()
-
-    repr_diff = abs(repr1 - repr2)
-    if repr_diff == 0.0:
-        return set()
-
-    min_repr = min(repr1, repr2)
-    max_repr = max(repr1, repr2)  # = min_angle + angle_diff
-
-    def repr_within(r):
-        # Note: vertices with the same representation will NOT be returned!
-        return min_repr < r < max_repr
-
-    # depending on the angle the included range is clockwise or anti-clockwise
-    # (from min_repr to max_val or the other way around)
-    # when the range contains the 0.0 value (transition from 3.99... -> 0.0)
-    # it is easier to check if a representation does NOT lie within this range
-    # -> invert filter condition
-    # special case: angle == 180deg
-    on_line_inv = repr_diff == 2.0 and repr1 >= repr2
-    # which range to filter is determined by the order of the points
-    # since the polygons follow a numbering convention,
-    # the 'left' side of p1-p2 always lies inside the map
-    # -> filter out everything on the right side (='outside')
-    # ^: XOR
-    inversion_condition = on_line_inv or ((repr_diff < 2.0) ^ angle_range_less_180)
-
-    def within_filter_func(r: float) -> bool:
-        repr_eq = r == min_repr or r == max_repr
-        if repr_eq and equal_repr_allowed:
-            return True
-        if repr_eq and not equal_repr_allowed:
-            return False
-
-        res = repr_within(r)
-        if inversion_condition:
-            res = not res
-        return res
-
-    idxs_within = {i for i in candidate_idxs if within_filter_func(representations[i])}
-    return idxs_within
-
-
 def find_visible(
     origin: int,
     candidates: set[int],
@@ -233,6 +165,7 @@ def find_visible(
     representations: np.ndarray,
     distances: np.ndarray,
     edge_vertex_idxs: np.ndarray,
+    candidate_edges: dict[int, set[int]] | None = None,
 ) -> set[int]:
     """finds the candidates whose lines of sight from the origin are not blocked by any of the edges
 
@@ -255,6 +188,8 @@ def find_visible(
         IMPORTANT: no edge may touch the origin (cf. ``find_visible_from()``).
     :param representations: the angle representations of all coordinates seen from the origin
     :param distances: the distances of all coordinates to the origin
+    :param candidate_edges: the edges touching a candidate (e.g. a query point on an edge),
+        they do not block it
     :return: the visible candidates
     """
     if len(candidates) == 0:
@@ -278,6 +213,7 @@ def find_visible(
             coords,
             edge_vertex_idxs,
             edges_max_dist,
+            candidate_edges or {},
         )
 
     regular_edges = edges[~edges_is_crossing[edges]]
@@ -392,9 +328,12 @@ def check_candidates_one_edge(
     coords: np.ndarray,
     distances: np.ndarray,
     representations: np.ndarray,
+    edge_idx: int,
+    candidate_edges: dict[int, set[int]],
 ):
     """removes the candidates blocked by a single edge
 
+    :param candidate_edges: the edges touching a candidate, they do not block it
     :param candidate_ptr: the first candidate which might lie within the angle range of the edge
     :return: the first candidate which might lie within the angle range of the following edges
     """
@@ -415,6 +354,9 @@ def check_candidates_one_edge(
             break
         if candidate_rep == edge_min_rep or candidate_rep == edge_max_rep:
             # the line of sight touches the edge only in one of its vertices (or runs along the edge)
+            visibility_is_blocked = False
+        elif edge_idx in candidate_edges.get(candidate_idx, ()):
+            # the candidate lies on the edge
             visibility_is_blocked = False
         else:
             # optimisation: a candidate farther away than both vertices of the edge surely lies behind it
@@ -443,6 +385,7 @@ def _check_candidates(
     coords: np.ndarray,
     edge_vertex_idxs: np.ndarray,
     edges_max_dist: np.ndarray,
+    candidate_edges: dict[int, set[int]],
 ):
     candidate_ptr = 0
     for edge_idx in edge_idxs_sorted:
@@ -477,6 +420,8 @@ def _check_candidates(
             coords,
             distances,
             representations,
+            edge_idx,
+            candidate_edges,
         )
 
 
@@ -515,6 +460,14 @@ def find_visible_from(
             for i in candidates
             if point.in_wedges(representations[i], coords[i] - origin_position, wedges)
         }
+
+    # the edges at a query candidate do not block it (its arrival is decided by rule 4), like at the origin.
+    # Note: a query point inside an edge might not lie exactly on it in the floating point computations
+    candidate_edges = {
+        i: query_point.incident_edges
+        for i, query_point in (query_points or {}).items()
+        if query_point is not None
+    }
     visible = find_visible(
         origin,
         candidates,
@@ -523,6 +476,7 @@ def find_visible_from(
         representations,
         distances,
         edge_vertex_idxs,
+        candidate_edges,
     )
     return points.filter_visible(
         origin, visible, coords, representations, distances, query_points
@@ -546,7 +500,6 @@ def _find_visible_and_in_front(
     :return: the extremities lying in front, the visible extremities (not lying in front)
     """
     point = points.by_idx[origin]
-    wedge = point.extremity_wedge
     # as shown in [1, Ch. II 4.4.2 "Property One"]: Starting from any point lying "in front of" an extremity e,
     # such that both bounding rays of its wedge are visible, one will never visit e, because everything is
     # reachable on a shorter path without e (except e itself).
@@ -555,28 +508,25 @@ def _find_visible_and_in_front(
     # And also in reverse: when coming from e1 everything else than e itself can be reached faster
     # without visiting e.
     # -> e1 and e do not have to be connected in the graph.
-    # The area "in front of" e: opposite of the angle range outside of the wedge of e
+    # The area "in front of" e: opposite of the angle range outside of the wedge of e (cf. ``Point.in_front()``),
+    # extremities exactly opposite of a bounding ray do not lie in front (those edges must not get deleted)
     # IMPORTANT: this condition only holds for building the basic visibility graph without start and goal node!
     # When a query point (start/goal) happens to be an extremity, edges to the (visible) extremities in front
     # MUST be added to the graph!
     # IMPORTANT: check all extremities here, not just current candidates
-    # do not check extremities with the same angle representation as the bounding rays
-    #   (those edges must not get deleted from graph!)
-    candidates_in_front = _find_within_range(
-        repr1=_angle_rep_inverse(wedge[0]),
-        repr2=_angle_rep_inverse(wedge[1]),
-        candidate_idxs=candidates_in_front,
-        angle_range_less_180=True,
-        equal_repr_allowed=False,
-        representations=representations,
-    )
+    origin_position = coords[origin]
+    candidates_in_front = {
+        i
+        for i in candidates_in_front
+        if point.in_front(representations[i], coords[i] - origin_position)
+    }
     # do not consider points lying in front when looking for visible extremities,
     # even if they are actually visible.
     candidates = candidates.difference(candidates_in_front)
     visible_idxs = find_visible_from(
         origin,
         point,
-        [wedge],
+        [point.extremity_wedge],
         candidates,
         coords,
         representations,
@@ -616,8 +566,9 @@ def compute_graph(
     # adding start and goal nodes at query time might connect them!
     graph.add_nodes_from(extremity_indices)
 
-    # optimisation: no not check the last extremity as no other candidates will remain (cf. below)
-    for extr_ptr, origin_idx in enumerate(extremity_indices[:-1]):
+    # Note: also the last extremity has to be checked (without candidates left):
+    # its graph neighbours lying "in front" of it must be disconnected
+    for extr_ptr, origin_idx in enumerate(extremity_indices):
         vert_idx2repr, vert_idx2dist = reprs_n_distances[origin_idx]
         # optimisation: extremities are always visible to each other
         # (bidirectional relation -> undirected edges in the graph)
@@ -850,18 +801,10 @@ def convert_grid(size_x: int, size_y: int, obstacle_iter: iter) -> (list, list):
     return boundary_edges, hole_list
 
 
-def _cmp_edge_vertex_idxs(coordinates: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    nr_coords = len(coordinates)
-    edge_vertex_idxs = np.empty((nr_coords, 2), dtype=int)
-    vertex_edge_idxs = np.empty((nr_coords, 2), dtype=int)
-    _fill_edge_vertex_idxs(edge_vertex_idxs, vertex_edge_idxs)
-    return edge_vertex_idxs, vertex_edge_idxs
-
-
 def _cmp_edge_and_vertex_idxs(list_of_polygons):
     # compute edge and vertex indices from polygon data structure
     edge_and_vertex_indices = [
-        _cmp_edge_vertex_idxs(coords_poly) for coords_poly in list_of_polygons
+        edge_vertex_mappings(len(coords_poly)) for coords_poly in list_of_polygons
     ]
     offset = 0
     for edge_vertex_idxs, vertex_edge_idxs in edge_and_vertex_indices:

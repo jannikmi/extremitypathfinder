@@ -34,7 +34,7 @@ https://github.com/jannikmi/extremitypathfinder/issues/24
 
 import itertools
 from collections import defaultdict
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass
 
 import numpy as np
@@ -42,6 +42,7 @@ import numpy as np
 from extremitypathfinder.utils_numba import (
     _compute_repr_n_dist,
     _lies_on_edge,
+    edge_vertex_mappings,
     get_neighbour_idxs,
 )
 
@@ -160,7 +161,7 @@ class Point:
     * ``nr_incidences``: the number of polygon vertices and edges passing the point
     * ``incident_edges``: the edges having a vertex at or passing through the point
     * ``wedges``: the free wedges
-    * ``extremity``: the index of the wedge larger than 180 degree, ``None`` if there is none
+    * ``extremity_wedge``: the wedge larger than 180 degree, ``None`` if there is none (rule 1)
     * ``rays``: the directions of the bounding rays and their angle representations
     """
 
@@ -168,7 +169,7 @@ class Point:
     nr_incidences: int
     incident_edges: set[int]
     wedges: list[Wedge]
-    extremity: int | None
+    extremity_wedge: Wedge | None
     rays: list[Ray]
 
     @property
@@ -176,8 +177,8 @@ class Point:
         return self.nr_incidences > 1
 
     @property
-    def extremity_wedge(self) -> Wedge | None:
-        return None if self.extremity is None else self.wedges[self.extremity]
+    def is_extremity(self) -> bool:
+        return self.extremity_wedge is not None
 
     def rep(self, vector: np.ndarray) -> float:
         """the angle representation of the direction, identical to a ray with exactly the same direction"""
@@ -198,6 +199,28 @@ class Point:
             if in_closure(rep, wedge):
                 return True
         return False
+
+    def in_front(self, rep: float, vector: np.ndarray) -> bool:
+        """whether the direction points "in front of" the extremity, its bounding rays excluded
+
+        In front: strictly within the angle range opposite of the angle range outside of the extremity wedge
+        (the range of the obstacles), cf. [1, Ch. II 4.4.2 "Property One"].
+
+        :param rep: the angle representation of the direction
+        :param vector: the direction, to compare it exactly with the bounding rays
+        """
+        start, end = self.extremity_wedge
+        if any(
+            _cross(ray, vector) == 0.0 and np.dot(ray, vector) < 0.0
+            for ray, ray_rep in self.rays
+            if ray_rep in (start, end)
+        ):
+            # exactly opposite of a bounding ray
+            return False
+        # the obstacles reach counter clockwise from end to start
+        front_start = (end + 2.0) % 4.0
+        front_end = (start + 2.0) % 4.0
+        return 0.0 < (rep - front_start) % 4.0 < (front_end - front_start) % 4.0
 
     def passable(self, vector_in: np.ndarray, vector_out: np.ndarray) -> bool:
         """whether a line of sight may pass through the point (rule 3)
@@ -261,6 +284,21 @@ def _find_edges_through_points(
     return edges_through
 
 
+def _vertex_positions(
+    coords: np.ndarray, edge_vertex_idxs: np.ndarray
+) -> Iterator[tuple[list[int], np.ndarray, list[int]]]:
+    """all distinct vertex positions
+
+    :return: per position: the indices of the vertices at the position, the position
+        and the edges passing through it (excluding their vertices)
+    """
+    groups = _group_identical(coords)
+    positions = coords[[group[0] for group in groups]]
+    edges_through = _find_edges_through_points(positions, coords, edge_vertex_idxs)
+    for position_idx, (group, position) in enumerate(zip(groups, positions)):
+        yield group, position, edges_through.get(position_idx, [])
+
+
 def _incidences(
     position: np.ndarray,
     vertex_idxs: list[int],
@@ -321,19 +359,14 @@ class Points:
         # the point index of every vertex position, None for positions outside of the map
         self._idx_at: dict[tuple[float, float], int | None] = {}
 
-        groups = _group_identical(coords)
-        positions = coords[[group[0] for group in groups]]
-        edges_through = _find_edges_through_points(positions, coords, edge_vertex_idxs)
-        for position_idx, (group, position) in enumerate(zip(groups, positions)):
+        for group, position, edge_idxs in _vertex_positions(coords, edge_vertex_idxs):
             key = (float(position[0]), float(position[1]))
             if not within_map(position):
                 self._idx_at[key] = None
                 continue
             idx = min(group)
             self._idx_at[key] = idx
-            self.by_idx[idx] = self._make_point(
-                idx, position, group, edges_through.get(position_idx, [])
-            )
+            self.by_idx[idx] = self._make_point(idx, position, group, edge_idxs)
         # the indices of all points (sorted)
         self.idxs = np.array(sorted(self.by_idx), dtype=int)
 
@@ -356,7 +389,8 @@ class Points:
             rays,
         )
         wedges = free_wedges(incidences, self.boundary_polygon_idx)
-        extremities = [k for k, wedge in enumerate(wedges) if wedge_size(wedge) > 2.0]
+        # Note: at most one wedge can be larger than 180 degree
+        extremity_wedges = [wedge for wedge in wedges if wedge_size(wedge) > 2.0]
         incident_edges = {int(e) for i in vertex_idxs for e in self.vertex_edge_idxs[i]}
         incident_edges.update(edge_idxs)
         return Point(
@@ -364,7 +398,7 @@ class Points:
             nr_incidences=len(incidences),
             incident_edges=incident_edges,
             wedges=wedges,
-            extremity=extremities[0] if extremities else None,
+            extremity_wedge=extremity_wedges[0] if extremity_wedges else None,
             rays=rays,
         )
 
@@ -372,7 +406,7 @@ class Points:
     def extremity_idxs(self) -> np.ndarray:
         """the indices of all points which are extremities (sorted)"""
         return np.array(
-            [i for i in self.idxs if self.by_idx[i].extremity is not None], dtype=int
+            [i for i in self.idxs if self.by_idx[i].is_extremity], dtype=int
         )
 
     def at(self, position: np.ndarray, idx: int) -> Point | None:
@@ -430,13 +464,21 @@ class Points:
             vector = origin_position - coords[candidate]
             return point.in_wedges(_rep(vector), vector, wedges)
 
-        def passes(candidate: int) -> bool:
+        def passes(candidate: int, point_idxs: np.ndarray) -> bool:
             # rule 3: all points on the line of sight (between, excluding the origin and the candidate)
-            on_line = point_reps == representations[candidate]
-            between = (point_dists > 0.0) & (point_dists < distances[candidate])
-            for point_idx in self.idxs[on_line & between]:
+            # Note: collinear directions might have angle representations differing in the last bit
+            candidate_vector = coords[candidate] - origin_position
+            for point_idx in point_idxs:
+                point_idx = int(point_idx)
+                point_vector = coords[point_idx] - origin_position
+                if not 0.0 < distances[point_idx] < distances[candidate]:
+                    continue
+                same_rep = representations[point_idx] == representations[candidate]
+                if not same_rep and _cross(point_vector, candidate_vector) != 0.0:
+                    # not on the line of sight
+                    continue
                 point_position = coords[point_idx]
-                if not self.by_idx[int(point_idx)].passable(
+                if not self.by_idx[point_idx].passable(
                     origin_position - point_position, coords[candidate] - point_position
                 ):
                     return False
@@ -445,11 +487,22 @@ class Points:
         visible = {i for i in visible if arrives(i)}
         if len(visible) == 0:
             return visible
-        point_reps = representations[self.idxs]
-        point_dists = distances[self.idxs]
+        # the points with (nearly) the same direction as a candidate
+        order = np.argsort(representations[self.idxs])
+        point_idxs_sorted = self.idxs[order]
+        point_reps_sorted = representations[point_idxs_sorted]
         candidates = np.fromiter(visible, dtype=int, count=len(visible))
-        on_lines = candidates[np.isin(representations[candidates], point_reps)]
-        return visible.difference(int(i) for i in on_lines if not passes(int(i)))
+        candidate_reps = representations[candidates]
+        lower = np.searchsorted(point_reps_sorted, candidate_reps - RAY_TOLERANCE)
+        upper = np.searchsorted(
+            point_reps_sorted, candidate_reps + RAY_TOLERANCE, "right"
+        )
+        blocked = {
+            int(candidate)
+            for candidate, low, up in zip(candidates, lower, upper)
+            if low < up and not passes(int(candidate), point_idxs_sorted[low:up])
+        }
+        return visible - blocked
 
 
 def check_polygon_contacts(coords: np.ndarray):
@@ -462,20 +515,13 @@ def check_polygon_contacts(coords: np.ndarray):
     https://github.com/jannikmi/extremitypathfinder/issues/135
     Note: proper intersections of two edges are detected by _no_self_intersection()
     """
-    nr_vertices = len(coords)
-    vertex_idxs = np.arange(nr_vertices)
-    # edge i connects the vertices i-1 and i, vertex i connects the edges i and i+1
-    edge_vertex_idxs = np.stack([(vertex_idxs - 1) % nr_vertices, vertex_idxs], axis=1)
-    vertex_edge_idxs = np.stack([vertex_idxs, (vertex_idxs + 1) % nr_vertices], axis=1)
-    vertex_polygon_idxs = np.zeros(nr_vertices, dtype=int)
-    groups = _group_identical(coords)
-    positions = coords[[group[0] for group in groups]]
-    edges_through = _find_edges_through_points(positions, coords, edge_vertex_idxs)
-    for position_idx, (group, position) in enumerate(zip(groups, positions)):
+    edge_vertex_idxs, vertex_edge_idxs = edge_vertex_mappings(len(coords))
+    vertex_polygon_idxs = np.zeros(len(coords), dtype=int)
+    for group, position, edge_idxs in _vertex_positions(coords, edge_vertex_idxs):
         incidences = _incidences(
             position,
             group,
-            edges_through.get(position_idx, []),
+            edge_idxs,
             coords,
             edge_vertex_idxs,
             vertex_edge_idxs,

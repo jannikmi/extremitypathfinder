@@ -6,11 +6,10 @@ import numpy as np
 from extremitypathfinder import configs
 
 try:
-    from numba import b1, f8, i8, njit, typeof, void
+    from numba import b1, f8, i8, njit, typeof
 except ImportError:
-    using_numba = False
     # replace Numba functionality with "transparent" implementations
-    from extremitypathfinder.numba_replacements import b1, f8, i8, njit, typeof, void
+    from extremitypathfinder.numba_replacements import b1, f8, i8, njit, typeof
 
 FloatTuple = typeof((1.0, 1.0))
 
@@ -70,13 +69,27 @@ def _compute_repr_n_dist(np_vector: np.ndarray) -> tuple[float, float]:
     return angle_measure, distance
 
 
-@njit(cache=True)
-def _angle_rep_inverse(repr: float | None) -> float | None:
-    if repr is None:
-        repr_inv = None
-    else:
-        repr_inv = (repr + 2.0) % 4.0
-    return repr_inv
+def reps_n_distances(vectors: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """the angle representations and lengths of vectors, vectorised ``_compute_repr_n_dist()``
+
+    Note: the same floating point operations, hence identical results (NaN for zero vectors)
+    """
+    dx = vectors[:, 0]
+    dy = vectors[:, 1]
+    distances = np.sqrt(dx**2 + dy**2)
+    dx_positive = dx >= 0
+    dy_positive = dy >= 0
+    quadrants = [
+        dx_positive & dy_positive,
+        ~dx_positive & dy_positive,
+        ~dx_positive & ~dy_positive,
+    ]
+    quadrant = np.select(quadrants, [0.0, 1.0, 2.0], 3.0)
+    angle_measure = np.select(quadrants, [dy, -dx, -dy], dx)
+    with np.errstate(invalid="ignore", divide="ignore"):
+        representations = angle_measure / distances + quadrant
+    representations[distances == 0.0] = np.nan
+    return representations, distances
 
 
 @njit(b1(f8[:], f8[:], f8[:]), cache=True)
@@ -187,19 +200,18 @@ def _has_clockwise_numbering(coords: np.ndarray) -> bool:
     return total_sum > 0
 
 
-@njit(void(i8[:, :], i8[:, :]), cache=True)
-def _fill_edge_vertex_idxs(edge_vertex_idxs, vertex_edge_idxs):
-    """fills the edge <-> vertex index mappings of a single polygon
+def edge_vertex_mappings(nr_vertices: int) -> tuple[np.ndarray, np.ndarray]:
+    """the edge <-> vertex index mappings of a single polygon
 
     edge i connects the vertices i-1 and i: edge_vertex_idxs[i] = (i-1, i)
     vertex i connects the edges i and i+1: vertex_edge_idxs[i] = (i, i+1)
+
+    :return: edge_vertex_idxs, vertex_edge_idxs
     """
-    nr_coords = len(edge_vertex_idxs)
-    for i in range(nr_coords):
-        edge_vertex_idxs[i, 0] = (i - 1) % nr_coords
-        edge_vertex_idxs[i, 1] = i
-        vertex_edge_idxs[i, 0] = i
-        vertex_edge_idxs[i, 1] = (i + 1) % nr_coords
+    idxs = np.arange(nr_vertices)
+    edge_vertex_idxs = np.stack([(idxs - 1) % nr_vertices, idxs], axis=1)
+    vertex_edge_idxs = np.stack([idxs, (idxs + 1) % nr_vertices], axis=1)
+    return edge_vertex_idxs, vertex_edge_idxs
 
 
 @njit(b1(f8[:], f8[:], f8[:]), cache=True)
@@ -215,18 +227,8 @@ def _lies_behind_inner(p1: np.ndarray, p2: np.ndarray, v: np.ndarray) -> bool:
     A = np.empty((2, 2), dtype=configs.DTYPE_FLOAT)
     A[:, 0] = p1 - p2
     A[:, 1] = v
-    # A = np.array([p1 - p2, v]).T
-    x = np.linalg.solve(A, p1)
     # Note: parallel lines are not possible here (singular matrix)
-    # try:
-    #     x = np.linalg.solve(A, p1)
-    # except np.linalg.LinAlgError:
-    #     raise Exception("parallel lines")
-
-    # Debug:
-    # assert np.allclose((p2 - p1) * x[0] + p1, v * x[1])
-    # assert np.allclose(np.dot(A, x), b)
-
+    x = np.linalg.solve(A, p1)
     # vertices on the edge are possibly visible! ( < not <=)
     return x[1] < 1.0
 

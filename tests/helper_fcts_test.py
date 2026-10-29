@@ -5,11 +5,11 @@ import pytest
 
 from extremitypathfinder import PolygonEnvironment, configs
 from extremitypathfinder.utils import (
-    _compute_repr_n_dist,
     _has_clockwise_numbering,
     _inside_polygon,
     read_json,
 )
+from extremitypathfinder.utils_numba import _compute_repr_n_dist
 from tests.helpers import proto_test_case
 from tests.test_find_visible import _clean_visibles
 

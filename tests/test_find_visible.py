@@ -11,8 +11,17 @@ import numpy as np
 import pytest
 
 from extremitypathfinder import PolygonEnvironment, configs, utils
-from extremitypathfinder.utils import _find_within_range, _lies_behind
+from extremitypathfinder.utils import _lies_behind
 from tests.test_cases import GRID_ENV_PARAMS, POLYGON_ENVS
+
+
+def _within_angle_range(rep: float, rep1: float, rep2: float) -> bool:
+    """whether the representation lies strictly within the angle range (< 180 degree) between rep1 and rep2"""
+    low, high = min(rep1, rep2), max(rep1, rep2)
+    if high - low < 2.0:
+        return low < rep < high
+    # the range contains the representation 0.0
+    return rep > high or rep < low
 
 
 def find_candidates_behind(
@@ -104,14 +113,11 @@ def find_visible_reference(
         # that means inside the angle range spanned by the edge AND actually behind it.
         # Candidates with the same representation as v1 or v2 are not blocked by the edge:
         #   the line of sight touches the edge only in a vertex (or runs along the edge)
-        idxs_behind = _find_within_range(
-            repr1,
-            repr2,
-            candidates,
-            angle_range_less_180=True,
-            equal_repr_allowed=False,
-            representations=representations,
-        )
+        idxs_behind = {
+            i
+            for i in candidates
+            if _within_angle_range(representations[i], repr1, repr2)
+        }
         idxs_behind = find_candidates_behind(
             origin, v1, v2, idxs_behind, distances, coords
         )
