@@ -278,3 +278,42 @@ def test_astar_path_uses_query_edges_without_changing_the_graph():
     assert astar_path(graph, {6: {7: 1.0}, 7: {6: 1.0}}, 0, 7, no_heuristic) is None
     assert sorted(graph.edges(data="weight")) == edges_before
     assert 3 not in graph
+
+
+@pytest.mark.parametrize("seed", range(20))
+def test_astar_path_matches_networkx(seed):
+    rng = np.random.default_rng(seed)
+    nr_nodes = 30
+    positions = rng.uniform(0.0, 10.0, (nr_nodes + 2, 2))
+
+    def distance(n1, n2):
+        return float(np.linalg.norm(positions[n1] - positions[n2]))
+
+    graph = nx.Graph()
+    graph.add_nodes_from(range(nr_nodes))
+    for n1, n2 in rng.integers(0, nr_nodes, (60, 2)):
+        if n1 != n2:
+            graph.add_edge(int(n1), int(n2), weight=distance(n1, n2))
+    # query nodes after the graph nodes, one query edge duplicates a graph edge
+    source, target = nr_nodes, nr_nodes + 1
+    query_edges = {}
+    for query_node in (source, target):
+        for n in rng.choice(nr_nodes, 4, replace=False):
+            n = int(n)
+            query_edges.setdefault(query_node, {})[n] = distance(query_node, n)
+            query_edges.setdefault(n, {})[query_node] = distance(query_node, n)
+    u, v = next(iter(graph.edges))
+    query_edges.setdefault(u, {})[v] = graph.edges[u, v]["weight"]
+    query_edges.setdefault(v, {})[u] = graph.edges[u, v]["weight"]
+
+    search_graph = graph.copy()
+    for n1, neighbours in query_edges.items():
+        for n2, d in neighbours.items():
+            search_graph.add_edge(n1, n2, weight=d)
+    try:
+        expected = nx.astar_path(search_graph, source, target, heuristic=distance)
+    except nx.NetworkXNoPath:
+        expected = None
+    edges_before = sorted(graph.edges(data="weight"))
+    assert astar_path(graph, query_edges, source, target, distance) == expected
+    assert sorted(graph.edges(data="weight")) == edges_before

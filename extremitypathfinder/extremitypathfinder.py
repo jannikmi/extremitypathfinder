@@ -34,7 +34,8 @@ class SearchResult:
     * ``query_edges``: the temporary edges ``(node, neighbour, length)``
       connecting start and goal to the visibility graph (``None`` without a graph search)
     * ``graph``: the search graph (the visibility graph extended by the query edges).
-      Only built on request (a copy of the visibility graph). ``None`` without a graph search.
+      Only built on first access (a copy of the visibility graph of the environment at that time).
+      ``None`` without a graph search.
     """
 
     path: Path

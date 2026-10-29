@@ -77,7 +77,7 @@ ________________
 
 
 
-- **3. A-star shortest path computation :** Finding the shortest path on graphs is a standard computer science problem. This package uses the ``A*`` algorithm of ``networkx`` (``networkx.astar_path()``) with the euclidean distance as heuristic, adapted to search the precomputed graph extended by the temporary edges. When the goal is directly visible from the start, the direct connection is returned without a graph search (cf. below).
+- **3. A-star shortest path computation :** Finding the shortest path on graphs is a standard computer science problem. This package uses its own port of the ``A*`` implementation of ``networkx`` (``networkx.astar_path()``) with the euclidean distance as heuristic. It searches the precomputed graph extended by the temporary edges. When the goal is directly visible from the start, the direct connection is returned without a graph search (cf. below).
 
 .. figure:: _static/graph_path_plot.png
 
@@ -250,7 +250,7 @@ complexity: :math:`O(n^2 log_2 n)` (cf. `these slides <https://dav.ee/papers/Vis
 Optimised Pathfinding:
 ______________________
 
-The shortest path is computed with the ``A*`` algorithm of the ``networkx`` package
+The shortest path is computed with a port of the ``A*`` implementation of the ``networkx`` package
 (``networkx.astar_path()``), using the euclidean distance as heuristic.
 The search runs on the precomputed graph extended by the temporary edges of start and goal,
 without copying the graph (copying made up most of the query time in large environments, #136).
