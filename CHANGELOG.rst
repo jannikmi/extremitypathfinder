@@ -15,8 +15,9 @@ BREAKING: the environment is initialised in one step:
 - removed the ``.prepare()`` method and the ``prepared`` attribute
   (a separate ``.prepare()`` call has not been needed since 2.5.0)
 - removed the ``free_space_after`` parameter of ``find_shortest_path()`` and the ``temp_graph`` attribute.
-  ``verify`` is a keyword-only parameter of ``find_shortest_path()`` and ``search()`` (``verify=False``).
   The search graph of a query is returned by ``search()`` instead of being stored in the environment.
+- ``verify`` is a keyword-only parameter of ``find_shortest_path()`` and ``search()``: pass ``verify=False``.
+  A positional third argument (e.g. ``free_space_after`` of 2.x) raises a ``TypeError``.
 - new ``search()`` method: performs the same search as ``find_shortest_path()``, but returns a ``SearchResult``
   with the search data (search graph, start and goal nodes, coordinates) in addition to the path and its length
 - removed ``PlottingEnvironment``. Use the functions ``plot_environment(environment, plotting_dir)``
