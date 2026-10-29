@@ -69,7 +69,7 @@ ________________
     polygon environment with optimised visibility graph overlay in red
 
 
-- **2. Including start and goal:** For each shortest path query the start and goal points are being connected to the internal graph depending on their visibility. The search graph is a temporary copy of the precomputed graph, which stays unchanged:
+- **2. Including start and goal:** For each shortest path query the start and goal points are being connected to the internal graph depending on their visibility. The precomputed graph stays unchanged and is not copied: the search uses the temporary edges of start and goal in addition to it:
 
 .. figure:: _static/graph_plot.png
 
@@ -77,7 +77,7 @@ ________________
 
 
 
-- **3. A-star shortest path computation :** Finding the shortest path on graphs is a standard computer science problem. This package uses the ``A*`` implementation of ``networkx`` (``networkx.astar_path()``) with the euclidean distance as heuristic. When the goal is directly visible from the start, the direct connection is returned without a graph search (cf. below).
+- **3. A-star shortest path computation :** Finding the shortest path on graphs is a standard computer science problem. This package uses its own port of the ``A*`` implementation of ``networkx`` (``networkx.astar_path()``) with the euclidean distance as heuristic. It searches the precomputed graph extended by the temporary edges. When the goal is directly visible from the start, the direct connection is returned without a graph search (cf. below).
 
 .. figure:: _static/graph_path_plot.png
 
@@ -250,8 +250,10 @@ complexity: :math:`O(n^2 log_2 n)` (cf. `these slides <https://dav.ee/papers/Vis
 Optimised Pathfinding:
 ______________________
 
-The shortest path is computed with the default ``A*`` implementation of the ``networkx`` package
+The shortest path is computed with a port of the ``A*`` implementation of the ``networkx`` package
 (``networkx.astar_path()``), using the euclidean distance as heuristic.
+The search runs on the precomputed graph extended by the temporary edges of start and goal,
+without copying the graph (copying made up most of the query time in large environments, #136).
 
 A geometrical property of this specific task (the visibility graph) is already exploited:
 It is always shortest to directly reach a node instead of visiting other nodes first

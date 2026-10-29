@@ -273,6 +273,36 @@ def test_search_returns_search_graph_only_when_built():
         assert environment.idx_goal not in environment.graph
 
 
+def test_search_does_not_copy_the_visibility_graph(monkeypatch):
+    environment = PolygonEnvironment(*POLY_ENV_PARAMS)
+
+    def fail_copy(*args, **kwargs):
+        raise AssertionError("the visibility graph must not be copied by a query")
+
+    monkeypatch.setattr(environment.graph, "copy", fail_copy)
+    indirect_cases = [c for c in TEST_DATA_POLY_ENV if len(c[1][0]) > 2]
+    for (start_coordinates, goal_coordinates), (path, length) in indirect_cases:
+        result = environment.search(start_coordinates, goal_coordinates)
+        assert result.path == path
+        assert result.length == pytest.approx(length)
+        assert result.query_edges
+
+
+def test_search_graph_consists_of_visibility_graph_and_query_edges():
+    environment = PolygonEnvironment(*POLY_ENV_PARAMS)
+    indirect_cases = [c for c in TEST_DATA_POLY_ENV if len(c[1][0]) > 2]
+    for (start_coordinates, goal_coordinates), _ in indirect_cases:
+        result = environment.search(start_coordinates, goal_coordinates)
+        graph = result.graph
+        assert result.graph is graph, "the search graph is built only once"
+        assert graph.number_of_edges() >= environment.graph.number_of_edges()
+        for u, v in environment.graph.edges:
+            assert graph.has_edge(u, v)
+        for u, v, d in result.query_edges:
+            assert graph.edges[u, v]["weight"] == d
+            assert result.idx_start in (u, v) or result.idx_goal in (u, v)
+
+
 def test_plotting(tmp_path):
     environment = PolygonEnvironment(*POLY_ENV_PARAMS)
     plot_environment(environment, plotting_dir=str(tmp_path / "environment"))

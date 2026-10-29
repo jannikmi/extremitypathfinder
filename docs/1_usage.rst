@@ -203,7 +203,7 @@ Plotting
 
 
 ``environment.search()`` performs the same search as ``find_shortest_path()``,
-but returns a ``SearchResult`` with the data of the search (e.g. the search graph) in addition to the path and its length.
+but returns a ``SearchResult`` with the data of the search (e.g. the temporary edges of start and goal and the search graph) in addition to the path and its length.
 The functions in ``plotting.py`` plot an environment and the steps of a search:
 
 .. code-block:: python

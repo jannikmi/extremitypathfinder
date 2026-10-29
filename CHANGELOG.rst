@@ -19,10 +19,17 @@ BREAKING: the environment is initialised in one step:
 - ``verify`` is a keyword-only parameter of ``find_shortest_path()`` and ``search()``: pass ``verify=False``.
   A positional third argument (e.g. ``free_space_after`` of 2.x) raises a ``TypeError``.
 - new ``search()`` method: performs the same search as ``find_shortest_path()``, but returns a ``SearchResult``
-  with the search data (search graph, start and goal nodes, coordinates) in addition to the path and its length
+  with the search data (start and goal nodes, their temporary edges, coordinates) in addition to the path and its length.
+  The search graph (``SearchResult.graph``) is only built on request.
 - removed ``PlottingEnvironment``. Use the functions ``plot_environment(environment, plotting_dir)``
   and ``plot_search(environment, result, plotting_dir)`` in ``extremitypathfinder.plotting`` instead.
   The plotting directory is a parameter of the plotting functions instead of a global setting.
+
+Performance:
+
+- queries no longer copy the visibility graph (#136). The A* search uses the precomputed graph
+  and the temporary edges of start and goal directly. On large environments copying made up most of the query time
+  (900 extremities: 72 ms -> 16 ms per query).
 
 BREAKING: touching obstacles block paths (#24):
 
