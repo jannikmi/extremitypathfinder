@@ -1,7 +1,8 @@
 import json
 import pickle
-from collections.abc import Iterable
-from itertools import combinations
+from collections.abc import Callable, Iterable
+from heapq import heappop, heappush
+from itertools import combinations, count
 
 import networkx as nx
 import numpy as np
@@ -548,6 +549,69 @@ def get_distance(n1, n2, reprs_n_distances):
     _, dists = reprs_n_distances[n1]
     distance = dists[n2]
     return distance
+
+
+def astar_path(
+    graph: t.Graph,
+    query_edges: dict[int, dict[int, float]],
+    source: int,
+    target: int,
+    heuristic: Callable[[int, int], float],
+) -> list[int] | None:
+    """the shortest path from source to target with A*, ``None`` if there is no path
+
+    Searches the graph extended by the query edges without modifying (or copying) the graph.
+    Same algorithm as ``networkx.astar_path()``.
+
+    :param graph: the weighted graph (edge attribute ``weight``)
+    :param query_edges: additional (temporary) edges: node -> neighbour -> weight, in both directions
+    :param heuristic: an admissible estimate of the distance between two nodes
+    """
+    adjacency = graph._adj  # for speed-up (cf. networkx.astar_path())
+    no_neighbours: dict = {}
+
+    def neighbours(node: int) -> Iterable[tuple[int, float]]:
+        for neighbour, attributes in adjacency.get(node, no_neighbours).items():
+            yield neighbour, attributes["weight"]
+        yield from query_edges.get(node, no_neighbours).items()
+
+    # the counter breaks ties in the priority (the nodes are never compared)
+    c = count()
+    queue = [(0.0, next(c), source, 0.0, None)]
+    # enqueued node -> (cost to reach, heuristic), explored node -> parent closest to the source
+    enqueued: dict[int, tuple[float, float]] = {}
+    explored: dict[int, int | None] = {}
+    while queue:
+        _, _, node, dist, parent = heappop(queue)
+        if node == target:
+            path = [node]
+            node = parent
+            while node is not None:
+                path.append(node)
+                node = explored[node]
+            path.reverse()
+            return path
+
+        if node in explored:
+            # do not override the parent of the source
+            if explored[node] is None:
+                continue
+            # skip paths that were enqueued before a better one was found
+            if enqueued[node][0] < dist:
+                continue
+
+        explored[node] = parent
+        for neighbour, weight in neighbours(node):
+            cost = dist + weight
+            if neighbour in enqueued:
+                enqueued_cost, h = enqueued[neighbour]
+                if enqueued_cost <= cost:
+                    continue
+            else:
+                h = heuristic(neighbour, target)
+            enqueued[neighbour] = cost, h
+            heappush(queue, (cost + h, next(c), neighbour, cost, node))
+    return None
 
 
 def compute_graph(

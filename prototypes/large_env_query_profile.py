@@ -1,7 +1,7 @@
 """profile path queries on a large polygon environment
 
-measures how much of the query time is spent copying the visibility graph
-(https://github.com/jannikmi/extremitypathfinder/issues/136)
+compares the query time with the time copying the visibility graph would take
+(queries do not copy the graph anymore, https://github.com/jannikmi/extremitypathfinder/issues/136)
 and optionally lists the most expensive functions (cProfile)
 
 environment: square boundary with a regular grid of randomly shifted square holes.
@@ -94,7 +94,7 @@ def main():
 
     print(f"query (avg. over {args.queries}): {t_query * 1e3:.1f} ms")
     print(
-        f"graph.copy(): {t_copy * 1e3:.1f} ms ({100 * t_copy / t_query:.0f}% of a query)"
+        f"graph.copy() (not done by queries): {t_copy * 1e3:.1f} ms ({100 * t_copy / t_query:.0f}% of a query)"
     )
 
     if args.profile:

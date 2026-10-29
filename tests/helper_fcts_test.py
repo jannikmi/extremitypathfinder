@@ -1,5 +1,6 @@
 from os.path import abspath, join, pardir
 
+import networkx as nx
 import numpy as np
 import pytest
 
@@ -7,6 +8,7 @@ from extremitypathfinder import PolygonEnvironment, configs
 from extremitypathfinder.utils import (
     _has_clockwise_numbering,
     _inside_polygon,
+    astar_path,
     read_json,
 )
 from extremitypathfinder.utils_numba import _compute_repr_n_dist
@@ -254,3 +256,25 @@ def test_angle_repr_quadrant(input, expected):
     res = func(input)
     assert res >= expected
     assert res < expected + 1
+
+
+def test_astar_path_uses_query_edges_without_changing_the_graph():
+    graph = nx.Graph()
+    graph.add_weighted_edges_from([(0, 1, 1.0), (1, 2, 1.0), (0, 2, 5.0)])
+    edges_before = sorted(graph.edges(data="weight"))
+
+    def no_heuristic(n1, n2):
+        return 0.0
+
+    assert astar_path(graph, {}, 0, 2, no_heuristic) == [0, 1, 2]
+    # a shortcut through the query edges
+    query_edges = {0: {3: 0.5}, 3: {0: 0.5, 2: 0.5}, 2: {3: 0.5}}
+    assert astar_path(graph, query_edges, 0, 2, no_heuristic) == [0, 3, 2]
+    # nodes only connected by query edges
+    query_edges = {4: {0: 1.0}, 0: {4: 1.0}, 5: {2: 1.0}, 2: {5: 1.0}}
+    assert astar_path(graph, query_edges, 4, 5, no_heuristic) == [4, 0, 1, 2, 5]
+    # no path
+    assert astar_path(graph, {}, 0, 6, no_heuristic) is None
+    assert astar_path(graph, {6: {7: 1.0}, 7: {6: 1.0}}, 0, 7, no_heuristic) is None
+    assert sorted(graph.edges(data="weight")) == edges_before
+    assert 3 not in graph

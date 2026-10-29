@@ -1,9 +1,9 @@
 import pickle
 from collections import ChainMap
 from collections.abc import Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from functools import cached_property
 
-import networkx as nx
 import numpy as np
 
 from extremitypathfinder import configs, utils
@@ -27,20 +27,32 @@ class SearchResult:
     * ``path``: the shortest path from start to goal, ``[]`` if there is no possible path
     * ``length``: the length of the path, ``None`` if there is no possible path
     * ``coords``: the coordinates of all polygon vertices followed by the start and the goal coordinates
-    * ``graph``: the search graph (the visibility graph extended by the start and goal nodes).
-      ``None`` when the search terminated without building it,
-      e.g. when the goal is directly visible from the start.
-    * ``idx_start``, ``idx_goal``: the nodes of start and goal in ``graph``
-      (indices in ``coords``, ``None`` when there is no ``graph``).
+    * ``idx_start``, ``idx_goal``: the nodes of start and goal in the search graph (indices in ``coords``).
       Start and goal are merged with graph nodes with identical coordinates.
+      ``None`` when the search terminated without a graph search,
+      e.g. when the goal is directly visible from the start.
+    * ``query_edges``: the temporary edges ``(node, neighbour, length)``
+      connecting start and goal to the visibility graph (``None`` without a graph search)
+    * ``graph``: the search graph (the visibility graph extended by the query edges).
+      Only built on request (a copy of the visibility graph). ``None`` without a graph search.
     """
 
     path: Path
     length: Length
     coords: np.ndarray
-    graph: t.Graph | None = None
     idx_start: int | None = None
     idx_goal: int | None = None
+    query_edges: list[tuple[int, int, float]] | None = None
+    # the precomputed visibility graph of the environment (not changed by the search)
+    visibility_graph: t.Graph | None = field(default=None, repr=False, compare=False)
+
+    @cached_property
+    def graph(self) -> t.Graph | None:
+        if self.query_edges is None:
+            return None
+        graph = self.visibility_graph.copy()
+        graph.add_weighted_edges_from(self.query_edges)
+        return graph
 
 
 class PolygonEnvironment:
@@ -379,17 +391,17 @@ class PolygonEnvironment:
             d = vert_idx2dist[start]
             return no_graph_result([start_coordinates, goal_coordinates], d)
 
-        # create temporary graph, the original precomputed self.graph must not be changed
-        # Note: copying makes up a large part of the query time for large graphs
-        #   (https://github.com/jannikmi/extremitypathfinder/issues/136)
-        graph = self.graph.copy()
+        # merge start and goal with the graph nodes at their positions
+        start_mapped = start if start_node is None else start_node
+        goal_mapped = goal if goal_node is None else goal_node
 
-        # add edges: extremity (i) <-> goal
+        # the temporary edges connecting start and goal to the graph
+        # Note: the precomputed self.graph is neither changed nor copied (copying is expensive for large graphs)
+        #   https://github.com/jannikmi/extremitypathfinder/issues/136
         # Note: also here unnecessary edges in the graph could be deleted
         # optimising the graph here however is more expensive than beneficial,
         # as the graph is only being used for a single query
-        for i in visibles_goal:
-            graph.add_edge(i, goal, weight=vert_idx2dist[i])
+        query_edges = [(i, goal_mapped, vert_idx2dist[i]) for i in visibles_goal]
 
         origin = start
         # the visibility of only the graphs nodes have to be checked
@@ -410,26 +422,30 @@ class PolygonEnvironment:
             # The start node does not have any neighbours. Hence there is no possible path to the goal.
             return no_graph_result([], None)
 
-        # add edges: start <-> extremity (i)
-        for i in visibles_start:
-            graph.add_edge(start, i, weight=vert_idx2dist[i])
-
-        # merge start and goal with the graph nodes at their positions
-        start_mapped = start if start_node is None else start_node
-        goal_mapped = goal if goal_node is None else goal_node
-        nx.relabel_nodes(graph, {start: start_mapped, goal: goal_mapped}, copy=False)
+        query_edges += [(start_mapped, i, vert_idx2dist[i]) for i in visibles_start]
+        query_adjacency: dict[int, dict[int, float]] = {}
+        for i, j, d in query_edges:
+            query_adjacency.setdefault(i, {})[j] = d
+            query_adjacency.setdefault(j, {})[i] = d
 
         def graph_result(path: Path, length: Length) -> SearchResult:
-            return SearchResult(path, length, coords, graph, start_mapped, goal_mapped)
+            return SearchResult(
+                path,
+                length,
+                coords,
+                start_mapped,
+                goal_mapped,
+                query_edges,
+                self.graph,
+            )
 
         def l2_distance(n1, n2):
             return utils.get_distance(n1, n2, reprs_n_distances)
 
-        try:
-            id_path = nx.astar_path(
-                graph, start_mapped, goal_mapped, heuristic=l2_distance, weight="weight"
-            )
-        except nx.exception.NetworkXNoPath:
+        id_path = utils.astar_path(
+            self.graph, query_adjacency, start_mapped, goal_mapped, l2_distance
+        )
+        if id_path is None:
             return graph_result([], None)
 
         # compute distance
