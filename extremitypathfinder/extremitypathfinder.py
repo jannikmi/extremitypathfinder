@@ -312,6 +312,7 @@ class PolygonEnvironment:
         self,
         start_coordinates: InputCoord,
         goal_coordinates: InputCoord,
+        *,
         verify: bool = True,
     ) -> tuple[Path, Length]:
         """computes the shortest path and its length between start and goal node
@@ -324,13 +325,14 @@ class PolygonEnvironment:
          any free space next to it. On an edge shared by two touching obstacles (inside a wall) there is no path.
         :return: a tuple of shortest path and its length. ([], None) if there is no possible path.
         """
-        result = self.search(start_coordinates, goal_coordinates, verify)
+        result = self.search(start_coordinates, goal_coordinates, verify=verify)
         return result.path, result.length
 
     def search(
         self,
         start_coordinates: InputCoord,
         goal_coordinates: InputCoord,
+        *,
         verify: bool = True,
     ) -> SearchResult:
         """computes the shortest path between start and goal node, like :meth:`find_shortest_path`

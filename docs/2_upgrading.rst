@@ -58,12 +58,10 @@ Queries
 
 Queries no longer store any data in the environment.
 
-.. warning::
-
-    ``verify`` is now the third positional parameter of ``find_shortest_path()`` and ``search()``.
-    A 2.x call passing ``free_space_after`` positionally, e.g. ``env.find_shortest_path(start, goal, False)``,
-    runs without error but means ``verify=False``: start and goal are not checked to lie within the map anymore.
-    Drop the positional ``free_space_after`` argument and pass ``verify`` by keyword.
+``verify`` is a keyword-only parameter of ``find_shortest_path()`` and ``search()``.
+A 2.x call passing ``free_space_after`` or ``verify`` positionally,
+e.g. ``env.find_shortest_path(start, goal, False)``, raises a ``TypeError``:
+drop the ``free_space_after`` argument and pass ``verify`` by keyword.
 
 Coincident vertices are no longer merged into one extremity: ``extremity_indices`` holds at most one
 vertex per position, and vertices at contacts are only extremities when the free angle there is larger than
