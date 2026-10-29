@@ -1,8 +1,8 @@
 Changelog
 =========
 
-Unreleased
-----------
+3.0.0 (2026-10-29)
+------------------
 
 BREAKING: the environment is initialised in one step:
 

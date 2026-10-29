@@ -1,6 +1,6 @@
 [project]
 name = "extremitypathfinder"
-version = "2.8.0"
+version = "3.0.0"
 description = "python package for fast shortest path computation on 2D polygon or grid maps"
 readme = "README.rst"
 # utils.astar_path() is adapted from networkx (BSD-3-Clause)
