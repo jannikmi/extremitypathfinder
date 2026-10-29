@@ -4,46 +4,51 @@ Changelog
 3.0.0 (2026-10-29)
 ------------------
 
+A major release: the environment is set up in one step, and touching obstacles now block paths.
+See the `upgrade guide <https://extremitypathfinder.readthedocs.io/en/latest/2_upgrading.html>`__
+for how to port code written for 2.x.
+
 BREAKING: the environment is initialised in one step:
 
 - ``PolygonEnvironment(boundary_coordinates, list_of_hole_coordinates, validate=False)`` stores the polygons
-  and computes the visibility graph. Replaces ``PolygonEnvironment()`` followed by ``.store()``.
-- ``PolygonEnvironment.from_grid(size_x, size_y, obstacle_iter)`` replaces ``.store_grid_world()`` (``utils.convert_gridworld()`` is renamed to ``utils.convert_grid()``)
-- removed the ``simplify`` parameter of ``from_grid()`` (and ``utils.convert_grid()``).
+  and computes the visibility graph. It replaces ``PolygonEnvironment()`` followed by ``.store()``.
+- ``PolygonEnvironment.from_grid(size_x, size_y, obstacle_iter)`` replaces ``.store_grid_world()``.
+  ``utils.convert_gridworld()`` is renamed to ``utils.convert_grid()``.
+- removed the ``simplify`` parameter of ``from_grid()`` and ``utils.convert_grid()``.
   Polygon simplification was never implemented: ``store_grid_world()`` raised a ``NotImplementedError``
   with its default ``simplify=True``. Simplifying geometries is out of scope of this package (#68).
 - removed the ``.prepare()`` method and the ``prepared`` attribute
-  (a separate ``.prepare()`` call has not been needed since 2.5.0)
+  (a separate ``.prepare()`` call has not been needed since 2.5.0).
 - removed the ``free_space_after`` parameter of ``find_shortest_path()`` and the ``temp_graph`` attribute.
   The search graph of a query is returned by ``search()`` instead of being stored in the environment.
 - ``verify`` is a keyword-only parameter of ``find_shortest_path()`` and ``search()``: pass ``verify=False``.
   A positional third argument (e.g. ``free_space_after`` of 2.x) raises a ``TypeError``.
 - new ``search()`` method: performs the same search as ``find_shortest_path()``, but returns a ``SearchResult``
-  with the search data (start and goal nodes, their temporary edges, coordinates) in addition to the path and its length.
-  The search graph (``SearchResult.graph``) is only built on request.
+  with the search data (start and goal nodes, their temporary edges, coordinates) in addition to the path
+  and its length. The search graph (``SearchResult.graph``) is only built on request.
 - removed ``PlottingEnvironment``. Use the functions ``plot_environment(environment, plotting_dir)``
   and ``plot_search(environment, result, plotting_dir)`` in ``extremitypathfinder.plotting`` instead.
-  The plotting directory is a parameter of the plotting functions instead of a global setting.
+  The plotting directory is a parameter of these functions instead of a global setting.
+- environments pickled with earlier versions cannot be loaded anymore (new attributes): recreate them.
+  Loading them raises a ``ValueError`` explaining this (pickles now store a format version).
 
 BREAKING: touching obstacles block paths (#24):
 
 - obstacles (the holes and everything outside the boundary polygon) that touch form a wall.
   A path never passes between two obstacles that touch, and never through a point where an obstacle touches itself.
-  Previously contacts were "non-blocking". Every kind of contact blocks: shared vertices, a vertex on an edge,
+  Previously contacts did not block. Every kind of contact blocks: shared vertices, a vertex on an edge,
   overlapping collinear edges, holes touching the boundary polygon and polygons touching themselves.
   Paths may still run along obstacle edges and through the vertices of a single obstacle.
-- grids: diagonally adjacent blocked cells block paths (no corner cutting)
+- grids: diagonally adjacent blocked cells block paths (no corner cutting).
 - a contact means exactly equal coordinates or a vertex exactly on an edge
   (an exact cross product test, e.g. for integer coordinates). Near-contacts (tiny gaps) do not block.
-- query points exactly on a contact point may leave through any free space next to it,
-  query points on an edge shared by two touching obstacles have no path
+- query points exactly on a contact point may leave through any free space next to it.
+  Query points on an edge shared by two touching obstacles have no path.
 - at most one extremity per point: coincident vertices are no longer merged into one graph node.
   At a contact, a vertex is only an extremity when the free angle there is larger than 180 degree
   (e.g. two corners touching at a grid diagonal are no extremities anymore).
-- environments pickled with earlier versions cannot be loaded anymore (new attributes), recreate them.
-  Loading them raises a ``ValueError`` explaining this (pickles now store a format version).
 - removed the attribute ``PolygonEnvironment.extremity_mask``. New attribute ``points``:
-  the vertex positions within the map and the free space around them (``extremitypathfinder.wedges``)
+  the vertex positions within the map and the free space around them (``extremitypathfinder.wedges``).
 - ``validate=True`` detects crossings at vertices (#135): a vertex lying on another edge of the same polygon
   with its neighbours on opposite sides, and identical vertices whose corners interleave.
   Collinear overlapping edges within a polygon (zero-width spikes or slits) are rejected as well.
@@ -51,49 +56,48 @@ BREAKING: touching obstacles block paths (#24):
 
 other changes:
 
-- queries no longer copy the visibility graph (#136). The A* search uses the precomputed graph
-  and the temporary edges of start and goal directly. On large environments copying made up most of the query time
-  (900 extremities: 72 ms -> 16 ms per query).
-- the A* search is adapted from ``networkx.astar_path()``. The package license is now ``MIT AND BSD-3-Clause``:
-  the code is under the 3-clause BSD license of networkx, included as ``LICENSES/networkx.txt``.
-- documentation: upgrade guide from 2.x (migrating code and the changed handling of touching obstacles)
-- added a grid example to the README
-- support CPython 3.15: tested in CI with the latest and the oldest dependencies providing 3.15 wheels
+- faster queries: the visibility graph is no longer copied for every query (#136).
+  The A* search uses the precomputed graph and the temporary edges of start and goal directly.
+  On large environments copying made up most of the query time (900 extremities: 72 ms -> 16 ms per query).
+- license: the A* search is adapted from ``networkx.astar_path()`` and under the 3-clause BSD license of networkx
+  (``LICENSES/networkx.txt``). The package license is now ``MIT AND BSD-3-Clause``.
+- support CPython 3.15: tested in CI with the latest and the oldest dependencies providing 3.15 wheels.
+- documentation: upgrade guide from 2.x (porting code and the changed handling of touching obstacles).
+- documentation: grid example in the README.
 
 bugfixes:
 
 - lines of sight no longer pass straight through vertices with a free angle of at most 180 degree.
-  Previously paths could run through a hole along collinear edges and reflex vertices (#84)
-- ``validate=True`` no longer rejects some valid triangles as self-intersecting
-  (the first and the last edge were not treated as neighbours)
-- a query point identical to a polygon vertex sees along the edges of that vertex,
-  and a query point on an edge sees along that edge (paths along polygon edges were partly blocked before)
-  This also holds for edges whose vertex coordinates make the point only approximately lie on the edge.
-- queries no longer store data in the environment (the angle representations of every query point were kept)
-
+  Previously paths could run through a hole along collinear edges and reflex vertices (#84).
 - a goal identical to an extremity is merged with it in the search graph.
   Previously such queries could return a longer path or no path at all.
-- ``from_grid()`` supports grids without obstacles
-- documentation: ``load_pickle`` is imported from ``extremitypathfinder`` (the documented import failed)
-- documentation: describe the A* search correctly, list the exceptions raised by the ``PolygonEnvironment`` constructor
+- a query point identical to a polygon vertex sees along the edges of that vertex,
+  and a query point on an edge sees along that edge (paths along polygon edges were partly blocked before).
+  This also holds for edges whose vertex coordinates make the point only approximately lie on the edge.
+- queries no longer store data in the environment (the angle representations of every query point were kept).
+- ``validate=True`` no longer rejects some valid triangles as self-intersecting
+  (the first and the last edge were not treated as neighbours).
+- ``from_grid()`` supports grids without obstacles.
+- documentation: ``load_pickle`` is imported from ``extremitypathfinder`` (the documented import failed).
+- documentation: describe the A* search correctly, list the exceptions raised by the ``PolygonEnvironment`` constructor.
 
 internal:
 
-- resolved or removed the ``TODO`` comments in the code, open topics are tracked as GitHub issues
-- added tests for symmetric visibility, symmetric shortest paths and the graph construction
-- automated releases: "prepare release" and "tag release" GitHub workflows, ``scripts/release.py``
-- switched the project tooling from Poetry to uv: standard ``[project]`` metadata and ``[dependency-groups]``,
-  ``uv_build`` build backend, ``uv.lock`` (#142)
-- Dependabot keeps the GitHub Actions (grouped into one PR) and the pre-commit hooks up to date (#76)
-- updated the pre-commit hooks (``make hookup``, e.g. ruff 0.17) and applied their fixes
 - one concept for the free space at the vertices (``wedges.py``): every vertex position is a point with free wedges.
   Extremities, the directions leaving an origin and passing or arriving at vertices follow the same rules at every
   point (contacts included). ``find_visible()`` only checks the edges (no special cases for edges touching the origin),
   ``find_visible_from()`` applies the rules of the free wedges. Shared point on edge test ``_lies_on_edge()``.
 - core review follow-up: the graph reduction ("in front of each other") also applies to the last extremity
-  and uses the free wedges of the points (``Point.in_front()``), passing a contact point is detected despite
-  rounding errors of the angle representations, vectorised angle representation computation,
-  removed unused helper functions, added regression tests (``tests/test_core_regressions.py``)
+  and uses the free wedges of the points (``Point.in_front()``). Passing a contact point is detected despite
+  rounding errors of the angle representations. Vectorised the angle representation computation,
+  removed unused helper functions, added regression tests (``tests/test_core_regressions.py``).
+- added tests for symmetric visibility, symmetric shortest paths and the graph construction.
+- resolved or removed the ``TODO`` comments in the code, open topics are tracked as GitHub issues.
+- switched the project tooling from Poetry to uv: standard ``[project]`` metadata and ``[dependency-groups]``,
+  ``uv_build`` build backend, ``uv.lock`` (#142).
+- automated releases: "prepare release" and "tag release" GitHub workflows, ``scripts/release.py``.
+- Dependabot keeps the GitHub Actions (grouped into one PR) and the pre-commit hooks up to date (#76).
+- updated the pre-commit hooks (``make hookup``, e.g. ruff 0.17) and applied their fixes.
 
 
 2.8.0 (2026-09-18)
