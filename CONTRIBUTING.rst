@@ -136,6 +136,8 @@ Shortest path search
 
 ``utils.astar_path()`` is a port of ``networkx.astar_path()`` that also follows the temporary edges of start and goal,
 so queries neither copy nor change the visibility graph (#136).
+It is under the 3-clause BSD license of networkx (``LICENSES/networkx.txt``):
+keep its copyright notice above the function.
 Alternatives compared in #152 and rejected, mainly for maintainability:
 
 * ``networkx.astar_path()`` on the visibility graph with the temporary edges added and removed again:

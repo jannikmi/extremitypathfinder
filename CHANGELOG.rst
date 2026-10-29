@@ -30,6 +30,8 @@ Performance:
 - queries no longer copy the visibility graph (#136). The A* search uses the precomputed graph
   and the temporary edges of start and goal directly. On large environments copying made up most of the query time
   (900 extremities: 72 ms -> 16 ms per query).
+- the A* search is adapted from ``networkx.astar_path()``. The package license is now ``MIT AND BSD-3-Clause``:
+  the code is under the 3-clause BSD license of networkx, included as ``LICENSES/networkx.txt``.
 
 BREAKING: touching obstacles block paths (#24):
 
