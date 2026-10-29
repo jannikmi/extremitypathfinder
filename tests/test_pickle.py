@@ -1,5 +1,6 @@
 """Exporting and loading environments with pickle."""
 
+import copy
 import pickle
 
 import pytest
@@ -36,7 +37,7 @@ def test_pickle_without_format_version_is_rejected(environment, monkeypatch):
     data = pickle.dumps(environment)
     monkeypatch.undo()
 
-    with pytest.raises(ValueError, match="Recreate the environment"):
+    with pytest.raises(ValueError, match="no pickle format version"):
         pickle.loads(data)
 
 
@@ -48,3 +49,30 @@ def test_pickle_with_other_format_version_is_rejected(environment, monkeypatch):
 
     with pytest.raises(ValueError, match="incompatible version"):
         pickle.loads(data)
+
+
+@pytest.mark.parametrize("copy_fct", [copy.copy, copy.deepcopy])
+def test_copy(environment, copy_fct):
+    copied = copy_fct(environment)
+    assert copied.find_shortest_path(START, GOAL) == environment.find_shortest_path(
+        START, GOAL
+    )
+    assert not hasattr(copied, "_pickle_format_version")
+
+
+class SlottedEnvironment(PolygonEnvironment):
+    __slots__ = ("tag",)
+
+
+@pytest.mark.parametrize(
+    "copy_fct",
+    [copy.copy, copy.deepcopy, lambda env: pickle.loads(pickle.dumps(env))],
+)
+def test_subclass_with_slots(copy_fct):
+    environment = SlottedEnvironment(BOUNDARY, HOLES)
+    environment.tag = "x"
+    copied = copy_fct(environment)
+    assert copied.tag == "x"
+    assert copied.find_shortest_path(START, GOAL) == environment.find_shortest_path(
+        START, GOAL
+    )

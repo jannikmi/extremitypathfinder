@@ -23,15 +23,13 @@ The environment is set up in one step: the constructor stores the polygons and c
    * - ``env = PolygonEnvironment()``
 
        ``env.store(boundary, holes, validate=False)``
-
-       ``env.prepare()``
      - ``env = PolygonEnvironment(boundary, holes, validate=False)``
    * - ``env.store_grid_world(size_x, size_y, obstacle_iter, simplify=False)``
      - ``env = PolygonEnvironment.from_grid(size_x, size_y, obstacle_iter)``
    * - ``utils.convert_gridworld(size_x, size_y, obstacle_iter, simplify=False)``
      - ``utils.convert_grid(size_x, size_y, obstacle_iter)``
-   * - ``env.prepared``
-     - removed: an environment is always ready for queries
+   * - ``env.prepare()``, ``env.prepared``
+     - removed: an environment is always ready for queries (``store()`` already prepared it since 2.5.0)
 
 The ``simplify`` parameter is gone. Simplify the polygons beforehand if needed, e.g. with Shapely.
 
@@ -51,10 +49,25 @@ Queries
        then reading ``env.temp_graph``
      - ``result = env.search(start, goal)``, then reading ``result.graph``
        (also ``result.path``, ``result.length``, ``result.idx_start``, ``result.idx_goal``)
-   * - ``env.extremity_mask``
-     - ``env.extremity_indices``, or ``env.points`` for the free space around every vertex position
+   * - ``env.extremity_mask`` (boolean array over all vertices)
+     - ``mask = np.zeros(env.nr_vertices, dtype=bool)``
+
+       ``mask[env.extremity_indices] = True``
+
+       or ``env.points`` for the free space around every vertex position
 
 Queries no longer store any data in the environment.
+
+.. warning::
+
+    ``verify`` is now the third positional parameter of ``find_shortest_path()`` and ``search()``.
+    A 2.x call passing ``free_space_after`` positionally, e.g. ``env.find_shortest_path(start, goal, False)``,
+    runs without error but means ``verify=False``: start and goal are not checked to lie within the map anymore.
+    Drop the positional ``free_space_after`` argument and pass ``verify`` by keyword.
+
+Coincident vertices are no longer merged into one extremity: ``extremity_indices`` holds at most one
+vertex per position, and vertices at contacts are only extremities when the free angle there is larger than
+180 degree. The extremities and the nodes of ``env.graph`` can therefore differ from 2.x.
 
 
 Plotting

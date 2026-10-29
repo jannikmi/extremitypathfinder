@@ -193,8 +193,8 @@ Cache and import the environment
 
     environment = load_pickle(path="./pickle_file.pickle")
 
-Environments pickled with another major version of this package cannot be loaded (``ValueError``):
-recreate them from their polygons instead.
+Environments pickled with an incompatible version of this package (e.g. 2.x) cannot be loaded
+(``ValueError``): recreate them from their polygons instead.
 
 
 

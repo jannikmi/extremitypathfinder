@@ -209,20 +209,32 @@ class PolygonEnvironment:
             pickle.dump(self, f)
         print("done.\n")
 
-    def __getstate__(self) -> dict:
-        state = self.__dict__.copy()
-        state[_PICKLE_FORMAT_KEY] = configs.PICKLE_FORMAT_VERSION
-        return state
+    def __getstate__(self):
+        """adds the pickle format version to the state. Subclasses overriding this must call ``super()``"""
+        state = super().__getstate__()
+        # (dict, slots) for subclasses with ``__slots__``
+        state, slots = state if isinstance(state, tuple) else (state, None)
+        state = {**state, _PICKLE_FORMAT_KEY: configs.PICKLE_FORMAT_VERSION}
+        return state if slots is None else (state, slots)
 
-    def __setstate__(self, state: dict):
+    def __setstate__(self, state):
+        state, slots = state if isinstance(state, tuple) else (state, None)
+        state = dict(state)
         pickle_format = state.pop(_PICKLE_FORMAT_KEY, None)
         if pickle_format != configs.PICKLE_FORMAT_VERSION:
+            found = (
+                "no pickle format version (pickled before 3.0)"
+                if pickle_format is None
+                else f"pickle format {pickle_format}"
+            )
             raise ValueError(
                 "The environment was pickled with an incompatible version of extremitypathfinder "
-                f"(pickle format {pickle_format}, expected {configs.PICKLE_FORMAT_VERSION}). "
+                f"({found}, expected {configs.PICKLE_FORMAT_VERSION}). "
                 "Recreate the environment from its polygons and export it again."
             )
         self.__dict__.update(state)
+        for name, value in (slots or {}).items():
+            setattr(self, name, value)
 
     def _compute_graph(self):
         """Computes a visibility graph optimized (=reduced) for path planning and stores it
