@@ -189,9 +189,12 @@ Cache and import the environment
 
     environment.export_pickle(path="./pickle_file.pickle")
 
-    from extremitypathfinder.extremitypathfinder import load_pickle
+    from extremitypathfinder import load_pickle
 
     environment = load_pickle(path="./pickle_file.pickle")
+
+Environments pickled with an incompatible version of this package (e.g. 2.x) cannot be loaded
+(``ValueError``): recreate them from their polygons instead.
 
 
 

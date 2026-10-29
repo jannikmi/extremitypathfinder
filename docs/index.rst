@@ -18,6 +18,7 @@ python package for geometric shortest path computation in 2D multi-polygon or gr
 
     Getting Started <0_getting_started>
     Usage <1_usage>
+    Upgrading from 2.x <2_upgrading>
     About <3_about>
     API <4_api>
     Performance <7_performance>

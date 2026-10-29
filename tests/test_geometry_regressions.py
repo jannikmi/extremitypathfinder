@@ -424,3 +424,12 @@ def test_path_does_not_pass_through_reflex_vertices():
         (318.004004, 44.004004),
     ]
     _assert_valid_path(path, distance, holes)
+
+
+@pytest.mark.parametrize("method", ["find_shortest_path", "search"])
+def test_verify_is_keyword_only(method):
+    # a positional third argument (free_space_after in 2.x) must not silently mean verify
+    environment = PolygonEnvironment(BOUNDARY, [RECTANGULAR_HOLE])
+    with pytest.raises(TypeError):
+        getattr(environment, method)((1.0, 5.0), (9.0, 5.0), False)
+    getattr(environment, method)((1.0, 5.0), (9.0, 5.0), verify=False)

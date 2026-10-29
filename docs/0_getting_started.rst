@@ -85,3 +85,4 @@ Basics
 
 
 All available features of this package are explained :ref:`HERE <usage>`.
+Upgrading from version 2.x: see the :ref:`upgrade guide <upgrading>`.

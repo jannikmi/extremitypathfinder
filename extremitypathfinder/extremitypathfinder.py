@@ -19,6 +19,8 @@ from extremitypathfinder.types import (
 )
 from extremitypathfinder.wedges import Point, Points
 
+_PICKLE_FORMAT_KEY = "_pickle_format_version"
+
 
 @dataclass
 class SearchResult:
@@ -207,6 +209,33 @@ class PolygonEnvironment:
             pickle.dump(self, f)
         print("done.\n")
 
+    def __getstate__(self):
+        """adds the pickle format version to the state. Subclasses overriding this must call ``super()``"""
+        state = super().__getstate__()
+        # (dict, slots) for subclasses with ``__slots__``
+        state, slots = state if isinstance(state, tuple) else (state, None)
+        state = {**state, _PICKLE_FORMAT_KEY: configs.PICKLE_FORMAT_VERSION}
+        return state if slots is None else (state, slots)
+
+    def __setstate__(self, state):
+        state, slots = state if isinstance(state, tuple) else (state, None)
+        state = dict(state)
+        pickle_format = state.pop(_PICKLE_FORMAT_KEY, None)
+        if pickle_format != configs.PICKLE_FORMAT_VERSION:
+            found = (
+                "no pickle format version (pickled before 3.0)"
+                if pickle_format is None
+                else f"pickle format {pickle_format}"
+            )
+            raise ValueError(
+                "The environment was pickled with an incompatible version of extremitypathfinder "
+                f"({found}, expected {configs.PICKLE_FORMAT_VERSION}). "
+                "Recreate the environment from its polygons and export it again."
+            )
+        self.__dict__.update(state)
+        for name, value in (slots or {}).items():
+            setattr(self, name, value)
+
     def _compute_graph(self):
         """Computes a visibility graph optimized (=reduced) for path planning and stores it
 
@@ -283,6 +312,7 @@ class PolygonEnvironment:
         self,
         start_coordinates: InputCoord,
         goal_coordinates: InputCoord,
+        *,
         verify: bool = True,
     ) -> tuple[Path, Length]:
         """computes the shortest path and its length between start and goal node
@@ -295,13 +325,14 @@ class PolygonEnvironment:
          any free space next to it. On an edge shared by two touching obstacles (inside a wall) there is no path.
         :return: a tuple of shortest path and its length. ([], None) if there is no possible path.
         """
-        result = self.search(start_coordinates, goal_coordinates, verify)
+        result = self.search(start_coordinates, goal_coordinates, verify=verify)
         return result.path, result.length
 
     def search(
         self,
         start_coordinates: InputCoord,
         goal_coordinates: InputCoord,
+        *,
         verify: bool = True,
     ) -> SearchResult:
         """computes the shortest path between start and goal node, like :meth:`find_shortest_path`
