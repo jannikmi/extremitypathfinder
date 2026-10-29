@@ -22,6 +22,8 @@ License
 
 ``extremitypathfinder`` is distributed under the terms of the MIT license
 (see `LICENSE <https://github.com/jannikmi/extremitypathfinder/blob/master/LICENSE>`__).
+The A* search (``utils.astar_path()``) is adapted from ``networkx`` and distributed under its 3-clause BSD license
+(see `LICENSES/networkx.txt <https://github.com/jannikmi/extremitypathfinder/blob/master/LICENSES/networkx.txt>`__).
 
 
 Basic Idea

@@ -25,14 +25,6 @@ BREAKING: the environment is initialised in one step:
   and ``plot_search(environment, result, plotting_dir)`` in ``extremitypathfinder.plotting`` instead.
   The plotting directory is a parameter of the plotting functions instead of a global setting.
 
-Performance:
-
-- queries no longer copy the visibility graph (#136). The A* search uses the precomputed graph
-  and the temporary edges of start and goal directly. On large environments copying made up most of the query time
-  (900 extremities: 72 ms -> 16 ms per query).
-- the A* search is adapted from ``networkx.astar_path()``. The package license is now ``MIT AND BSD-3-Clause``:
-  the code is under the 3-clause BSD license of networkx, included as ``LICENSES/networkx.txt``.
-
 BREAKING: touching obstacles block paths (#24):
 
 - obstacles (the holes and everything outside the boundary polygon) that touch form a wall.
@@ -59,6 +51,11 @@ BREAKING: touching obstacles block paths (#24):
 
 other changes:
 
+- queries no longer copy the visibility graph (#136). The A* search uses the precomputed graph
+  and the temporary edges of start and goal directly. On large environments copying made up most of the query time
+  (900 extremities: 72 ms -> 16 ms per query).
+- the A* search is adapted from ``networkx.astar_path()``. The package license is now ``MIT AND BSD-3-Clause``:
+  the code is under the 3-clause BSD license of networkx, included as ``LICENSES/networkx.txt``.
 - documentation: upgrade guide from 2.x (migrating code and the changed handling of touching obstacles)
 - added a grid example to the README
 - support CPython 3.15: tested in CI with the latest and the oldest dependencies providing 3.15 wheels
@@ -78,7 +75,7 @@ bugfixes:
   Previously such queries could return a longer path or no path at all.
 - ``from_grid()`` supports grids without obstacles
 - documentation: ``load_pickle`` is imported from ``extremitypathfinder`` (the documented import failed)
-- documentation: describe the ``networkx`` A* search correctly, list the exceptions raised by the ``PolygonEnvironment`` constructor
+- documentation: describe the A* search correctly, list the exceptions raised by the ``PolygonEnvironment`` constructor
 
 internal:
 
