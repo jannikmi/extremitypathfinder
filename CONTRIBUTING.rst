@@ -131,6 +131,27 @@ Measure before and after optimising, and include the numbers in the pull request
 
 ``prototypes/`` contains such development scripts. They are not part of the package and not run by the tests.
 
+Shortest path search
+~~~~~~~~~~~~~~~~~~~~
+
+``utils.astar_path()`` is a port of ``networkx.astar_path()`` that also follows the temporary edges of start and goal,
+so queries neither copy nor change the visibility graph (#136).
+Alternatives compared in #152 and rejected, mainly for maintainability:
+
+* ``networkx.astar_path()`` on the visibility graph with the temporary edges added and removed again:
+  changes shared state during a query (not thread-safe, edges of extremities merged with start or goal must be kept)
+  and was about twice as slow as the port.
+* other graph libraries (scipy ``csgraph``, igraph, rustworkx): an additional dependency
+  and a second graph representation (or ``environment.graph`` is no networkx graph anymore).
+  Their Dijkstra searches were slower than the port (no heuristic, adding the temporary edges is expensive),
+  the A* of rustworkx saved less than 1 ms per query.
+* precomputed shortest paths between all extremities: memory grows quadratically
+  with the number of extremities (75 MB for 2,500 extremities).
+
+The A* search takes about 5% of the query time (900 and 2,500 extremities).
+Most of the time is spent on the visibility of start and goal (``utils.find_visible()``),
+so that is where optimising pays off.
+
 
 Changelog
 ---------
