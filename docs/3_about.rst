@@ -84,23 +84,58 @@ ________________
     polygon environment with optimised visibility graph overlay. visualised edges added to the visibility graph in yellow, found shortest path in green.
 
 
-Edge Case: Overlapping Vertices and Edges
-_________________________________________
+
+.. _touching:
+
+Edge Case: Touching Obstacles
+_____________________________
+
+Obstacles are the holes and everything outside the boundary polygon.
+**Obstacles that touch form a wall**: a path never passes between two obstacles that touch,
+and never through a point where an obstacle touches itself.
+Every kind of contact blocks:
+
+- polygons sharing a vertex (identical coordinates)
+- a vertex of one polygon lying on an edge of another polygon
+- polygons with overlapping collinear edges
+- a hole touching the boundary polygon (vertex or edge)
+- a polygon touching itself (identical vertices, a vertex on one of its own edges)
+- in grids: diagonally adjacent blocked cells (no corner cutting)
+
+Paths may still run along obstacle edges and through the vertices of a single obstacle,
+shortest paths hug the obstacles.
+At a contact point the obstacles leave one or more "free wedges" (angle ranges of free space).
+A path may touch a contact point from one free wedge, but must enter and leave through the same wedge.
+Query points (start and goal) lying exactly on a contact point may use any of its free wedges.
+Query points lying on an edge shared by two touching obstacles lie inside a wall: there is no path.
+Overlapping polygons (intersecting areas) act as their union,
+e.g. a hole outside of the boundary polygon touching it has no effect.
+
+A contact means exactly equal coordinates, or a vertex lying exactly on an edge:
+the cross product of the vectors from the vertex to the two edge vertices is exactly 0
+(exact for coordinates whose products have no rounding errors, e.g. integers),
+or the angle representations of the edge vertices seen from the vertex differ by exactly 180 degree
+(the computation used by the point in polygon test).
+Rays with exactly the same direction (e.g. along overlapping edges of different length) are treated as one ray.
+Obstacles with a tiny gap in between (near-contacts) do not touch, paths can pass through the gap.
+Contacts of rounded coordinates might hence not be detected,
+use identical coordinates for touching polygons.
+
+The following examples have no boundary polygon (unbounded environments), only touching holes:
+
+.. figure:: _static/path_touching_vertices.png
+
+    the shortest path goes around the holes, it does not pass through the shared vertex
 
 
-.. warning::
-    Overlapping edges and vertices are considered "non-blocking".
-    Shortest paths can run through either.
-    Ensure Holes and Boundary Polygons are truly intersecting and not just touching in order to "block" paths.
+.. figure:: _static/path_touching_vertex_edge.png
 
-.. figure:: _static/path_overlapping_vertices.png
-
-    example of a shortest path running through overlapping vertices
+    the tip of the triangle touches the edge of the rectangle: the shortest path goes around the triangle
 
 
-.. figure:: _static/path_overlapping_edges.png
+.. figure:: _static/path_touching_edges.png
 
-    example of a shortest path running along two overlapping edges
+    the shortest path goes around the holes, it does not run along the shared part of their edges
 
 
 Supported Geometry and Validation
@@ -118,10 +153,12 @@ Geometry simplification is out of scope: the polygons are used exactly as given 
 into polygons following the borders of the blocked cells). Simplify the input beforehand if fewer
 vertices are needed, e.g. with Shapely.
 
-Different polygons may share vertices or edges. These contacts are currently non-blocking: a
-shortest path can pass through a shared vertex or run along overlapping edges. This behavior is
-intentional for compatibility and is covered by regression tests; callers that need contacts to
-block traversal must make the polygons overlap rather than merely touch.
+Polygons may touch each other and themselves: identical vertices, vertices on edges and overlapping
+edges are allowed. Touching obstacles block paths (cf. above). A single polygon touching itself
+must not cross itself there: with ``validate=True`` a vertex lying on another edge of the same polygon
+with its neighbours on opposite sides of that edge, identical vertices whose corners interleave
+and collinear overlapping edges within the same polygon (zero-width spikes or slits) raise a ``ValueError``.
+Different polygons may intersect each other.
 
 
 
@@ -171,7 +208,28 @@ Runtime Complexity:
 - :math:`O(m/n)` (average) for checking the visibility of target candidates. only the fraction relevant for each edge will be checked -> :math:`O(m (n log_2 n + (n m) / n) = O(m (n log_2 n + m) = O(m n log_2 n`
 - since :math:`m ~ n` the final complexity is :math:`O(m n log_2 n) = O(n^2 log_2 n)`
 
-The core visibility algorithm (for one origin) is implemented in ``find_visible()`` in ``utils.py``
+The core visibility algorithm (for one origin) is implemented in ``find_visible()`` in ``utils.py``.
+It only considers the edges: a line of sight touching an edge in one of its vertices is not blocked by that edge.
+
+
+Points and free wedges:
+_______________________
+
+What happens at the vertices is decided by a single concept (``wedges.py``):
+every vertex position within the map is a *point* with *free wedges*, the angle ranges of free space around it.
+A convex vertex of a single polygon has one free wedge larger than 180 degree,
+touching obstacles split the free space around a contact point into several wedges.
+The same rules hold for every point:
+
+1. a point is an extremity (a graph node) when it has a free wedge larger than 180 degree
+2. a line of sight leaves a point within a free wedge
+   (an extremity within its wedge larger than 180 degree, a query point within any wedge)
+3. a line of sight passes through a point only within one wedge
+4. a line of sight arrives at a contact point within a free wedge
+
+``find_visible_from()`` in ``utils.py`` combines them: it applies rule 2 at the origin,
+checks the remaining edges with ``find_visible()`` and filters the result with rules 3 and 4.
+It is used for the extremities when computing the visibility graph and for the start and goal of a query.
 
 
 Comparison:

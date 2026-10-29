@@ -88,11 +88,10 @@ TEST_DATA_GRID_ENV = [
     # using a* graph search:
     # directly reachable through a single vertex (does not change distance!)
     (((5, 1), (3, 3)), ([(5, 1), (4, 2), (3, 3)], sqrt(2**2 + 2**2))),
-    # If two Polygons have vertices with identical coordinates (this is allowed),
-    #   paths through these vertices are theoretically possible!
+    # the two holes touch diagonally at (7, 6): touching obstacles block paths (no corner cutting)
     (
         ((6.5, 5.5), (7.5, 6.5)),
-        ([(6.5, 5.5), (7, 6), (7.5, 6.5)], sqrt(1**2 + 1**2)),
+        ([(6.5, 5.5), (7, 5), (8, 5), (8, 6), (7.5, 6.5)], 2 + sqrt(2)),
     ),
     # distance should stay the same even if multiple extremities lie on direct path
     # test if path is skipping passed extremities
@@ -117,13 +116,20 @@ TEST_DATA_GRID_ENV = [
             19.869364068640845,
         ),
     ),
+    # not through the contact (7, 6) of the two holes
     (
         ((6.9, 4), (7, 9)),
-        ([(6.9, 4.0), (7, 6), (8, 7), (8, 8), (7, 9)], 5.830925564196269),
+        (
+            [(6.9, 4.0), (8, 5), (8, 6), (8, 7), (8, 8), (7, 9)],
+            sqrt(1.1**2 + 1) + 3 + sqrt(2),
+        ),
     ),
     (
         ((6.5, 4), (7, 9)),
-        ([(6.5, 4.0), (7, 6), (8, 7), (8, 8), (7, 9)], 5.889979937555021),
+        (
+            [(6.5, 4.0), (8, 5), (8, 6), (8, 7), (8, 8), (7, 9)],
+            sqrt(1.5**2 + 1) + 3 + sqrt(2),
+        ),
     ),
     # symmetric around the lower boundary obstacle
     (

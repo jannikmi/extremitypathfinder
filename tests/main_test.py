@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 
-from extremitypathfinder import utils
+from extremitypathfinder import utils_numba
 from extremitypathfinder.extremitypathfinder import PolygonEnvironment
 from extremitypathfinder.plotting import plot_environment, plot_search, set_limits
 from tests.helpers import other_edge_intersects
@@ -74,9 +74,10 @@ def try_test_cases(environment, test_cases):
 def test_grid_env():
     grid_env = PolygonEnvironment.from_grid(*GRID_ENV_PARAMS, validate=False)
     nr_extremities = len(grid_env.all_extremities)
-    assert nr_extremities == 17, "extremities do not get detected correctly!"
+    # the two corners at the contact (7, 6) of the two holes are no extremities
+    assert nr_extremities == 15, "extremities do not get detected correctly!"
     nr_graph_nodes = len(grid_env.graph.nodes)
-    assert nr_graph_nodes == 16, "identical nodes should get joined in the graph!"
+    assert nr_graph_nodes == 15, "every extremity should be a graph node!"
 
     # test if points outside the map are being rejected
     for start_coordinates, goal_coordinates in INVALID_DESTINATION_DATA:
@@ -89,7 +90,7 @@ def test_grid_env():
     # even after many queries the internal graph should have the same structure as before
     # otherwise the temporarily added vertices during a query stay stored
     nr_graph_nodes = len(grid_env.graph.nodes)
-    assert nr_graph_nodes == 16, (
+    assert nr_graph_nodes == 15, (
         "the graph should stay unchanged by shortest path queries!"
     )
 
@@ -197,7 +198,9 @@ def test_extremity_neighbour_connection(env_data):
         assert should_be_connected == are_connected
 
     for e in extremities:
-        n1, n2 = utils.get_neighbour_idxs(e, env.vertex_edge_idxs, edge_vertex_idxs)
+        n1, n2 = utils_numba.get_neighbour_idxs(
+            e, env.vertex_edge_idxs, edge_vertex_idxs
+        )
         connection_as_expected(e, n1)
         connection_as_expected(e, n2)
 
