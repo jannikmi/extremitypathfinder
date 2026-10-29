@@ -551,6 +551,11 @@ def get_distance(n1, n2, reprs_n_distances):
     return distance
 
 
+# adapted from networkx.astar_path() (networkx 3.7), 3-clause BSD license:
+#   Copyright (c) 2004-2026, NetworkX Developers
+#   Aric Hagberg, Dan Schult, Pieter Swart
+#   All rights reserved.
+# the conditions and the disclaimer of the license: LICENSES/networkx.txt
 def astar_path(
     graph: t.Graph,
     query_edges: dict[int, dict[int, float]],
