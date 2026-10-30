@@ -1,12 +1,11 @@
 import itertools
 
-import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 
 from extremitypathfinder import utils_numba
 from extremitypathfinder.extremitypathfinder import PolygonEnvironment
-from extremitypathfinder.plotting import plot_environment, plot_search, set_limits
+from extremitypathfinder.plotting import plot_environment, plot_search
 from tests.helpers import other_edge_intersects
 from tests.test_cases import (
     GRID_ENV_PARAMS,
@@ -134,11 +133,6 @@ def test_unbounded_poly_env():
     path, length = environment.find_shortest_path((-1.0, 0.5), (3.0, 0.5))
     assert path == [(-1.0, 0.5), (0.0, 0.0), (2.0, 0.0), (3.0, 0.5)]
     assert length == pytest.approx(2 * np.sqrt(1.25) + 2)
-
-    figure, axes = plt.subplots()
-    set_limits(environment, axes, np.array((path[0], path[-1])))
-    assert axes.get_xlim() == pytest.approx((-2.0, 4.0))
-    plt.close(figure)
 
 
 def test_poly_env_without_boundary_or_holes():
@@ -301,22 +295,3 @@ def test_search_graph_consists_of_visibility_graph_and_query_edges():
         for u, v, d in result.query_edges:
             assert graph.edges[u, v]["weight"] == d
             assert result.idx_start in (u, v) or result.idx_goal in (u, v)
-
-
-def test_plotting(tmp_path):
-    environment = PolygonEnvironment(*POLY_ENV_PARAMS)
-    plot_environment(environment, plotting_dir=str(tmp_path / "environment"))
-    assert len(list((tmp_path / "environment").iterdir())) == 2
-
-    (start_coordinates, goal_coordinates), _ = next(
-        case for case in TEST_DATA_POLY_ENV if len(case[1][0]) > 2
-    )
-    result = environment.search(start_coordinates, goal_coordinates)
-    plot_search(environment, result, plotting_dir=str(tmp_path / "search"))
-    # path, search graph and search graph with path
-    assert len(list((tmp_path / "search").iterdir())) == 3
-
-    result = environment.search(*DIRECT_QUERY_POLY_ENV)
-    plot_search(environment, result, plotting_dir=str(tmp_path / "direct"))
-    # no search graph: only the path
-    assert len(list((tmp_path / "direct").iterdir())) == 1

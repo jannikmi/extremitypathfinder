@@ -201,9 +201,14 @@ Environments pickled with an incompatible version of this package (e.g. 2.x) can
 Plotting
 --------
 
-The plotting functions require Matplotlib (``pip install matplotlib``).
+The plotting functions in ``extremitypathfinder.plotting`` require Matplotlib (``pip install matplotlib``).
+All of them use the same drawing:
 
-``draw()`` draws an environment and a path onto Matplotlib axes. The figure can be adjusted and saved in any format:
+- ``draw()`` draws an environment and a path onto Matplotlib axes
+- ``draw_search()`` draws the result of ``environment.search()`` onto Matplotlib axes
+- ``plot_environment()`` and ``plot_search()`` export these drawings as files
+
+``draw()`` returns the axes: the figure can be adjusted and saved in any format:
 
 .. code-block:: python
 
@@ -213,14 +218,13 @@ The plotting functions require Matplotlib (``pip install matplotlib``).
 
     path, length = environment.find_shortest_path(start_coordinates, goal_coordinates)
     fig, ax = plt.subplots()
-    draw(
-        environment, path, ax=ax
-    )  # also draws the visibility graph and marks the extremities
+    # the obstacles, the visibility graph, the extremities and the path
+    draw(environment, path, ax=ax)
     ax.set_axis_off()
     fig.savefig("path.svg")
 
-    # without the visibility graph, in other colors
-    draw(environment, path, graph=False, style=PlotStyle(path_color="black"))
+    # without the visibility graph, all vertices marked, in other colors
+    draw(environment, path, graph=False, vertices=True, style=PlotStyle(path_color="black"))
 
 The elements are drawn with group ids (``boundary``, ``obstacles``, ``visibility-graph``, ``extremities``, ``path``, ...),
 which are kept in SVG exports, e.g. for styling them with CSS.
@@ -229,28 +233,29 @@ The image at the top of this documentation is made this way (``scripts/demo_plot
 .. figure:: _static/demo.svg
     :alt: shortest path through a polygon environment
 
-    the image made with ``draw()``: obstacles in grey, extremities and the visibility graph in blue, the shortest path in orange
-
+    the image made with ``draw()``: obstacles in grey, vertices in grey, extremities and the visibility graph in blue,
+    the shortest path in orange
 
 ``environment.search()`` performs the same search as ``find_shortest_path()``,
-but returns a ``SearchResult`` with the data of the search (e.g. the temporary edges of start and goal and the search graph) in addition to the path and its length.
-``plot_environment()`` and ``plot_search()`` export plots of an environment and the steps of a search into a folder:
+but returns a ``SearchResult`` with the data of the search (e.g. the temporary edges of start and goal and the search graph)
+in addition to the path and its length.
+``draw_search()`` draws the found path and the temporary edges (dashed). Start and goal are marked even when there is no path.
+
+``plot_environment()`` and ``plot_search()`` export a drawing into a folder and return the path of the file:
 
 .. code-block:: python
 
     from extremitypathfinder.plotting import plot_environment, plot_search
 
-    environment = PolygonEnvironment(boundary_coordinates, list_of_holes, validate=True)
-    # the input polygons and the visibility graph
+    # the environment, its visibility graph and extremities
     plot_environment(environment, plotting_dir="path/to/plots")
 
-    result = environment.search(start, end)
-    path, distance = result.path, result.length
-    # the found path and the search graph
-    plot_search(environment, result, plotting_dir="path/to/plots")
+    result = environment.search(start_coordinates, goal_coordinates)
+    # the search: additionally the temporary edges of start and goal and the path
+    plot_search(environment, result, plotting_dir="path/to/plots", file_name="search.png")
 
-
-Other functions in ``plotting.py`` can be utilised to plot specific parts of an environment (extremities, edges, ...)
+By default the files are named ``environment_<timestamp>.svg`` and ``search_<timestamp>.svg``,
+the extension of ``file_name`` selects another format.
 
 
 

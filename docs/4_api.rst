@@ -23,6 +23,8 @@ Plotting
 --------
 .. autofunction:: draw
 
+.. autofunction:: draw_search
+
 .. autoclass:: PlotStyle
 
 .. autofunction:: plot_environment

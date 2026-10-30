@@ -4,9 +4,25 @@ Changelog
 Unreleased
 ----------
 
-- plotting: new ``draw()`` draws an environment and a path onto Matplotlib axes, styled with ``PlotStyle``.
-  Unlike ``plot_environment()`` and ``plot_search()`` it does not export files: the figure can be adjusted
-  and saved in any format. The elements keep their group ids in SVG exports (e.g. for styling with CSS).
+BREAKING: the plotting module (``extremitypathfinder.plotting``) has one consistent drawing:
+
+- new ``draw()`` draws an environment and a path onto Matplotlib axes, ``draw_search()`` the result of a search
+  (additionally the temporary edges of start and goal, dashed). The figure can be adjusted and saved in any format.
+  The colors and sizes are set with ``PlotStyle``. The elements keep group ids in SVG exports (e.g. for styling with CSS).
+- ``plot_environment()`` and ``plot_search()`` export these drawings: one file each (previously two and up to three),
+  named ``environment_<timestamp>.svg`` and ``search_<timestamp>.svg`` unless a ``file_name`` is given
+  (its extension selects the format). They return the path of the file.
+  The plots of the environment without its visibility graph and of the search graph with arrows are no longer exported:
+  use ``draw(environment, graph=False)``.
+- removed the helper functions and settings which drew with the global Matplotlib state:
+  ``draw_path()``, ``draw_boundaries()``, ``draw_internal_graph()``, ``draw_polygon()``, ``draw_edge()``,
+  ``draw_loaded_map()``, ``draw_prepared_map()``, ``draw_with_path()``, ``draw_only_path()``, ``draw_graph()``,
+  ``mark_points()``, ``set_limits()``, ``export_plot()``, ``get_plot_name()``, ``SHOW_PLOTS``, ``POLYGON_SETTINGS``
+  and the ``EXPORT_*`` constants. Show figures with ``matplotlib.pyplot.show()``.
+- new look: obstacles filled grey, extremities and the visibility graph in blue, the path in orange.
+
+other changes:
+
 - documentation: new demo image (SVG, adapts to dark mode), generated with ``draw()`` by ``scripts/demo_plot.py``.
 - documentation: engineering design document (goals, architecture, data model, pipelines, algorithms and design decisions).
   The implementation details moved there from the about page.

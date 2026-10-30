@@ -1,4 +1,4 @@
-"""Drawing environments and paths onto matplotlib axes (``plotting.draw()``)."""
+"""Drawing environments and searches onto matplotlib axes and exporting them as files."""
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -6,9 +6,19 @@ import pytest
 from matplotlib.colors import to_rgba
 
 from extremitypathfinder import PolygonEnvironment
-from extremitypathfinder.plotting import PlotStyle, draw
+from extremitypathfinder.plotting import (
+    PlotStyle,
+    draw,
+    draw_search,
+    plot_environment,
+    plot_search,
+)
 from scripts.demo_plot import main as generate_demo
-from tests.test_cases import POLY_ENV_PARAMS
+from tests.test_cases import POLY_ENV_PARAMS, SEPARATED_ENV, TEST_DATA_SEPARATE_ENV
+
+# start and goal requiring a graph search, and directly visible from each other
+INDIRECT_QUERY = ((4.5, 1.0), (4.0, 8.5))
+DIRECT_QUERY = ((0.5, 0.5), (1.5, 0.5))
 
 
 @pytest.fixture
@@ -103,6 +113,69 @@ def test_group_ids_in_svg_export(environment, tmp_path):
     svg = output.read_text(encoding="utf-8")
     for gid in ("boundary", "obstacles", "visibility-graph", "path", "start", "goal"):
         assert f'id="{gid}"' in svg
+
+
+def test_draw_search(environment):
+    result = environment.search(*INDIRECT_QUERY)
+    assert result.query_edges
+
+    drawn = artists(draw_search(environment, result))
+
+    assert {"visibility-graph", "query-edges", "path", "start", "goal"} <= set(drawn)
+    assert len(drawn["query-edges"].get_segments()) == len(result.query_edges)
+    assert drawn["query-edges"].get_linestyle() != [(0, None)]  # dashed
+    np.testing.assert_array_equal(drawn["path"].get_xydata(), np.array(result.path))
+
+
+def test_draw_search_without_graph_search(environment):
+    result = environment.search(*DIRECT_QUERY)
+    assert result.query_edges is None
+
+    drawn = artists(draw_search(environment, result))
+
+    assert "query-edges" not in drawn
+    np.testing.assert_array_equal(drawn["path"].get_xydata(), np.array(DIRECT_QUERY))
+
+
+def test_draw_search_without_path():
+    environment = PolygonEnvironment(*SEPARATED_ENV)
+    (start, goal), _ = TEST_DATA_SEPARATE_ENV[0]
+    result = environment.search(start, goal)
+    assert result.path == []
+
+    drawn = artists(draw_search(environment, result))
+
+    # start and goal are marked nevertheless
+    assert "path" not in drawn
+    np.testing.assert_array_equal(drawn["start"].get_offsets(), [start])
+    np.testing.assert_array_equal(drawn["goal"].get_offsets(), [goal])
+
+
+def test_plot_environment(environment, tmp_path):
+    first = plot_environment(environment, tmp_path)
+    second = plot_environment(environment, str(tmp_path))
+
+    # unique default file names
+    assert first != second
+    assert sorted(tmp_path.iterdir()) == sorted([first, second])
+    assert first.name.startswith("environment_") and first.suffix == ".svg"
+    assert 'id="visibility-graph"' in first.read_text(encoding="utf-8")
+    # the figures are closed
+    assert plt.get_fignums() == []
+
+
+@pytest.mark.parametrize("query", [INDIRECT_QUERY, DIRECT_QUERY])
+def test_plot_search(environment, tmp_path, query):
+    result = environment.search(*query)
+
+    file_path = plot_search(
+        environment, result, tmp_path / "plots", file_name="search.png"
+    )
+
+    # the extension selects the format
+    assert file_path == (tmp_path / "plots" / "search.png").resolve()
+    assert file_path.read_bytes().startswith(b"\x89PNG")
+    assert plt.get_fignums() == []
 
 
 def test_demo_plot(tmp_path):
