@@ -22,7 +22,7 @@ Goals
 - **Fast repeated queries**: the environment is static. Expensive work is done once when the environment is created,
   so that many queries (start, goal) can be answered quickly afterwards.
 - **Small graphs**: only extremities become graph nodes, and the graph is reduced further without losing optimality
-  (cf. :ref:`algorithm`). A small graph makes the queries fast and keeps the memory low.
+  (cf. `Visibility graph reduction`_). A small graph makes the queries fast and keeps the memory low.
 - **Well defined behaviour at the edge cases**: touching obstacles, points on edges and collinear vertices
   are handled by one consistent set of rules (cf. :ref:`touching`), not by special cases spread over the code.
 - **Few dependencies**: ``numpy`` and ``networkx`` only. ``numba`` is an optional accelerator, the package
@@ -114,7 +114,7 @@ Each ``Point`` stores:
 - the extremity wedge: the wedge larger than 180 degree, if there is one. A point is an extremity exactly then.
 - the incident edges and the bounding rays (exact directions, used for exact comparisons along rays)
 
-The four rules of the free wedges (cf. the module docstring of ``wedges.py`` and :ref:`algorithm`)
+The four rules of the free wedges (cf. `Free wedges`_ and the module docstring of ``wedges.py``)
 are the single source of truth for everything that happens at vertices:
 which points are graph nodes, from where a line of sight may start,
 where it may pass through and where it may arrive.
@@ -165,7 +165,7 @@ so an environment object is always complete and ready for queries.
 6. **Visibility graph** (``compute_graph()``): for every extremity in index order
 
    - the extremities "in front" of it are removed as candidates and their existing edges to it are deleted
-     ("Property One", cf. :ref:`algorithm`)
+     ("Property One", cf. `Visibility graph reduction`_)
    - the remaining extremities with a higher index are checked for visibility with ``find_visible_from()``.
      Visibility is symmetric, so each pair is checked once.
 
@@ -298,7 +298,10 @@ keeps both parts simple and separately testable.
 Angle Range Elimination Algorithm (AREA)
 ----------------------------------------
 
-``find_visible()`` removes every candidate that lies behind an edge, seen from the origin.
+AREA is the visibility algorithm developed for this package.
+The idea: a candidate is visible when no edge runs in front of it, "blocking the view".
+``find_visible()`` removes every candidate that lies behind an edge, seen from the origin,
+the candidates remaining at the end are visible.
 A line of sight only touching an edge in one of its vertices, or running along it, is not blocked by that edge.
 
 .. code-block:: text
@@ -346,9 +349,31 @@ Details:
   The candidate is blocked when :math:`\mu < 1` (the edge is closer than the candidate).
   Within the angle range the system is regular.
 
-Cost per origin: sorting the edges and candidates, :math:`O(n \log n + k \log k)`.
-Every edge is visited at most once, every candidate is checked only against the edges whose range contains it.
-For all extremities: :math:`O(m \, n \log n)`.
+Properties:
+
+- every edge is checked at most once
+- only a subset of the vertices has to be checked (the candidates, e.g. the extremities, not all vertices)
+- the number of candidates decreases with every origin: visibility is symmetric, each pair is checked once
+- no trigonometric functions
+- intersections (solving a linear system) are only computed for a fraction of the candidates
+- it would also work with line segments instead of polygons (the package however only accepts polygons)
+
+Cost per origin: sorting the edges, :math:`O(n \log n)`, and the candidates, :math:`O(k \log k)`.
+Every edge is visited at most once, and on average only the fraction of candidates within an edge's angle range
+is checked against it, :math:`O(n \cdot k / n) = O(k)`.
+With :math:`k \leq m` this gives :math:`O(n \log n + m)` per origin and :math:`O(m \, n \log n)` for all
+extremities, i.e. :math:`O(n^2 \log n)` in the worst case (:math:`m \sim n`).
+
+Comparison with `Lee's visibility graph algorithm <https://dav.ee/papers/Visibility_Graph_Algorithm.pdf>`__
+(also :math:`O(n^2 \log n)`), which `pyvisgraph <https://github.com/TaipanRex/pyvisgraph>`__ uses:
+
+- Lee checks all edges for intersection initially, AREA only the edges whose angle range contains candidates
+- Lee computes the visibility of all vertices in every run, AREA only of the candidates
+- Lee needs an intersection computation for most vertices (whenever its edge tree is not empty),
+  AREA avoids most of them with the angle range and distance tests
+- Lee sorts all vertices by angle on startup and keeps the edges in a binary tree,
+  AREA sorts edges and candidates
+- both work with line segments, not only polygons
 
 Passing through and arriving at points
 --------------------------------------
@@ -622,8 +647,10 @@ Limitations and Possible Extensions
   (the symmetry optimisation would have to be given up or the results merged), which would parallelise well.
 - **Query speed**: the visibility of start and goal is computed from scratch for every query.
   Spatial indices over the edges could reduce the number of edges checked per query.
-- **A* specialised for visibility graphs**: the triangle inequality of the visibility graph could allow
-  an earlier termination than for general graphs (cf. :ref:`algorithm`).
+- **A* specialised for visibility graphs**: in the visibility graph it is always shortest to reach a node directly
+  instead of visiting other nodes first (triangle inequality). A custom A* could exploit this to terminate earlier
+  than for general graphs: nodes never have to be revisited (the path only gets longer),
+  and not all neighbours of the current node have to be checked before continuing with the next node.
 - **Dense grids**: environments with many small obstacles have many extremities. A grid based search can be
   faster there (cf. :ref:`usage`).
 

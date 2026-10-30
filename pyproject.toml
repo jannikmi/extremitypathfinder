@@ -57,6 +57,8 @@ plot = ["matplotlib"]
 docs = [
     "Sphinx",
     "sphinx-rtd-theme",
+    # the API documentation includes the plotting functions
+    "matplotlib",
 ]
 
 [build-system]
@@ -120,7 +122,7 @@ deps =
     sphinx-rtd-theme
     matplotlib
 commands =
-    sphinx-build -d "{envtmpdir}{/}doctree" docs "{toxworkdir}{/}docs_out" --color -b html
+    sphinx-build -d "{envtmpdir}{/}doctree" docs "{toxworkdir}{/}docs_out" --color -b html -W --keep-going
 
 [testenv:release]
 # the release tooling, independent of the package and its dependencies
