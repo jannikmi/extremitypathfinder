@@ -5,10 +5,10 @@ Engineering Design
 ==================
 
 This document describes how ``extremitypathfinder`` is built: its goals, the structure of the code,
-the data model, the processing pipelines and the reasoning behind the main design decisions.
+the data model, the processing pipelines, the algorithms and the reasoning behind the main design decisions.
 It is meant for contributors and for users who want to understand the behaviour and the limits of the package.
-The underlying algorithms are explained in :ref:`the about section <algorithm>`, this document refers to them
-instead of repeating them.
+:ref:`The about section <algorithm>` gives an illustrated overview of the approach,
+this document describes the algorithms as they are implemented.
 
 
 Goals and Scope
@@ -193,23 +193,288 @@ Query
    adjacency dictionary, the precomputed graph is neither changed nor copied.
 7. **Result**: the vertex indices of the path are mapped back to coordinates, the length is summed up.
 
+All visibility computations, during construction and during queries, go through one routine
+(`Visibility from one origin`_).
+
+
+Algorithms
+==========
+
+Notation: ``n`` vertices (= edges), ``m`` extremities, ``k`` candidates of a visibility computation.
+
+Why extremities suffice
+-----------------------
+
+A shortest path in a polygon environment is a polygonal chain: between two bends it runs straight
+(otherwise it could be shortened), and it only bends where an obstacle forces it to, at a vertex around which
+the path "wraps". The path can only wrap around a vertex whose free space is larger than 180 degree on the
+side the path bends towards, i.e. at an **extremity**. At a vertex with a free angle of at most 180 degree
+the path could be shortened by cutting the corner.
+Hence the shortest path consists of start, a sequence of extremities and goal, consecutive elements being
+mutually visible. Searching the visibility graph of the extremities (extended by start and goal) is exact.
+
+Angle representation
+--------------------
+
+``_compute_repr_n_dist()`` maps a vector :math:`(dx, dy)` with length :math:`d` to a value in :math:`[0, 4)`:
+
+====================================  ===========  ================================
+quadrant                              offset       added value
+====================================  ===========  ================================
+:math:`dx \geq 0, dy \geq 0`          0            :math:`dy / d`
+:math:`dx < 0, dy \geq 0`             1            :math:`-dx / d`
+:math:`dx < 0, dy < 0`                2            :math:`-dy / d`
+:math:`dx \geq 0, dy < 0`             3            :math:`dx / d`
+====================================  ===========  ================================
+
+Within each quadrant the added value is the sine of the angle measured from the start of the quadrant,
+which grows monotonically from 0 to 1. The representation is therefore strictly monotonic in the angle
+(counter clockwise from the direction ``(1, 0)``): comparing representations is comparing angles,
+and a difference of exactly ``2.0`` means opposite directions. Angle ranges are handled modulo ``4.0``.
+The zero vector has no direction (``NaN``), callers exclude it.
+``reps_n_distances()`` is the vectorised variant for all vertices at once, with the same floating point operations.
+
+Free wedges
+-----------
+
+``free_wedges()`` computes the free space around a position from its *incidences*:
+every polygon vertex at the position contributes the rays to its previous and next vertex,
+every edge passing through the position contributes the rays to the two edge vertices.
+Because of the orientation convention the free side of an incidence is the angle range to the left of the polygon,
+counter clockwise from its second ray to its first ray.
+
+1. The distinct ray directions split the full circle into elementary angle ranges (*arcs*).
+   Rays with exactly the same direction get one representation (``_add_ray()``, exact cross product test),
+   so they do not create spurious tiny arcs.
+2. For every arc and every polygon, count the incidences of that polygon having the arc (its middle direction)
+   on their free side. Around a position, this count equals the winding number of the polygon up to a constant.
+3. An arc is blocked by a hole when its count is lower than the maximum count of that hole
+   (inside the hole), and blocked by the boundary polygon when its count equals the minimum
+   (outside of the boundary). A polygon whose count is the same for all arcs only touches the position with
+   zero-width spikes, which block their rays only.
+4. The free arcs are the free wedges. Two neighbouring free arcs remain separate wedges:
+   the ray between them is an obstacle (an edge running along it).
+
+Because the arcs are classified per polygon and an arc is free only when no polygon blocks it,
+overlapping and touching polygons act as their union.
+A point is an **extremity** if one wedge is larger than 180 degree (representation difference ``> 2.0``,
+there can be at most one). This is its *extremity wedge*.
+
+Example: two square holes touching diagonally at one corner contribute the rays 0°, 90° (first hole)
+and 180°, 270° (second hole). The arcs 0°–90° and 180°–270° are blocked, the free wedges are
+90°–180° and 270°–360°. No wedge is larger than 180 degree, so the corner is no extremity,
+and a line of sight from 135° to 315° through the corner enters and leaves in different wedges: it is blocked.
+
+The rules applied with the wedges (``wedges.py``):
+
+1. a point is an extremity when it has a free wedge larger than 180 degree
+2. a line of sight leaves a point within a free wedge
+   (an extremity within its extremity wedge, a query point within any of its wedges)
+3. a line of sight passes through a point only when its incoming and outgoing directions lie in the same wedge
+   (``Point.passable()``)
+4. a line of sight arrives at a contact within a free wedge (at a single polygon vertex this always holds
+   for a line of sight that did not cross the polygon, so it is only checked at contacts)
+
+The bounding rays belong to the wedges (closed angle ranges, ``in_closure()``): paths may run along edges.
+Directions within ``RAY_TOLERANCE`` of a bounding ray are compared with the exact ray directions instead of their
+representations (``Point.rep()``), so that collinear edges of different length behave consistently.
+
 Visibility from one origin
 --------------------------
 
-``find_visible_from()`` is the one visibility routine, used for the extremities during construction and
-for start and goal during queries:
+``find_visible_from()`` decides which candidates are visible from an origin. It is used for every extremity
+during construction and for start and goal during queries:
 
-1. Candidates outside of the allowed free wedges of the origin are dropped (rule 2).
-2. The edges incident to the origin are excluded, all other edges are checked with
-   the *Angle Range Elimination Algorithm* (``find_visible()``, cf. :ref:`algorithm`):
-   edges and candidates are sorted by angle representation, every edge only checks the candidates within its
-   angle range. Edges spanning the angle representation ``0.0`` are checked separately in a rotated frame,
-   so the main loop never handles the wrap around.
-3. The remaining candidates are filtered by ``Points.filter_visible()``: lines of sight must pass through
-   points within one wedge (rule 3) and arrive at contacts within a free wedge (rule 4).
+1. **Leaving the origin (rule 2)**: candidates outside of the allowed wedges of the origin are dropped.
+   The edges incident to the origin are then excluded from the edge checks: their effect is fully described
+   by the wedges.
+2. **Edges (AREA)**: the remaining edges are checked with ``find_visible()`` (below).
+3. **Passing and arriving (rules 3 and 4)**: ``Points.filter_visible()`` removes candidates whose
+   line of sight passes through a point outside of one wedge or arrives at a contact outside of its wedges.
 
-Keeping the edge checks (step 2) free of vertex rules, and the vertex rules (steps 1, 3) free of edge checks,
+Keeping the edge checks free of vertex rules, and the vertex rules free of edge checks,
 keeps both parts simple and separately testable.
+
+Angle Range Elimination Algorithm (AREA)
+----------------------------------------
+
+``find_visible()`` removes every candidate that lies behind an edge, seen from the origin.
+A line of sight only touching an edge in one of its vertices, or running along it, is not blocked by that edge.
+
+.. code-block:: text
+
+    keep only the closest candidate per angle representation
+    sort the candidates by angle representation
+    per edge: range [min_rep, max_rep] and max_dist of its two vertices
+    crossing edges: max_rep - min_rep > 2 (the range contains 0)
+
+    check(regular edges)
+    shift all representations: no crossing edge contains 0 anymore
+    check(crossing edges)
+
+    check(edges):
+      sort the edges by min_rep
+      ptr = 0                   # first candidate possibly in a range
+      for edge in edges:
+        stop if no candidates are left
+          or the last candidate lies before min_rep
+        move ptr past the candidates with rep < min_rep
+        for candidate from ptr while rep <= max_rep:
+          rep == min_rep or max_rep  -> keep   (touches a vertex)
+          candidate lies on edge     -> keep   (query point)
+          distance > max_dist        -> remove (behind both vertices)
+          lies_behind(edge, cand.)   -> remove (2x2 linear system)
+          otherwise                  -> keep
+
+Details:
+
+- **Identical directions**: of candidates with exactly the same representation only the closest is kept.
+  A path to a farther one passes through the closer one at no extra cost (and the vertex rules decide
+  whether it may pass at all).
+- **Sweep**: since the edges are sorted by ``min_rep`` and the candidates by representation,
+  candidates before the current edge's range can never be blocked by a following edge.
+  The pointer only moves forward, removed candidates shrink the list.
+- **Crossing edges**: an edge spans less than 180 degree, so a representation difference larger than ``2.0``
+  means the range wraps around ``0``. Instead of handling the wrap in the sweep, all representations are shifted
+  (modulo ``4.0``) so that the smallest upper end of the crossing edges moves to ``0``, which turns the crossing edges
+  into regular ones. The same sweep is reused.
+- **Distance shortcut**: a segment lies within the disk around the origin with the radius of its farther vertex.
+  A candidate within the angle range but farther away than both edge vertices therefore lies behind the edge.
+  Only the remaining candidates need an intersection computation.
+- **Lies behind**: with all vectors relative to the origin, ``_lies_behind_inner()`` solves
+  :math:`p_1 + \lambda (p_2 - p_1) = \mu v` for the intersection of the line of sight :math:`v` with the edge.
+  The candidate is blocked when :math:`\mu < 1` (the edge is closer than the candidate).
+  Within the angle range the system is regular.
+
+Cost per origin: sorting the edges and candidates, :math:`O(n \log n + k \log k)`.
+Every edge is visited at most once, every candidate is checked only against the edges whose range contains it.
+For all extremities: :math:`O(m \, n \log n)`.
+
+Passing through and arriving at points
+--------------------------------------
+
+``Points.filter_visible()`` applies rules 3 and 4 to the candidates left by AREA:
+
+- **Arriving (rule 4)**: at a contact, the direction back to the origin must lie in the extremity wedge
+  (for a query point candidate: in any of its wedges).
+- **Passing (rule 3)**: the points are sorted by their representation seen from the origin. For each candidate,
+  a binary search (``np.searchsorted``) finds the points with nearly the same representation
+  (within ``RAY_TOLERANCE``). Those closer than the candidate and exactly on the line of sight
+  (identical representation or zero cross product) must be passable: the directions back to the origin and on to
+  the candidate must lie in the same wedge.
+
+Only the few points on a line of sight are checked, so this filter costs :math:`O(p \log p)` for sorting the
+``p`` points plus a binary search per candidate.
+
+Visibility graph reduction
+--------------------------
+
+``compute_graph()`` builds the graph with the reduction described in
+`[1, Ch. II 4.4.2 "Property One"] <http://www.cs.au.dk/~gerth/advising/thesis/anders-strand-holm-vinther_magnus-strand-holm-vinther.pdf>`__:
+an extremity :math:`e_1` lying *in front of* an extremity :math:`e` is never the next node after :math:`e`
+on a shortest path (and vice versa), so they are not connected.
+
+*In front* (``Point.in_front()``): the obstacles at :math:`e` occupy the angle range outside of its extremity wedge.
+The front is the opposite range (rotated by 180 degree), excluding its bounding directions.
+A path arriving at :math:`e` from the front cannot wrap around :math:`e`, so it would go on more directly
+without visiting :math:`e`.
+
+.. code-block:: text
+
+    add all extremities as nodes
+    for each extremity e in index order:
+      later = the extremities with a higher index
+      front = { x in later ∪ neighbours(e) : x lies in front of e }
+      remove the edges between e and front  # added from the other side
+      visible = find_visible_from(e, later - front, [extremity wedge])
+      add the edges e - visible, weighted with their distance
+
+Visibility is symmetric, so each pair is checked once (from the extremity with the lower index).
+The front condition is not symmetric: an edge added from :math:`e_1`'s side is removed again when :math:`e_1`
+lies in front of :math:`e`. That is why the current neighbours are included in the front test.
+Extremities without edges remain in the graph, start and goal may connect to them.
+
+The reduction does not apply to start and goal: they are endpoints of the path, not intermediate nodes.
+A query point connects to all visible graph nodes, including those in front of it.
+
+Query
+-----
+
+``search()`` computes the visibility of start and goal with the same routine and then searches the graph:
+
+- **Merging**: a query point at the position of an extremity is mapped to that graph node.
+  When the start is merged, its graph node is excluded from the candidates visible from the goal:
+  it has the same direction and distance as the start and would hide it (only one candidate per direction is kept),
+  although the start may leave through any of its wedges and the graph node only through its extremity wedge.
+- **Goal first**: when nothing is visible from the goal there is no path. When the start is visible from the goal,
+  the straight segment is the shortest path (no path can be shorter than the Euclidean distance) and the graph is
+  not searched.
+- **A***: ``astar_path()`` uses the Euclidean distance to the goal as heuristic. Edge weights are Euclidean distances,
+  so the heuristic is admissible and consistent (triangle inequality): the first time the goal is taken from the
+  priority queue, its path is a shortest one.
+  The implementation follows ``networkx.astar_path()``: a binary heap with lazy deletion
+  (outdated queue entries are skipped when popped), a counter as tie breaker (nodes are never compared),
+  and caching of the heuristic per enqueued node. The neighbours of a node are those in the precomputed graph
+  followed by the temporary edges of start and goal.
+- **Distances**: ``get_distance()`` looks up the precomputed distances of the node with the higher index.
+  Start and goal have the highest indices, their distances are computed for the query.
+
+Point in polygon
+----------------
+
+``is_within_map()`` accepts a point when it lies within the boundary polygon (its border included)
+and not strictly inside any hole (hole borders are part of the map).
+``_inside_polygon()`` first checks for every edge whether the point lies exactly on it (``_lies_on_edge()``)
+and then returns the given border value. Otherwise it counts the crossings of a horizontal ray from the point
+in positive ``x`` direction with the polygon edges (crossing number). Edges with exactly one vertex to the right
+are decided by comparing slopes as products (no division).
+
+Contact detection
+-----------------
+
+Contacts are found while building the points (``Points``):
+
+- **Identical vertices**: the coordinates are sorted lexicographically (``np.lexsort``)
+  and consecutive equal rows are grouped. Unlike ``np.unique`` this treats ``0.0`` and ``-0.0`` as equal.
+- **Vertices on edges**: for all distinct vertex positions, the edges whose bounding box contains the position are
+  selected with numpy broadcasting (processed in chunks to bound the memory), the edge's own vertices are excluded,
+  and ``_lies_on_edge()`` decides exactly: a zero cross product with the position between the edge vertices,
+  or angle representations of the edge vertices exactly 180 degree apart.
+
+The bounding box test compares all positions with all edges, :math:`O(n^2)` vectorised operations.
+
+Input validation
+----------------
+
+With ``validate=True`` every polygon is checked (``_check_polygon()``):
+
+- shape, at least 3 vertices, finite coordinates, no identical consecutive vertices
+- **proper self intersections**: every pair of non-neighbouring edges is tested by solving a 2x2 linear system
+  (``_get_intersection_status()``), intersections strictly inside both edges are rejected, :math:`O(n^2)` per polygon
+- **non-zero area**: shoelace formula on coordinates translated to the first vertex (avoids cancellation)
+- **crossings at self contacts** (``check_polygon_contacts()``): at every position where the polygon touches itself,
+  two rays with the same direction mean overlapping edges (zero-width spikes or slits), and two corners
+  whose rays interleave (exactly one ray of the second corner lies within the first corner) mean the polygon
+  crosses itself
+- **orientation** (``_has_clockwise_numbering()``): the sign of :math:`\sum (x_2 - x_1)(y_2 + y_1)` over all edges
+  (positive: clockwise). The boundary must be counter clockwise, the holes clockwise.
+
+Grid conversion
+---------------
+
+``convert_grid()`` turns blocked cells into polygons whose vertices are cell corners
+(cell ``(x, y)`` spans :math:`[x, x+1] \times [y, y+1]`):
+
+1. **Boundary**: starting at the lowest, leftmost free cell, a wall follower walks along the border between free cells
+   and blocked cells (or the grid border), keeping the blocked side on its left, and adds a vertex at every turn
+   until it is back at the start. The vertex order is reversed to make it counter clockwise.
+2. **Holes**: the blocked cells inside the boundary (tested at the cell centre) are processed repeatedly:
+   the outline of the lowest, leftmost remaining blocked cell is traced in the same way (clockwise),
+   and all blocked cells inside this new hole are removed from the remaining cells.
+
+The polygons follow the cell borders exactly (no simplification, no diagonal edges).
+Diagonally adjacent blocked cells produce polygons (or a polygon) touching at a corner, which block paths through it
+(no corner cutting).
 
 
 Design Decisions
@@ -314,7 +579,7 @@ Step                               Time                        Notes
 =================================  ==========================  =====================================================
 points and wedges                  ``O(n²)``                   vectorised bounding box test: edges through vertices
 angle representations              ``O(m n)``                  vectorised, stored for all extremities
-visibility graph                   ``O(m n log n)``            AREA for every extremity, cf. :ref:`algorithm`
+visibility graph                   ``O(m n log n)``            AREA for every extremity, cf. `Algorithms`_
 query: visibility of start, goal   ``O(n log n + m)``          dominates the query time
 query: A*                          ``O(E log E)``              ``E``: graph and temporary edges
 =================================  ==========================  =====================================================
