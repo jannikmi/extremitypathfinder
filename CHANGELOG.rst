@@ -1,6 +1,12 @@
 Changelog
 =========
 
+Unreleased
+----------
+
+- documentation: engineering design document (goals, architecture, data model, pipelines and design decisions).
+
+
 3.0.0 (2026-10-29)
 ------------------
 
