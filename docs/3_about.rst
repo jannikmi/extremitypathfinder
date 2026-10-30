@@ -71,7 +71,7 @@ ________________
     polygon environment with optimised visibility graph overlay in red
 
 
-- **2. Including start and goal:** For each shortest path query the start and goal points are being connected to the internal graph depending on their visibility. The precomputed graph stays unchanged and is not copied: the search uses the temporary edges of start and goal in addition to it:
+- **2. Including start and goal:** For each shortest path query the start and goal points are being connected to the internal graph depending on their visibility. The precomputed graph stays unchanged:
 
 .. figure:: _static/graph_plot.png
 
@@ -79,7 +79,7 @@ ________________
 
 
 
-- **3. A-star shortest path computation :** Finding the shortest path on graphs is a standard computer science problem. This package uses its own port of the ``A*`` implementation of ``networkx`` (``networkx.astar_path()``) with the euclidean distance as heuristic. It searches the precomputed graph extended by the temporary edges. When the goal is directly visible from the start, the direct connection is returned without a graph search (cf. below).
+- **3. A-star shortest path computation :** Finding the shortest path on graphs is a standard computer science problem. This package uses ``A*`` with the euclidean distance as heuristic on the precomputed graph extended by start and goal. When the goal is directly visible from the start, the direct connection is returned without a graph search.
 
 .. figure:: _static/graph_path_plot.png
 
@@ -168,106 +168,8 @@ Different polygons may intersect each other.
 Implementation
 ==============
 
-
-Visibility detection: "Angle Range Elimination Algorithm" (AREA, Contribution of this package)
-______________________________________________________________________________________________
-
-AREA is an algorithm for computing the visibility graph.
-
-In this use case we are not interested in the full visibility graph, but the visibility of just some points (all extremities, start and goal).
-
-Simple fundamental idea: points (extremities) are visible when there is no edge running in front "blocking the view".
-
-Rough procedure: For all edges delete the points lying behind them. Points that remain at the end are visible.
-
-Optimisations:
-
-* for each edge only checking the relevant candidates ("within the angle range"):
-  * By sorting the edges after their angle representation (similar to Lee's algorith, s. below), only the candidates with a bigger representation have to be checked.
-  * By also sorting the candidates, the candidates with a smaller representation than the edge don't have to be checked.
-* angle representations: instead of computing with angles in degree or radians, it is much more efficient and still sufficient to use a representation that is mapping an angle to a range :math:`a \in [0.0 ; 4.0[` (:math:`[0.0 ; 1.0[` in all 4 quadrants). This can be done without computationally expensive trigonometric functions!
-* deciding if a point lies behind an edge can often be done without computing intersections by just comparing distances. This can be used to reduce the needed computations.
-
-
-Properties:
-
-- checking all edges
-- checking an edge at most once
-- ability to process only a subset of all vertices as possible candidates
-- decreasing number of candidates after every checked origin (visibility is a symmetric relation -> only need to check once for every candidate pair!)
-- no expensive trigonometric computations
-- actual Intersection computation (solving linear scalar equations) only for a fraction of candidates
-- could theoretically also work with just lines (this package however currently just allows polygons)
-
-
-Runtime Complexity:
-
-- :math:`m`: the amount of extremities (candidates)
-- :math:`n`: the amount of edges / vertices (since polynomial edges share vertices), with usually :math:`m << n`
-- :math:`O(m)` for checking every candidate as origin
-- :math:`O(n log_2 n)` for sorting the edges, done once for every origin -> :math:`O(m n log_2 n)`
-- :math:`O(n)` for checking every edge -> :math:`O(m (n log_2 n + n)`
-- :math:`O(m/n)` (average) for checking the visibility of target candidates. only the fraction relevant for each edge will be checked -> :math:`O(m (n log_2 n + (n m) / n) = O(m (n log_2 n + m) = O(m n log_2 n`
-- since :math:`m ~ n` the final complexity is :math:`O(m n log_2 n) = O(n^2 log_2 n)`
-
-The core visibility algorithm (for one origin) is implemented in ``find_visible()`` in ``utils.py``.
-It only considers the edges: a line of sight touching an edge in one of its vertices is not blocked by that edge.
-
-
-Points and free wedges:
-_______________________
-
-What happens at the vertices is decided by a single concept (``wedges.py``):
-every vertex position within the map is a *point* with *free wedges*, the angle ranges of free space around it.
-A convex vertex of a single polygon has one free wedge larger than 180 degree,
-touching obstacles split the free space around a contact point into several wedges.
-The same rules hold for every point:
-
-1. a point is an extremity (a graph node) when it has a free wedge larger than 180 degree
-2. a line of sight leaves a point within a free wedge
-   (an extremity within its wedge larger than 180 degree, a query point within any wedge)
-3. a line of sight passes through a point only within one wedge
-4. a line of sight arrives at a contact point within a free wedge
-
-``find_visible_from()`` in ``utils.py`` combines them: it applies rule 2 at the origin,
-checks the remaining edges with ``find_visible()`` and filters the result with rules 3 and 4.
-It is used for the extremities when computing the visibility graph and for the start and goal of a query.
-
-
-Comparison:
-___________
-
-**Lee's visibility graph algorithm**:
-
-complexity: :math:`O(n^2 log_2 n)` (cf. `these slides <https://dav.ee/papers/Visibility_Graph_Algorithm.pdf>`__)
-
-- Initially all edges are being checked for intersection
-- Necessarily checking the visibility of all points (instead of just some)
-- Always checking all points in every run
-- One intersection computation for most points (always when T is not empty)
-- Sorting: all points according to degree on startup, edges in binary tree T
-- Can work with just lines (not restricted to polygons)
-
-
-Optimised Pathfinding:
-______________________
-
-The shortest path is computed with a port of the ``A*`` implementation of the ``networkx`` package
-(``networkx.astar_path()``), using the euclidean distance as heuristic.
-The search runs on the precomputed graph extended by the temporary edges of start and goal,
-without copying the graph (copying made up most of the query time in large environments, #136).
-
-A geometrical property of this specific task (the visibility graph) is already exploited:
-It is always shortest to directly reach a node instead of visiting other nodes first
-(there is never an advantage through reduced edge weight).
-Hence when the goal is directly visible from the start, there can be no shorter path to it
-and the direct connection is returned without running ``A*``.
-
-A custom ``A*`` could exploit this property further to terminate earlier than for general graphs:
-
-- no need to revisit nodes (path only gets longer)
-
-- not all neighbours of the current node have to be checked like in vanilla A* before continuing to the next node
+How the steps are implemented (the visibility computation, the free wedges at the vertices,
+the graph reduction and the search) and why: cf. the :ref:`engineering design <design>`.
 
 
 Comparison to pyvisgraph

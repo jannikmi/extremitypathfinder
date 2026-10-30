@@ -1,5 +1,5 @@
 version = 1
-revision = 5
+revision = 3
 requires-python = ">=3.12, <4"
 resolution-markers = [
     "python_full_version >= '3.13'",
@@ -320,6 +320,7 @@ dev = [
     { name = "tox" },
 ]
 docs = [
+    { name = "matplotlib" },
     { name = "sphinx", version = "9.1.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.13'" },
     { name = "sphinx", version = "9.2.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.13'" },
     { name = "sphinx-rtd-theme" },
@@ -344,6 +345,7 @@ dev = [
     { name = "tox" },
 ]
 docs = [
+    { name = "matplotlib" },
     { name = "sphinx" },
     { name = "sphinx-rtd-theme" },
 ]

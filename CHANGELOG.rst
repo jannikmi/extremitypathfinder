@@ -1,6 +1,19 @@
 Changelog
 =========
 
+Unreleased
+----------
+
+- documentation: engineering design document (goals, architecture, data model, pipelines, algorithms and design decisions).
+  The implementation details moved there from the about page.
+
+internal:
+
+- documentation: the API documentation lists the plotting functions
+  (matplotlib was missing from the documentation dependencies, their import failed).
+- the documentation build in CI (``tox -e docs``) fails on warnings.
+
+
 3.0.0 (2026-10-29)
 ------------------
 
