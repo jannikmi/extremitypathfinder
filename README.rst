@@ -7,81 +7,91 @@ extremitypathfinder
 
 
 .. image:: https://github.com/jannikmi/extremitypathfinder/actions/workflows/build.yml/badge.svg?branch=master
+    :alt: CI status
     :target: https://github.com/jannikmi/extremitypathfinder/actions?query=branch%3Amaster
 
 .. image:: https://readthedocs.org/projects/extremitypathfinder/badge/?version=latest
     :alt: documentation status
     :target: https://extremitypathfinder.readthedocs.io/en/latest/?badge=latest
 
-.. image:: https://img.shields.io/pypi/wheel/extremitypathfinder.svg
-    :target: https://pypi.python.org/pypi/extremitypathfinder
-
-.. image:: https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white
-   :target: https://github.com/pre-commit/pre-commit
-   :alt: pre-commit
-
-.. image:: https://pepy.tech/badge/extremitypathfinder
-    :alt: Total PyPI downloads
-    :target: https://pepy.tech/project/extremitypathfinder
-
 .. image:: https://img.shields.io/pypi/v/extremitypathfinder.svg
     :alt: latest version on PyPI
     :target: https://pypi.python.org/pypi/extremitypathfinder
 
-.. image:: https://img.shields.io/badge/code%20style-black-000000.svg
-    :target: https://github.com/psf/black
+.. image:: https://img.shields.io/pypi/pyversions/extremitypathfinder.svg
+    :alt: supported Python versions
+    :target: https://pypi.python.org/pypi/extremitypathfinder
 
-python package for fast geometric shortest path computation in 2D multi-polygon or grid environments based on visibility graphs.
+.. image:: https://static.pepy.tech/badge/extremitypathfinder
+    :alt: total PyPI downloads
+    :target: https://pepy.tech/projects/extremitypathfinder
+
+.. image:: https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white
+    :alt: pre-commit
+    :target: https://github.com/pre-commit/pre-commit
+
+.. image:: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json
+    :alt: code style: ruff
+    :target: https://github.com/astral-sh/ruff
 
 
-.. image:: ./docs/_static/title_demo_plot.png
+Python package for fast geometric shortest path computation in 2D multi-polygon or grid environments
+based on visibility graphs.
+
+.. image:: https://raw.githubusercontent.com/jannikmi/extremitypathfinder/master/docs/_static/title_demo_plot.png
+    :alt: shortest path through a polygon environment
 
 
-Supported versions
-------------------
+Features
+--------
 
-Python >=3.12,<4 is accepted; CI currently tests CPython 3.12–3.15.
-Dependencies are NetworkX 3.x and NumPy >=2.3.3,<3.
-Python <3.12 and NumPy <2.3.3 are no longer supported.
+- **Exact shortest paths**: the Euclidean shortest path between any two points of the free space,
+  not an approximation on a grid or mesh.
+- **Fast repeated queries**: the visibility graph of an environment is computed once,
+  each query then only connects its start and goal to it.
+  Only the protruding corners ("extremities") become graph nodes, which keeps the graph small.
+- **Polygon environments**: a boundary polygon with holes, or holes only (unbounded environments).
+  Polygons may touch and overlap each other. Touching obstacles form a wall that paths cannot pass.
+- **Grids**: convert a grid with blocked cells into a polygon environment.
+- **Few dependencies**: NumPy and NetworkX. Optional `Numba <https://numba.pydata.org/>`__ acceleration.
+- **Extras**: input validation, plotting (Matplotlib), caching environments with pickle,
+  and a command line interface.
 
-The Python and NumPy floors stay within the September 2026 downstream support
-window in `NEP 29 <https://numpy.org/neps/nep-0029-deprecation_policy>`__,
-now superseded by `SPEC 0 <https://scientific-python.org/specs/spec-0000/>`__.
-Both policies exclude Python 3.11 by this date. This compatibility window is
-narrower than CPython's security support lifetime. Review the floors for future
-releases; SPEC 0 recommends dropping Python 3.12 in October 2026.
-The declared dependency minimums are the same for all Python versions.
-On Python 3.15 they provide no wheels, so CI tests the oldest releases that do instead:
-NumPy 2.5.2, SciPy 1.18.1 and Numba 0.68.0.
-These recommendations do not promise upstream bug fixes for every included
-NumPy release.
-CI runs the full suite with minimum and latest compatible dependencies,
-both with and without the ``numba`` extra, on every supported Python version.
 
-The optional ``numba`` extra installs Numba >=0.63,<1 and SciPy >=1.16.1,<2.
-SciPy supplies the compiled
-linear algebra routines. Pip selects compatible versions; Numba may constrain
-NumPy more tightly than the ordinary installation.
-Acceleration depends on Numba/llvmlite platform support and adds installation
-size and initial compilation time. Standard, GIL-enabled CPython is tested;
-free-threaded builds and alternative interpreters are not covered by CI.
+Installation
+------------
 
-Quick Guide:
+.. code-block:: console
 
-Install the package with the optional Numba extra for a significant speedup:
+    pip install extremitypathfinder
+
+With the optional Numba extra for a significant speedup
+(larger installation, initial compilation time):
 
 .. code-block:: console
 
     pip install "extremitypathfinder[numba]"
 
+Python 3.12 or newer is required (CI tests CPython 3.12–3.15).
+Dependencies: NumPy >=2.3.3,<3 and NetworkX 3.x.
+Cf. `supported versions and dependencies
+<https://extremitypathfinder.readthedocs.io/en/latest/0_getting_started.html#supported-versions-and-dependencies>`__
+for the support policy.
+
+
+Quick Start
+-----------
+
+Polygon environment
+~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: python
 
     from extremitypathfinder import PolygonEnvironment
 
-    # counter clockwise vertex numbering!
+    # the boundary polygon: counter clockwise vertex numbering!
     boundary_coordinates = [(0.0, 0.0), (10.0, 0.0), (9.0, 5.0), (10.0, 10.0), (0.0, 10.0)]
-    # clockwise numbering!
+    # the holes (obstacles): clockwise vertex numbering!
     list_of_holes = [
         [
             (3.0, 7.0),
@@ -90,13 +100,20 @@ Install the package with the optional Numba extra for a significant speedup:
             (5.0, 4.0),
         ],
     ]
-    environment = PolygonEnvironment(boundary_coordinates, list_of_holes, validate=False)
-    start_coordinates = (4.5, 1.0)
-    goal_coordinates = (4.0, 8.5)
-    path, length = environment.find_shortest_path(start_coordinates, goal_coordinates)
+    # computes the visibility graph once
+    environment = PolygonEnvironment(boundary_coordinates, list_of_holes, validate=True)
 
+    # fast consecutive queries
+    path, length = environment.find_shortest_path((4.5, 1.0), (4.0, 8.5))
+    # path: [(4.5, 1.0), (3.0, 7.0), (4.0, 8.5)], length: 7.987...
 
-Grids with blocked cells (obstacles) can be converted into polygon environments as well.
+``path`` is ``[]`` and ``length`` is ``None`` when there is no path between start and goal.
+``validate=True`` checks the input polygons (vertex order, self intersections, ...).
+For trusted input it can be skipped to save time (``validate=False``, the default).
+
+Grid environment
+~~~~~~~~~~~~~~~~
+
 Coordinates refer to the corners of the grid cells, i.e. cell ``(x, y)`` spans ``[x, x+1] x [y, y+1]``:
 
 .. code-block:: python
@@ -105,12 +122,46 @@ Coordinates refer to the corners of the grid cells, i.e. cell ``(x, y)`` spans `
     obstacle_iter = [(2, 1), (3, 1)]  # blocked grid cells (x, y)
     environment = PolygonEnvironment.from_grid(size_x, size_y, obstacle_iter)
     path, length = environment.find_shortest_path((0.5, 0.5), (4.5, 2.5))
+    # path: [(0.5, 0.5), (2.0, 2.0), (4.5, 2.5)], length: 4.670...
+
+Command line
+~~~~~~~~~~~~
+
+Environments stored as JSON (cf. ``example.json``) can be queried from the command line:
+
+.. code-block:: console
+
+    extremitypathfinder ./example.json -s 2.5 3.2 -g 7.9 6.8
 
 
-For more refer to the `documentation <https://extremitypathfinder.readthedocs.io/en/latest/>`__.
-Upgrading from version 2.x? See the `upgrade guide <https://extremitypathfinder.readthedocs.io/en/latest/2_upgrading.html>`__.
+Documentation
+-------------
 
+The `documentation <https://extremitypathfinder.readthedocs.io/en/latest/>`__ covers:
+
+- `Usage <https://extremitypathfinder.readthedocs.io/en/latest/1_usage.html>`__:
+  all features, the input requirements, plotting and caching
+- `Upgrading from 2.x <https://extremitypathfinder.readthedocs.io/en/latest/2_upgrading.html>`__
+- `About <https://extremitypathfinder.readthedocs.io/en/latest/3_about.html>`__:
+  how it works, the handling of touching obstacles and a comparison to other packages
+- `Engineering Design <https://extremitypathfinder.readthedocs.io/en/latest/8_design.html>`__:
+  the architecture and the algorithms
+- `API reference <https://extremitypathfinder.readthedocs.io/en/latest/4_api.html>`__
+
+
+Contributing and License
+------------------------
+
+Contributions are welcome: see the
+`contribution guidelines <https://extremitypathfinder.readthedocs.io/en/latest/5_contributing.html>`__
+and the `issue tracker <https://github.com/jannikmi/extremitypathfinder/issues>`__.
+
+``extremitypathfinder`` is distributed under the terms of the MIT license
+(`LICENSE <https://github.com/jannikmi/extremitypathfinder/blob/master/LICENSE>`__).
+The A* search (``utils.astar_path()``) is adapted from NetworkX and distributed under its 3-clause BSD license
+(`LICENSES/networkx.txt <https://github.com/jannikmi/extremitypathfinder/blob/master/LICENSES/networkx.txt>`__).
 
 Also see:
 `GitHub <https://github.com/jannikmi/extremitypathfinder>`__,
-`PyPI <https://pypi.python.org/pypi/extremitypathfinder/>`__
+`PyPI <https://pypi.python.org/pypi/extremitypathfinder/>`__,
+`Changelog <https://extremitypathfinder.readthedocs.io/en/latest/6_changelog.html>`__

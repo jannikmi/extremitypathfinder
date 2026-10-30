@@ -4,6 +4,7 @@ Changelog
 Unreleased
 ----------
 
+- documentation: improved README and documentation landing page (features, quick start, navigation).
 - documentation: engineering design document (goals, architecture, data model, pipelines, algorithms and design decisions).
   The implementation details moved there from the about page.
 
