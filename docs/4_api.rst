@@ -21,6 +21,10 @@ PolygonEnvironment
 
 Plotting
 --------
+.. autofunction:: draw
+
+.. autoclass:: PlotStyle
+
 .. autofunction:: plot_environment
 
 .. autofunction:: plot_search

@@ -78,6 +78,8 @@ source-include = [
     "tests/*.py",
     "scripts/validate_release.py",
     "scripts/release.py",
+    # imported by the tests
+    "scripts/demo_plot.py",
     "example.json",
 ]
 

@@ -4,6 +4,10 @@ Changelog
 Unreleased
 ----------
 
+- plotting: new ``draw()`` draws an environment and a path onto Matplotlib axes, styled with ``PlotStyle``.
+  Unlike ``plot_environment()`` and ``plot_search()`` it does not export files: the figure can be adjusted
+  and saved in any format. The elements keep their group ids in SVG exports (e.g. for styling with CSS).
+- documentation: new demo image (SVG, adapts to dark mode), generated with ``draw()`` by ``scripts/demo_plot.py``.
 - documentation: engineering design document (goals, architecture, data model, pipelines, algorithms and design decisions).
   The implementation details moved there from the about page.
 
