@@ -129,33 +129,60 @@ def _check_polygon(polygon):
     check_polygon_contacts(polygon)
 
 
+def orient_polygon(coords: np.ndarray, clockwise: bool) -> np.ndarray:
+    """the polygon with the wanted vertex numbering, reversed if it has the opposite numbering
+
+    Input which is no polygon (shape, fewer than 3 vertices) is returned unchanged,
+    it is rejected by the validation (cf. ``_check_polygon()``).
+
+    :param coords: the (x,y) coordinates of the polygon
+    :param clockwise: whether the vertex numbering should be clockwise
+    :return: the polygon (an independent copy if reversed)
+    """
+    if coords.ndim != 2 or coords.shape[0] < 3 or coords.shape[1] != 2:
+        return coords
+    if _has_clockwise_numbering(coords) == clockwise:
+        return coords
+    return coords[::-1].copy()
+
+
+def orient_polygons(
+    boundary_coords: np.ndarray | None, list_hole_coords: list[np.ndarray]
+) -> tuple[np.ndarray | None, list[np.ndarray]]:
+    """the polygons with the vertex numbering convention (for easier computations):
+
+    * outer boundary polygon: counter clockwise
+    * holes: clockwise
+
+    The free space then lies on the left side of every edge.
+    """
+    if boundary_coords is not None:
+        boundary_coords = orient_polygon(boundary_coords, clockwise=False)
+    list_hole_coords = [
+        orient_polygon(hole_coords, clockwise=True) for hole_coords in list_hole_coords
+    ]
+    return boundary_coords, list_hole_coords
+
+
 def check_data_requirements(
     boundary_coords: np.ndarray, list_hole_coords: list[np.ndarray]
 ):
-    """ensures that all the following conditions on the polygons are fulfilled:
-        - basic polygon requirements (s. above)
-        - edge numbering has to follow this convention (for easier computations):
-            * outer boundary polygon: counter clockwise
-            * holes: clockwise
+    """ensures that the basic polygon requirements (s. above) are fulfilled by all polygons
+
+    Note: the vertex numbering is not checked, polygons are oriented beforehand (cf. ``orient_polygons()``)
 
     :param boundary_coords:
     :param list_hole_coords:
     :return:
     """
     _check_polygon(boundary_coords)
-    if _has_clockwise_numbering(boundary_coords):
-        raise ValueError(
-            "Vertex numbering of the boundary polygon must be counter clockwise."
-        )
     check_hole_data_requirements(list_hole_coords)
 
 
 def check_hole_data_requirements(list_hole_coords: list[np.ndarray]):
-    """Validate the shape and clockwise numbering of hole polygons."""
+    """Validate the shape of hole polygons."""
     for hole_coords in list_hole_coords:
         _check_polygon(hole_coords)
-        if not _has_clockwise_numbering(hole_coords):
-            raise ValueError("Vertex numbering of hole polygon must be clockwise.")
 
 
 def find_visible(

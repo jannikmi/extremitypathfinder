@@ -72,8 +72,9 @@ class PolygonEnvironment:
     (or a grid with blocked cells to :meth:`from_grid`) and the visibility graph is computed right away.
     Afterwards these attributes are available:
 
-    * ``boundary_polygon``: the boundary coordinates (``None`` for unbounded environments)
-    * ``holes``: the list of hole coordinates
+    * ``boundary_polygon``: the boundary coordinates (``None`` for unbounded environments),
+      counter clockwise numbering (reversed if given clockwise)
+    * ``holes``: the list of hole coordinates, clockwise numbering (reversed if given counter clockwise)
     * ``coords``: the coordinates of all polygon vertices (boundary first, then all holes)
     * ``extremity_indices``: the indices of all extremities in ``coords`` (at most one per vertex position)
     * ``graph``: the precomputed visibility graph (:class:`networkx.Graph`) of the extremities
@@ -116,14 +117,16 @@ class PolygonEnvironment:
             * no self intersections. A polygon may touch itself (identical vertices, a vertex on an edge),
               but must not cross itself there
             * no collinear overlapping edges within a polygon (zero-width spikes or slits)
-            * edge numbering has to follow these conventions: boundary polygon counter clockwise, holes clockwise
+            * the vertex numbering may be clockwise or counter clockwise. Internally the boundary polygon
+              is numbered counter clockwise and the holes clockwise: polygons with the opposite numbering
+              are stored reversed (``boundary_polygon``, ``holes``)
 
             Polygons may touch or intersect each other. Touching obstacles block paths.
 
-        :param boundary_coordinates: array of coordinates with counter clockwise edge numbering.
+        :param boundary_coordinates: array of coordinates (clockwise or counter clockwise numbering).
             When ``None``, the environment is unbounded and at least one hole must
             be supplied.
-        :param list_of_hole_coordinates: array of coordinates with clockwise edge numbering
+        :param list_of_hole_coordinates: arrays of coordinates (clockwise or counter clockwise numbering)
         :param validate: whether the requirements of the data should be tested
 
         :raises TypeError: when validate=True and the input has an invalid shape.
@@ -143,6 +146,10 @@ class PolygonEnvironment:
             raise ValueError(
                 "At least one hole is required when boundary_coordinates is None."
             )
+        # accept both vertex numberings: reverse polygons with the opposite numbering
+        boundary_coordinates, list_of_hole_coordinates = utils.orient_polygons(
+            boundary_coordinates, list_of_hole_coordinates
+        )
         if validate:
             if boundary_coordinates is None:
                 utils.check_hole_data_requirements(list_of_hole_coordinates)

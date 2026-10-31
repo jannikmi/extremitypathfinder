@@ -166,12 +166,6 @@ def test_touching_holes_block_at_shared_vertex():
             "self intersections",
         ),
         (
-            list(reversed(BOUNDARY)),
-            [],
-            ValueError,
-            "boundary polygon must be counter clockwise",
-        ),
-        (
             [(0.0, 0.0), (1.0, 0.0), (float("nan"), 1.0)],
             [],
             ValueError,
@@ -182,12 +176,6 @@ def test_touching_holes_block_at_shared_vertex():
             [],
             ValueError,
             "area must be non-zero",
-        ),
-        (
-            BOUNDARY,
-            [list(reversed(RECTANGULAR_HOLE))],
-            ValueError,
-            "hole polygon must be clockwise",
         ),
         # https://github.com/jannikmi/extremitypathfinder/issues/135:
         # the chain (2,2) -> (5,5) -> (9,9) crosses the edge (8,2) -> (2,8) at the vertex (5,5)

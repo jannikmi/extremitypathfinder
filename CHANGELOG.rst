@@ -25,6 +25,10 @@ BREAKING: the plotting module (``extremitypathfinder.plotting``) has one consist
 
 other changes:
 
+- polygons are accepted with clockwise and counter clockwise vertex numbering, also mixed (#161).
+  Polygons with the opposite numbering are reversed into the internal convention (boundary counter clockwise,
+  holes clockwise), also in ``boundary_polygon`` and ``holes``. Previously wrongly numbered polygons
+  raised a ``ValueError`` with ``validate=True`` and gave wrong results without validation.
 - documentation: new demo image (SVG, adapts to dark mode) and all figures regenerated with the new plotting functions
   (SVG instead of PNG). ``scripts/docs_figures.py`` generates them.
 - documentation: improved README and documentation landing page (features, quick start, navigation).

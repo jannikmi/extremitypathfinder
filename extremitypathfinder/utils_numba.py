@@ -190,12 +190,15 @@ def _has_clockwise_numbering(coords: np.ndarray) -> bool:
     :param coords: the list of (x,y) coordinates representing the polygon to be tested
     :return: true if the polygon has been given in clockwise numbering
     """
+    # Translating near the origin avoids catastrophic cancellation for small
+    # polygons represented by large-magnitude coordinates (cf. _check_polygon()).
+    y0 = coords[0, 1]
     total_sum = 0.0
     p1 = coords[-1]
     for p2 in coords:
         x1, y1 = p1
         x2, y2 = p2
-        total_sum += (x2 - x1) * (y2 + y1)
+        total_sum += (x2 - x1) * ((y2 - y0) + (y1 - y0))
         p1 = p2
     return total_sum > 0
 

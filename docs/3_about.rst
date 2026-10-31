@@ -146,8 +146,9 @@ _________________________________
 
 Polygon coordinates may use any finite scale supported by double-precision floating point numbers.
 Nearly collinear vertices are supported, but callers should avoid differences smaller than the
-precision available at their coordinate magnitude. Boundary vertices must be ordered counter
-clockwise and hole vertices clockwise. Polygons need at least three vertices, must not
+precision available at their coordinate magnitude. The vertices may be ordered clockwise or
+counter clockwise (polygons are reversed into the internal convention: boundary counter clockwise,
+holes clockwise). Polygons need at least three vertices, must not
 self-intersect, and must not repeat a vertex immediately (including repeating the first vertex at
 the end). Coordinates must be finite and polygons must have non-zero area. When ``validate=True``,
 violations of these input requirements raise ``TypeError`` or ``ValueError`` before preprocessing.
