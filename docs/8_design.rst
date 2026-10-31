@@ -99,6 +99,8 @@ Vertices and edges
 
 The orientation convention (boundary counter clockwise, holes clockwise) puts the free space on the left side of
 every edge. The free wedges and the point in polygon test rely on it.
+The input may use either vertex numbering: polygons with the opposite numbering are reversed when they are stored
+(``orient_polygons()``).
 
 Points and free wedges
 ----------------------
@@ -152,17 +154,20 @@ Construction
 so an environment object is always complete and ready for queries.
 
 1. **Conversion**: the input is converted to ``float64`` numpy arrays (independent copies of the input).
-2. **Validation** (optional, ``validate=True``): shapes, minimum vertex count, finite coordinates,
-   no repeated consecutive vertices, no self intersections, non-zero area, orientation,
+2. **Orientation** (``orient_polygons()``): polygons with the opposite vertex numbering are reversed
+   (boundary counter clockwise, holes clockwise). The test is cheap (linear in the number of vertices),
+   so it always runs. Input which is no polygon (shape, fewer than 3 vertices) is left to the validation.
+3. **Validation** (optional, ``validate=True``): shapes, minimum vertex count, finite coordinates,
+   no repeated consecutive vertices, no self intersections, non-zero area,
    no crossings or overlapping edges at self contacts
    (``check_data_requirements()``, ``check_polygon_contacts()``).
-3. **Compilation** (``compile_polygon_datastructs()``): the flat coordinate array and the edge/vertex index mappings.
-4. **Points** (``Points``): vertices with identical coordinates are grouped (``np.lexsort``),
+4. **Compilation** (``compile_polygon_datastructs()``): the flat coordinate array and the edge/vertex index mappings.
+5. **Points** (``Points``): vertices with identical coordinates are grouped (``np.lexsort``),
    edges passing through vertex positions are found with a vectorised bounding box prefilter
    and an exact on-edge test, then the free wedges of every point are computed.
    The extremities are the points with an extremity wedge.
-5. **Angle representations** of all vertices seen from every extremity (``cmp_reps_n_distance_dict()``).
-6. **Visibility graph** (``compute_graph()``): for every extremity in index order
+6. **Angle representations** of all vertices seen from every extremity (``cmp_reps_n_distance_dict()``).
+7. **Visibility graph** (``compute_graph()``): for every extremity in index order
 
    - the extremities "in front" of it are removed as candidates and their existing edges to it are deleted
      ("Property One", cf. `Visibility graph reduction`_)
@@ -481,8 +486,9 @@ With ``validate=True`` every polygon is checked (``_check_polygon()``):
   two rays with the same direction mean overlapping edges (zero-width spikes or slits), and two corners
   whose rays interleave (exactly one ray of the second corner lies within the first corner) mean the polygon
   crosses itself
-- **orientation** (``_has_clockwise_numbering()``): the sign of :math:`\sum (x_2 - x_1)(y_2 + y_1)` over all edges
-  (positive: clockwise). The boundary must be counter clockwise, the holes clockwise.
+
+The orientation is not validated: ``orient_polygon()`` reverses polygons with the opposite numbering,
+using the sign of :math:`\sum (x_2 - x_1)(y_2 + y_1)` over all edges (``_has_clockwise_numbering()``, positive: clockwise).
 
 Grid conversion
 ---------------
@@ -564,7 +570,7 @@ CI runs the tests with and without numba (``tests/test_acceleration.py`` checks 
 Optional validation
 -------------------
 
-Validating the input (orientation, self intersections, crossings at self contacts) is costly and skipped by default
+Validating the input (self intersections, crossings at self contacts) is costly and skipped by default
 (``validate=False``). Callers with trusted or generated input do not pay for it, callers with external input
 should enable it. Invalid input without validation leads to undefined results.
 

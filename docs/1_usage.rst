@@ -30,9 +30,9 @@ Ensure that all the following conditions on the polygons are fulfilled:
   but must not cross itself there
 - no collinear overlapping edges within a polygon (zero-width spikes or slits)
 - different polygons may touch or intersect each other
-- edge numbering has to follow this convention (for easier computations):
-    - outer boundary polygon: counter clockwise
-    - holes: clockwise
+- the vertex numbering may be clockwise or counter clockwise, also mixed between the polygons.
+  Internally the boundary polygon is numbered counter clockwise and the holes clockwise (for easier computations):
+  polygons with the opposite numbering are reversed (also in ``environment.boundary_polygon`` and ``environment.holes``)
 
 .. note::
 
@@ -44,10 +44,10 @@ Ensure that all the following conditions on the polygons are fulfilled:
 
 .. code-block:: python
 
-    # counter clockwise vertex numbering!
+    # the boundary polygon (clockwise or counter clockwise vertex numbering)
     boundary_coordinates = [(0.0, 0.0), (10.0, 0.0), (9.0, 5.0), (10.0, 10.0), (0.0, 10.0)]
 
-    # clockwise numbering!
+    # the holes (obstacles)
     list_of_holes = [
         [
             (3.0, 7.0),

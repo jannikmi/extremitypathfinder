@@ -66,9 +66,9 @@ Basics
 
     from extremitypathfinder import PolygonEnvironment
 
-    # counter clockwise vertex numbering!
+    # the boundary polygon (clockwise or counter clockwise vertex numbering)
     boundary_coordinates = [(0.0, 0.0), (10.0, 0.0), (9.0, 5.0), (10.0, 10.0), (0.0, 10.0)]
-    # clockwise numbering!
+    # the holes (obstacles)
     list_of_holes = [
         [
             (3.0, 7.0),

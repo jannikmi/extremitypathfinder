@@ -89,9 +89,9 @@ Polygon environment
 
     from extremitypathfinder import PolygonEnvironment
 
-    # the boundary polygon: counter clockwise vertex numbering!
+    # the boundary polygon (clockwise or counter clockwise vertex numbering)
     boundary_coordinates = [(0.0, 0.0), (10.0, 0.0), (9.0, 5.0), (10.0, 10.0), (0.0, 10.0)]
-    # the holes (obstacles): clockwise vertex numbering!
+    # the holes (obstacles)
     list_of_holes = [
         [
             (3.0, 7.0),
