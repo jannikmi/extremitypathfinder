@@ -38,6 +38,20 @@ L 16.74125 303.0336
 z
 " style="fill: none"/>
    </g>
+   <g id="outside">
+    <path d="M -25090.92595 25410.7008
+L 25426.00205 25410.7008
+L 25426.00205 -25106.2272
+L -25090.92595 -25106.2272
+z
+M 41.87405 26.5728
+L 293.20205 26.5728
+L 268.06925 152.2368
+L 293.20205 277.9008
+L 41.87405 277.9008
+z
+" clip-path="url(#p8fd8bbcd5c)" style="fill: #c9c8c2"/>
+   </g>
    <g id="obstacles">
     <defs>
      <path id="m5d0e16625a" d="M 117.27245 -219.182088
@@ -354,13 +368,13 @@ L -3.5 0
    <g id="visibility-graph">
     <path d="M 117.27245 101.9712
 L 167.53805 177.3696
-" clip-path="url(#p8fd8bbcd5c)" style="fill: none; stroke: #2a78d6; stroke-opacity: 0.3; stroke-linecap: round"/>
+" clip-path="url(#p8fd8bbcd5c)" style="fill: none; stroke: #2a78d6; stroke-opacity: 0.6; stroke-linecap: round"/>
     <path d="M 117.27245 101.9712
 L 167.53805 51.7056
-" clip-path="url(#p8fd8bbcd5c)" style="fill: none; stroke: #2a78d6; stroke-opacity: 0.3; stroke-linecap: round"/>
+" clip-path="url(#p8fd8bbcd5c)" style="fill: none; stroke: #2a78d6; stroke-opacity: 0.6; stroke-linecap: round"/>
     <path d="M 167.53805 51.7056
 L 167.53805 177.3696
-" clip-path="url(#p8fd8bbcd5c)" style="fill: none; stroke: #2a78d6; stroke-opacity: 0.3; stroke-linecap: round"/>
+" clip-path="url(#p8fd8bbcd5c)" style="fill: none; stroke: #2a78d6; stroke-opacity: 0.6; stroke-linecap: round"/>
    </g>
    <g id="query-edges">
     <path d="M 117.27245 101.9712

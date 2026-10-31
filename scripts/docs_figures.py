@@ -17,6 +17,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.ticker import MaxNLocator
 
 from extremitypathfinder import PolygonEnvironment
 from extremitypathfinder.plotting import PlotStyle, draw, draw_search
@@ -120,7 +121,10 @@ HOLES = [
 START = (2.0, 2.5)
 GOAL = (47.0, 15.5)
 
-LIGHT = PlotStyle(graph_alpha=0.15, marker_size=3.5, vertex_color="#8a8984")
+# a transparent banner: the outside of the boundary is not filled
+LIGHT = PlotStyle(
+    graph_alpha=0.15, marker_size=3.5, vertex_color="#8a8984", outside_color=None
+)
 # the same roles, stepped for dark backgrounds
 DARK = {
     "boundary": "#6b6a65",
@@ -256,6 +260,8 @@ def new_axes():
     for spine in ax.spines.values():
         spine.set_color(PlotStyle.obstacle_color)
     ax.tick_params(labelsize=8, colors=PlotStyle.vertex_color)
+    for axis in (ax.xaxis, ax.yaxis):
+        axis.set_major_locator(MaxNLocator(integer=True, steps=[1, 2, 5, 10]))
     return fig, ax
 
 
@@ -297,6 +303,12 @@ def usage_figures(output_dir: Path):
     grid = PolygonEnvironment.from_grid(size_x, size_y, obstacles, validate=True)
     fig, ax = new_axes()
     draw(grid, ax=ax, graph=False, vertices=True)
+    # the grid cells: cell (x, y) spans [x, x+1] x [y, y+1]
+    ax.set_xticks(range(size_x + 1), minor=True)
+    ax.set_yticks(range(size_y + 1), minor=True)
+    ax.tick_params(which="minor", length=0)
+    ax.grid(which="minor", color="#e4e3de", linewidth=0.6)
+    ax.set_axisbelow(True)
     export_to_scale(fig, ax, output_dir / "grid.svg")
 
 

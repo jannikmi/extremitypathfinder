@@ -13,7 +13,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.axes import Axes
 from matplotlib.collections import LineCollection, PatchCollection
-from matplotlib.patches import Polygon
+from matplotlib.patches import PathPatch, Polygon
+from matplotlib.path import Path as DrawingPath
 
 from extremitypathfinder.extremitypathfinder import PolygonEnvironment, SearchResult
 from extremitypathfinder.types import InputCoord
@@ -33,10 +34,12 @@ class PlotStyle:
 
     boundary_color: str = "#8a8984"
     obstacle_color: str = "#c9c8c2"
+    # the area outside the boundary polygon (an obstacle as well), None: not filled
+    outside_color: str | None = "#c9c8c2"
     vertex_color: str = "#52514e"
     extremity_color: str = "#2a78d6"
     graph_color: str = "#2a78d6"
-    graph_alpha: float = 0.3
+    graph_alpha: float = 0.6
     query_edge_color: str = "#189c6d"
     query_edge_alpha: float = 0.8
     path_color: str = "#eb6834"
@@ -67,6 +70,30 @@ def _draw_endpoints(ax: Axes, start, goal, style: PlotStyle):
     )
 
 
+def _outside(boundary: np.ndarray, color: str) -> PathPatch:
+    """the area outside of the boundary polygon: a large rectangle with the boundary as hole
+
+    Added as artist (not as patch): it does not extend the limits of the axes and is clipped to them.
+    """
+    minimum, maximum = boundary.min(axis=0), boundary.max(axis=0)
+    extent = 100.0 * max(float(np.max(maximum - minimum)), 1.0)
+    (x_min, y_min), (x_max, y_max) = minimum - extent, maximum + extent
+    rectangle = [(x_min, y_min), (x_max, y_min), (x_max, y_max), (x_min, y_max)]
+    # opposite orientations (the boundary is counter clockwise): the boundary is cut out
+    # closed subpaths: the closing vertex is ignored
+    vertices = np.concatenate([rectangle, rectangle[:1], boundary[::-1], boundary[-1:]])
+    codes = [DrawingPath.MOVETO] + [DrawingPath.LINETO] * 3 + [DrawingPath.CLOSEPOLY]
+    codes += [DrawingPath.MOVETO] + [DrawingPath.LINETO] * (len(boundary) - 1)
+    codes += [DrawingPath.CLOSEPOLY]
+    return PathPatch(
+        DrawingPath(vertices, codes),
+        facecolor=color,
+        edgecolor="none",
+        zorder=1,
+        gid="outside",
+    )
+
+
 def draw(
     environment: PolygonEnvironment,
     path: Sequence[InputCoord] = (),
@@ -82,7 +109,8 @@ def draw(
     The drawing composes with other matplotlib code: the figure can be adjusted and saved in any format.
 
     Every element is drawn with a group id (``gid``), which is kept in SVG exports
-    (e.g. for styling them with CSS): ``boundary``, ``obstacles``, ``visibility-graph``,
+    (e.g. for styling them with CSS): ``outside`` (the area outside of the boundary polygon),
+    ``boundary``, ``obstacles``, ``visibility-graph``,
     ``vertices``, ``extremities``, ``path``, ``start`` and ``goal``.
 
     :param environment: the environment to draw
@@ -97,6 +125,8 @@ def draw(
     if ax is None:
         _, ax = plt.subplots()
     width = style.line_width
+    if environment.boundary_polygon is not None and style.outside_color is not None:
+        ax.add_artist(_outside(environment.boundary_polygon, style.outside_color))
     if environment.boundary_polygon is not None:
         boundary = Polygon(
             environment.boundary_polygon,

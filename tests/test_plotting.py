@@ -49,6 +49,7 @@ def test_draws_all_elements(environment):
 
     drawn = artists(ax)
     assert set(drawn) == {
+        "outside",
         "boundary",
         "obstacles",
         "visibility-graph",
@@ -74,7 +75,32 @@ def test_draws_all_elements(environment):
 def test_optional_elements(environment):
     ax = draw(environment, graph=False, extremities=False)
 
-    assert set(artists(ax)) == {"boundary", "obstacles"}
+    assert set(artists(ax)) == {"outside", "boundary", "obstacles"}
+
+
+def rendered_color(ax, point):
+    """the RGB color rendered at the data coordinates"""
+    canvas = ax.figure.canvas
+    canvas.draw()
+    x, y = ax.transData.transform(point)
+    image = np.asarray(canvas.buffer_rgba())
+    return tuple(image[image.shape[0] - round(y), round(x), :3])
+
+
+def test_outside_of_the_boundary(environment):
+    ax = draw(environment, graph=False, extremities=False)
+
+    assert "outside" in artists(ax)
+    # it does not extend the view
+    x_min, x_max = ax.get_xlim()
+    assert x_max - x_min < 20.0
+    # filled outside of the boundary, the boundary is cut out (the notch at (9, 5))
+    obstacle = tuple(int(255 * c) for c in to_rgba(PlotStyle.obstacle_color)[:3])
+    assert np.allclose(rendered_color(ax, (9.8, 5.0)), obstacle, atol=2)
+    assert np.allclose(rendered_color(ax, (8.0, 5.0)), (255, 255, 255), atol=2)
+
+    style = PlotStyle(outside_color=None)
+    assert "outside" not in artists(draw(environment, style=style))
 
 
 def test_unbounded_environment():
@@ -85,7 +111,7 @@ def test_unbounded_environment():
     ax = draw(environment, path)
 
     drawn = artists(ax)
-    assert "boundary" not in drawn
+    assert "boundary" not in drawn and "outside" not in drawn
     assert {"obstacles", "path", "start", "goal"} <= set(drawn)
     # the view contains the path
     x_min, x_max = ax.get_xlim()

@@ -372,22 +372,22 @@ z
    <g id="visibility-graph">
     <path d="M 33.629869 74.855354
 L 33.629869 21.462369
-" clip-path="url(#peca7504e6a)" style="fill: none; stroke: #2a78d6; stroke-opacity: 0.3; stroke-linecap: round"/>
+" clip-path="url(#peca7504e6a)" style="fill: none; stroke: #2a78d6; stroke-opacity: 0.6; stroke-linecap: round"/>
     <path d="M 33.629869 74.855354
 L 87.022854 154.944831
-" clip-path="url(#peca7504e6a)" style="fill: none; stroke: #2a78d6; stroke-opacity: 0.3; stroke-linecap: round"/>
+" clip-path="url(#peca7504e6a)" style="fill: none; stroke: #2a78d6; stroke-opacity: 0.6; stroke-linecap: round"/>
     <path d="M 33.629869 21.462369
 L 87.022854 21.462369
-" clip-path="url(#peca7504e6a)" style="fill: none; stroke: #2a78d6; stroke-opacity: 0.3; stroke-linecap: round"/>
+" clip-path="url(#peca7504e6a)" style="fill: none; stroke: #2a78d6; stroke-opacity: 0.6; stroke-linecap: round"/>
     <path d="M 87.022854 21.462369
 L 167.112331 74.855354
-" clip-path="url(#peca7504e6a)" style="fill: none; stroke: #2a78d6; stroke-opacity: 0.3; stroke-linecap: round"/>
+" clip-path="url(#peca7504e6a)" style="fill: none; stroke: #2a78d6; stroke-opacity: 0.6; stroke-linecap: round"/>
     <path d="M 87.022854 154.944831
 L 167.112331 154.944831
-" clip-path="url(#peca7504e6a)" style="fill: none; stroke: #2a78d6; stroke-opacity: 0.3; stroke-linecap: round"/>
+" clip-path="url(#peca7504e6a)" style="fill: none; stroke: #2a78d6; stroke-opacity: 0.6; stroke-linecap: round"/>
     <path d="M 167.112331 74.855354
 L 167.112331 154.944831
-" clip-path="url(#peca7504e6a)" style="fill: none; stroke: #2a78d6; stroke-opacity: 0.3; stroke-linecap: round"/>
+" clip-path="url(#peca7504e6a)" style="fill: none; stroke: #2a78d6; stroke-opacity: 0.6; stroke-linecap: round"/>
    </g>
    <g id="query-edges">
     <path d="M 87.022854 21.462369

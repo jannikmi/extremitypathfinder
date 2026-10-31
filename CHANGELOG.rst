@@ -20,7 +20,8 @@ BREAKING: the plotting module (``extremitypathfinder.plotting``) has one consist
   ``draw_loaded_map()``, ``draw_prepared_map()``, ``draw_with_path()``, ``draw_only_path()``, ``draw_graph()``,
   ``mark_points()``, ``set_limits()``, ``export_plot()``, ``get_plot_name()``, ``SHOW_PLOTS``, ``POLYGON_SETTINGS``
   and the ``EXPORT_*`` constants. Show figures with ``matplotlib.pyplot.show()``.
-- new look: obstacles filled grey, extremities and the visibility graph in blue, the path in orange.
+- new look: obstacles filled grey, including the area outside of the boundary polygon,
+  extremities and the visibility graph in blue, the path in orange.
 
 other changes:
 

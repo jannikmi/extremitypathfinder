@@ -171,7 +171,7 @@ Diagonally adjacent blocked cells touch at a corner: paths cannot pass between t
 
 .. figure:: _static/grid.svg
 
-    grid converted to a polygon environment, the extremities in blue
+    grid converted to a polygon environment: the blocked cells in grey (cell borders in the background), the extremities in blue
 
 
 **Note:** As mentioned in
