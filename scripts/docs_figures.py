@@ -17,6 +17,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.collections import LineCollection
 from matplotlib.ticker import MaxNLocator
 
 from extremitypathfinder import PolygonEnvironment
@@ -206,24 +207,26 @@ def demo(output_dir: Path):
 USAGE_BOUNDARY = [(0.0, 0.0), (10.0, 0.0), (9.0, 5.0), (10.0, 10.0), (0.0, 10.0)]
 USAGE_HOLES = [[(3.0, 7.0), (5.0, 9.0), (4.5, 7.0), (5.0, 4.0)]]
 USAGE_QUERY = ((4.5, 1.0), (4.0, 8.5))
-# the grid of the usage documentation: size and blocked cells
+# the grid of the usage documentation: size, blocked cells and a query
 USAGE_GRID = (
-    19,
     10,
-    [(0, 1), (1, 1), (2, 1), (3, 1), (17, 9), (17, 8), (17, 7), (17, 5), (17, 4)]
-    + [
-        (17, 3),
-        (17, 2),
-        (17, 1),
-        (17, 0),
-        (5, 5),
-        (5, 6),
-        (6, 6),
-        (6, 7),
-        (7, 7),
-        (7, 5),
+    6,
+    [
+        # a wall at the border of the grid
+        (3, 0),
+        (3, 1),
+        (3, 2),
+        (3, 3),
+        # an L-shaped obstacle
+        (6, 3),
+        (6, 4),
+        (7, 3),
+        # a cell touching the L-shape at a corner (diagonally adjacent)
+        (5, 2),
     ],
 )
+# the straight line would pass through the corner where the cells touch
+USAGE_GRID_QUERY = ((7.5, 1.5), (4.5, 4.5))
 # touching obstacles (cf. tests/test_contacts.py): holes, start and goal
 TOUCHING = {
     "touching_vertices": (
@@ -301,14 +304,23 @@ def usage_figures(output_dir: Path):
 
     size_x, size_y, obstacles = USAGE_GRID
     grid = PolygonEnvironment.from_grid(size_x, size_y, obstacles, validate=True)
+    path, _ = grid.find_shortest_path(*USAGE_GRID_QUERY)
     fig, ax = new_axes()
-    draw(grid, ax=ax, graph=False, vertices=True)
-    # the grid cells: cell (x, y) spans [x, x+1] x [y, y+1]
-    ax.set_xticks(range(size_x + 1), minor=True)
-    ax.set_yticks(range(size_y + 1), minor=True)
-    ax.tick_params(which="minor", length=0)
-    ax.grid(which="minor", color="#e4e3de", linewidth=0.6)
-    ax.set_axisbelow(True)
+    draw(grid, path, ax=ax, graph=False, vertices=True)
+    # the borders of all grid cells, also of the blocked ones: cell (x, y) spans [x, x+1] x [y, y+1]
+    cell_borders = [((x, 0), (x, size_y)) for x in range(size_x + 1)]
+    cell_borders += [((0, y), (size_x, y)) for y in range(size_y + 1)]
+    ax.add_collection(
+        LineCollection(
+            cell_borders,
+            colors=PlotStyle.boundary_color,
+            alpha=0.3,
+            linewidths=0.6,
+            # above the obstacles, below the boundary and the path
+            zorder=1.2,
+            gid="cells",
+        )
+    )
     export_to_scale(fig, ax, output_dir / "grid.svg")
 
 

@@ -140,38 +140,29 @@ Diagonally adjacent blocked cells touch at a corner: paths cannot pass between t
 
 .. code-block:: python
 
-    size_x, size_y = 19, 10
-    obstacle_iter = [  # (x,y),
-        # obstacles changing boundary
-        (0, 1),
-        (1, 1),
-        (2, 1),
+    size_x, size_y = 10, 6
+    obstacle_iter = [  # blocked cells (x, y)
+        # a wall at the border of the grid
+        (3, 0),
         (3, 1),
-        (17, 9),
-        (17, 8),
-        (17, 7),
-        (17, 5),
-        (17, 4),
-        (17, 3),
-        (17, 2),
-        (17, 1),
-        (17, 0),
-        # hole 1
-        (5, 5),
-        (5, 6),
-        (6, 6),
-        (6, 7),
-        (7, 7),
-        # hole 2
-        (7, 5),
+        (3, 2),
+        (3, 3),
+        # an L-shaped obstacle
+        (6, 3),
+        (6, 4),
+        (7, 3),
+        # a cell touching the L-shape at a corner (diagonally adjacent)
+        (5, 2),
     ]
     environment = PolygonEnvironment.from_grid(size_x, size_y, obstacle_iter)
-
+    path, length = environment.find_shortest_path((7.5, 1.5), (4.5, 4.5))
+    # path: [(7.5, 1.5), (5.0, 2.0), (4.5, 4.5)], length: 5.099...
 
 
 .. figure:: _static/grid.svg
 
-    grid converted to a polygon environment: the blocked cells in grey (cell borders in the background), the extremities in blue
+    the grid converted to a polygon environment: the blocked cells in grey, the extremities in blue.
+    The path does not pass between the diagonally adjacent cells, it goes around the single cell
 
 
 **Note:** As mentioned in
