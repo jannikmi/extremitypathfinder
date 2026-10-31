@@ -143,9 +143,11 @@ The `documentation <https://extremitypathfinder.readthedocs.io/en/latest/>`__ co
   all features, the input requirements, plotting and caching
 - `Upgrading from 2.x <https://extremitypathfinder.readthedocs.io/en/latest/2_upgrading.html>`__
 - `About <https://extremitypathfinder.readthedocs.io/en/latest/3_about.html>`__:
-  how it works, the handling of touching obstacles and a comparison to other packages
+  how it works and the handling of touching obstacles
 - `Engineering Design <https://extremitypathfinder.readthedocs.io/en/latest/8_design.html>`__:
   the architecture and the algorithms
+- `Alternatives <https://extremitypathfinder.readthedocs.io/en/latest/9_alternatives.html>`__:
+  similar packages and how they differ
 - `API reference <https://extremitypathfinder.readthedocs.io/en/latest/4_api.html>`__
 
 
