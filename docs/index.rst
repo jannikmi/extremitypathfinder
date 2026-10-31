@@ -46,6 +46,7 @@ Where to start
 - Upgrading from version 2.x? Follow the :ref:`upgrade guide <upgrading>`.
 - Curious how it works? :ref:`About <algorithm>` gives an illustrated overview,
   the :ref:`engineering design <design>` describes the architecture and the algorithms.
+- Comparing packages? :ref:`Alternatives <alternatives>` lists similar packages and how they differ.
 - Looking for a specific function? See the :ref:`API reference <api>`.
 - Want to contribute? Read the :ref:`contribution guidelines <contributing>`.
 
@@ -66,6 +67,7 @@ Where to start
     About <3_about>
     Engineering Design <8_design>
     Performance <7_performance>
+    Alternatives <9_alternatives>
 
 .. toctree::
    :maxdepth: 1

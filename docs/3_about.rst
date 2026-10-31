@@ -173,23 +173,10 @@ How the steps are implemented (the visibility computation, the free wedges at th
 the graph reduction and the search) and why: cf. the :ref:`engineering design <design>`.
 
 
-Comparison to pyvisgraph
--------------------------
+Alternatives
+------------
 
-This package is similar to `pyvisgraph <https://github.com/TaipanRex/pyvisgraph>`__ which uses Lee's algorithm.
-
-
-**Pros:**
-
-- very reduced visibility graph (time and memory!)
-- algorithms optimized for path finding
-- possibility to convert and use grids with blocked cells
-
-
-**Cons:**
-
-- parallel computing not supported so far
-- no existing speed comparison
+Other packages for shortest paths in polygon environments and how they differ: cf. :ref:`alternatives <alternatives>`.
 
 
 Contact
@@ -216,10 +203,6 @@ References
 
 Further Reading
 ----------------
-
-Open source C++ library for 2D floating-point visibility algorithms, path planning: https://karlobermeyer.github.io/VisiLibity1/
-
-Python binding of VisiLibity: https://github.com/tsaoyu/PyVisiLibity
 
 Paper about Lee's algorithm: http://www.dav.ee/papers/Visibility_Graph_Algorithm.pdf
 
