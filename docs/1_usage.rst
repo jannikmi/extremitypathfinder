@@ -85,9 +85,9 @@ hole must be supplied.
     Cf. :ref:`the edge case of touching obstacles <touching>`.
 
 
-.. figure:: _static/map_plot.png
+.. figure:: _static/environment.svg
 
-    polygon environment with extremities marked in red
+    polygon environment: obstacles in grey, polygon vertices in grey, extremities in blue
 
 
 Visibility Graph Pre-computation
@@ -96,9 +96,9 @@ Visibility Graph Pre-computation
 Creating the environment automatically computes the :ref:`visibility graph  <algorithm>` of the environment once.
 
 
-.. figure:: _static/prepared_map_plot.png
+.. figure:: _static/environment_graph.svg
 
-    polygon environment with optimised visibility graph overlay in red
+    polygon environment with the optimised visibility graph in blue
 
 
 Query
@@ -123,9 +123,9 @@ This is required if points lie really close to polygon edges and
     )
 
 
-.. figure:: _static/graph_path_plot.png
+.. figure:: _static/search.svg
 
-    polygon environment with optimised visibility graph overlay. visualised edges added to the visibility graph in yellow, found shortest path in green.
+    the search: the temporary edges connecting start and goal to the visibility graph dashed in green, the shortest path in orange
 
 
 
@@ -140,38 +140,29 @@ Diagonally adjacent blocked cells touch at a corner: paths cannot pass between t
 
 .. code-block:: python
 
-    size_x, size_y = 19, 10
-    obstacle_iter = [  # (x,y),
-        # obstacles changing boundary
-        (0, 1),
-        (1, 1),
-        (2, 1),
+    size_x, size_y = 10, 6
+    obstacle_iter = [  # blocked cells (x, y)
+        # a wall at the border of the grid
+        (3, 0),
         (3, 1),
-        (17, 9),
-        (17, 8),
-        (17, 7),
-        (17, 5),
-        (17, 4),
-        (17, 3),
-        (17, 2),
-        (17, 1),
-        (17, 0),
-        # hole 1
-        (5, 5),
-        (5, 6),
-        (6, 6),
-        (6, 7),
-        (7, 7),
-        # hole 2
-        (7, 5),
+        (3, 2),
+        (3, 3),
+        # an L-shaped obstacle
+        (6, 3),
+        (6, 4),
+        (7, 3),
+        # a cell touching the L-shape at a corner (diagonally adjacent)
+        (5, 2),
     ]
     environment = PolygonEnvironment.from_grid(size_x, size_y, obstacle_iter)
+    path, length = environment.find_shortest_path((7.5, 1.5), (4.5, 4.5))
+    # path: [(7.5, 1.5), (5.0, 2.0), (4.5, 4.5)], length: 5.099...
 
 
+.. figure:: _static/grid.svg
 
-.. figure:: _static/grid_map_plot.png
-
-    grid-like environment converted to a polygon environment with "extremities" marked in red
+    the grid converted to a polygon environment: the blocked cells in grey, the extremities in blue.
+    The path does not pass between the diagonally adjacent cells, it goes around the single cell
 
 
 **Note:** As mentioned in
@@ -201,26 +192,62 @@ Environments pickled with an incompatible version of this package (e.g. 2.x) can
 Plotting
 --------
 
+The plotting functions in ``extremitypathfinder.plotting`` require Matplotlib (``pip install matplotlib``).
+All of them use the same drawing:
+
+- ``draw()`` draws an environment and a path onto Matplotlib axes
+- ``draw_search()`` draws the result of ``environment.search()`` onto Matplotlib axes
+- ``plot_environment()`` and ``plot_search()`` export these drawings as files
+
+``draw()`` returns the axes: the figure can be adjusted and saved in any format:
+
+.. code-block:: python
+
+    import matplotlib.pyplot as plt
+
+    from extremitypathfinder.plotting import PlotStyle, draw
+
+    path, length = environment.find_shortest_path(start_coordinates, goal_coordinates)
+    fig, ax = plt.subplots()
+    # the obstacles, the visibility graph, the extremities and the path
+    draw(environment, path, ax=ax)
+    ax.set_axis_off()
+    fig.savefig("path.svg")
+
+    # without the visibility graph, all vertices marked, in other colors
+    draw(environment, path, graph=False, vertices=True, style=PlotStyle(path_color="black"))
+
+The elements are drawn with group ids (``boundary``, ``obstacles``, ``visibility-graph``, ``extremities``, ``path``, ...),
+which are kept in SVG exports, e.g. for styling them with CSS.
+The image at the top of this documentation and all other figures are made this way (``scripts/docs_figures.py``).
+
+.. figure:: _static/demo.svg
+    :alt: shortest path through a polygon environment
+
+    the image made with ``draw()``: obstacles in grey, vertices in grey, extremities and the visibility graph in blue,
+    the shortest path in orange
 
 ``environment.search()`` performs the same search as ``find_shortest_path()``,
-but returns a ``SearchResult`` with the data of the search (e.g. the temporary edges of start and goal and the search graph) in addition to the path and its length.
-The functions in ``plotting.py`` plot an environment and the steps of a search:
+but returns a ``SearchResult`` with the data of the search (e.g. the temporary edges of start and goal and the search graph)
+in addition to the path and its length.
+``draw_search()`` draws the found path and the temporary edges (dashed). Start and goal are marked even when there is no path.
+``draw_search(environment, result, path=False)`` shows the search graph without the path.
+
+``plot_environment()`` and ``plot_search()`` export a drawing into a folder and return the path of the file:
 
 .. code-block:: python
 
     from extremitypathfinder.plotting import plot_environment, plot_search
 
-    environment = PolygonEnvironment(boundary_coordinates, list_of_holes, validate=True)
-    # the input polygons and the visibility graph
+    # the environment, its visibility graph and extremities
     plot_environment(environment, plotting_dir="path/to/plots")
 
-    result = environment.search(start, end)
-    path, distance = result.path, result.length
-    # the found path and the search graph
-    plot_search(environment, result, plotting_dir="path/to/plots")
+    result = environment.search(start_coordinates, goal_coordinates)
+    # the search: additionally the temporary edges of start and goal and the path
+    plot_search(environment, result, plotting_dir="path/to/plots", file_name="search.png")
 
-
-Other functions in ``plotting.py`` can be utilised to plot specific parts of an environment (extremities, edges, ...)
+By default the files are named ``environment_<timestamp>.svg`` and ``search_<timestamp>.svg``,
+the extension of ``file_name`` selects another format.
 
 
 

@@ -91,7 +91,8 @@ The plotting directory is an argument of these functions instead of a global set
 
        ``plot_search(env, result, plotting_dir="plots")``
 
-Both functions are in ``extremitypathfinder.plotting``.
+Both functions are in ``extremitypathfinder.plotting``. Each exports one file and returns its path.
+``draw()`` and ``draw_search()`` draw onto Matplotlib axes instead (cf. :ref:`usage`).
 
 
 Pickled environments
