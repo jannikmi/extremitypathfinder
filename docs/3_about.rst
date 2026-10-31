@@ -40,9 +40,9 @@ An environment ("world", "map") of a given shortest path problem can be represen
 * protruding corners (hereafter called **"Extremities"**)
 * all others
 
-.. figure:: _static/map_plot.png
+.. figure:: _static/environment.svg
 
-    polygon environment with extremities marked in red
+    polygon environment: obstacles in grey, polygon vertices in grey, extremities in blue
 
 
 Extremities have an inner angle (facing towards the inside of the environment) of > 180 degree.
@@ -65,26 +65,26 @@ This package pretty much implements the Visibility Graph Optimized (VGO) Algorit
 Rough Procedure:
 ________________
 
-- **1. Preprocessing the environment:** Independently of any query start and goal points the optimized visibility graph is being computed for the static environment once. Later versions might include a faster approach to compute visibility on the fly, for use cases where the environment is changing dynamically. The edges of the precomputed graph between the extremities are shown in red in the following plots. Notice that the extremity on the right is not connected to any other extremity due to the above mentioned optimisation:
+- **1. Preprocessing the environment:** Independently of any query start and goal points the optimized visibility graph is being computed for the static environment once. Later versions might include a faster approach to compute visibility on the fly, for use cases where the environment is changing dynamically. The edges of the precomputed graph between the extremities are shown in blue in the following plots. Notice that the extremity on the right is not connected to any other extremity due to the above mentioned optimisation:
 
-.. figure:: _static/prepared_map_plot.png
+.. figure:: _static/environment_graph.svg
 
-    polygon environment with optimised visibility graph overlay in red
+    polygon environment with the optimised visibility graph in blue
 
 
 - **2. Including start and goal:** For each shortest path query the start and goal points are being connected to the internal graph depending on their visibility. The precomputed graph stays unchanged:
 
-.. figure:: _static/graph_plot.png
+.. figure:: _static/search_graph.svg
 
-    optimised visibility graph for shortest path computation with added start and goal nodes
+    optimised visibility graph with start (ring) and goal (disk) and their temporary edges, dashed in green
 
 
 
 - **3. A-star shortest path computation :** Finding the shortest path on graphs is a standard computer science problem. This package uses ``A*`` with the euclidean distance as heuristic on the precomputed graph extended by start and goal. When the goal is directly visible from the start, the direct connection is returned without a graph search.
 
-.. figure:: _static/graph_path_plot.png
+.. figure:: _static/search.svg
 
-    polygon environment with optimised visibility graph overlay. visualised edges added to the visibility graph in yellow, found shortest path in green.
+    the shortest path in orange, found on the visibility graph extended by the temporary edges of start and goal
 
 
 
@@ -126,17 +126,17 @@ use identical coordinates for touching polygons.
 
 The following examples have no boundary polygon (unbounded environments), only touching holes:
 
-.. figure:: _static/path_touching_vertices.png
+.. figure:: _static/touching_vertices.svg
 
     the shortest path goes around the holes, it does not pass through the shared vertex
 
 
-.. figure:: _static/path_touching_vertex_edge.png
+.. figure:: _static/touching_vertex_edge.svg
 
     the tip of the triangle touches the edge of the rectangle: the shortest path goes around the triangle
 
 
-.. figure:: _static/path_touching_edges.png
+.. figure:: _static/touching_edges.svg
 
     the shortest path goes around the holes, it does not run along the shared part of their edges
 

@@ -7,7 +7,8 @@ Unreleased
 BREAKING: the plotting module (``extremitypathfinder.plotting``) has one consistent drawing:
 
 - new ``draw()`` draws an environment and a path onto Matplotlib axes, ``draw_search()`` the result of a search
-  (additionally the temporary edges of start and goal, dashed). The figure can be adjusted and saved in any format.
+  (additionally the temporary edges of start and goal, dashed; ``path=False`` omits the path).
+  The figure can be adjusted and saved in any format.
   The colors and sizes are set with ``PlotStyle``. The elements keep group ids in SVG exports (e.g. for styling with CSS).
 - ``plot_environment()`` and ``plot_search()`` export these drawings: one file each (previously two and up to three),
   named ``environment_<timestamp>.svg`` and ``search_<timestamp>.svg`` unless a ``file_name`` is given
@@ -23,8 +24,8 @@ BREAKING: the plotting module (``extremitypathfinder.plotting``) has one consist
 
 other changes:
 
-- documentation: new demo image (SVG, adapts to dark mode), generated with ``draw()`` by ``scripts/demo_plot.py``.
-  It replaces ``title_demo_plot.png``.
+- documentation: new demo image (SVG, adapts to dark mode) and all figures regenerated with the new plotting functions
+  (SVG instead of PNG). ``scripts/docs_figures.py`` generates them.
 - documentation: improved README and documentation landing page (features, quick start, navigation).
 - documentation: engineering design document (goals, architecture, data model, pipelines, algorithms and design decisions).
   The implementation details moved there from the about page.

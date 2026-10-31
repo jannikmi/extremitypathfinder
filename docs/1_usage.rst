@@ -85,9 +85,9 @@ hole must be supplied.
     Cf. :ref:`the edge case of touching obstacles <touching>`.
 
 
-.. figure:: _static/map_plot.png
+.. figure:: _static/environment.svg
 
-    polygon environment with extremities marked in red
+    polygon environment: obstacles in grey, polygon vertices in grey, extremities in blue
 
 
 Visibility Graph Pre-computation
@@ -96,9 +96,9 @@ Visibility Graph Pre-computation
 Creating the environment automatically computes the :ref:`visibility graph  <algorithm>` of the environment once.
 
 
-.. figure:: _static/prepared_map_plot.png
+.. figure:: _static/environment_graph.svg
 
-    polygon environment with optimised visibility graph overlay in red
+    polygon environment with the optimised visibility graph in blue
 
 
 Query
@@ -123,9 +123,9 @@ This is required if points lie really close to polygon edges and
     )
 
 
-.. figure:: _static/graph_path_plot.png
+.. figure:: _static/search.svg
 
-    polygon environment with optimised visibility graph overlay. visualised edges added to the visibility graph in yellow, found shortest path in green.
+    the search: the temporary edges connecting start and goal to the visibility graph dashed in green, the shortest path in orange
 
 
 
@@ -169,9 +169,9 @@ Diagonally adjacent blocked cells touch at a corner: paths cannot pass between t
 
 
 
-.. figure:: _static/grid_map_plot.png
+.. figure:: _static/grid.svg
 
-    grid-like environment converted to a polygon environment with "extremities" marked in red
+    grid converted to a polygon environment, the extremities in blue
 
 
 **Note:** As mentioned in
@@ -228,7 +228,7 @@ All of them use the same drawing:
 
 The elements are drawn with group ids (``boundary``, ``obstacles``, ``visibility-graph``, ``extremities``, ``path``, ...),
 which are kept in SVG exports, e.g. for styling them with CSS.
-The image at the top of this documentation is made this way (``scripts/demo_plot.py``).
+The image at the top of this documentation and all other figures are made this way (``scripts/docs_figures.py``).
 
 .. figure:: _static/demo.svg
     :alt: shortest path through a polygon environment
@@ -240,6 +240,7 @@ The image at the top of this documentation is made this way (``scripts/demo_plot
 but returns a ``SearchResult`` with the data of the search (e.g. the temporary edges of start and goal and the search graph)
 in addition to the path and its length.
 ``draw_search()`` draws the found path and the temporary edges (dashed). Start and goal are marked even when there is no path.
+``draw_search(environment, result, path=False)`` shows the search graph without the path.
 
 ``plot_environment()`` and ``plot_search()`` export a drawing into a folder and return the path of the file:
 

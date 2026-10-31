@@ -13,7 +13,7 @@ from extremitypathfinder.plotting import (
     plot_environment,
     plot_search,
 )
-from scripts.demo_plot import main as generate_demo
+from scripts.docs_figures import main as generate_figures
 from tests.test_cases import POLY_ENV_PARAMS, SEPARATED_ENV, TEST_DATA_SEPARATE_ENV
 
 # start and goal requiring a graph search, and directly visible from each other
@@ -127,6 +127,17 @@ def test_draw_search(environment):
     np.testing.assert_array_equal(drawn["path"].get_xydata(), np.array(result.path))
 
 
+def test_draw_search_without_drawing_the_path(environment):
+    result = environment.search(*INDIRECT_QUERY)
+
+    drawn = artists(draw_search(environment, result, path=False))
+
+    assert "path" not in drawn
+    assert "query-edges" in drawn
+    np.testing.assert_array_equal(drawn["start"].get_offsets(), [INDIRECT_QUERY[0]])
+    np.testing.assert_array_equal(drawn["goal"].get_offsets(), [INDIRECT_QUERY[1]])
+
+
 def test_draw_search_without_graph_search(environment):
     result = environment.search(*DIRECT_QUERY)
     assert result.query_edges is None
@@ -178,15 +189,28 @@ def test_plot_search(environment, tmp_path, query):
     assert plt.get_fignums() == []
 
 
-def test_demo_plot(tmp_path):
-    output = tmp_path / "demo.svg"
+def test_docs_figures(tmp_path):
+    generate_figures(tmp_path)
 
-    generate_demo(output)
-
-    svg = output.read_text(encoding="utf-8")
-    assert "prefers-color-scheme: dark" in svg
-    assert 'id="path"' in svg
-    # deterministic: no creation date, regenerating gives an identical file
-    first = output.read_bytes()
-    generate_demo(output)
-    assert output.read_bytes() == first
+    names = {file.name for file in tmp_path.iterdir()}
+    assert names == {
+        "demo.svg",
+        "environment.svg",
+        "environment_graph.svg",
+        "search_graph.svg",
+        "search.svg",
+        "grid.svg",
+        "touching_vertices.svg",
+        "touching_vertex_edge.svg",
+        "touching_edges.svg",
+    }
+    demo = (tmp_path / "demo.svg").read_text(encoding="utf-8")
+    assert "prefers-color-scheme: dark" in demo
+    assert 'id="path"' in demo
+    # the search graph without the path
+    search_graph = (tmp_path / "search_graph.svg").read_text(encoding="utf-8")
+    assert 'id="query-edges"' in search_graph and 'id="path"' not in search_graph
+    # deterministic: no creation date, regenerating gives identical files
+    first = {name: (tmp_path / name).read_bytes() for name in names}
+    generate_figures(tmp_path)
+    assert {name: (tmp_path / name).read_bytes() for name in names} == first

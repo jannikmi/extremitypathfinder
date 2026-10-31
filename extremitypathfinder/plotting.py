@@ -177,6 +177,7 @@ def draw_search(
     ax: Axes | None = None,
     graph: bool = True,
     query_edges: bool = True,
+    path: bool = True,
     extremities: bool = True,
     vertices: bool = False,
     style: PlotStyle = DEFAULT_STYLE,
@@ -185,19 +186,20 @@ def draw_search(
 
     Like :func:`draw` with the found path. In addition, the temporary edges connecting start and goal
     to the visibility graph are drawn dashed (group id ``query-edges``).
-    Start and goal are also marked when there is no path.
+    Start and goal are also marked when there is no path (or it is not drawn).
     Searches terminating without a graph search (e.g. when the goal is directly visible) have no temporary edges.
 
     :param environment: the environment the search was performed in
     :param result: the result of the search
     :param query_edges: whether to draw the temporary edges of start and goal
+    :param path: whether to draw the found path (e.g. ``False`` to show the search graph only)
     :return: the axes drawn on
 
     The other parameters are those of :func:`draw`.
     """
     ax = draw(
         environment,
-        result.path,
+        result.path if path else (),
         ax=ax,
         graph=graph,
         extremities=extremities,
@@ -217,7 +219,7 @@ def draw_search(
             gid="query-edges",
         )
         ax.add_collection(edges)
-    if len(result.path) == 0:
+    if not path or len(result.path) == 0:
         # start and goal are the last coordinates
         _draw_endpoints(ax, coords[-2], coords[-1], style)
     ax.autoscale_view()

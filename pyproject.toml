@@ -79,7 +79,7 @@ source-include = [
     "scripts/validate_release.py",
     "scripts/release.py",
     # imported by the tests
-    "scripts/demo_plot.py",
+    "scripts/docs_figures.py",
     "example.json",
 ]
 
