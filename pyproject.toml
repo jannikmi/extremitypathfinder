@@ -54,6 +54,15 @@ dev = [
 ]
 # also required for running the tests
 plot = ["matplotlib"]
+benchmark = [
+    # pinned: unmaintained, the benchmark results refer to exactly this version
+    "pyvisgraph==0.2.1",
+    # imported by pyvisgraph, but not declared as its dependency
+    "tqdm",
+    # cleaning of the world map, independent validation of the paths
+    "shapely>=2.1,<3",
+    "matplotlib",
+]
 docs = [
     "Sphinx",
     "sphinx-rtd-theme",

@@ -116,3 +116,7 @@ target/
 ## File-based project format:
 *.ipr
 *.iws
+
+# benchmarks: downloaded source data, raw results
+benchmarks/data/
+benchmarks/results/raw/
