@@ -24,6 +24,7 @@ BREAKING: the plotting module (``extremitypathfinder.plotting``) has one consist
 other changes:
 
 - documentation: new demo image (SVG, adapts to dark mode), generated with ``draw()`` by ``scripts/demo_plot.py``.
+  It replaces ``title_demo_plot.png``.
 - documentation: improved README and documentation landing page (features, quick start, navigation).
 - documentation: engineering design document (goals, architecture, data model, pipelines, algorithms and design decisions).
   The implementation details moved there from the about page.
