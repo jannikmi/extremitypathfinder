@@ -125,3 +125,13 @@ def test_input_not_modified():
 def test_orient_polygon_ignores_invalid_shapes(coords, clockwise):
     # left for the validation to reject
     assert utils.orient_polygon(coords, clockwise) is coords
+
+
+def test_orientation_large_coordinates():
+    # a small polygon far from the origin: without translating the coordinates
+    # the orientation test suffers from catastrophic cancellation
+    offset = 1e9
+    ulp = np.spacing(offset)
+    triangle = offset + ulp * np.array([(6.0, -4.0), (-19.0, 31.0), (-15.0, 26.0)])
+    assert _has_clockwise_numbering(triangle)
+    assert not _has_clockwise_numbering(triangle[::-1].copy())
