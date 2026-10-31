@@ -183,6 +183,7 @@ bounded by a polygon with polygonal holes, for repeated queries in a static envi
 
 `pyvisgraph <https://github.com/TaipanRex/pyvisgraph>`__ (Python, MIT)
     The closest alternative: pure Python, installable from PyPI.
+    **Unmaintained**: the last release (0.2.1) dates from 2018, the last commit from 2020.
     Builds the complete visibility graph of all obstacle vertices with Lee's :math:`O(n^2 \log n)` algorithm
     (optionally with multiple worker processes) and finds paths with Dijkstra's algorithm.
     Obstacles are polygons in the unbounded plane (no boundary polygon).
@@ -193,7 +194,6 @@ bounded by a polygon with polygonal holes, for repeated queries in a static envi
     - A* search with the euclidean distance as heuristic instead of Dijkstra's algorithm
     - boundary polygon, touching and intersecting polygons and grids with blocked cells as input
     - this package does not support parallel graph construction (so far)
-    - not maintained since 2018 (last release 0.2.1)
 
 `Polyanya <https://docs.rs/polyanya>`__ (Rust, C++ original; no Python package)
     Exact any-angle search on a navigation mesh (Cui, Harabor and Grastien, IJCAI 2017)
