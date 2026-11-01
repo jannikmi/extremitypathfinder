@@ -5,9 +5,10 @@ This file is short on purpose. The details are in the contributing guide (`docs/
 
 ## Project
 
-`extremitypathfinder` is a Python package (≥ 3.12) for exact Euclidean shortest paths in 2D polygon or grid environments,
+`extremitypathfinder` is a Python package for exact Euclidean shortest paths in 2D polygon or grid environments,
 based on visibility graphs. Entry point: `PolygonEnvironment` (prepare an environment once, then query paths quickly).
 Runtime dependencies: numpy, networkx. Numba is an optional accelerator. Managed with uv, flat layout (no `src/`).
+Supported Python versions: `requires-python` in `pyproject.toml`.
 
 ## Commands
 

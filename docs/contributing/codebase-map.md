@@ -49,4 +49,4 @@ numba | numba_replacements
 ## Where the time goes
 
 Most of the query time is spent on the visibility of start and goal (`utils.find_visible()`).
-The A* search takes about 5% (cf. [Performance](performance.md)).
+The A* search takes only a small part (cf. [Performance](performance.md)).

@@ -30,6 +30,5 @@ body:
     attributes:
       label: Versions
       description: extremitypathfinder, Python, Numba (if installed), operating system
-      placeholder: extremitypathfinder 3.0.0, Python 3.12, Numba 0.63, Ubuntu 24.04
     validations:
       required: true

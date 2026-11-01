@@ -6,6 +6,7 @@
   When releasing, it becomes the `<version> (<release date>)` section (cf. [Releasing](releasing.md)).
 - Describe user-facing changes at the top of a release section, from the user's point of view.
   Start breaking changes with `BREAKING:` and say how to migrate.
+- Smaller documentation improvements and cosmetic changes get no entry.
 - List bugfixes under a `bugfixes:` sub-list and purely internal changes (tests, tooling, documentation of the
   development) under an `internal:` sub-list.
 - CI checks that the changelog has a dated section for the version in `pyproject.toml`.

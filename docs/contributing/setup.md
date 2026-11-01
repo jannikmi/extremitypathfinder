@@ -1,6 +1,6 @@
 # Setup
 
-The project is managed with [uv](https://docs.astral.sh/uv/). Python 3.12 or newer is required.
+The project is managed with [uv](https://docs.astral.sh/uv/). The supported Python versions are given by `requires-python` in `pyproject.toml`.
 
 ## Install
 

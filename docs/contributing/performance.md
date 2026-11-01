@@ -22,21 +22,21 @@ Check whether Numba was installed: it changes the times.
 ## Where optimising pays off
 
 Most of the query time is spent on the visibility of start and goal (`utils.find_visible()`).
-The A* search takes about 5% of the query time (900 and 2,500 extremities).
+The A* search takes only a small part of the query time.
 
 ## Shortest path search
 
 `utils.astar_path()` is a port of `networkx.astar_path()` that also follows the temporary edges of start and goal,
 so queries neither copy nor change the visibility graph (#136).
 It is under the 3-clause BSD license of networkx (`LICENSES/networkx.txt`): keep its copyright notice above the function.
-Alternatives compared in #152 and rejected, mainly for maintainability:
+Alternatives compared in #152 (with measurements) and rejected, mainly for maintainability:
 
 - `networkx.astar_path()` on the visibility graph with the temporary edges added and removed again:
   changes shared state during a query (not thread-safe, edges of extremities merged with start or goal must be kept)
-  and was about twice as slow as the port.
+  and was considerably slower than the port.
 - other graph libraries (scipy `csgraph`, igraph, rustworkx): an additional dependency
   and a second graph representation (or `environment.graph` is no networkx graph anymore).
   Their Dijkstra searches were slower than the port (no heuristic, adding the temporary edges is expensive),
-  the A* of rustworkx saved less than 1 ms per query.
+  the A* of rustworkx saved only little time per query.
 - precomputed shortest paths between all extremities: memory grows quadratically
-  with the number of extremities (75 MB for 2,500 extremities).
+  with the number of extremities.

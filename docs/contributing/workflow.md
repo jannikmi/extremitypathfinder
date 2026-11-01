@@ -40,4 +40,4 @@ the release tooling tests and the release artifact validation.
 
 When a reviewer (or an agent's user) has to repeat the same correction, add it as a rule to the relevant page
 of this guide, or to the hard rules in `AGENTS.md` if it applies to almost every change.
-Delete rules that stopped mattering. Keep `AGENTS.md` short (about 150 lines at most): details belong here.
+Delete rules that stopped mattering. Keep `AGENTS.md` short: details belong here.

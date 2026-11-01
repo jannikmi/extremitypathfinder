@@ -13,7 +13,7 @@ The tests use [pytest](https://docs.pytest.org/). A bare `pytest` only collects 
 
 ## Full matrix
 
-The tox configuration in `pyproject.toml` tests Python 3.12–3.15 with the minimum and the latest
+The tox configuration in `pyproject.toml` tests all supported Python versions with the minimum and the latest
 dependencies, with and without Numba. CI runs all of these environments.
 
 ```sh
