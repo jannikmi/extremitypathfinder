@@ -153,7 +153,8 @@ Known pyvisgraph 0.2.1 defects
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Found by the validation while preparing the benchmark, reproducible with
-``python -m benchmarks.pyvisgraph_issues``:
+``python -m benchmarks.pyvisgraph_issues`` and reported upstream
+(`issue #59 <https://github.com/TaipanRex/pyvisgraph/issues/59>`__, `pull request #33 <https://github.com/TaipanRex/pyvisgraph/pull/33>`__):
 
 **Paths through obstacles.** On the cleaned 110m world map (4,954 vertices),
 the query from the North Sea (3, 56) to the South China Sea (105, 5) returns a path of length 150.26
@@ -173,6 +174,7 @@ the crossing is lost, the midpoint is classified as outside and the edge through
 Coordinates on a decimal grid (snapped data, rounded or integer coordinates) make such coincidences frequent.
 A consistent half-open crossing rule (an edge counts when ``(a.y > p.y) != (b.y > p.y)``
 and the ray hits it at the exact x of the intersection) classifies the midpoints as inside and rejects all 14 edges.
+Reported upstream: `pyvisgraph issue #59 <https://github.com/TaipanRex/pyvisgraph/issues/59>`__.
 The smallest example is a single polygon with six vertices:
 
 .. code-block:: python
@@ -205,7 +207,8 @@ Two valid, disjoint triangles of that data suffice (found by removing vertices);
     vg.VisGraph().build([[vg.Point(*p) for p in polygon] for polygon in polygons])
     # ValueError: math domain error
 
-Clamping the cosine to [-1, 1], as proposed upstream in pull request #33 of pyvisgraph, makes the build succeed.
+Clamping the cosine to [-1, 1], as proposed upstream in
+`pyvisgraph pull request #33 <https://github.com/TaipanRex/pyvisgraph/pull/33>`__ (unmerged), makes the build succeed.
 The benchmark maps avoid the crash by snapping to a grid.
 
 
