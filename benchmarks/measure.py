@@ -4,7 +4,7 @@ The worker subprocess (``python -m benchmarks.measure TASK.json``)
 
 1. imports the package and warms it up: one small environment is built and queried
    (compiles the Numba functions of extremitypathfinder; compilation is not measured),
-2. records its baseline peak memory (Linux: ``VmHWM``, reset after the warm-up; elsewhere ``ru_maxrss``),
+2. resets and records its baseline peak memory (see :func:`peak_memory_bytes`),
 3. builds the environment. Builds faster than ``REPEAT_BELOW`` are repeated
    until ``REPEAT_TOTAL`` seconds or ``REPEAT_MAX_RUNS`` runs, the minimum is reported,
 4. reports the build on stdout (the parent kills the worker if this takes longer than the budget),
@@ -15,6 +15,7 @@ The worker subprocess (``python -m benchmarks.measure TASK.json``)
 Validation of the paths happens in the parent (``benchmarks.validate``), not in the measured process.
 """
 
+import ctypes
 import json
 import os
 import platform
@@ -64,28 +65,128 @@ def _proc_status_bytes(key: str) -> int | None:
     return None
 
 
-def reset_peak_memory() -> bool:
-    """reset the peak resident memory of this process to its current value (Linux)"""
+class _RusageInfoV4(ctypes.Structure):
+    """``struct rusage_info_v4`` of macOS (``<sys/resource.h>``)"""
+
+    _fields_ = [
+        ("ri_uuid", ctypes.c_uint8 * 16),
+        *(
+            (name, ctypes.c_uint64)
+            for name in [
+                "ri_user_time",
+                "ri_system_time",
+                "ri_pkg_idle_wkups",
+                "ri_interrupt_wkups",
+                "ri_pageins",
+                "ri_wired_size",
+                "ri_resident_size",
+                "ri_phys_footprint",
+                "ri_proc_start_abstime",
+                "ri_proc_exit_abstime",
+                "ri_child_user_time",
+                "ri_child_system_time",
+                "ri_child_pkg_idle_wkups",
+                "ri_child_interrupt_wkups",
+                "ri_child_pageins",
+                "ri_child_elapsed_abstime",
+                "ri_diskio_bytesread",
+                "ri_diskio_byteswritten",
+                "ri_cpu_time_qos_default",
+                "ri_cpu_time_qos_maintenance",
+                "ri_cpu_time_qos_background",
+                "ri_cpu_time_qos_utility",
+                "ri_cpu_time_qos_legacy",
+                "ri_cpu_time_qos_user_initiated",
+                "ri_cpu_time_qos_user_interactive",
+                "ri_billed_system_time",
+                "ri_serviced_system_time",
+                "ri_logical_writes",
+                "ri_lifetime_max_phys_footprint",
+                "ri_instructions",
+                "ri_cycles",
+                "ri_billed_energy",
+                "ri_serviced_energy",
+                "ri_interval_max_phys_footprint",
+                "ri_runnable_time",
+            ]
+        ),
+    ]
+
+
+RUSAGE_INFO_V4 = 4
+
+
+def _darwin_rusage() -> "_RusageInfoV4 | None":
     try:
-        with open("/proc/self/clear_refs", "w") as f:
-            f.write("5")
-        return True
-    except OSError:
-        return False
+        libc = ctypes.CDLL("/usr/lib/libSystem.dylib")
+        info = _RusageInfoV4()
+        if libc.proc_pid_rusage(os.getpid(), RUSAGE_INFO_V4, ctypes.byref(info)) != 0:
+            return None
+    except (OSError, AttributeError):
+        return None
+    if not 0 < info.ri_phys_footprint <= info.ri_interval_max_phys_footprint:
+        return None  # implausible: unexpected structure layout
+    return info
+
+
+def memory_method() -> str:
+    """how the peak memory is measured on this machine"""
+    if _proc_status_bytes("VmHWM") is not None:
+        return "VmHWM"
+    if sys.platform == "darwin" and _darwin_rusage() is not None:
+        return "phys_footprint"
+    return "ru_maxrss"
+
+
+def reset_peak_memory() -> bool:
+    """reset the peak memory of this process to its current value (Linux, macOS)"""
+    method = memory_method()
+    try:
+        if method == "VmHWM":
+            with open("/proc/self/clear_refs", "w") as f:
+                f.write("5")
+            return True
+        if method == "phys_footprint":
+            libc = ctypes.CDLL("/usr/lib/libSystem.dylib")
+            return libc.proc_reset_footprint_interval(os.getpid()) == 0
+    except (OSError, AttributeError):
+        pass
+    return False
 
 
 def peak_memory_bytes() -> int:
-    """the peak resident memory of this process
+    """the peak memory of this process
 
-    Linux: ``VmHWM``. Unlike ``ru_maxrss`` it is not inherited from the parent process
-    (``ru_maxrss`` survives ``execve``: the worker would start with the peak of the benchmark runner).
-    Other platforms: ``ru_maxrss`` (macOS: bytes), possibly including the peak of the parent.
+    - Linux: ``VmHWM`` (peak resident memory).
+    - macOS: the peak physical footprint since the last reset (``proc_pid_rusage``),
+      the memory figure of the Activity Monitor.
+    - otherwise ``ru_maxrss``. It may include the peak of the parent process:
+      ``ru_maxrss`` survives ``execve`` on Linux, the methods above do not.
     """
-    peak = _proc_status_bytes("VmHWM")
-    if peak is not None:
-        return peak
+    method = memory_method()
+    if method == "VmHWM":
+        return _proc_status_bytes("VmHWM")
+    if method == "phys_footprint":
+        return _darwin_rusage().ri_interval_max_phys_footprint
     maxrss = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
     return maxrss if sys.platform == "darwin" else maxrss * 1024
+
+
+def memory_probe(nr_bytes: int) -> dict:
+    """allocate and touch ``nr_bytes``: the measured peak must grow by about that much"""
+    reset = reset_peak_memory()
+    baseline = peak_memory_bytes()
+    block = bytearray(nr_bytes)
+    for i in range(0, nr_bytes, 4096):
+        block[i] = 1
+    peak = peak_memory_bytes() - baseline
+    del block
+    return {
+        "method": memory_method(),
+        "reset": reset,
+        "baseline": baseline,
+        "peak": peak,
+    }
 
 
 def _emit(event: dict):
@@ -123,6 +224,7 @@ def run_task(task: dict) -> dict:
         info["numba"] = adapter.numba_active()
     holes = [[tuple(c) for c in hole] for hole in task["holes"]]
     # the baseline: after the imports, the warm-up and the input data
+    info["memory_method"] = memory_method()
     info["memory_peak_reset"] = reset_peak_memory()
     baseline = peak_memory_bytes()
 
@@ -212,44 +314,55 @@ def measure(
             stdout=subprocess.PIPE,
             env=env,
         )
-        started = time.perf_counter()
-        progress = _wait_for_build(process, budget)
-        if progress != BUILT:
-            process.kill()
-            process.communicate()
-            if progress == OVER_BUDGET:
-                return {
-                    "status": OVER_BUDGET,
-                    "budget": budget,
-                    "elapsed": time.perf_counter() - started,
-                }
-            if output.exists():
-                with open(output) as f:
-                    return json.load(f)  # exception during the build
-            killed = " (killed, e.g. out of memory)" if process.returncode < 0 else ""
-            return {
-                "status": CRASH,
-                "error": f"worker exited with code {process.returncode} during the build{killed}",
-            }
-        # hard limit of the query phase: the limit is checked between queries,
-        # a hanging query is killed after a grace period
-        timeout = None if query_limit is None else query_limit + QUERY_LIMIT_GRACE
         try:
-            process.communicate(timeout=timeout)
-        except subprocess.TimeoutExpired:
-            process.kill()
-            process.communicate()
+            return _supervise(process, output, budget, query_limit)
+        finally:
+            # also on an interruption of the benchmark (Ctrl-C): no orphaned worker
+            if process.poll() is None:
+                process.kill()
+                process.wait()
+
+
+def _supervise(process: subprocess.Popen, output: Path, budget, query_limit) -> dict:
+    """wait for the worker within the budget and the query time limit, its result"""
+    started = time.perf_counter()
+    progress = _wait_for_build(process, budget)
+    if progress != BUILT:
+        process.kill()
+        process.communicate()
+        if progress == OVER_BUDGET:
             return {
-                "status": CRASH,
-                "error": f"query phase killed after {timeout:g} s (query time limit {query_limit:g} s)",
+                "status": OVER_BUDGET,
+                "budget": budget,
+                "elapsed": time.perf_counter() - started,
             }
-        if not output.exists():
-            return {
-                "status": CRASH,
-                "error": f"worker exited with code {process.returncode} without result",
-            }
-        with open(output) as f:
-            return json.load(f)
+        if output.exists():
+            with open(output) as f:
+                return json.load(f)  # exception during the build
+        killed = " (killed, e.g. out of memory)" if process.returncode < 0 else ""
+        return {
+            "status": CRASH,
+            "error": f"worker exited with code {process.returncode} during the build{killed}",
+        }
+    # hard limit of the query phase: the limit is checked between queries,
+    # a hanging query is killed after a grace period
+    timeout = None if query_limit is None else query_limit + QUERY_LIMIT_GRACE
+    try:
+        process.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        process.kill()
+        process.communicate()
+        return {
+            "status": CRASH,
+            "error": f"query phase killed after {timeout:g} s (query time limit {query_limit:g} s)",
+        }
+    if not output.exists():
+        return {
+            "status": CRASH,
+            "error": f"worker exited with code {process.returncode} without result",
+        }
+    with open(output) as f:
+        return json.load(f)
 
 
 def _wait_for_build(process: subprocess.Popen, budget) -> str:
@@ -300,11 +413,29 @@ def system_info() -> dict:
         "python_implementation": platform.python_implementation(),
     }
     try:
-        pages = os.sysconf("SC_PHYS_PAGES") * os.sysconf("SC_PAGE_SIZE")
-        info["memory_bytes"] = pages
+        info["memory_bytes"] = os.sysconf("SC_PHYS_PAGES") * os.sysconf("SC_PAGE_SIZE")
     except (ValueError, OSError, AttributeError):
-        info["memory_bytes"] = None
+        info["memory_bytes"] = _sysctl("hw.memsize", int)
+    if sys.platform == "darwin":
+        info["power_source"] = power_source()
     return info
+
+
+def _sysctl(name: str, cast=str):
+    try:
+        return cast(subprocess.check_output(["sysctl", "-n", name], text=True).strip())
+    except (OSError, ValueError, subprocess.CalledProcessError):
+        return None
+
+
+def power_source() -> str | None:
+    """macOS: "AC Power" or "Battery Power" (laptops throttle on battery)"""
+    try:
+        output = subprocess.check_output(["pmset", "-g", "ps"], text=True)
+    except (OSError, subprocess.CalledProcessError):
+        return None
+    first = output.splitlines()[0] if output else ""
+    return first.split("'")[1] if first.count("'") >= 2 else None
 
 
 def _cpu_model() -> str:
@@ -316,14 +447,15 @@ def _cpu_model() -> str:
     except OSError:
         pass
     if sys.platform == "darwin":
-        try:
-            return subprocess.check_output(
-                ["sysctl", "-n", "machdep.cpu.brand_string"], text=True
-            ).strip()
-        except (OSError, subprocess.CalledProcessError):
-            pass
+        # e.g. "Apple M2 Pro"
+        model = _sysctl("machdep.cpu.brand_string")
+        if model:
+            return model
     return platform.processor()
 
 
 if __name__ == "__main__":
-    worker_main(sys.argv[1])
+    if sys.argv[1] == "--memory-probe":
+        print(json.dumps(memory_probe(int(sys.argv[2]))))
+    else:
+        worker_main(sys.argv[1])

@@ -18,7 +18,9 @@ import datetime
 import importlib.util
 import json
 import math
+import os
 import shlex
+import shutil
 import statistics
 import subprocess
 import sys
@@ -88,6 +90,7 @@ def metadata(args, argv) -> dict:
         "budget": args.budget,
         "query_limit": args.query_limit,
         "allow_no_numba": args.allow_no_numba,
+        "sizes": [spec.name for spec in args.sizes],
         "length_rtol": validate.LENGTH_RTOL,
         "repeat_builds_below": measure.REPEAT_BELOW,
         "natural_earth": {
@@ -121,31 +124,130 @@ def query_stats(times_ns: list[int]) -> dict | None:
     }
 
 
-def _log(*args):
-    print(*args, file=sys.stderr, flush=True)
+def _log(*args, **kwargs):
+    print(*args, file=sys.stderr, flush=True, **kwargs)
+
+
+# results which are kept when a run is resumed (validated again with the stored paths)
+MEASURED = {"done", measure.OK, measure.INVALID, measure.CRASH, measure.OVER_BUDGET}
+# a measurement during which the machine slept is repeated
+SUSPEND_TOLERANCE = 2.0  # s
+MAX_ATTEMPTS = 3
+# settings which must not change when a run is resumed
+RESUME_KEYS = (
+    "quick",
+    "seed",
+    "nr_queries",
+    "budget",
+    "query_limit",
+    "allow_no_numba",
+    "sizes",
+)
+
+
+class Checkpoint:
+    """the raw results, written after every measurement, and the paths of the measurements
+
+    The paths are needed for the validation, but too large for the raw results:
+    they are stored next to them (``<raw>_paths/``).
+    """
+
+    def __init__(self, results: dict, path: Path):
+        self.results = results
+        self.path = path
+        self.paths_dir = path.with_name(path.stem + "_paths")
+
+    def _paths_file(self, section: str, name: str, package: str) -> Path:
+        return self.paths_dir / f"{section}__{name}__{package}.json"
+
+    def save(self):
+        write_raw(self.results, self.path)
+
+    def save_paths(self, section, name, package, paths):
+        self.paths_dir.mkdir(parents=True, exist_ok=True)
+        with open(self._paths_file(section, name, package), "w") as f:
+            json.dump(paths, f)
+
+    def load_paths(self, section, name, package):
+        path = self._paths_file(section, name, package)
+        if not path.exists():
+            return None
+        with open(path) as f:
+            return json.load(f)
+
+    def entry(self, section: str, data: dict) -> dict:
+        """the (possibly partial) entry of a map, appended to the results if new"""
+        for entry in self.results[section]:
+            if entry["map"]["name"] == data["name"]:
+                return entry
+        entry = {"map": workloads.map_summary(data), "results": {}, "complete": False}
+        self.results[section].append(entry)
+        return entry
+
+
+def measure_awake(package, holes, queries, budget, query_limit, label) -> dict:
+    """measure, repeated if the machine was suspended (sleep) during the measurement
+
+    The monotonic clocks of the timings stop during a suspension, the wall clock does not.
+    """
+    for attempt in range(1, MAX_ATTEMPTS + 1):
+        wall, started = time.time(), time.perf_counter()
+        result = measure.measure(package, holes, queries, budget, query_limit)
+        suspended = (time.time() - wall) - (time.perf_counter() - started)
+        if suspended < SUSPEND_TOLERANCE:
+            return result
+        result["suspended_s"] = suspended
+        _log(
+            f"[{label}] {package}: the machine was suspended for {suspended:.0f} s, "
+            f"measurement {'repeated' if attempt < MAX_ATTEMPTS else 'kept'} "
+            f"(attempt {attempt} of {MAX_ATTEMPTS})"
+        )
+    return result
 
 
 def run_map(
-    data: dict, queries, packages, active: set, budget, query_limit, label: str
+    checkpoint: Checkpoint,
+    section: str,
+    data: dict,
+    queries,
+    packages,
+    active: set,
+    budget,
+    query_limit,
 ) -> dict:
-    """measure and validate all packages on one map"""
-    entry = {"map": workloads.map_summary(data), "results": {}}
+    """measure and validate all packages on one map, resuming stored measurements"""
+    entry = checkpoint.entry(section, data)
+    name = data["name"]
     paths = {}
     for package in packages:
         if package not in active:
             entry["results"][package] = {"status": NOT_RUN}
             continue
-        _log(f"[{label}] {package} ({data['vertices']:,} vertices) ...")
+        previous = entry["results"].get(package, {})
+        if previous.get("status") in MEASURED:
+            stored = checkpoint.load_paths(section, name, package)
+            failed = previous["status"] in (measure.CRASH, measure.OVER_BUDGET)
+            if failed or stored is not None:
+                _log(f"[{section}] {package} ({data['vertices']:,} vertices): resumed")
+                if stored is not None:
+                    paths[package] = stored
+                continue
+        _log(f"[{section}] {package} ({data['vertices']:,} vertices) ...")
         started = time.perf_counter()
-        result = measure.measure(package, data["holes"], queries, budget, query_limit)
+        result = measure_awake(
+            package, data["holes"], queries, budget, query_limit, section
+        )
         _log(
-            f"[{label}] {package}: {result['status']}"
+            f"[{section}] {package}: {result['status']}"
             f" ({time.perf_counter() - started:.1f} s) {result.get('error', '')}"
         )
         if result["status"] == "done":
             paths[package] = result.pop("paths")
+            checkpoint.save_paths(section, name, package, paths[package])
             result["query_stats"] = query_stats(result["query_times_ns"])
         entry["results"][package] = result
+        entry["complete"] = False
+        checkpoint.save()
     report = validate.validate_paths(data["holes"], queries, paths)
     # paths kept in the raw results (for the figures): the first query and all failed queries
     kept = {0} | {f["query"] for c in report.values() for f in c["failures"]}
@@ -160,8 +262,50 @@ def run_map(
         result["validation"] = checks
         result["status"] = measure.INVALID if checks["failed"] else measure.OK
         if checks["failed"]:
-            _log(f"[{label}] {package}: {checks['failed']} invalid queries")
+            _log(f"[{section}] {package}: {checks['failed']} invalid queries")
+    entry["complete"] = True
+    checkpoint.save()
     return entry
+
+
+def load_resumable(args, argv) -> dict:
+    """the stored raw results to resume, checked against the settings of this run"""
+    with open(args.raw_output) as f:
+        results = json.load(f)
+    stored, current = results["meta"], metadata(args, argv)
+    changed = [key for key in RESUME_KEYS if stored.get(key) != current.get(key)]
+    for key in ("cpu_model", "cpu_count", "platform", "python"):
+        if stored["system"].get(key) != current["system"].get(key):
+            changed.append(f"system.{key}")
+    changed += [
+        f"versions.{name}"
+        for name, version in current["versions"].items()
+        if stored["versions"].get(name) != version
+    ]
+    if changed:
+        raise SystemExit(
+            f"cannot resume {args.raw_output}: changed {', '.join(changed)}. "
+            "Run with the settings of the interrupted run, or with --fresh to start over."
+        )
+    if stored["git"] != current["git"]:
+        _log(
+            f"WARNING: the code changed since the interrupted run: {stored['git']} -> {current['git']}"
+        )
+    stored.setdefault("resumed", []).append(
+        {"date": current["date"], "git": current["git"], "command": current["command"]}
+    )
+    return results
+
+
+def keep_awake():
+    """macOS: prevent idle sleep while this process runs (sleep pauses the measurements)"""
+    if sys.platform != "darwin" or shutil.which("caffeinate") is None:
+        return
+    # -i: idle sleep, -s: system sleep (on AC power), -w: until this process exits
+    subprocess.Popen(["caffeinate", "-i", "-s", "-w", str(os.getpid())])
+    _log("caffeinate: idle and system sleep prevented while the benchmark runs")
+    if measure.power_source() == "Battery Power":
+        _log("WARNING: on battery power: connect the power adapter (throttling, sleep)")
 
 
 def run(args, argv) -> dict:
@@ -173,18 +317,40 @@ def run(args, argv) -> dict:
             "Numba is not installed: install the numba extra (uv sync --all-extras) "
             "or pass --allow-no-numba"
         )
-    results = {"meta": metadata(args, argv), "world": [], "examples": []}
+    if args.resume:
+        results = load_resumable(args, argv)
+        _log(f"resuming {args.raw_output}")
+    else:
+        if args.raw_output.exists() and not (args.quick or args.fresh):
+            raise SystemExit(
+                f"{args.raw_output} exists (an interrupted or earlier run): "
+                "pass --resume to continue it or --fresh to start over"
+            )
+        results = {"meta": metadata(args, argv), "world": [], "examples": []}
+    checkpoint = Checkpoint(results, args.raw_output)
+    if args.fresh and checkpoint.paths_dir.exists():
+        shutil.rmtree(checkpoint.paths_dir)
+    keep_awake()
 
     if args.examples:
         for data in workloads.small_example_maps():
-            queries = workloads.generate_queries(
-                [data], args.queries, args.seed, eps=0.1, region=None
+            entry = checkpoint.entry("examples", data)
+            queries = entry.setdefault(
+                "queries",
+                workloads.generate_queries(
+                    [data], args.queries, args.seed, eps=0.1, region=None
+                ),
             )
-            entry = run_map(
-                data, queries, packages, set(packages), args.budget, None, "example"
+            run_map(
+                checkpoint,
+                "examples",
+                data,
+                queries,
+                packages,
+                set(packages),
+                args.budget,
+                None,
             )
-            entry["queries"] = queries
-            results["examples"].append(entry)
 
     specs = args.sizes
     if specs:
@@ -198,32 +364,136 @@ def run(args, argv) -> dict:
             # external failure: the smoke test continues with the small examples
             _log(f"WARNING: world maps skipped: {exc}")
             results["world_skipped"] = str(exc)
-            write_raw(results, args.raw_output)
+            checkpoint.save()
             return results
-        queries = workloads.generate_queries(maps, args.queries, args.seed)
-        results["world_queries"] = queries
+        if "world_queries" not in results:
+            results["world_queries"] = workloads.generate_queries(
+                maps, args.queries, args.seed
+            )
+        queries = results["world_queries"]
         active = set(packages)
         for data in maps:
             entry = run_map(
-                data, queries, packages, active, args.budget, args.query_limit, "world"
+                checkpoint,
+                "world",
+                data,
+                queries,
+                packages,
+                active,
+                args.budget,
+                args.query_limit,
             )
-            results["world"].append(entry)
             for package, result in entry["results"].items():
                 if result["status"] == measure.OVER_BUDGET:
                     active.discard(package)
-            write_raw(results, args.raw_output)
-            epf_over_budget = {"extremitypathfinder"} & set(packages) - active
-            if epf_over_budget:
+            if {"extremitypathfinder"} & set(packages) - active:
                 _log("extremitypathfinder exceeded the build budget: end of the sweep")
                 break
-    write_raw(results, args.raw_output)
+    results["meta"]["completed"] = datetime.datetime.now(datetime.UTC).isoformat(
+        timespec="seconds"
+    )
+    checkpoint.save()
     return results
 
 
+def preflight(args) -> int:
+    """check this machine for the full run, print a report. 0: ready"""
+    problems = []
+
+    def check(ok: bool, message: str, problem: str | None = None):
+        print(f"{'ok  ' if ok else 'FAIL'} {message}")
+        if not ok:
+            problems.append(problem or message)
+
+    system = measure.system_info()
+    print(
+        f"machine: {system['cpu_model']}, {system['cpu_count']} logical cores, "
+        f"{format_bytes(system['memory_bytes'])}, {system['platform']}, Python {system['python']}"
+    )
+    tiny = [[(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)]]
+    query = [((-1.0, 0.5), (2.0, 0.5))]
+    for package in args.packages:
+        result = measure.measure(package, tiny, query, budget=60)
+        check(
+            result["status"] == "done",
+            f"{package} runs in a worker: {result['status']} {result.get('error', '')}",
+        )
+        if package == "extremitypathfinder" and result["status"] == "done":
+            check(
+                result["numba"] or args.allow_no_numba,
+                f"Numba active: {result['numba']}",
+            )
+    # the peak memory of a worker must not include the peak of this (large) process
+    ballast = bytearray(300 * 2**20)
+    for k in range(0, len(ballast), 4096):
+        ballast[k] = 1
+    output = subprocess.run(
+        [*measure.WORKER_COMMAND, "--memory-probe", str(100 * 2**20)],
+        cwd=measure.REPO_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    ).stdout
+    del ballast
+    try:
+        probe = json.loads(output)
+    except ValueError:
+        probe = None
+    if probe is None:
+        check(False, "memory probe failed")
+    else:
+        peak, baseline = probe["peak"] / 2**20, probe["baseline"] / 2**20
+        check(
+            80 <= peak <= 150 and baseline < 250,
+            f"peak memory ({probe['method']}): 100 MiB allocated, {peak:.0f} MiB measured, "
+            f"worker baseline {baseline:.0f} MiB with 300 MiB in the parent",
+            "the peak memory measurement is wrong on this machine",
+        )
+    if sys.platform == "darwin":
+        check(
+            shutil.which("caffeinate") is not None,
+            "caffeinate available (prevents sleep)",
+        )
+        check(
+            system.get("power_source") == "AC Power",
+            f"power source: {system.get('power_source')}",
+            "connect the power adapter",
+        )
+    if not args.quick:
+        for spec in args.sizes:
+            try:
+                workloads.load_world(spec)
+            except world_map.DownloadError as exc:
+                check(False, f"map data: {exc}")
+                break
+        else:
+            check(
+                True,
+                f"world maps generated and cached: {', '.join(s.name for s in args.sizes)}",
+            )
+    free = shutil.disk_usage(
+        args.raw_output.parent if args.raw_output.parent.exists() else REPO_ROOT
+    ).free
+    check(free > 2**30, f"free disk space: {format_bytes(free)}")
+    if args.raw_output.exists() and not args.quick:
+        print(
+            f"note: {args.raw_output} exists: continue it with --resume, or start over with --fresh"
+        )
+    print(
+        "ready for the full run"
+        if not problems
+        else "not ready:\n  " + "\n  ".join(problems)
+    )
+    return 1 if problems else 0
+
+
 def write_raw(results: dict, path: Path):
+    """write atomically: an interruption while writing keeps the previous file"""
     path.parent.mkdir(parents=True, exist_ok=True)
-    with open(path, "w") as f:
+    tmp = path.with_name(path.name + ".tmp")
+    with open(tmp, "w") as f:
         json.dump(results, f, indent=1)
+    os.replace(tmp, path)
 
 
 # rendering of the RST tables
@@ -553,6 +823,21 @@ def parse_args(argv):
         "--no-render", action="store_true", help="only write the raw results"
     )
     parser.add_argument(
+        "--resume",
+        action="store_true",
+        help="continue an interrupted run (same settings): keeps the stored measurements",
+    )
+    parser.add_argument(
+        "--fresh",
+        action="store_true",
+        help="start over, replacing the raw results of an earlier or interrupted run",
+    )
+    parser.add_argument(
+        "--preflight",
+        action="store_true",
+        help="check this machine for the full run (Numba, memory measurement, power) and exit",
+    )
+    parser.add_argument(
         "--render-only",
         type=Path,
         default=None,
@@ -571,6 +856,8 @@ def parse_args(argv):
         "Errors of pyvisgraph and other external packages never change the exit code",
     )
     args = parser.parse_args(argv)
+    if args.resume and args.fresh:
+        parser.error("--resume and --fresh exclude each other")
     if args.query_limit is not None and args.query_limit <= 0:
         parser.error("--query-limit must be positive")
     for package in args.packages:
@@ -603,6 +890,8 @@ def main(argv: list[str] | None = None) -> int:
     if argv is None:
         argv = sys.argv[1:]
     args = parse_args(argv)
+    if args.preflight:
+        return preflight(args)
     if args.render_only is not None:
         with open(args.render_only) as f:
             results = json.load(f)

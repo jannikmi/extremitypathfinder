@@ -10,7 +10,9 @@ Measure before and after optimising, and include the numbers in the pull request
   - `make benchmark` runs it with `--quick`: a smoke test of a few seconds (not run in CI).
     Its outputs go to the gitignored `benchmarks/results/raw/quick/`.
   - The full run takes hours: `uv run --all-extras --group benchmark python -m benchmarks.run`.
-    Run it on an otherwise idle machine and state the machine.
+    Run it on an otherwise idle machine and state the machine. Check the machine first with `--preflight`,
+    continue an interrupted run with `--resume`
+    (cf. {ref}`running-benchmarks`).
 - `scripts/speed_benchmarks.py` measures environment preparation and queries on the small test environments
   with the same harness (`uv run --all-extras --group benchmark python scripts/speed_benchmarks.py`).
 - `prototypes/large_env_query_profile.py` profiles queries on a large, configurable environment

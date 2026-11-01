@@ -75,10 +75,10 @@ Measurements
   One build per package and size. Builds under 1 s are repeated until 5 s or 5 runs and the minimum is reported.
 * **Query latency**: ``time.perf_counter_ns`` per query on the prepared environment (p50, p95, p99, mean, queries/s).
   ``extremitypathfinder`` is queried with ``verify=False``: pyvisgraph does not check the query points either.
-* **Peak memory**: peak resident memory of the subprocess doing the build and the queries
-  (Linux: ``VmHWM``, reset after the imports, the warm-up and loading the input),
-  minus its baseline at that point. A coarse figure: the allocator keeps freed memory.
-  On other platforms ``ru_maxrss`` is used, which can include the peak of the parent process.
+* **Peak memory**: peak memory of the subprocess doing the build and the queries,
+  reset after the imports, the warm-up and loading the input, minus its baseline at that point.
+  Linux: peak resident memory (``VmHWM``), macOS: peak physical footprint (``proc_pid_rusage``,
+  the memory figure of the Activity Monitor). A coarse figure: the allocator keeps freed memory.
 * **Graph size**: nodes and edges of ``extremitypathfinder``'s reduced visibility graph
   and of pyvisgraph's full visibility graph.
 * **Budget**: 10 min per build. Each package and size runs in its own subprocess, which is killed when the build
@@ -231,6 +231,22 @@ The raw results (JSON, with the hardware, the exact versions, the git commit, th
 the seeds and the query set) are written to ``benchmarks/results/raw/``,
 the tables to ``benchmarks/results/`` and the figures to ``docs/_static/``.
 ``--render-only RAW_JSON`` renders the tables and figures again from raw results.
+
+Full run on a laptop
+~~~~~~~~~~~~~~~~~~~~
+
+1. Connect the power adapter, close other applications and keep the lid open
+   (a closed MacBook sleeps without an external display).
+2. Check the machine: ``uv run --all-extras --group benchmark python -m benchmarks.run --preflight``.
+   It checks that Numba is active, that the peak memory measurement is correct on this machine
+   and the power source, and it downloads the data and generates the maps (minutes, cached).
+3. Start the full run (command above). On macOS it keeps the machine awake with ``caffeinate``
+   while it runs. A measurement during which the machine slept anyway is repeated
+   (the monotonic clocks of the timings stop during sleep, the wall clock does not).
+4. After an interruption (Ctrl-C, crash, restart), continue with the same command and ``--resume``.
+   The raw results are written after every measurement: the finished measurements are kept,
+   the interrupted one is repeated. Resuming refuses changed settings, versions or a different machine.
+   ``--fresh`` starts over. An existing run is never overwritten without one of the two options.
 
 ``scripts/speed_benchmarks.py`` measures ``extremitypathfinder`` alone on the small test environments
 with the same harness.

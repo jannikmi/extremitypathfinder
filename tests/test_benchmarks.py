@@ -120,7 +120,7 @@ def test_quick_run_tolerates_download_failure(monkeypatch, tmp_path):
     assert run.main([*argv, "--packages", "extremitypathfinder"]) == 0
     assert "no network" in raw.read_text()
     with pytest.raises(world_map.DownloadError):
-        run.main(argv[1:])  # the full run fails
+        run.main([*argv[1:], "--fresh"])  # the full run fails
 
 
 def _fake_worker(monkeypatch, tmp_path, body: str):
@@ -227,3 +227,69 @@ def _system_meta():
         "command": "c",
         "seed": 0,
     }
+
+
+def _fake_measure(calls: list, interrupt_at: int | None = None):
+    """a measurement without subprocess: straight paths (infeasible around obstacles)"""
+
+    def fake(package, holes, queries, budget, query_limit=None):
+        calls.append(package)
+        if len(calls) == interrupt_at:
+            raise KeyboardInterrupt
+        return {
+            "status": "done",
+            "build_time": 0.1,
+            "query_times_ns": [1000] * len(queries),
+            "paths": [[list(start), list(goal)] for start, goal in queries],
+            "memory_peak": 0,
+        }
+
+    return fake
+
+
+def test_resume_after_interruption(monkeypatch, tmp_path):
+    raw = tmp_path / "raw.json"
+    argv = [
+        "--sizes",
+        "none",
+        "--queries",
+        "3",
+        "--raw-output",
+        str(raw),
+        "--no-render",
+    ]
+    calls = []
+    monkeypatch.setattr(measure, "measure", _fake_measure(calls, interrupt_at=4))
+    with pytest.raises(KeyboardInterrupt):
+        run.main(argv)
+    stored = run.json.loads(raw.read_text())
+    assert [e["complete"] for e in stored["examples"]] == [True, False]
+    with pytest.raises(SystemExit, match="--resume"):
+        run.main(argv)  # never overwritten silently
+    with pytest.raises(SystemExit, match="nr_queries"):
+        run.main([*argv, "--resume", "--queries", "4"])  # other settings
+    calls.clear()
+    monkeypatch.setattr(measure, "measure", _fake_measure(calls))
+    assert run.main([*argv, "--resume"]) == 0
+    # only the interrupted and the remaining measurements: 3 examples x 2 packages - 3 stored
+    assert len(calls) == 3
+    results = run.json.loads(raw.read_text())
+    assert all(e["complete"] for e in results["examples"])
+    assert len(results["meta"]["resumed"]) == 1
+    # the stored paths are validated again: straight paths through the obstacles
+    assert results["examples"][0]["results"]["pyvisgraph"]["status"] in (
+        measure.OK,
+        measure.INVALID,
+    )
+
+
+def test_measurement_during_sleep_is_repeated(monkeypatch):
+    calls = []
+    monkeypatch.setattr(measure, "measure", _fake_measure(calls))
+    clock = iter(
+        [0.0, 3600.0, 4000.0, 4000.0]
+    )  # wall clock: first measurement spans a sleep
+    monkeypatch.setattr(run.time, "time", lambda: next(clock))
+    result = run.measure_awake("pyvisgraph", SQUARE, [], None, None, "test")
+    assert len(calls) == 2
+    assert "suspended_s" not in result
