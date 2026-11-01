@@ -5,7 +5,7 @@ each example is built and queried in a subprocess after a warm-up (Numba compile
 with seeded random queries in the free space. The comparison with pyvisgraph
 on the world map size sweep is ``python -m benchmarks.run`` (``make benchmark``).
 
-usage: uv run --group benchmark python scripts/speed_benchmarks.py [nr_queries]
+usage: uv run --all-extras --group benchmark python scripts/speed_benchmarks.py [nr_queries]
 """
 
 import sys

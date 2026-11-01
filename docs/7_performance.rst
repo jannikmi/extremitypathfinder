@@ -75,8 +75,10 @@ Measurements
   One build per package and size. Builds under 1 s are repeated until 5 s or 5 runs and the minimum is reported.
 * **Query latency**: ``time.perf_counter_ns`` per query on the prepared environment (p50, p95, p99, mean, queries/s).
   ``extremitypathfinder`` is queried with ``verify=False``: pyvisgraph does not check the query points either.
-* **Peak memory**: peak resident memory (``ru_maxrss``) of the subprocess doing the build and the queries,
-  minus its baseline after the imports and the warm-up. A coarse figure: the allocator keeps freed memory.
+* **Peak memory**: peak resident memory of the subprocess doing the build and the queries
+  (Linux: ``VmHWM``, reset after the imports, the warm-up and loading the input),
+  minus its baseline at that point. A coarse figure: the allocator keeps freed memory.
+  On other platforms ``ru_maxrss`` is used, which can include the peak of the parent process.
 * **Graph size**: nodes and edges of ``extremitypathfinder``'s reduced visibility graph
   and of pyvisgraph's full visibility graph.
 * **Budget**: 10 min per build. Each package and size runs in its own subprocess, which is killed when the build
@@ -204,7 +206,8 @@ Running the benchmarks
 
 ``--quick`` uses two small maps and 20 queries, writes its tables and figures to the gitignored
 ``benchmarks/results/raw/quick/`` and treats a failed download of the map data as a warning.
-Other options: ``--sizes 250,1k,5k``, ``--budget`` (seconds per build), ``--query-limit`` (seconds per package and size),
+Other options: ``--sizes 250,1k,5k`` (the query set is generated for the maps of the run:
+compare only runs with the same sizes), ``--budget`` (seconds per build), ``--query-limit`` (seconds per package and size),
 ``--queries``, ``--seed`` and ``--packages``.
 The Natural Earth data and the generated maps are cached in ``benchmarks/data/``.
 The raw results (JSON, with the hardware, the exact versions, the git commit, the command line, the budgets,

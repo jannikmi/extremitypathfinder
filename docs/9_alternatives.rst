@@ -21,7 +21,7 @@ bounded by a polygon with polygonal holes, for repeated queries in a static envi
     - boundary polygon, touching and intersecting polygons and grids with blocked cells as input
     - this package does not support parallel graph construction (so far)
 
-    Measured comparison on world maps of up to several hundred thousand vertices: :ref:`speed-tests`.
+    Measured comparison on world maps of increasing size: :ref:`speed-tests`.
     pyvisgraph returns paths through obstacles for some inputs
     and its build crashes on nearly identical vertices (:ref:`benchmark-correctness`).
 

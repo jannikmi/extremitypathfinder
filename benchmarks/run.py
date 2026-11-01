@@ -15,7 +15,9 @@ See ``docs/7_performance.rst`` for the method and the results.
 
 import argparse
 import datetime
+import importlib.util
 import json
+import math
 import shlex
 import statistics
 import subprocess
@@ -85,6 +87,7 @@ def metadata(args, argv) -> dict:
         "query_region": workloads.QUERY_REGION,
         "budget": args.budget,
         "query_limit": args.query_limit,
+        "allow_no_numba": args.allow_no_numba,
         "length_rtol": validate.LENGTH_RTOL,
         "repeat_builds_below": measure.REPEAT_BELOW,
         "natural_earth": {
@@ -104,7 +107,7 @@ def query_stats(times_ns: list[int]) -> dict | None:
 
     def percentile(q):
         # nearest rank
-        return times[min(len(times) - 1, max(0, round(q / 100 * len(times)) - 1))]
+        return times[max(0, math.ceil(q / 100 * len(times)) - 1)]
 
     mean = statistics.fmean(times)
     return {
@@ -163,6 +166,13 @@ def run_map(
 
 def run(args, argv) -> dict:
     packages = args.packages
+    # the plan: extremitypathfinder is only compared with Numba (best case)
+    numba_missing = importlib.util.find_spec("numba") is None
+    if "extremitypathfinder" in packages and numba_missing and not args.allow_no_numba:
+        raise SystemExit(
+            "Numba is not installed: install the numba extra (uv sync --all-extras) "
+            "or pass --allow-no-numba"
+        )
     results = {"meta": metadata(args, argv), "world": [], "examples": []}
 
     if args.examples:
@@ -181,6 +191,7 @@ def run(args, argv) -> dict:
         _log(f"loading {len(specs)} world maps ...")
         try:
             maps = [workloads.load_world(spec) for spec in specs]
+            maps.sort(key=lambda data: data["vertices"])
         except world_map.DownloadError as exc:
             if not args.quick:
                 raise
@@ -243,6 +254,9 @@ def format_bytes(nr_bytes: int | None) -> str:
 
 def _list_table(title: str, header: list[str], rows: list[list], widths=None) -> str:
     lines = [f".. list-table:: {title}", "   :header-rows: 1", ""]
+    if not rows:
+        # docutils rejects tables without a body
+        rows = [["–"] * (len(header) - 1) + ["no results"]]
     for row in [header, *rows]:
         lines.append(f"   * - {row[0]}")
         lines.extend(f"     - {cell}" for cell in row[1:])
@@ -256,7 +270,7 @@ def _note(results: dict) -> str:
 
 
 def is_ok(result: dict) -> bool:
-    return result["status"] == measure.OK
+    return result.get("status") == measure.OK
 
 
 def largest_ok(results: dict) -> dict:
@@ -473,10 +487,13 @@ def parse_args(argv):
     )
     parser.add_argument(
         "--sizes",
-        type=lambda s: [workloads.parse_size(x) for x in s.split(",") if x],
+        type=lambda s: (
+            [] if s == "none" else [workloads.parse_size(x) for x in s.split(",") if x]
+        ),
         default=None,
-        help="comma separated world map sizes, e.g. 250,1k,5k "
-        "(default: the full sweep, 'none': only the small examples)",
+        help="comma separated world map sizes, e.g. 250,1k,5k, run in ascending order "
+        "(default: the full sweep, 'none': only the small examples). "
+        "The query set depends on the maps of the run: compare only runs with the same sizes",
     )
     parser.add_argument(
         "--budget",
@@ -543,12 +560,19 @@ def parse_args(argv):
         help="render the tables and figures of existing raw results",
     )
     parser.add_argument(
+        "--allow-no-numba",
+        action="store_true",
+        help="run extremitypathfinder without Numba (not comparable with the documented results)",
+    )
+    parser.add_argument(
         "--fail-on-invalid",
         action="store_true",
         help="exit with code 1 if extremitypathfinder is invalid or crashes. "
         "Errors of pyvisgraph and other external packages never change the exit code",
     )
     args = parser.parse_args(argv)
+    if args.query_limit is not None and args.query_limit <= 0:
+        parser.error("--query-limit must be positive")
     for package in args.packages:
         if package not in PACKAGES:
             parser.error(f"unknown package {package}, choose from {PACKAGES}")
@@ -578,9 +602,6 @@ def parse_args(argv):
 def main(argv: list[str] | None = None) -> int:
     if argv is None:
         argv = sys.argv[1:]
-    if "--sizes" in argv and argv[argv.index("--sizes") + 1] == "none":
-        argv = list(argv)
-        argv[argv.index("--sizes") + 1] = ""
     args = parse_args(argv)
     if args.render_only is not None:
         with open(args.render_only) as f:

@@ -1,5 +1,7 @@
 """Tests of the benchmark harness (``benchmarks/``), skipped without the benchmark dependencies."""
 
+import sys
+
 import pytest
 
 pytest.importorskip("shapely")
@@ -112,12 +114,107 @@ def test_quick_run_tolerates_download_failure(monkeypatch, tmp_path):
         run.main(argv[1:])  # the full run fails
 
 
-def test_hanging_query_phase_is_killed(monkeypatch):
-    monkeypatch.setattr(measure, "QUERY_LIMIT_GRACE", 0.0)
-    data = workloads.small_example_maps()[-1]
-    queries = workloads.generate_queries([data], 1000, region=None)
-    result = measure.measure(
-        "pyvisgraph", data["holes"], queries, budget=60, query_limit=0.0
+def _fake_worker(monkeypatch, tmp_path, body: str):
+    """replace the worker by a script: emits the given events, then runs the body"""
+    script = tmp_path / "worker.py"
+    script.write_text(
+        "import os, signal, sys, time\n"
+        "def emit(*events):\n"
+        "    sys.stdout.buffer.write(b''.join(b'@epf-benchmark-event ' + e + b'\\n' for e in events))\n"
+        "    sys.stdout.buffer.flush()\n" + body
     )
+    monkeypatch.setattr(measure, "WORKER_COMMAND", [sys.executable, str(script)])
+
+
+START = 'b\'{"event": "build_start"}\''
+BUILT = 'b\'{"event": "built", "build_time": 0.0}\''
+
+
+def test_hanging_query_phase_is_killed(monkeypatch, tmp_path):
+    # both events in one chunk, unrelated output of a package ignored
+    _fake_worker(
+        monkeypatch,
+        tmp_path,
+        f"print('package output')\nemit({START}, {BUILT})\ntime.sleep(60)\n",
+    )
+    monkeypatch.setattr(measure, "QUERY_LIMIT_GRACE", 0.0)
+    result = measure.measure("pyvisgraph", SQUARE, [], budget=10, query_limit=0.5)
     assert result["status"] == measure.CRASH
     assert "query phase killed" in result["error"]
+
+
+def test_killed_build_is_a_crash_not_over_budget(monkeypatch, tmp_path):
+    """e.g. the out of memory killer"""
+    _fake_worker(
+        monkeypatch, tmp_path, f"emit({START})\nos.kill(os.getpid(), signal.SIGKILL)\n"
+    )
+    result = measure.measure("pyvisgraph", SQUARE, [], budget=60)
+    assert result["status"] == measure.CRASH
+    assert "killed" in result["error"]
+
+
+def test_slow_build_is_over_budget(monkeypatch, tmp_path):
+    _fake_worker(monkeypatch, tmp_path, f"emit({START})\ntime.sleep(60)\n")
+    result = measure.measure("pyvisgraph", SQUARE, [], budget=0.5)
+    assert result["status"] == measure.OVER_BUDGET
+
+
+def test_percentiles_nearest_rank():
+    stats = run.query_stats([int(t * 1e9) for t in (1, 2, 3, 4, 5)])
+    assert (stats["p50"], stats["p95"], stats["p5"]) == (3, 5, 1)
+
+
+def test_render_tables_edge_cases():
+    """no world results, only invalid results: every table keeps a body (strict docs build)"""
+    meta = {
+        "quick": False,
+        "budget": 600,
+        "query_limit": None,
+        "nr_queries": 1,
+        **_system_meta(),
+    }
+    entry = {
+        "map": {
+            "name": "m",
+            "resolution": "110m",
+            "polygons": 1,
+            "vertices": 4,
+            "tolerance": 0.0,
+            "dropped_intersecting": 0,
+        },
+        # pyvisgraph not run (--packages)
+        "results": {
+            "extremitypathfinder": {
+                "status": measure.INVALID,
+                "validation": {
+                    "failed": 1,
+                    "checked": 1,
+                    "infeasible": 1,
+                    "not_optimal": 0,
+                },
+            }
+        },
+    }
+    for world in ([], [entry]):
+        tables = run.render_tables({"meta": meta, "world": world, "examples": []})
+        for name, content in tables.items():
+            if ".. list-table::" in content:
+                assert content.count("   * - ") >= 2, name
+
+
+def _system_meta():
+    return {
+        "system": {
+            "cpu_model": "cpu",
+            "cpu_count": 1,
+            "memory_bytes": 2**30,
+            "platform": "p",
+            "python": "3",
+            "python_implementation": "CPython",
+        },
+        "versions": {},
+        "git": {"sha": None, "dirty": False},
+        "date": "d",
+        "command": "c",
+        "seed": 0,
+    }

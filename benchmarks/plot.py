@@ -74,7 +74,7 @@ def _finish(fig, ax, results: dict, path: Path, legend: bool = True):
     system = meta["system"]
     caption = (
         f"{system['cpu_model']}, Python {system['python']}, "
-        f"extremitypathfinder {meta['versions'].get('extremitypathfinder')} (Numba), "
+        f"extremitypathfinder {meta['versions'].get('extremitypathfinder')} ({_numba(results)}), "
         f"pyvisgraph {meta['versions'].get('pyvisgraph')}"
     )
     fig.text(0.01, 0.01, caption, fontsize=7, color=TEXT_SECONDARY, ha="left")
@@ -188,12 +188,32 @@ def ratio(results: dict, path: Path):
     _finish(fig, ax, results, path)
 
 
+def _numba(results: dict) -> str:
+    """the execution backend of extremitypathfinder in the results"""
+    modes = {
+        r.get("numba")
+        for e in results["world"] + results["examples"]
+        for package, r in e["results"].items()
+        if package == "extremitypathfinder" and "numba" in r
+    }
+    if modes == {True}:
+        return "Numba"
+    if modes == {False}:
+        return "without Numba"
+    return "Numba unknown" if not modes else "with and without Numba"
+
+
 def world_example(results: dict, path: Path):
     """the smallest world map with the paths of both packages for one query.
 
     Shows an invalid path when one occurred, otherwise the first query.
     """
     if not results["world"]:
+        # replace a stale figure of earlier results
+        fig, ax = plt.subplots(figsize=(8.0, 4.4))
+        ax.axis("off")
+        ax.text(0.5, 0.5, "no world map results", ha="center", va="center")
+        _finish(fig, ax, results, path, legend=False)
         return
     entry, query_idx = results["world"][0], 0
     for candidate in results["world"]:

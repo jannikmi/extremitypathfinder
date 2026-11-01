@@ -12,7 +12,7 @@ Measure before and after optimising, and include the numbers in the pull request
   - The full run takes hours: `uv run --all-extras --group benchmark python -m benchmarks.run`.
     Run it on an otherwise idle machine and state the machine.
 - `scripts/speed_benchmarks.py` measures environment preparation and queries on the small test environments
-  with the same harness (`uv run --group benchmark python scripts/speed_benchmarks.py`).
+  with the same harness (`uv run --all-extras --group benchmark python scripts/speed_benchmarks.py`).
 - `prototypes/large_env_query_profile.py` profiles queries on a large, configurable environment
   and compares the query time with the time a copy of the visibility graph would take (queries do not copy it):
 

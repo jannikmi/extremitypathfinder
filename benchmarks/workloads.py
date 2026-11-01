@@ -39,7 +39,9 @@ class MapSpec:
 
 
 def _spec(target: int) -> MapSpec:
-    label = f"{target // 1000}k" if target >= 1000 else str(target)
+    label = (
+        f"{target // 1000}k" if target >= 1000 and target % 1000 == 0 else str(target)
+    )
     return MapSpec(f"world_{label}", None, target)
 
 
