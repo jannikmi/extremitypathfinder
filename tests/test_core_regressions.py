@@ -1,5 +1,6 @@
 """Regressions found by reviewing the core algorithms (visibility, free wedges, graph, query)"""
 
+import pickle
 from math import hypot
 
 import numpy as np
@@ -85,10 +86,17 @@ def test_extremity_opposite_of_a_bounding_ray_stays_connected():
 
 def test_queries_do_not_modify_the_environment():
     environment = PolygonEnvironment(*POLYGON_ENVS[2])
-    keys_before = set(environment.reprs_n_distances)
+
+    def state():
+        # Note: not the pickled graph, networkx caches views (e.g. ``graph.nodes``) on first access
+        attributes = {k: v for k, v in environment.__dict__.items() if k != "graph"}
+        graph = environment.graph
+        return pickle.dumps(attributes), list(graph.nodes), list(graph.edges.data())
+
+    state_before = state()
     environment.find_shortest_path((4.0, 4.5), (6.0, 4.5))
     environment.find_shortest_path((9.1, 4.0), (9.1, 6.0))
-    assert set(environment.reprs_n_distances) == keys_before
+    assert state() == state_before
 
 
 def test_last_extremity_is_reduced_as_well():
@@ -122,7 +130,7 @@ def test_graph_nodes_in_front_of_each_other_are_not_connected(environment):
     for u, v in environment.graph.edges:
         for origin, other in ((u, v), (v, u)):
             point = environment.points.by_idx[origin]
-            representations, _ = environment.reprs_n_distances[origin]
+            representations, _ = utils.cmp_reps_n_distances(origin, coords)
             vector = coords[other] - coords[origin]
             assert not point.in_front(representations[other], vector)
 
@@ -144,3 +152,37 @@ def test_vectorised_representations_are_identical():
             assert np.isnan(rep)
         else:
             assert rep == expected_rep
+
+
+def _star_grid(holes_per_side: int):
+    """a square boundary with a grid of 8-vertex star holes (every second vertex is an extremity)"""
+    holes = []
+    for i in range(holes_per_side):
+        for j in range(holes_per_side):
+            cx, cy = 4.0 * i + 3.0, 4.0 * j + 3.0
+            radii = (1.2, 0.5) * 4
+            # clockwise
+            angles = [-k * np.pi / 4 for k in range(8)]
+            holes.append(
+                [
+                    (cx + r * np.cos(a), cy + r * np.sin(a))
+                    for r, a in zip(radii, angles, strict=True)
+                ]
+            )
+    size = 4.0 * holes_per_side + 2.0
+    return [(0.0, 0.0), (size, 0.0), (size, size), (0.0, size)], holes
+
+
+def test_environment_size_without_graph_is_linear_in_the_vertices():
+    """the environment does not keep data of size O(extremities * vertices), only the graph may grow faster
+
+    Previously the angle representations and distances of all vertices seen from every extremity were stored:
+    peak memory and pickle size grew quadratically (e.g. 1 GiB for 10k vertices).
+    """
+    bytes_per_vertex = []
+    for holes_per_side in (3, 6):
+        environment = PolygonEnvironment(*_star_grid(holes_per_side), validate=True)
+        state = {k: v for k, v in environment.__dict__.items() if k != "graph"}
+        bytes_per_vertex.append(len(pickle.dumps(state)) / environment.nr_vertices)
+    # 4 times the vertices and extremities: previously about 3 times the bytes per vertex
+    assert bytes_per_vertex[1] < 1.3 * bytes_per_vertex[0]

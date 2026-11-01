@@ -1,5 +1,5 @@
+import itertools
 import pickle
-from collections import ChainMap
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from functools import cached_property
@@ -92,7 +92,6 @@ class PolygonEnvironment:
     nr_vertices: int
     holes: list[np.ndarray]
     extremity_indices: np.ndarray
-    reprs_n_distances: dict[int, tuple[np.ndarray, np.ndarray]]
     graph: t.Graph
     boundary_polygon: np.ndarray | None
     coords: np.ndarray
@@ -173,10 +172,6 @@ class PolygonEnvironment:
         self.extremity_indices = self.points.extremity_idxs
 
         self.nr_vertices = len(self.coords)
-        # the angle representations and distances of all vertices seen from every extremity
-        self.reprs_n_distances = utils.cmp_reps_n_distance_dict(
-            self.coords, self.extremity_indices
-        )
 
         # start and goal points will be stored after all polygon coordinates
         self.idx_start = self.nr_vertices
@@ -278,7 +273,6 @@ class PolygonEnvironment:
         """
         self.graph = utils.compute_graph(
             self.extremity_indices,
-            self.reprs_n_distances,
             self.coords,
             self.edge_vertex_idxs,
             self.points,
@@ -393,11 +387,6 @@ class PolygonEnvironment:
         }
         start_node, goal_node = (_graph_node(query_points[i]) for i in (start, goal))
 
-        # the angle representations and distances seen from start and goal
-        # Note: the environment does not get modified by the query
-        query_reprs_n_distances = {}
-        reprs_n_distances = ChainMap(query_reprs_n_distances, self.reprs_n_distances)
-
         # check the goal node first (earlier termination possible)
         origin = goal
         # the visibility of only the graph nodes has to be checked (not all extremities!)
@@ -408,9 +397,10 @@ class PolygonEnvironment:
         #   (only the closest of candidates in the same direction is visible, cf. find_visible()):
         #   the start may leave its point through any free wedge, the graph node only through its own
         candidates_goal = candidate_idxs - {start_node}
-        vert_idx2repr, vert_idx2dist = query_reprs_n_distances[origin] = (
-            utils.cmp_reps_n_distances(origin, coords)
-        )
+        vert_idx2repr, vert_idx2dist = utils.cmp_reps_n_distances(origin, coords)
+        # the distances to the goal: the A* heuristic
+        # (also for a graph node merged with the goal: identical coordinates, identical distances)
+        goal_distances = vert_idx2dist
         visibles_goal = self.get_visible_idxs(
             origin,
             candidates_goal,
@@ -445,9 +435,7 @@ class PolygonEnvironment:
         origin = start
         # the visibility of only the graphs nodes have to be checked
         # the goal node does not have to be considered, because of the earlier check
-        vert_idx2repr, vert_idx2dist = query_reprs_n_distances[origin] = (
-            utils.cmp_reps_n_distances(origin, coords)
-        )
+        vert_idx2repr, vert_idx2dist = utils.cmp_reps_n_distances(origin, coords)
         visibles_start = self.get_visible_idxs(
             origin,
             candidate_idxs,
@@ -478,21 +466,19 @@ class PolygonEnvironment:
                 self.graph,
             )
 
-        def l2_distance(n1, n2):
-            return utils.get_distance(n1, n2, reprs_n_distances)
+        def distance_to_goal(node: int, _goal: int) -> float:
+            return goal_distances[node]
 
         id_path = utils.astar_path(
-            self.graph, query_adjacency, start_mapped, goal_mapped, l2_distance
+            self.graph, query_adjacency, start_mapped, goal_mapped, distance_to_goal
         )
         if id_path is None:
             return graph_result([], None)
 
-        # compute distance
+        # the length of the path: the sum of the weights of its edges (Euclidean distances)
         distance = 0.0
-        v1 = id_path[0]
-        for v2 in id_path[1:]:
-            distance += l2_distance(v1, v2)
-            v1 = v2
+        for v1, v2 in itertools.pairwise(id_path):
+            distance += utils.edge_weight(self.graph, query_adjacency, v1, v2)
 
         # extract the coordinates from the path
         path = [tuple(coords[i]) for i in id_path]

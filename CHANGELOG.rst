@@ -23,8 +23,18 @@ BREAKING: the plotting module (``extremitypathfinder.plotting``) has one consist
 - new look: obstacles filled grey, including the area outside of the boundary polygon,
   extremities and the visibility graph in blue, the path in orange.
 
+BREAKING: environments pickled with 3.0 cannot be loaded anymore (changed attributes, pickle format version 4):
+recreate them. Loading them raises a ``ValueError`` explaining this.
+
 other changes:
 
+- much lower memory use and smaller pickles of large environments: the angle representations and distances
+  of all vertices seen from every extremity are no longer stored (``O(m n)`` floats for ``m`` extremities
+  and ``n`` vertices, about 1 GiB for 10,000 vertices).
+  They are computed per extremity while the visibility graph is built. Queries use the distances to the goal
+  and the edge weights instead. Paths and lengths are identical, preparation and query times about the same.
+  The undocumented attribute ``reprs_n_distances`` and the functions ``utils.cmp_reps_n_distance_dict()``
+  and ``utils.get_distance()`` are removed.
 - polygons are accepted with clockwise and counter clockwise vertex numbering, also mixed (#161).
   Polygons with the opposite numbering are reversed into the internal convention (boundary counter clockwise,
   holes clockwise), also in ``boundary_polygon`` and ``holes``. Previously wrongly numbered polygons

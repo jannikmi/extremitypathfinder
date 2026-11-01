@@ -34,17 +34,6 @@ def cmp_reps_n_distances(
     return reps_n_distances(coords - coords[orig_idx])
 
 
-def cmp_reps_n_distance_dict(
-    coords: np.ndarray, extremity_indices: np.ndarray
-) -> dict[int, tuple[np.ndarray, np.ndarray]]:
-    # Note: distance and angle representation relation are symmetric,
-    # but exploiting this has been found to be slower than using the numpy functionality with slight overhead
-    reps_n_distance_dict = {
-        i: cmp_reps_n_distances(i, coords) for i in extremity_indices
-    }
-    return reps_n_distance_dict
-
-
 def _get_intersection_status(p1, p2, q1, q2):
     # return:
     #   0: no intersection
@@ -565,17 +554,17 @@ def _find_visible_and_in_front(
     return candidates_in_front, visible_idxs
 
 
-def get_distance(n1, n2, reprs_n_distances):
-    if n2 > n1:
-        # Note: start and goal nodex get added last -> highest idx
-        # for the lower idxs the distances to goal and start have not been computed
-        # -> use the higher indices to access the distances
-        tmp = n1
-        n1 = n2
-        n2 = tmp
-    _, dists = reprs_n_distances[n1]
-    distance = dists[n2]
-    return distance
+def edge_weight(
+    graph: t.Graph,
+    query_edges: dict[int, dict[int, float]],
+    n1: int,
+    n2: int,
+) -> float:
+    """the weight (Euclidean distance) of an edge of the graph extended by the query edges (cf. ``astar_path()``)"""
+    try:
+        return query_edges[n1][n2]
+    except KeyError:
+        return graph[n1][n2]["weight"]
 
 
 # adapted from networkx.astar_path() (networkx 3.7), 3-clause BSD license:
@@ -648,7 +637,6 @@ def astar_path(
 
 def compute_graph(
     extremity_indices: np.ndarray,
-    reprs_n_distances: dict[int, np.ndarray],
     coords: np.ndarray,
     edge_vertex_idxs: np.ndarray,
     points: Points,
@@ -656,6 +644,9 @@ def compute_graph(
     """computes the visibility graph of the extremities
 
     Note: there is at most one extremity per point, no graph nodes have to be merged
+
+    Note: the angle representations and distances seen from an extremity are computed when it is processed
+    and not kept: storing them for all extremities would take ``O(m n)`` memory.
     """
     graph = t.Graph()
     # IMPORTANT: add all extremities (even if they turn out to be dangling in the end),
@@ -665,7 +656,7 @@ def compute_graph(
     # Note: also the last extremity has to be checked (without candidates left):
     # its graph neighbours lying "in front" of it must be disconnected
     for extr_ptr, origin_idx in enumerate(extremity_indices):
-        vert_idx2repr, vert_idx2dist = reprs_n_distances[origin_idx]
+        vert_idx2repr, vert_idx2dist = cmp_reps_n_distances(origin_idx, coords)
         # optimisation: extremities are always visible to each other
         # (bidirectional relation -> undirected edges in the graph)
         #  -> do not check extremities which have been checked already
