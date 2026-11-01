@@ -1,6 +1,6 @@
 # Plan: reproducible benchmarks against pyvisgraph (#111)
 
-Status: **accepted** (2026-11-01). Implemented so far: the world map cleaning script `benchmarks/world_map.py`.
+Status: **accepted** (2026-11-01). Implemented: steps 1–4 and the documentation (step 6) with placeholder results generated from a `--quick` run. Pending: step 5, the full run on a stated machine, then the results text of the documentation.
 
 ## Decisions taken
 
@@ -120,7 +120,7 @@ For every query and both packages:
 
 Any failing query marks the package and size as `invalid`. The failures, with the path and the segments through land, go into the raw results, and the count goes into the report. Invalid and crashed runs are left out of the speed figures. They are listed in a separate table with the size and the number of failed queries, because they are results about correctness, not speed.
 
-**Finding from the feasibility probe** (110m map, North Sea (3, 56) → South China Sea (105, 5)): extremitypathfinder returned a valid path of length 211.14 around the Cape of Good Hope. pyvisgraph returned length 150.26 with two segments crossing land: Lisbon → Valencia across Iberia (9.4° on land) and Algeria → Bab-el-Mandeb across Africa (44.2° on land). The root cause in pyvisgraph will be investigated (with which geometry does it fail?) before the documentation is written, so that the limitation can be described precisely.
+**Finding from the feasibility probe** (110m map, North Sea (3, 56) → South China Sea (105, 5)): extremitypathfinder returned a valid path of length 211.14 around the Cape of Good Hope. pyvisgraph returned length 150.26 with two segments crossing land: Lisbon → Valencia across Iberia (9.4° on land) and Algeria → Bab-el-Mandeb across Africa (44.2° on land). **Root cause (investigated):** all 14 of the 277,886 visibility graph edges through land connect two vertices of the same polygon whose midpoint lies level with another vertex of that polygon. pyvisgraph's `edge_in_polygon` tests the midpoint with `polygon_crossing`, which skips edges with exact y comparisons but treats a vertex as on the ray when `ccw` rounds the cross product to zero (absolute tolerance 1e-10, ray length 1e4). The floating point midpoint misses the level vertex by a rounding error (`(0.1 + 0.7) / 2 == 0.39999999999999997`), one edge at that vertex is skipped, the other waits for a partner, the crossing is lost and the midpoint counts as outside. Grid coordinates make such coincidences frequent. An exact crossing count rejects all 14 edges. Minimal reproduction (a six-vertex polygon): `python -m benchmarks.pyvisgraph_issues`. Documented in `docs/7_performance.rst`.
 
 Timings from the same probe, informal and single run: extremitypathfinder built in about 50 s and answered a query in about 60 ms. pyvisgraph built in 335 s and answered a query in 0.6–0.8 s.
 
@@ -169,11 +169,11 @@ Run `--quick` only, as a smoke test of the harness and the validation. CI timing
 ## Order of work
 
 1. ~~World map cleaning and downsampling~~ (done)
-2. Workloads, adapters and validation; investigate the pyvisgraph invalid paths
-3. Measurement harness with budgets and subprocesses
-4. `run.py`, `make benchmark`, the thin wrapper, the CI smoke run
-5. Full run on a stated machine, figures and tables
-6. Documentation
+2. ~~Workloads, adapters and validation; investigate the pyvisgraph invalid paths~~ (done)
+3. ~~Measurement harness with budgets and subprocesses~~ (done)
+4. ~~`run.py`, `make benchmark`, the thin wrapper, the CI smoke run~~ (done)
+5. Full run on a stated machine, figures and tables: `make benchmark` (pending)
+6. Documentation (done, with placeholder results; the strengths and weaknesses follow the full run)
 
 ## Notes for the implementation
 

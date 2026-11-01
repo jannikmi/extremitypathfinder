@@ -21,6 +21,10 @@ bounded by a polygon with polygonal holes, for repeated queries in a static envi
     - boundary polygon, touching and intersecting polygons and grids with blocked cells as input
     - this package does not support parallel graph construction (so far)
 
+    Measured comparison on world maps of up to several hundred thousand vertices: :ref:`speed-tests`.
+    pyvisgraph returns paths through obstacles for some inputs
+    and its build crashes on nearly identical vertices (:ref:`benchmark-correctness`).
+
 `Polyanya <https://docs.rs/polyanya>`__ (Rust, C++ original; no Python package)
     Exact any-angle search on a navigation mesh (Cui, Harabor and Grastien, IJCAI 2017)
     without precomputing a visibility graph. State of the art for this problem.
@@ -39,4 +43,4 @@ Grid planners, e.g. `pythetastar <https://pypi.org/project/pythetastar/>`__ (The
     any-angle planners like Theta* find shorter paths,
     but both are in general longer than the euclidean shortest paths found by this package.
 
-A speed comparison with these alternatives does not exist yet.
+A speed comparison exists for pyvisgraph only (:ref:`speed-tests`).

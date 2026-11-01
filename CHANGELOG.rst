@@ -25,6 +25,11 @@ BREAKING: the plotting module (``extremitypathfinder.plotting``) has one consist
 
 other changes:
 
+- reproducible benchmarks against pyvisgraph (#111): ``make benchmark`` (``benchmarks/``) runs a size sweep
+  on cleaned Natural Earth world maps with a build time budget, validates every path independently with Shapely
+  and renders the tables and figures of the performance section of the documentation.
+  ``scripts/speed_benchmarks.py`` uses the same harness. The validation found pyvisgraph 0.2.1 paths
+  through obstacles; the cause is described in the documentation.
 - polygons are accepted with clockwise and counter clockwise vertex numbering, also mixed (#161).
   Polygons with the opposite numbering are reversed into the internal convention (boundary counter clockwise,
   holes clockwise), also in ``boundary_polygon`` and ``holes``. Previously wrongly numbered polygons
