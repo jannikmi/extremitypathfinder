@@ -25,12 +25,12 @@ tox:
 	@uv run tox
 
 hook:
-	@pre-commit install
-	@pre-commit run --all-files
+	@uv run pre-commit install
+	@uv run pre-commit run --all-files
 
 hookup:
-	@pre-commit autoupdate
-	@pre-commit install
+	@uv run pre-commit autoupdate
+	@uv run pre-commit install
 
 clean:
 	rm -rf .pytest_cache .coverage coverage.xml tests/__pycache__ .mypy_cache/ .tox
@@ -51,7 +51,7 @@ release-prepare:
 # documentation generation:
 # https://docs.readthedocs.io/en/stable/intro/getting-started-with-sphinx.html
 docs:
-	(cd docs && make html)
+	(cd docs && uv run make html)
 
 
 .PHONY: clean test check build release-check release-prepare docs
