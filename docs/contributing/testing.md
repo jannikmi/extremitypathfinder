@@ -29,10 +29,8 @@ uv run tox -e release     # tests of the release tooling (scripts/release.py)
 CI must not fail because of errors in pyvisgraph or other external packages and services,
 only because of errors in extremitypathfinder:
 
-- The benchmark smoke test (`benchmark-smoke` job, `make benchmark`) fails only when extremitypathfinder
-  crashes or returns an invalid path (`--fail-on-invalid`). Crashes, invalid paths and hangs of pyvisgraph
-  are recorded as results, a failed installation of the benchmark dependencies or download of the map data
-  is reported as a warning.
+- The benchmarks against pyvisgraph (`benchmarks/`) do not run in CI. Run the smoke test locally
+  with `make benchmark` (`--quick`) when you change them.
 - Tests depending on such packages skip when they are not installed (`pytest.importorskip`)
   and do not run in the tox environments of CI.
 

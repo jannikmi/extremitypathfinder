@@ -199,7 +199,7 @@ Running the benchmarks
 
     # full run: hours, on an otherwise idle machine
     uv run --all-extras --group benchmark python -m benchmarks.run
-    # smoke test of the harness (seconds, also run in CI): python -m benchmarks.run --quick
+    # smoke test of the harness (seconds): python -m benchmarks.run --quick
     make benchmark
 
 ``--quick`` uses two small maps and 20 queries, writes its tables and figures to the gitignored

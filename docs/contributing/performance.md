@@ -7,7 +7,7 @@ Measure before and after optimising, and include the numbers in the pull request
 - `benchmarks/` compares the package with pyvisgraph on world maps of increasing size,
   validates all paths and renders the tables and figures of the [performance section](../7_performance.rst)
   of the documentation. Requires the `benchmark` dependency group (`uv sync --all-extras --group benchmark`).
-  - `make benchmark` runs it with `--quick`: a smoke test of a few seconds, also run in CI.
+  - `make benchmark` runs it with `--quick`: a smoke test of a few seconds (not run in CI).
     Its outputs go to the gitignored `benchmarks/results/raw/quick/`.
   - The full run takes hours: `uv run --all-extras --group benchmark python -m benchmarks.run`.
     Run it on an otherwise idle machine and state the machine.

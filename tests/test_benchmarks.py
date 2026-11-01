@@ -98,7 +98,7 @@ def test_parse_size():
 
 
 def test_quick_run_tolerates_download_failure(monkeypatch, tmp_path):
-    """external failures (here: the map download) must not fail the smoke test"""
+    """external failures (here: the map download) must not fail the quick run"""
 
     def fail(*_args, **_kwargs):
         raise world_map.DownloadError("no network")

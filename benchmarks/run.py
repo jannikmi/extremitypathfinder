@@ -35,7 +35,7 @@ FIGURES_DIR = REPO_ROOT / "docs" / "_static"
 QUICK_DIR = RAW_DIR / "quick"
 DEFAULT_BUDGET = 600.0  # s per build
 QUICK_NR_QUERIES = 20
-# --quick (CI): a hanging or slow external package must not block the run
+# --quick: a hanging or slow external package must not block the run
 QUICK_BUDGET = 120.0  # s
 QUICK_QUERY_LIMIT = 60.0  # s
 DEPENDENCIES = (
@@ -468,7 +468,7 @@ def parse_args(argv):
         "--quick",
         action="store_true",
         help=f"small maps ({', '.join(s.name for s in workloads.QUICK_SWEEP)}) "
-        f"and {QUICK_NR_QUERIES} queries: smoke test of the harness (make benchmark, CI). "
+        f"and {QUICK_NR_QUERIES} queries: smoke test of the harness (make benchmark). "
         "Failures to download the map data are warnings",
     )
     parser.add_argument(
@@ -545,7 +545,7 @@ def parse_args(argv):
     parser.add_argument(
         "--fail-on-invalid",
         action="store_true",
-        help="exit with code 1 if extremitypathfinder is invalid or crashes (CI). "
+        help="exit with code 1 if extremitypathfinder is invalid or crashes. "
         "Errors of pyvisgraph and other external packages never change the exit code",
     )
     args = parser.parse_args(argv)

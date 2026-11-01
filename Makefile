@@ -48,7 +48,7 @@ release-check:
 release-prepare:
 	uv run python scripts/release.py prepare $(BUMP)
 
-# comparison with pyvisgraph (docs/7_performance.rst): quick smoke test (seconds), also run in CI.
+# comparison with pyvisgraph (docs/7_performance.rst): quick smoke test (seconds).
 # Full run (hours, on an idle machine): uv run --all-extras --group benchmark python -m benchmarks.run
 benchmark:
 	uv run --all-extras --group benchmark python -m benchmarks.run --quick $(ARGS)

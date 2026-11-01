@@ -78,9 +78,9 @@ pyvisgraph's own documentation computes ocean routes on world shorelines: GSHHS 
   - Because the free space is unbounded and the obstacles are disjoint, a path always exists.
 - **Limitations (to be documented):** longitude/latitude are used as planar coordinates. Distances are not geodesic and paths do not wrap around the antimeridian. pyvisgraph's own example does the same. Both packages compute the same planar problem, so the comparison is fair, but the routes are not real shipping routes.
 
-### 2. Small examples (smoke test, CI)
+### 2. Small examples (smoke test)
 
-The existing test environments that fit the common semantics (`SEPARATED_ENV` and others converted to unbounded maps). These are used for the CI smoke run and the thin wrapper, not for the documented comparison.
+The existing test environments that fit the common semantics (`SEPARATED_ENV` and others converted to unbounded maps). These are used for the `--quick` smoke run and the thin wrapper, not for the documented comparison.
 
 ## Measurements
 
@@ -136,7 +136,7 @@ Generated from the raw results by `benchmarks/plot.py`, in the style of the exis
 
 ## Reproducibility
 
-- One command: `uv run --all-extras --group benchmark python -m benchmarks.run`. Options: `--quick` (small maps, few queries, for CI), `--sizes`, `--budget`, `--seed`. `make benchmark` runs `--quick` (decided 2026-11-01); quick outputs go to the gitignored `benchmarks/results/raw/quick/`.
+- One command: `uv run --all-extras --group benchmark python -m benchmarks.run`. Options: `--quick` (small maps, few queries, smoke test), `--sizes`, `--budget`, `--seed`. `make benchmark` runs `--quick` (decided 2026-11-01); quick outputs go to the gitignored `benchmarks/results/raw/quick/`.
 - Recorded per run in the raw JSON: CPU model, cores, RAM, OS, Python, the exact versions of all dependencies (numpy, networkx, numba, scipy, pyvisgraph, shapely), the git SHA and dirty flag, the seeds, the full command line, the budgets, and the Natural Earth release with its checksums.
 - The rendered tables and figures carry the hardware and version summary.
 
@@ -164,14 +164,14 @@ scripts/speed_benchmarks.py   thin wrapper: the small-example benchmark of extre
 
 ## CI
 
-Run `--quick` only, as a smoke test of the harness and the validation. Decision (2026-11-01): CI must not fail because of errors in pyvisgraph or other external packages (dependency installation, data download), only because of extremitypathfinder. CI timings are too noisy to publish, so the full run is a manual step. The documented results come from a stated machine.
+Decision (2026-11-01): the benchmarks do not run in CI, not even `--quick`; the smoke test is `make benchmark` (`--quick`), run locally. CI must not fail because of errors in pyvisgraph or other external packages (dependency installation, data download), only because of extremitypathfinder. CI timings are too noisy to publish, so the full run is a manual step. The documented results come from a stated machine.
 
 ## Order of work
 
 1. ~~World map cleaning and downsampling~~ (done)
 2. ~~Workloads, adapters and validation; investigate the pyvisgraph invalid paths~~ (done)
 3. ~~Measurement harness with budgets and subprocesses~~ (done)
-4. ~~`run.py`, `make benchmark`, the thin wrapper, the CI smoke run~~ (done)
+4. ~~`run.py`, `make benchmark`, the thin wrapper, the smoke run (`make benchmark`, not in CI)~~ (done)
 5. Full run on a stated machine, figures and tables: `uv run --all-extras --group benchmark python -m benchmarks.run` (pending)
 6. Documentation (done, with placeholder results; the strengths and weaknesses follow the full run)
 
