@@ -12,7 +12,8 @@ Status: **draft for review**. Implemented so far: the world map cleaning script 
 | Numba | Only the best case is compared: extremitypathfinder with Numba, fully warmed up. Compilation and the import time are excluded and not reported. There is no benchmark run without Numba. |
 | Polygon orientation | No preprocessing needed: both packages accept either orientation (extremitypathfinder since #161). |
 | Existing benchmark | `scripts/speed_benchmarks.py` becomes a thin wrapper around the new harness. |
-| Budget | pyvisgraph gets 10 min per size, separately for the build and for the query phase. Data points beyond the budget are left out entirely. There is no extrapolation. |
+| Budget | 10 min per build, builds only (queries are not limited). The sweep stops once an extremitypathfinder build takes longer. pyvisgraph builds get the same limit. Data points beyond the budget are left out entirely. There is no extrapolation. |
+| Repetitions | One build per package and size. Only builds faster than 1 s are repeated (see Measurements). |
 | Queries | One query set, shared by all sizes and both packages. |
 
 ## Common input semantics
@@ -61,7 +62,7 @@ pyvisgraph's own documentation computes ocean routes on world shorelines: GSHHS 
   | 50k | 50m | 1,415 | 49,744 | 0.0079 | 5 | 614 s |
 
   Generation time is dominated by the bisection, which runs the full cleaning at each step. The maps can be cached between benchmark runs, since they are deterministic for a given release, grid and target.
-- **Sweep sizes:** 250, 500, 1k, 2k, 5k (raw 110m), 10k, 20k, 50k vertices. pyvisgraph runs only up to its budget (see below). Whether extremitypathfinder also runs beyond 50k (100k, from the 10m data) is an open question.
+- **Sweep sizes:** 250, 500, 1k, 2k, 5k (raw 110m), 10k, 20k, 50k vertices, then continued from the 10m data (100k, 200k, ...) until an extremitypathfinder build exceeds the 10 min budget (see below). pyvisgraph will exceed its budget much earlier.
 - **Queries: one shared set** for all sizes and both packages, so query latencies are directly comparable across the sweep.
   - Proposed size: 200 seeded random point pairs.
   - Points are drawn uniformly over longitude [-180, 180] and latitude [-60, 75].
@@ -80,19 +81,20 @@ All extremitypathfinder measurements use Numba, after a warm-up: one environment
 
 | Metric | Method |
 |---|---|
-| Preprocessing time | Wall time of `PolygonEnvironment(None, holes)` and of `VisGraph().build(polys, workers=1, status=False)`. Repeated R times (R=5 for small maps, fewer at large sizes, the count recorded). Report median, min and max. |
+| Preprocessing time | Wall time of `PolygonEnvironment(None, holes)` and of `VisGraph().build(polys, workers=1, status=False)`. **One build per package and size.** Builds under 1 s are repeated until 5 s or 5 runs, whichever comes first, and the minimum is reported. That costs nothing and removes the timer and scheduling noise that matters at millisecond scale. |
 | Query latency | `time.perf_counter_ns` per query on the prepared environment, the shared query set with each pair queried once. Report p50, p95, p99, mean and queries/s. At about 0.7 s per pyvisgraph query on the 5k map, the 200 queries take about 2.5 min. |
-| Peak memory | `tracemalloc` peak, measured separately for the build and the query phase, in separate runs so the tracing overhead does not affect the timings. `ru_maxrss` of the process is also recorded. |
+| Peak memory | Peak resident memory (`ru_maxrss`) of the subprocess that does the build and the queries, minus its baseline after the imports and the warm-up. It is measured in the same run as the timings, without `tracemalloc`, whose overhead would distort the timings and would otherwise need a second build: about 10 min more per large pyvisgraph size. The allocator keeps freed memory, so this is a coarse figure, which is adequate for a comparison expected to differ by large factors. |
 | Graph size | Nodes and edges (extremitypathfinder's reduced graph vs pyvisgraph's full visibility graph). |
 
 ### Budget and sizes the competitor cannot handle
 
-- **Budget: 10 min for pyvisgraph**, separately for one build and for the query phase (all shared queries) at each size.
+- **Budget: 10 min per build.** It applies to builds only. Queries have no time limit.
 - Each build runs in its own subprocess, which is killed when the budget is exceeded.
-- The sizes run in ascending order. Once pyvisgraph exceeds the budget at one size, it is not run at any larger size.
-- Build repeats R are reduced at large sizes. The budget applies to a single build.
+- The sizes run in ascending order.
+- **End of the sweep:** the sweep stops at the first size where the extremitypathfinder build exceeds the budget.
+- **pyvisgraph:** the same 10 min build limit applies, so a single build cannot run for hours. Once pyvisgraph exceeds it at one size, it is not run at any larger size.
 - **Data points beyond the budget are left out** of all tables and figures: no markers, no extrapolation. The raw results only record that the budget was exceeded.
-- **The largest size pyvisgraph handles within the budget is a documented result.** The documentation states it in the text and the workload table, e.g. "pyvisgraph exceeded the 10 min build budget at N vertices; larger maps were not run".
+- **The largest size each package handles within the budget is a documented result.** The documentation states it in the text and the workload table, e.g. "pyvisgraph exceeded the 10 min build budget at N vertices; larger maps were not run".
 
 Results per package and size are one of:
 
@@ -118,7 +120,7 @@ Timings from the same probe, informal and single run: extremitypathfinder built 
 
 Generated from the raw results by `benchmarks/plot.py`, in the style of the existing documentation figures:
 
-1. **`benchmark_build_time.svg`**: build time over the number of vertices, log-log, one line per package, min/max as error bars. Only `ok` data points are plotted, so the pyvisgraph line ends at the last size within the budget. The 10 min budget is a horizontal dashed line.
+1. **`benchmark_build_time.svg`**: build time over the number of vertices, log-log, one line per package (single builds, so no error bars). Only `ok` data points are plotted, so the pyvisgraph line ends at the last size within the budget. The 10 min budget is a horizontal dashed line.
 2. **`benchmark_query_time.svg`**: query latency (p50 line, p5–p95 band) over the number of vertices, log-log.
 3. **`benchmark_memory.svg`**: peak memory of build and queries over the number of vertices.
 4. **`benchmark_ratio.svg`** (optional): the ratio pyvisgraph / extremitypathfinder for build and query, only for sizes where both are `ok`.
@@ -167,5 +169,5 @@ Run `--quick` only, as a smoke test of the harness and the validation. CI timing
 
 ## Open questions
 
-- Upper end of the sweep for extremitypathfinder: stop at 50k vertices (largest map from the 50m data), or add 100k from the 10m data? Should the 10 min budget also apply to extremitypathfinder?
-- Size of the shared query set: 200 pairs proposed. Fewer pairs leave more room in pyvisgraph's query budget at large sizes.
+- Size of the shared query set: 200 pairs proposed. Without a query budget, pyvisgraph's query phase grows with the map size. At about 0.7 s per query on the 5k map, 200 queries take about 2.5 min; the largest map within pyvisgraph's build budget may need considerably longer.
+- Generating maps above 50k vertices from the 10m data (500k+ raw vertices) may take an hour or more, because the bisection runs the full cleaning many times. The maps are cached, but a faster downsampling may be worthwhile, e.g. starting the bisection from the previous size's tolerance.
