@@ -45,6 +45,8 @@ make release-check                 # build and validate the release artifacts
 9. Performance claims need before/after numbers (`docs/contributing/performance.md`).
 10. Stay in the scope of the task: no unrelated refactoring or reformatting. Never weaken or skip tests to pass.
 11. After opening a pull request, run an independent review of the diff (fresh context) and fix clear findings.
+12. CI must not fail because of errors in pyvisgraph or other external packages and services,
+    only because of extremitypathfinder (`docs/contributing/testing.md`).
 
 ## Read next
 

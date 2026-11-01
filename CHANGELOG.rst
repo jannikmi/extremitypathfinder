@@ -25,7 +25,8 @@ BREAKING: the plotting module (``extremitypathfinder.plotting``) has one consist
 
 other changes:
 
-- reproducible benchmarks against pyvisgraph (#111): ``make benchmark`` (``benchmarks/``) runs a size sweep
+- reproducible benchmarks against pyvisgraph (#111): ``python -m benchmarks.run`` (``benchmarks/``,
+  ``make benchmark``: quick smoke test) runs a size sweep
   on cleaned Natural Earth world maps with a build time budget, validates every path independently with Shapely
   and renders the tables and figures of the performance section of the documentation.
   ``scripts/speed_benchmarks.py`` uses the same harness. The validation found pyvisgraph 0.2.1 paths

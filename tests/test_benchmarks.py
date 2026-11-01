@@ -7,7 +7,7 @@ pytest.importorskip("pyvisgraph")
 
 from shapely.geometry import Point
 
-from benchmarks import measure, run, validate, workloads
+from benchmarks import measure, run, validate, workloads, world_map
 from benchmarks.adapters import get_adapter
 from benchmarks.pyvisgraph_issues import POLYGON, QUERY
 
@@ -95,3 +95,29 @@ def test_parse_size():
     assert workloads.parse_size("5k").resolution == "110m"
     assert workloads.parse_size("2000").name == "world_2k"
     assert workloads.parse_size("world_250").target_vertices == 250
+
+
+def test_quick_run_tolerates_download_failure(monkeypatch, tmp_path):
+    """external failures (here: the map download) must not fail the smoke test"""
+
+    def fail(*_args, **_kwargs):
+        raise world_map.DownloadError("no network")
+
+    monkeypatch.setattr(workloads, "load_world", fail)
+    raw = tmp_path / "raw.json"
+    argv = ["--quick", "--no-render", "--fail-on-invalid", "--raw-output", str(raw)]
+    assert run.main([*argv, "--packages", "extremitypathfinder"]) == 0
+    assert "no network" in raw.read_text()
+    with pytest.raises(world_map.DownloadError):
+        run.main(argv[1:])  # the full run fails
+
+
+def test_hanging_query_phase_is_killed(monkeypatch):
+    monkeypatch.setattr(measure, "QUERY_LIMIT_GRACE", 0.0)
+    data = workloads.small_example_maps()[-1]
+    queries = workloads.generate_queries([data], 1000, region=None)
+    result = measure.measure(
+        "pyvisgraph", data["holes"], queries, budget=60, query_limit=0.0
+    )
+    assert result["status"] == measure.CRASH
+    assert "query phase killed" in result["error"]

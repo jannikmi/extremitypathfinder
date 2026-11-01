@@ -136,7 +136,7 @@ Generated from the raw results by `benchmarks/plot.py`, in the style of the exis
 
 ## Reproducibility
 
-- One command: `make benchmark` → `uv run --all-extras --group benchmark python -m benchmarks.run`. Options: `--quick` (small maps, few queries, for CI), `--sizes`, `--budget`, `--seed`.
+- One command: `uv run --all-extras --group benchmark python -m benchmarks.run`. Options: `--quick` (small maps, few queries, for CI), `--sizes`, `--budget`, `--seed`. `make benchmark` runs `--quick` (decided 2026-11-01); quick outputs go to the gitignored `benchmarks/results/raw/quick/`.
 - Recorded per run in the raw JSON: CPU model, cores, RAM, OS, Python, the exact versions of all dependencies (numpy, networkx, numba, scipy, pyvisgraph, shapely), the git SHA and dirty flag, the seeds, the full command line, the budgets, and the Natural Earth release with its checksums.
 - The rendered tables and figures carry the hardware and version summary.
 
@@ -164,7 +164,7 @@ scripts/speed_benchmarks.py   thin wrapper: the small-example benchmark of extre
 
 ## CI
 
-Run `--quick` only, as a smoke test of the harness and the validation. CI timings are too noisy to publish, so the full run is a manual step. The documented results come from a stated machine.
+Run `--quick` only, as a smoke test of the harness and the validation. Decision (2026-11-01): CI must not fail because of errors in pyvisgraph or other external packages (dependency installation, data download), only because of extremitypathfinder. CI timings are too noisy to publish, so the full run is a manual step. The documented results come from a stated machine.
 
 ## Order of work
 
@@ -172,7 +172,7 @@ Run `--quick` only, as a smoke test of the harness and the validation. CI timing
 2. ~~Workloads, adapters and validation; investigate the pyvisgraph invalid paths~~ (done)
 3. ~~Measurement harness with budgets and subprocesses~~ (done)
 4. ~~`run.py`, `make benchmark`, the thin wrapper, the CI smoke run~~ (done)
-5. Full run on a stated machine, figures and tables: `make benchmark` (pending)
+5. Full run on a stated machine, figures and tables: `uv run --all-extras --group benchmark python -m benchmarks.run` (pending)
 6. Documentation (done, with placeholder results; the strengths and weaknesses follow the full run)
 
 ## Notes for the implementation

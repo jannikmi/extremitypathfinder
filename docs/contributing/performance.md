@@ -4,11 +4,13 @@ Measure before and after optimising, and include the numbers in the pull request
 
 ## Measuring
 
-- `make benchmark` (`benchmarks/`) compares the package with pyvisgraph on world maps of increasing size,
+- `benchmarks/` compares the package with pyvisgraph on world maps of increasing size,
   validates all paths and renders the tables and figures of the [performance section](../7_performance.rst)
-  of the documentation. The full run takes hours: run it on an otherwise idle machine and state the machine.
-  `make benchmark ARGS="--quick"` is a smoke test of a few seconds (also run in CI).
-  Requires the `benchmark` dependency group (`uv sync --all-extras --group benchmark`).
+  of the documentation. Requires the `benchmark` dependency group (`uv sync --all-extras --group benchmark`).
+  - `make benchmark` runs it with `--quick`: a smoke test of a few seconds, also run in CI.
+    Its outputs go to the gitignored `benchmarks/results/raw/quick/`.
+  - The full run takes hours: `uv run --all-extras --group benchmark python -m benchmarks.run`.
+    Run it on an otherwise idle machine and state the machine.
 - `scripts/speed_benchmarks.py` measures environment preparation and queries on the small test environments
   with the same harness (`uv run --group benchmark python scripts/speed_benchmarks.py`).
 - `prototypes/large_env_query_profile.py` profiles queries on a large, configurable environment

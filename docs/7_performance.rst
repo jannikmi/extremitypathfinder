@@ -197,13 +197,14 @@ Running the benchmarks
 
 .. code-block:: sh
 
-    make benchmark
-    # equivalent to
+    # full run: hours, on an otherwise idle machine
     uv run --all-extras --group benchmark python -m benchmarks.run
+    # smoke test of the harness (seconds, also run in CI): python -m benchmarks.run --quick
+    make benchmark
 
-The full sweep takes hours: run it on an otherwise idle machine.
-Options: ``--quick`` (two small maps and 20 queries, the CI smoke test),
-``--sizes 250,1k,5k``, ``--budget`` (seconds per build), ``--query-limit`` (seconds per package and size),
+``--quick`` uses two small maps and 20 queries, writes its tables and figures to the gitignored
+``benchmarks/results/raw/quick/`` and treats a failed download of the map data as a warning.
+Other options: ``--sizes 250,1k,5k``, ``--budget`` (seconds per build), ``--query-limit`` (seconds per package and size),
 ``--queries``, ``--seed`` and ``--packages``.
 The Natural Earth data and the generated maps are cached in ``benchmarks/data/``.
 The raw results (JSON, with the hardware, the exact versions, the git commit, the command line, the budgets,

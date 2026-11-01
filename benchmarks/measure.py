@@ -32,6 +32,7 @@ from benchmarks.adapters import get_adapter, path_length
 REPEAT_BELOW = 1.0  # s
 REPEAT_TOTAL = 5.0  # s
 REPEAT_MAX_RUNS = 5
+QUERY_LIMIT_GRACE = 60.0  # s
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 # warm-up environment: two disjoint squares, the query has to pass between them
@@ -189,7 +190,18 @@ def measure(
                 "budget": budget,
                 "elapsed": time.perf_counter() - started,
             }
-        process.communicate()
+        # hard limit of the query phase: the limit is checked between queries,
+        # a hanging query is killed after a grace period
+        timeout = None if query_limit is None else query_limit + QUERY_LIMIT_GRACE
+        try:
+            process.communicate(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.communicate()
+            return {
+                "status": CRASH,
+                "error": f"query phase killed after {timeout:g} s (query time limit {query_limit:g} s)",
+            }
         if not output.exists():
             return {
                 "status": CRASH,

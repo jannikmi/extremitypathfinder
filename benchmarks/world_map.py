@@ -59,6 +59,10 @@ MAX_BISECTION_STEPS = 60
 Coords = list[tuple[float, float]]
 
 
+class DownloadError(OSError):
+    """the source data could not be downloaded or has the wrong checksum (an external failure)"""
+
+
 def download(resolution: str, cache_dir: Path = DEFAULT_CACHE_DIR) -> Path:
     """download the Natural Earth land polygons (once) and verify the checksum"""
     if resolution not in NE_SHA256:
@@ -69,11 +73,14 @@ def download(resolution: str, cache_dir: Path = DEFAULT_CACHE_DIR) -> Path:
         url = NE_URL.format(resolution=resolution)
         print(f"downloading {url}", file=sys.stderr)
         tmp = path.with_suffix(".part")
-        urllib.request.urlretrieve(url, tmp)
+        try:
+            urllib.request.urlretrieve(url, tmp)
+        except OSError as exc:
+            raise DownloadError(f"cannot download {url}: {exc}") from exc
         tmp.rename(path)
     digest = hashlib.sha256(path.read_bytes()).hexdigest()
     if digest != NE_SHA256[resolution]:
-        raise ValueError(
+        raise DownloadError(
             f"checksum mismatch of {path}: {digest} != {NE_SHA256[resolution]}. "
             "Delete the file to download it again."
         )

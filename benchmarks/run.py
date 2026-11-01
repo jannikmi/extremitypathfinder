@@ -6,8 +6,9 @@ of the documentation.
 
 Usage::
 
-    make benchmark
-    uv run --all-extras --group benchmark python -m benchmarks.run [--quick] [--sizes 250,1k,5k] ...
+    make benchmark                                                    # --quick: smoke test, seconds
+    uv run --all-extras --group benchmark python -m benchmarks.run    # full run, hours
+    uv run --all-extras --group benchmark python -m benchmarks.run --sizes 250,1k,5k ...
 
 See ``docs/7_performance.rst`` for the method and the results.
 """
@@ -30,8 +31,13 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 RESULTS_DIR = Path(__file__).parent / "results"
 RAW_DIR = RESULTS_DIR / "raw"
 FIGURES_DIR = REPO_ROOT / "docs" / "_static"
+# outputs of --quick runs: gitignored, the committed results stay untouched
+QUICK_DIR = RAW_DIR / "quick"
 DEFAULT_BUDGET = 600.0  # s per build
 QUICK_NR_QUERIES = 20
+# --quick (CI): a hanging or slow external package must not block the run
+QUICK_BUDGET = 120.0  # s
+QUICK_QUERY_LIMIT = 60.0  # s
 DEPENDENCIES = (
     "extremitypathfinder",
     "numpy",
@@ -173,7 +179,16 @@ def run(args, argv) -> dict:
     specs = args.sizes
     if specs:
         _log(f"loading {len(specs)} world maps ...")
-        maps = [workloads.load_world(spec) for spec in specs]
+        try:
+            maps = [workloads.load_world(spec) for spec in specs]
+        except world_map.DownloadError as exc:
+            if not args.quick:
+                raise
+            # external failure: the smoke test continues with the small examples
+            _log(f"WARNING: world maps skipped: {exc}")
+            results["world_skipped"] = str(exc)
+            write_raw(results, args.raw_output)
+            return results
         queries = workloads.generate_queries(maps, args.queries, args.seed)
         results["world_queries"] = queries
         active = set(packages)
@@ -453,7 +468,8 @@ def parse_args(argv):
         "--quick",
         action="store_true",
         help=f"small maps ({', '.join(s.name for s in workloads.QUICK_SWEEP)}) "
-        f"and {QUICK_NR_QUERIES} queries: smoke test of the harness (CI)",
+        f"and {QUICK_NR_QUERIES} queries: smoke test of the harness (make benchmark, CI). "
+        "Failures to download the map data are warnings",
     )
     parser.add_argument(
         "--sizes",
@@ -465,14 +481,16 @@ def parse_args(argv):
     parser.add_argument(
         "--budget",
         type=float,
-        default=DEFAULT_BUDGET,
-        help="build time budget per package and size in seconds (default: %(default)s)",
+        default=None,
+        help=f"build time budget per package and size in seconds "
+        f"(default: {DEFAULT_BUDGET:g}, --quick: {QUICK_BUDGET:g})",
     )
     parser.add_argument(
         "--query-limit",
         type=float,
         default=None,
-        help="time limit of the query phase per package and size in seconds (default: none)",
+        help="time limit of the query phase per package and size in seconds "
+        f"(default: none, --quick: {QUICK_QUERY_LIMIT:g})",
     )
     parser.add_argument(
         "--queries",
@@ -503,14 +521,16 @@ def parse_args(argv):
     parser.add_argument(
         "--tables-dir",
         type=Path,
-        default=RESULTS_DIR,
-        help="output directory of the RST tables (default: %(default)s)",
+        default=None,
+        help="output directory of the RST tables (default: benchmarks/results/, "
+        "--quick: benchmarks/results/raw/quick/, never the committed results)",
     )
     parser.add_argument(
         "--figures-dir",
         type=Path,
-        default=FIGURES_DIR,
-        help="output directory of the SVG figures (default: %(default)s)",
+        default=None,
+        help="output directory of the SVG figures (default: docs/_static/, "
+        "--quick: benchmarks/results/raw/quick/)",
     )
     parser.add_argument(
         "--no-render", action="store_true", help="only write the raw results"
@@ -525,12 +545,24 @@ def parse_args(argv):
     parser.add_argument(
         "--fail-on-invalid",
         action="store_true",
-        help="exit with code 1 if extremitypathfinder is invalid or crashes (CI)",
+        help="exit with code 1 if extremitypathfinder is invalid or crashes (CI). "
+        "Errors of pyvisgraph and other external packages never change the exit code",
     )
     args = parser.parse_args(argv)
     for package in args.packages:
         if package not in PACKAGES:
             parser.error(f"unknown package {package}, choose from {PACKAGES}")
+    if args.tables_dir is None:
+        args.tables_dir = QUICK_DIR if args.quick else RESULTS_DIR
+    if args.figures_dir is None:
+        args.figures_dir = QUICK_DIR if args.quick else FIGURES_DIR
+    if args.quick:
+        if args.budget is None:
+            args.budget = QUICK_BUDGET
+        if args.query_limit is None:
+            args.query_limit = QUICK_QUERY_LIMIT
+    elif args.budget is None:
+        args.budget = DEFAULT_BUDGET
     if args.queries is None:
         args.queries = QUICK_NR_QUERIES if args.quick else workloads.DEFAULT_NR_QUERIES
     if args.sizes is None:
