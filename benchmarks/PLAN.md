@@ -46,6 +46,19 @@ pyvisgraph's own documentation computes ocean routes on world shorelines: GSHHS 
   4. Drop the smaller polygon of any pair that intersects or touches. After downsampling this rarely happens, and the number dropped is reported.
   5. Check that every polygon is simple, that the polygons are pairwise disjoint, and that `utils.check_hole_data_requirements` passes.
 - **Downsampling for the size sweep:** Douglas-Peucker with `preserve_topology=True`. The tolerance is found by bisection (log space) to reach a target vertex count within 2 %, starting from the coarsest resolution with enough vertices. Polygons with an area below tolerance² are dropped (slivers, tiny islands). This keeps realistic geometry, a realistic distribution of obstacle sizes and realistic narrow passages at every size.
+- **Downsampling results** (measured with `python -m benchmarks.world_map --target-vertices N`):
+
+  | Target | Source | Polygons | Vertices | Tolerance (°) | Dropped (intersecting) | Generation time |
+  |---:|---|---:|---:|---:|---:|---:|
+  | 250 | 110m | 24 | 249 | 3.0 | 1 | 1 s |
+  | 1k | 110m | 89 | 994 | 0.78 | 3 | 2 s |
+  | 2k | 110m | 120 | 1,985 | 0.36 | 3 | 2 s |
+  | (raw) | 110m | 127 | 4,954 | 0 | 0 | 11 s |
+  | 10k | 50m | 730 | 9,952 | 0.12 | 14 | 28 s |
+  | 20k | 50m | 1,305 | 19,956 | 0.050 | 8 | 97 s |
+  | 50k | 50m | 1,415 | 49,744 | 0.0079 | 5 | 614 s |
+
+  Generation time is dominated by the bisection, which runs the full cleaning at each step. The maps can be cached between benchmark runs, since they are deterministic for a given release, grid and target.
 - **Sweep sizes (proposed):** 250, 500, 1k, 2k, 5k (about raw 110m), 10k, 20k, 50k, 100k vertices. The top end is limited by the extremitypathfinder build time and is decided after a first measurement.
 - **Queries:** seeded random point pairs drawn uniformly over the map's bounding box, rejected if within ε = 0.1° of land. A separate query set is drawn for each size, all from the same seed. Because the free space is unbounded and the obstacles are disjoint, a path always exists.
 - **Limitations (to be documented):** longitude/latitude are used as planar coordinates. Distances are not geodesic and paths do not wrap around the antimeridian. pyvisgraph's own example does the same. Both packages compute the same planar problem, so the comparison is fair, but the routes are not real shipping routes.
