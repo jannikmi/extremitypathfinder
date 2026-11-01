@@ -7,6 +7,9 @@ plots/
 venv/
 map.pickle
 TODOs.txt
+# personal Claude Code settings and notes
+.claude/settings.local.json
+CLAUDE.local.md
 *.coverage
 
 *.bat

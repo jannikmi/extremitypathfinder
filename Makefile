@@ -16,19 +16,24 @@ lock:
 test:
 	uv run pytest
 
+# quick check before committing: all pre-commit hooks and the tests in the current environment
+check:
+	@uv run pre-commit run --all-files
+	@uv run pytest -x -q
+
 tox:
 	@uv run tox
 
 hook:
-	@pre-commit install
-	@pre-commit run --all-files
+	@uv run pre-commit install
+	@uv run pre-commit run --all-files
 
 hookup:
-	@pre-commit autoupdate
-	@pre-commit install
+	@uv run pre-commit autoupdate
+	@uv run pre-commit install
 
 clean:
-	rm -rf .pytest_cache .coverage coverage.xml tests/__pycache__ .mypyp_cache/ .tox
+	rm -rf .pytest_cache .coverage coverage.xml tests/__pycache__ .mypy_cache/ .tox
 
 
 build:
@@ -51,7 +56,7 @@ benchmark:
 # documentation generation:
 # https://docs.readthedocs.io/en/stable/intro/getting-started-with-sphinx.html
 docs:
-	(cd docs && make html)
+	(cd docs && uv run make html)
 
 
-.PHONY: clean test benchmark build release-check release-prepare docs
+.PHONY: clean test check benchmark build release-check release-prepare docs

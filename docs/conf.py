@@ -47,6 +47,7 @@ print("release version:", release)
 extensions = [
     "sphinx.ext.autodoc",  # automatically document with docstring
     "sphinx.ext.viewcode",
+    "myst_parser",  # Markdown pages (the contributing guide)
     # 'sphinx.ext.intersphinx', # to auto  link to other online documentations
 ]
 
@@ -64,7 +65,10 @@ autodoc_default_options = {
 templates_path = ["_templates"]
 
 # The suffix of source filenames.
-source_suffix = ".rst"
+source_suffix = {".rst": "restructuredtext", ".md": "markdown"}
+
+# anchors for Markdown headings, e.g. [text](setup.md#install)
+myst_heading_anchors = 3
 
 # The master toctree document.
 master_doc = "index"

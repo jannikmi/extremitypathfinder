@@ -66,6 +66,8 @@ benchmark = [
 docs = [
     "Sphinx",
     "sphinx-rtd-theme",
+    # the contributing guide is written in Markdown
+    "myst-parser",
     # the API documentation includes the plotting functions
     "matplotlib",
 ]
@@ -82,7 +84,7 @@ source-include = [
     ".editorconfig",
     ".pre-commit-config.yaml",
     "CHANGELOG.rst",
-    "CONTRIBUTING.rst",
+    "CONTRIBUTING.md",
     "Makefile",
     "tests/*.py",
     "scripts/validate_release.py",
@@ -91,6 +93,10 @@ source-include = [
     "scripts/docs_figures.py",
     "example.json",
 ]
+
+[tool.pytest.ini_options]
+# a bare `pytest` runs the test suite only (not scripts/ or prototypes/)
+testpaths = ["tests"]
 
 [tool.tox]
 legacy_tox_ini = """
@@ -131,6 +137,7 @@ extras =
 deps =
     Sphinx
     sphinx-rtd-theme
+    myst-parser
     matplotlib
 commands =
     sphinx-build -d "{envtmpdir}{/}doctree" docs "{toxworkdir}{/}docs_out" --color -b html -W --keep-going
