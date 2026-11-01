@@ -14,14 +14,18 @@
    and waits for a partner. The crossing is lost, the parity flips, the midpoint is
    classified as outside, and the visibility graph gets an edge through the obstacle.
    Coordinates on a decimal grid (snapped data, integer or rounded coordinates)
-   make such coincidences frequent. Using an exact crossing count fixes all cases found.
-2. Build crash (``crash``): vertices about 1e-6 apart make ``angle2`` compute a cosine
-   of -1.0000000014. The truncation ``int(cos * 1e10) / 1e10`` keeps it below -1
+   make such coincidences frequent. Fix: a consistent half-open crossing rule
+   (``(a.y > p.y) != (b.y > p.y)`` and the exact x of the intersection), which rejects all cases found.
+2. Build crash (``crash``): two vertices about 1e-6 apart make ``angle2`` compute a cosine
+   of -1.0000000014: the side opposite the angle is 1e-6 long and the law of cosines cancels.
+   The truncation ``int(cos * 1e10) / 1e10`` keeps it below -1
    and ``acos`` raises ``ValueError: math domain error``.
+   Fix: clamp the cosine to [-1, 1] (as proposed upstream in TaipanRex/pyvisgraph#33).
+   The minimal reproduction: two triangles of the Natural Earth 110m data, found by removing vertices.
 
 Usage::
 
-    uv run --group benchmark python -m benchmarks.pyvisgraph_issues [--crash]
+    uv run --all-extras --group benchmark python -m benchmarks.pyvisgraph_issues [--world-crash]
 """
 
 import argparse
@@ -62,8 +66,28 @@ def invalid_path():
     )
 
 
-def crash():
-    """the build of the raw (unsnapped) Natural Earth 110m data crashes"""
+# two valid, disjoint triangles; the second has two vertices 1e-6 apart
+CRASH_POLYGONS = [
+    [(137.51176, 75.94917), (138.831075, 76.13676), (141.471615, 76.09289)],
+    [(-121.499995, 75.900019), (-122.854924, 76.116543), (-122.854925, 76.116543)],
+]
+
+
+def build_crash():
+    """the build of two triangles crashes (in milliseconds)"""
+    graph = vg.VisGraph()
+    try:
+        graph.build([[vg.Point(*c) for c in p] for p in CRASH_POLYGONS], status=False)
+    except ValueError as exc:
+        print(
+            f"pyvisgraph build of {CRASH_POLYGONS} crashed: {type(exc).__name__}: {exc}"
+        )
+    else:
+        print("pyvisgraph build succeeded")
+
+
+def world_crash():
+    """the build of the raw (unsnapped) Natural Earth 110m data crashes (after minutes)"""
     from benchmarks import world_map
 
     polygons = world_map.load_polygons(world_map.download("110m"))
@@ -83,11 +107,12 @@ def crash():
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument(
-        "--crash",
+        "--world-crash",
         action="store_true",
-        help="also reproduce the build crash (raw 110m data, a build of several minutes)",
+        help="also reproduce the build crash on the raw 110m world map (a build of several minutes)",
     )
     args = parser.parse_args()
     invalid_path()
-    if args.crash:
-        crash()
+    build_crash()
+    if args.world_crash:
+        world_crash()

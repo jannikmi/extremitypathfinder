@@ -153,7 +153,7 @@ Known pyvisgraph 0.2.1 defects
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Found by the validation while preparing the benchmark, reproducible with
-``python -m benchmarks.pyvisgraph_issues [--crash]``:
+``python -m benchmarks.pyvisgraph_issues``:
 
 **Paths through obstacles.** On the cleaned 110m world map (4,954 vertices),
 the query from the North Sea (3, 56) to the South China Sea (105, 5) returns a path of length 150.26
@@ -171,7 +171,8 @@ e.g. ``(0.1 + 0.7) / 2 == 0.39999999999999997``.
 One of the two edges at that vertex is then skipped and the other one treated as touching the ray:
 the crossing is lost, the midpoint is classified as outside and the edge through the obstacle is kept.
 Coordinates on a decimal grid (snapped data, rounded or integer coordinates) make such coincidences frequent.
-With an exact crossing count all 14 edges are rejected.
+A consistent half-open crossing rule (an edge counts when ``(a.y > p.y) != (b.y > p.y)``
+and the ray hits it at the exact x of the intersection) classifies the midpoints as inside and rejects all 14 edges.
 The smallest example is a single polygon with six vertices:
 
 .. code-block:: python
@@ -185,11 +186,27 @@ The smallest example is a single polygon with six vertices:
     # [Point(-0.10, -0.30), Point(0.00, 0.10), Point(0.00, 0.70), Point(-0.10, 1.10)]
     # through the polygon from (0, 0.1) to (0, 0.7).
     # extremitypathfinder: around the vertex (-1, 0.4), length 2.28
+    # with the half-open crossing rule, pyvisgraph returns the same path
 
-**Build crash on nearly identical vertices.** Two consecutive vertices about 1e-6 apart
+**Build crash on nearly identical vertices.** Two vertices about 1e-6 apart
 (in the raw Natural Earth 110m data near (-122.85, 76.12) in the Canadian Arctic) make ``angle2``
-compute a cosine of -1.0000000014. The truncation ``int(cos * 1e10) / 1e10`` keeps it below -1
-and ``acos`` raises ``ValueError: math domain error``. The benchmark maps avoid this by snapping to a grid.
+compute a cosine of -1.0000000014: the side opposite the angle is 1e-6 long and the law of cosines cancels.
+The truncation ``int(cos * 1e10) / 1e10`` keeps it below -1 and ``acos`` raises ``ValueError: math domain error``.
+Two valid, disjoint triangles of that data suffice (found by removing vertices); the build crashes within milliseconds:
+
+.. code-block:: python
+
+    import pyvisgraph as vg
+
+    polygons = [
+        [(137.51176, 75.94917), (138.831075, 76.13676), (141.471615, 76.09289)],
+        [(-121.499995, 75.900019), (-122.854924, 76.116543), (-122.854925, 76.116543)],
+    ]
+    vg.VisGraph().build([[vg.Point(*p) for p in polygon] for polygon in polygons])
+    # ValueError: math domain error
+
+Clamping the cosine to [-1, 1], as proposed upstream in pull request #33 of pyvisgraph, makes the build succeed.
+The benchmark maps avoid the crash by snapping to a grid.
 
 
 .. _running-benchmarks:

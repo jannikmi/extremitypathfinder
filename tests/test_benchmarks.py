@@ -11,7 +11,7 @@ from shapely.geometry import Point
 
 from benchmarks import measure, run, validate, workloads, world_map
 from benchmarks.adapters import get_adapter
-from benchmarks.pyvisgraph_issues import POLYGON, QUERY
+from benchmarks.pyvisgraph_issues import CRASH_POLYGONS, POLYGON, QUERY
 
 SQUARE = [(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)]
 
@@ -70,6 +70,15 @@ def test_pyvisgraph_invalid_path_reproduction():
     report = validate.validate_paths([POLYGON], [QUERY], paths)
     assert report["extremitypathfinder"]["failed"] == 0
     assert report["pyvisgraph"]["infeasible"] == 1
+
+
+def test_pyvisgraph_build_crash_reproduction():
+    """the documented pyvisgraph defect: math domain error in angle2 on vertices 1e-6 apart"""
+    adapter = get_adapter("pyvisgraph")
+    with pytest.raises(ValueError, match="math domain error"):
+        adapter.build(CRASH_POLYGONS)
+    env = get_adapter("extremitypathfinder").build(CRASH_POLYGONS)
+    assert env.nr_vertices == 6
 
 
 def test_queries_in_free_space():
