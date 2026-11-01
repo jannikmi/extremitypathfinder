@@ -19,5 +19,5 @@ is tracked in [#173](https://github.com/jannikmi/extremitypathfinder/issues/173)
 - Keep functions in `utils_numba.py` compilable by Numba: numpy arrays and scalars, explicit signatures,
   no Python objects (cf. [Invariants](invariants.md)).
 - Prefer vectorised numpy code over Python loops outside of the Numba kernels.
-- No new runtime dependencies without an issue that decides it (the package depends on numpy and networkx only).
+- New dependencies must be justified and accepted by a maintainer (cf. [Invariants](invariants.md)).
 - Do not reformat or restructure code unrelated to your change.

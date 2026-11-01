@@ -33,7 +33,7 @@ make release-check                 # build and validate the release artifacts
 1. Read `docs/contributing/invariants.md` before changing the package. Do not change an invariant without an issue
    that decides it.
 2. Results must be identical with and without Numba. Run affected tests in both modes.
-3. Keep the module layering. No new runtime dependencies.
+3. Keep the module layering. New dependencies only if justified and accepted by a maintainer.
 4. Queries never modify the environment or its visibility graph.
 5. Every bugfix comes with a regression test that fails before the fix.
 6. User-facing changes get an entry in the `Unreleased` section of `CHANGELOG.rst`.
