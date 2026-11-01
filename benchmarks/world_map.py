@@ -208,12 +208,13 @@ def downsample(
     return best
 
 
-def check(polygons: list[Polygon]):
-    """verify the requirements of both packages, raises ValueError otherwise"""
-    import numpy as np
+def check(polygons: list[Polygon], validate_epf: bool = False):
+    """verify the requirements of both packages, raises ValueError otherwise
 
-    from extremitypathfinder import utils
-
+    The Shapely checks (simple polygons, pairwise disjoint) are fast and always run.
+    :param validate_epf: additionally run the input validation of extremitypathfinder.
+        Redundant with the Shapely checks and slow on large maps (94 s at 20k vertices).
+    """
     for i, polygon in enumerate(polygons):
         coords = polygon.exterior.coords[:-1]
         if not polygon.is_valid or len(set(coords)) != len(coords):
@@ -221,8 +222,13 @@ def check(polygons: list[Polygon]):
     _, nr_dropped = _separate(polygons)
     if nr_dropped:
         raise ValueError(f"{nr_dropped} polygons intersect or touch")
-    holes = [np.array(p.exterior.coords[:-1], dtype=float) for p in polygons]
-    utils.check_hole_data_requirements(holes)
+    if validate_epf:
+        import numpy as np
+
+        from extremitypathfinder import utils
+
+        holes = [np.array(p.exterior.coords[:-1], dtype=float) for p in polygons]
+        utils.check_hole_data_requirements(holes)
 
 
 def build_map(
@@ -230,12 +236,14 @@ def build_map(
     target_vertices: int | None = None,
     grid: float = DEFAULT_GRID,
     cache_dir: Path = DEFAULT_CACHE_DIR,
+    validate_epf: bool = False,
 ) -> dict:
     """the cleaned world map as JSON serialisable dict (``holes`` like the command line input format)
 
     :param resolution: the Natural Earth resolution. Default: the coarsest resolution
         with at least ``target_vertices`` vertices (110m without target).
     :param target_vertices: downsample to (at most) this number of vertices
+    :param validate_epf: also run the (slow) input validation of extremitypathfinder
     """
     if resolution is None:
         resolution = RESOLUTIONS[0]
@@ -250,7 +258,7 @@ def build_map(
         stats["tolerance"] = 0.0
     else:
         cleaned, stats = downsample(polygons, target_vertices, grid)
-    check(cleaned)
+    check(cleaned, validate_epf)
     return {
         "source": f"Natural Earth {NE_RELEASE} ne_{resolution}_land (public domain)",
         "resolution": resolution,
@@ -277,9 +285,20 @@ def main(argv: list[str] | None = None):
         "--grid", type=float, default=DEFAULT_GRID, help="snapping grid size in degrees"
     )
     parser.add_argument("--cache-dir", type=Path, default=DEFAULT_CACHE_DIR)
+    parser.add_argument(
+        "--validate-epf",
+        action="store_true",
+        help="also run the input validation of extremitypathfinder (slow on large maps)",
+    )
     parser.add_argument("-o", "--output", type=Path, required=True)
     args = parser.parse_args(argv)
-    world = build_map(args.resolution, args.target_vertices, args.grid, args.cache_dir)
+    world = build_map(
+        args.resolution,
+        args.target_vertices,
+        args.grid,
+        args.cache_dir,
+        args.validate_epf,
+    )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with open(args.output, "w") as f:
         json.dump(world, f)

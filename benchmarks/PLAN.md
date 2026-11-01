@@ -12,7 +12,7 @@ Status: **draft for review**. Implemented so far: the world map cleaning script 
 | Numba | Only the best case is compared: extremitypathfinder with Numba, fully warmed up. Compilation and the import time are excluded and not reported. There is no benchmark run without Numba. |
 | Polygon orientation | No preprocessing needed: both packages accept either orientation (extremitypathfinder since #161). |
 | Existing benchmark | `scripts/speed_benchmarks.py` becomes a thin wrapper around the new harness. |
-| Budget | 10 min per build, builds only (queries are not limited). The sweep stops once an extremitypathfinder build takes longer. pyvisgraph builds get the same limit. Data points beyond the budget are left out entirely. There is no extrapolation. |
+| Budget | 10 min per build. Queries are not limited unless the runs take too long (see below). The sweep stops once an extremitypathfinder build takes longer. pyvisgraph builds get the same limit. Data points beyond the budget are left out entirely. There is no extrapolation. |
 | Repetitions | One build per package and size. Only builds faster than 1 s are repeated (see Measurements). |
 | Queries | One query set, shared by all sizes and both packages. |
 
@@ -56,12 +56,18 @@ pyvisgraph's own documentation computes ocean routes on world shorelines: GSHHS 
   | 250 | 110m | 24 | 249 | 3.0 | 1 | 1 s |
   | 1k | 110m | 89 | 994 | 0.78 | 3 | 2 s |
   | 2k | 110m | 120 | 1,985 | 0.36 | 3 | 2 s |
-  | (raw) | 110m | 127 | 4,954 | 0 | 0 | 11 s |
-  | 10k | 50m | 730 | 9,952 | 0.12 | 14 | 28 s |
-  | 20k | 50m | 1,305 | 19,956 | 0.050 | 8 | 97 s |
-  | 50k | 50m | 1,415 | 49,744 | 0.0079 | 5 | 614 s |
+  | (raw) | 110m | 127 | 4,954 | 0 | 0 | 1 s |
+  | 20k | 50m | 1,305 | 19,956 | 0.050 | 8 | 3 s |
+  | 50k | 50m | 1,415 | 49,744 | 0.0079 | 5 | 3 s |
+  | 100k | 10m | 4,366 | 99,619 | 0.017 | 61 | 54 s |
+  | 200k | 10m | 5,790 | 198,388 | 0.0062 | 27 | 73 s |
+  | 400k | 10m | 6,689 | 393,774 | 0.00096 | 20 | 87 s |
 
-  Generation time is dominated by the bisection, which runs the full cleaning at each step. The maps can be cached between benchmark runs, since they are deterministic for a given release, grid and target.
+  The raw 10m data has 436,950 vertices, so the sweep can reach about 400k vertices.
+
+  **Downsampling with Shapely is fast.** The simplification is Shapely's (GEOS) Douglas-Peucker, `simplify(tolerance, preserve_topology=True)`. Vectorised over all 1,421 polygons of the 50m data it takes 0.07 s. A complete cleaning pass (simplify, snap, repair, separate) takes 0.25 s, so the about 20 bisection steps cost a few seconds. Most of the time for the 10m maps goes into loading the 10 MB GeoJSON and the per-vertex snapping in Python. `shapely.set_precision` (0.07 s on the 50m data, output stays valid) could replace the snapping if needed.
+
+  The earlier generation times (614 s at 50k) came from extremitypathfinder's own input validation (`utils.check_hole_data_requirements`), which took 94 s at 20k vertices and grows superlinearly. The Shapely checks already cover its requirements (simple polygons, pairwise disjoint), so it now only runs with `--validate-epf`. Its scaling on large inputs may deserve a separate issue.
 - **Sweep sizes:** 250, 500, 1k, 2k, 5k (raw 110m), 10k, 20k, 50k vertices, then continued from the 10m data (100k, 200k, ...) until an extremitypathfinder build exceeds the 10 min budget (see below). pyvisgraph will exceed its budget much earlier.
 - **Queries: one shared set** for all sizes and both packages, so query latencies are directly comparable across the sweep.
   - Proposed size: 200 seeded random point pairs.
@@ -88,7 +94,8 @@ All extremitypathfinder measurements use Numba, after a warm-up: one environment
 
 ### Budget and sizes the competitor cannot handle
 
-- **Budget: 10 min per build.** It applies to builds only. Queries have no time limit.
+- **Budget: 10 min per build.** It applies to builds only.
+- **Query time limit, only if needed.** By default the query phase is not limited. A limit is introduced if the benchmark runs take too long in practice, e.g. pyvisgraph's query phase on the largest maps it can build. Proposed form: 10 min per package and size. The shared query set is stored in random order, so the queries completed within the limit are an unbiased prefix of it. Statistics are reported over that prefix, with the number of completed queries stated, instead of dropping the data point.
 - Each build runs in its own subprocess, which is killed when the budget is exceeded.
 - The sizes run in ascending order.
 - **End of the sweep:** the sweep stops at the first size where the extremitypathfinder build exceeds the budget.
@@ -169,5 +176,5 @@ Run `--quick` only, as a smoke test of the harness and the validation. CI timing
 
 ## Open questions
 
-- Size of the shared query set: 200 pairs proposed. Without a query budget, pyvisgraph's query phase grows with the map size. At about 0.7 s per query on the 5k map, 200 queries take about 2.5 min; the largest map within pyvisgraph's build budget may need considerably longer.
-- Generating maps above 50k vertices from the 10m data (500k+ raw vertices) may take an hour or more, because the bisection runs the full cleaning many times. The maps are cached, but a faster downsampling may be worthwhile, e.g. starting the bisection from the previous size's tolerance.
+- Size of the shared query set: 200 pairs proposed. At about 0.7 s per pyvisgraph query on the 5k map, 200 queries take about 2.5 min. If that grows too long at larger sizes, the query time limit above applies.
+- Sweep steps above 50k: 100k, 200k and 400k are available (at most 437k from the 10m data). The sweep ends earlier if an extremitypathfinder build exceeds 10 min.
