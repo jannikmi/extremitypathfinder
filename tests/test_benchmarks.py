@@ -293,3 +293,12 @@ def test_measurement_during_sleep_is_repeated(monkeypatch):
     result = run.measure_awake("pyvisgraph", SQUARE, [], None, None, "test")
     assert len(calls) == 2
     assert "suspended_s" not in result
+
+
+def test_default_outputs():
+    """the full run's raw results are committed, quick runs and the paths are not"""
+    full, quick = run.parse_args([]), run.parse_args(["--quick"])
+    assert full.raw_output == run.RESULTS_DIR / "benchmark.json"
+    assert quick.raw_output.parent == run.RAW_DIR
+    paths_dir = run.Checkpoint({}, full.raw_output).paths_dir
+    assert paths_dir == run.RAW_DIR / "benchmark_paths"

@@ -120,6 +120,8 @@ target/
 *.ipr
 *.iws
 
-# benchmarks: downloaded source data, raw results
+# benchmarks: downloaded source data, quick runs, the paths of the measurements (resume),
+# temporary files. The raw results of the full run (benchmarks/results/benchmark.json) are committed.
 benchmarks/data/
 benchmarks/results/raw/
+benchmarks/results/*.tmp

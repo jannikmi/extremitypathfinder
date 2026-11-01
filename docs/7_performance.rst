@@ -231,9 +231,11 @@ compare only runs with the same sizes), ``--budget`` (seconds per build), ``--qu
 ``--queries``, ``--seed`` and ``--packages``.
 The Natural Earth data and the generated maps are cached in ``benchmarks/data/``.
 The raw results (JSON, with the hardware, the exact versions, the git commit, the command line, the budgets,
-the seeds and the query set) are written to ``benchmarks/results/raw/``,
-the tables to ``benchmarks/results/`` and the figures to ``docs/_static/``.
-``--render-only RAW_JSON`` renders the tables and figures again from raw results.
+the seeds, the query set and every timing) are written to ``benchmarks/results/benchmark.json``
+and committed with the tables and figures, so the published numbers can be checked and rendered again.
+The paths of the measurements, needed only to resume a run, stay in the gitignored ``benchmarks/results/raw/``.
+The tables are written to ``benchmarks/results/`` and the figures to ``docs/_static/``.
+``--render-only benchmarks/results/benchmark.json`` renders them again from the raw results.
 
 Full run on a laptop
 ~~~~~~~~~~~~~~~~~~~~

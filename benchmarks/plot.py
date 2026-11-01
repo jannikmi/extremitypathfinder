@@ -5,7 +5,7 @@ Only ``ok`` data points are plotted: invalid, crashed and over budget runs are l
 
 Usage::
 
-    uv run --group benchmark python -m benchmarks.plot benchmarks/results/raw/benchmark.json
+    uv run --group benchmark python -m benchmarks.plot benchmarks/results/benchmark.json
 """
 
 import argparse

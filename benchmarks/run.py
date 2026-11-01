@@ -1,7 +1,8 @@
 """Benchmark of extremitypathfinder against pyvisgraph: command line entry point.
 
 Runs the world map size sweep (and the small examples), validates all paths,
-writes the raw results (JSON, gitignored) and renders the RST tables and SVG figures
+writes the raw results (JSON, committed with the tables after a full run)
+and renders the RST tables and SVG figures
 of the documentation.
 
 Usage::
@@ -155,7 +156,11 @@ class Checkpoint:
     def __init__(self, results: dict, path: Path):
         self.results = results
         self.path = path
-        self.paths_dir = path.with_name(path.stem + "_paths")
+        # next to the raw results, but never in the committed results directory
+        parent = (
+            RAW_DIR if path.parent.resolve() == RESULTS_DIR.resolve() else path.parent
+        )
+        self.paths_dir = parent / (path.stem + "_paths")
 
     def _paths_file(self, section: str, name: str, package: str) -> Path:
         return self.paths_dir / f"{section}__{name}__{package}.json"
@@ -493,6 +498,7 @@ def write_raw(results: dict, path: Path):
     tmp = path.with_name(path.name + ".tmp")
     with open(tmp, "w") as f:
         json.dump(results, f, indent=1)
+        f.write("\n")  # pre-commit end-of-file-fixer
     os.replace(tmp, path)
 
 
@@ -803,7 +809,8 @@ def parse_args(argv):
         "--raw-output",
         type=Path,
         default=None,
-        help="raw results JSON (default: benchmarks/results/raw/benchmark[_quick].json)",
+        help="raw results JSON (default: benchmarks/results/benchmark.json, committed with the tables; "
+        "--quick: the gitignored benchmarks/results/raw/benchmark_quick.json)",
     )
     parser.add_argument(
         "--tables-dir",
@@ -881,8 +888,10 @@ def parse_args(argv):
             workloads.QUICK_SWEEP if args.quick else workloads.WORLD_SWEEP
         )
     if args.raw_output is None:
-        name = "benchmark_quick.json" if args.quick else "benchmark.json"
-        args.raw_output = RAW_DIR / name
+        if args.quick:
+            args.raw_output = RAW_DIR / "benchmark_quick.json"
+        else:
+            args.raw_output = RESULTS_DIR / "benchmark.json"
     return args
 
 

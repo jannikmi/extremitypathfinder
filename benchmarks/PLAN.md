@@ -8,7 +8,7 @@ Status: **accepted** (2026-11-01). Implemented: steps 1–4 and the documentatio
 |---|---|
 | Competitor | `pyvisgraph==0.2.1`, pinned exactly (unmaintained, last release 2018). `tqdm` is listed explicitly: pyvisgraph imports it without declaring it. |
 | Path validation | Shapely (benchmark-only dependency), independent of both packages. |
-| Committed outputs | Rendered results only: tables (RST) and figures (SVG). Raw JSON results and downloaded source data are gitignored. |
+| Committed outputs | Tables (RST), figures (SVG) and, since 2026-11-01, the raw results of the full run (`benchmarks/results/benchmark.json`): the published numbers can be checked and rendered again without a rerun of hours. Downloaded source data, quick runs and the paths of the measurements (needed only to resume) stay gitignored. |
 | Numba | Only the best case is compared: extremitypathfinder with Numba, fully warmed up. Compilation and the import time are excluded and not reported. There is no benchmark run without Numba. |
 | Polygon orientation | No preprocessing needed: both packages accept either orientation (extremitypathfinder since #161). |
 | Existing benchmark | `scripts/speed_benchmarks.py` becomes a thin wrapper around the new harness. |
