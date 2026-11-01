@@ -95,6 +95,11 @@ def _finish(fig, ax, results: dict, path: Path, legend: bool = True):
     fig.tight_layout(rect=(0, 0.04, 1, 1))
     fig.savefig(path, format="svg", metadata=METADATA)
     plt.close(fig)
+    # without trailing whitespace (pre-commit hook), like scripts/docs_figures.py
+    svg = path.read_text(encoding="utf-8")
+    path.write_text(
+        "\n".join(line.rstrip() for line in svg.splitlines()) + "\n", encoding="utf-8"
+    )
 
 
 def _line(ax, xs, ys, package):
