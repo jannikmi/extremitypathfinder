@@ -16,6 +16,11 @@ lock:
 test:
 	uv run pytest
 
+# quick check before committing: all pre-commit hooks and the tests in the current environment
+check:
+	@uv run pre-commit run --all-files
+	@uv run pytest -x -q
+
 tox:
 	@uv run tox
 
@@ -28,7 +33,7 @@ hookup:
 	@pre-commit install
 
 clean:
-	rm -rf .pytest_cache .coverage coverage.xml tests/__pycache__ .mypyp_cache/ .tox
+	rm -rf .pytest_cache .coverage coverage.xml tests/__pycache__ .mypy_cache/ .tox
 
 
 build:
@@ -49,4 +54,4 @@ docs:
 	(cd docs && make html)
 
 
-.PHONY: clean test build release-check release-prepare docs
+.PHONY: clean test check build release-check release-prepare docs
