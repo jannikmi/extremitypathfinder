@@ -1,0 +1,34 @@
+name: Bug report
+description: Something does not work as documented
+labels: ["bug"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What happened, and what did you expect instead?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: >-
+        A minimal example, ideally the boundary and hole coordinates, start and goal.
+        Make sure the bug reproduces with this example.
+      render: python
+    validations:
+      required: true
+  - type: textarea
+    id: error
+    attributes:
+      label: Error message
+      description: The full traceback or the wrong result, if any.
+      render: text
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: extremitypathfinder, Python, Numba (if installed), operating system
+    validations:
+      required: true

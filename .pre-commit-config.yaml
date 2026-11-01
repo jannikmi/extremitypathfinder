@@ -51,7 +51,7 @@ repos:
     rev: "0.51"
     hooks:
       - id: check-manifest
-        args: [ "--no-build-isolation", "--ignore",  "*.png,*.svg,docs/*,publish.py,readthedocs.yml,uv.lock,pyproject.toml.orig,setup.py,scripts/*,prototypes/*" ]
+        args: [ "--no-build-isolation", "--ignore",  "*.png,*.svg,docs/*,docs/contributing/*,AGENTS.md,CLAUDE.md,publish.py,readthedocs.yml,uv.lock,pyproject.toml.orig,setup.py,scripts/*,prototypes/*" ]
         additional_dependencies: [ numpy, "uv_build>=0.13.5,<0.14" ]
 
   - repo: https://github.com/asottile/pyupgrade

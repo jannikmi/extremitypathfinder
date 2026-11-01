@@ -1,4 +1,5 @@
 matplotlib
+myst-parser
 Sphinx
 sphinx-rtd-theme
 urllib3<3

@@ -1,0 +1,24 @@
+name: Feature request
+description: Propose a new feature or a change of behaviour
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What do you want to do that the package does not support (well)?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: >-
+        How would it work? Keep the scope narrow; split large proposals into several issues.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives and prior art
+      description: Workarounds you use, or other packages that offer this.
