@@ -1,6 +1,6 @@
 # Plan: reproducible benchmarks against pyvisgraph (#111)
 
-Status: **draft for review**. Implemented so far: the world map cleaning script `benchmarks/world_map.py`.
+Status: **accepted** (2026-11-01). Implemented so far: the world map cleaning script `benchmarks/world_map.py`.
 
 ## Decisions taken
 
@@ -57,6 +57,7 @@ pyvisgraph's own documentation computes ocean routes on world shorelines: GSHHS 
   | 1k | 110m | 89 | 994 | 0.78 | 3 | 2 s |
   | 2k | 110m | 120 | 1,985 | 0.36 | 3 | 2 s |
   | (raw) | 110m | 127 | 4,954 | 0 | 0 | 1 s |
+  | 10k | 50m | 730 | 9,952 | 0.12 | 14 | 3 s |
   | 20k | 50m | 1,305 | 19,956 | 0.050 | 8 | 3 s |
   | 50k | 50m | 1,415 | 49,744 | 0.0079 | 5 | 3 s |
   | 100k | 10m | 4,366 | 99,619 | 0.017 | 61 | 54 s |
@@ -174,7 +175,20 @@ Run `--quick` only, as a smoke test of the harness and the validation. CI timing
 5. Full run on a stated machine, figures and tables
 6. Documentation
 
+## Notes for the implementation
+
+Facts gathered while planning that are not obvious from the code:
+
+- **Environment:** `uv sync --all-extras --group benchmark`. In the cloud sandbox, naciscdn.org and ngdc.noaa.gov were blocked, but raw.githubusercontent.com (the pinned Natural Earth source in `world_map.py`) was reachable.
+- **Reproducing the pyvisgraph crash:** use the raw, unsnapped 110m data, e.g. `world_map.clean(polygons, grid=1e-12)`. The trigger is two consecutive vertices about 1e-6° apart near (-122.85, 76.12) in the Canadian Arctic: `angle2` gets cos = -1.0000000014. Useful as a documented example.
+- **Reproducing the invalid path:** cleaned 110m map (`--resolution 110m`), query (3.0, 56.0) → (105.0, 5.0). The expected values are in the Validation section. The pyvisgraph build takes about 5.5 min on a 4-core Xeon @ 2.1 GHz, so cache built graphs (`VisGraph.save`/`load`) while developing the validation. Never use a cached graph for the timings.
+- **Path format:** extremitypathfinder returns numpy coordinates and a numpy float length. pyvisgraph returns `vg.Point` objects and no length, so the adapters compute the length from the path in both cases, with the same code.
+- **Where to run the published results:** the cloud sandbox is a shared VM (4 vCPUs) with noisy timings and an ephemeral disk. Run the full benchmark for the documentation on a stated, otherwise idle machine. In the sandbox, only develop and run `--quick`.
+- **Generated maps:** deterministic for a given release, grid and target. Cache them in `benchmarks/data/` (gitignored) and keep the parameters in their JSON header.
+
 ## Open questions
+
+None blocking. Decide during the implementation:
 
 - Size of the shared query set: 200 pairs proposed. At about 0.7 s per pyvisgraph query on the 5k map, 200 queries take about 2.5 min. If that grows too long at larger sizes, the query time limit above applies.
 - Sweep steps above 50k: 100k, 200k and 400k are available (at most 437k from the 10m data). The sweep ends earlier if an extremitypathfinder build exceeds 10 min.
