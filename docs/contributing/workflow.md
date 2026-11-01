@@ -33,6 +33,10 @@ the release tooling tests and the release artifact validation.
 
 ## Reviews
 
+- **Agents review their own pull request.** After opening a pull request, an agent runs an independent review
+  of the diff: a fresh session, subagent or review tool without the context of the implementation
+  (e.g. `/code-review` in Claude Code). It fixes the clear findings and pushes them.
+  Findings that need a decision go to the human in charge, not into the code.
 - Address every review comment, either with a change or with an answer why not.
 - Push follow-up commits instead of force-pushing, so that reviewers see what changed since their review.
 

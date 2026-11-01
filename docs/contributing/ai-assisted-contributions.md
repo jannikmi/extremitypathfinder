@@ -16,6 +16,8 @@ Coding agents and AI assistants are welcome tools. The same standards apply to t
 - Start from an issue or an explicit task, and stay in its scope:
   no drive-by refactoring, reformatting or "improvements" elsewhere.
 - Read the [Invariants](invariants.md) before changing the package.
+- After opening a pull request, run an independent review of the diff and fix the clear findings
+  (cf. [Workflow](workflow.md#reviews)).
 - Run `make check` before declaring the work done. Report failing checks honestly, never weaken or skip a test
   to make it pass.
 - Never bump the version, push tags, publish releases, edit CI secrets or the release workflows, or merge pull requests.
