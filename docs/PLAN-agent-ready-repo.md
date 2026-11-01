@@ -164,9 +164,12 @@ Verification: `make check`, `tox -e docs` (strict), `tox -e release`, `make rele
 - Keep `AGENTS.md` under ~150 lines. Anything longer moves to a topic file.
 - Optional CI check: a link checker for the Markdown files (e.g. `lychee`, or Sphinx `linkcheck`).
 
+## Decided
+
+- Location: `docs/contributing/`, rendered on Read the Docs via myst-parser.
+
 ## Open decisions
 
-1. Location: `docs/contributing/` (rendered on Read the Docs, recommended) or top-level `contributing/` (GitHub only, no myst-parser).
-2. Replace flake8 with ruff rules now, or keep both?
-3. Disclosure of AI assistance in PRs: required checkbox (recommended) or optional?
-4. Commit `.claude/settings.json` (shared allowlist), or leave Claude config entirely personal?
+1. Replace flake8 with ruff rules now, or keep both?
+2. Disclosure of AI assistance in PRs: required checkbox (recommended) or optional?
+3. Commit `.claude/settings.json` (shared allowlist), or leave Claude config entirely personal?
