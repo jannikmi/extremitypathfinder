@@ -407,3 +407,35 @@ def test_raw_results_compact_and_lossless(tmp_path):
     assert '"path": [[0.1, 0.2], [0.3, 0.4]],' in text
     assert "  [[0.0, 1.0], [2.0, 3.0]]," in text  # one query per line
     assert not any(line != line.rstrip() for line in text.splitlines())
+
+
+def test_baseline_without_numba():
+    """the worker blocks Numba: extremitypathfinder runs as if Numba was not installed"""
+    result = measure.measure_baseline("extremitypathfinder", without_numba=True)
+    assert result["status"] == "done", result.get("error")
+    assert result["numba"] is False
+    assert result["memory_baseline"] > 0
+
+
+def test_baselines_rendered_and_added_on_the_same_machine_only(monkeypatch, tmp_path):
+    setups = [
+        {
+            "label": "a",
+            "package": "extremitypathfinder",
+            "status": "done",
+            "memory_baseline": 5 * 2**20,
+        },
+        {"label": "b", "package": "pyvisgraph", "status": measure.CRASH, "error": "e"},
+    ]
+    assert run.baseline_note({}) == ""
+    note = run.baseline_note({"baselines": {"setups": setups}})
+    assert "a 5 MiB" in note and "b failed" in note
+
+    raw = tmp_path / "raw.json"
+    raw.write_text(run.json.dumps({"meta": {"system": {"cpu_model": "other"}}}))
+    with pytest.raises(SystemExit, match="another machine"):
+        run.add_baselines(raw, ["pyvisgraph"])
+    monkeypatch.setattr(run, "measure_baselines", lambda packages: {"setups": setups})
+    monkeypatch.setattr(run.measure, "system_info", lambda: {"cpu_model": "other"})
+    assert run.add_baselines(raw, ["pyvisgraph"])["baselines"]["setups"] == setups
+    assert run.json.loads(raw.read_text())["baselines"]["setups"] == setups

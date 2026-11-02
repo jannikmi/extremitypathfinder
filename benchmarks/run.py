@@ -428,10 +428,58 @@ def run(args, argv) -> dict:
             if {"extremitypathfinder"} & set(packages) - active:
                 _log("extremitypathfinder exceeded the build budget: end of the sweep")
                 break
+    if "baselines" not in results:
+        results["baselines"] = measure_baselines(packages)
     results["meta"]["completed"] = datetime.datetime.now(datetime.UTC).isoformat(
         timespec="seconds"
     )
     checkpoint.save()
+    return results
+
+
+# the baselines without input data: (label, package, without Numba)
+BASELINE_SETUPS = (
+    ("extremitypathfinder with Numba", "extremitypathfinder", False),
+    ("extremitypathfinder without Numba", "extremitypathfinder", True),
+    ("pyvisgraph", "pyvisgraph", False),
+)
+
+
+def measure_baselines(packages) -> dict:
+    """the memory of a worker after the imports and the warm-up, without input data, per setup
+
+    extremitypathfinder is also measured without Numba (Numba blocked in the worker),
+    with Numba only if it is installed.
+    """
+    numba_installed = importlib.util.find_spec("numba") is not None
+    setups = []
+    for label, package, without_numba in BASELINE_SETUPS:
+        needs_numba = package == "extremitypathfinder" and not without_numba
+        if package not in packages or (needs_numba and not numba_installed):
+            continue
+        _log(f"baseline: {label}")
+        result = measure.measure_baseline(package, without_numba=without_numba)
+        setups.append({"label": label, "package": package, **result})
+    return {
+        "date": datetime.datetime.now(datetime.UTC).isoformat(timespec="seconds"),
+        "system": measure.system_info(),
+        "git": _git(),
+        "setups": setups,
+    }
+
+
+def add_baselines(path: Path, packages) -> dict:
+    """measure the baselines and add them to existing raw results (no rerun of the sweep)"""
+    with open(path) as f:
+        results = json.load(f)
+    machine = results["meta"]["system"]["cpu_model"]
+    if measure.system_info()["cpu_model"] != machine:
+        raise SystemExit(
+            f"{path} was measured on another machine ({machine}): measure the baselines there"
+        )
+    results["baselines"] = measure_baselines(packages)
+    write_raw(results, path)
+    _log(f"baselines added to {path}")
     return results
 
 
@@ -637,6 +685,21 @@ def memory_cells(result: dict) -> list[str]:
     return [above, format_bytes(baseline), format_bytes(baseline + peak)]
 
 
+def baseline_note(results: dict) -> str:
+    """the baselines without input data (imports and warm-up), if measured"""
+    setups = results.get("baselines", {}).get("setups", [])
+    if not setups:
+        return ""
+    cells = [
+        f"{s['label']} {format_bytes(s['memory_baseline'])}"
+        if s.get("status") == "done"
+        else f"{s['label']} failed"
+        for s in setups
+    ]
+    listed = ", ".join(cells)
+    return f"\nBaseline without input data (after the imports and the warm-up): {listed}.\n"
+
+
 def _mark(result: dict, text: str) -> str:
     return f"{text} (invalid)" if result.get("status") == measure.INVALID else text
 
@@ -761,7 +824,7 @@ def render_tables(results: dict) -> dict[str, str]:
             r = e["results"].get(package, {})
             row.extend(memory_cells(r) if has_build_results(r) else ["–"] * 3)
         rows.append(row)
-    tables["benchmark_memory.rst"] = note + _list_table(
+    memory_table = _list_table(
         "Peak memory of the build and the queries: above the baseline, the baseline "
         "(imports and warm-up) and the total",
         [
@@ -774,6 +837,7 @@ def render_tables(results: dict) -> dict[str, str]:
         ],
         rows,
     )
+    tables["benchmark_memory.rst"] = note + memory_table + baseline_note(results)
 
     rows = []
     for e in world:
@@ -952,6 +1016,14 @@ def parse_args(argv):
         help="check this machine for the full run (Numba, memory measurement, power) and exit",
     )
     parser.add_argument(
+        "--baselines",
+        type=Path,
+        default=None,
+        metavar="RAW_JSON",
+        help="measure the baselines (memory after the imports and the warm-up, extremitypathfinder also "
+        "without Numba), add them to existing raw results of this machine and render",
+    )
+    parser.add_argument(
         "--render-only",
         type=Path,
         default=None,
@@ -1008,7 +1080,9 @@ def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     if args.preflight:
         return preflight(args)
-    if args.render_only is not None:
+    if args.baselines is not None:
+        results = add_baselines(args.baselines, args.packages)
+    elif args.render_only is not None:
         with open(args.render_only) as f:
             results = json.load(f)
     else:

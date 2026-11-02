@@ -13,6 +13,9 @@ The worker subprocess (``python -m benchmarks.measure TASK.json``)
 6. writes the timings, the paths, the graph size and the peak memory above the baseline to a JSON file.
 
 Validation of the paths happens in the parent (``benchmarks.validate``), not in the measured process.
+
+A baseline task (:func:`measure_baseline`) stops after step 2: the memory of the process after the imports
+and the warm-up, without input data, optionally with Numba blocked (extremitypathfinder without Numba).
 """
 
 import ctypes
@@ -215,6 +218,9 @@ def timed_build(adapter, holes) -> tuple[object, float, list[float]]:
 
 def run_task(task: dict) -> dict:
     """the measurement of one package on one map (runs in the worker process)"""
+    if task.get("without_numba"):
+        # as if Numba was not installed: extremitypathfinder falls back to plain Python
+        sys.modules["numba"] = None
     adapter = get_adapter(task["package"])
     warmup_env = adapter.build(WARMUP_HOLES)
     adapter.query(warmup_env, *WARMUP_QUERY)
@@ -222,6 +228,10 @@ def run_task(task: dict) -> dict:
     info = {"version": adapter.version()}
     if task["package"] == "extremitypathfinder":
         info["numba"] = adapter.numba_active()
+    if task.get("baseline_only"):
+        info["memory_method"] = memory_method()
+        info["memory_peak_reset"] = reset_peak_memory()
+        return {**info, "memory_baseline": peak_memory_bytes()}
     holes = [[tuple(c) for c in hole] for hole in task["holes"]]
     # the baseline: after the imports, the warm-up and the input data
     info["memory_method"] = memory_method()
@@ -321,6 +331,46 @@ def measure(
             if process.poll() is None:
                 process.kill()
                 process.wait()
+
+
+def measure_baseline(
+    package: str, without_numba: bool = False, timeout: float = 600
+) -> dict:
+    """the memory of a worker after the imports and the warm-up, without input data
+
+    :return: ``status`` ``done`` with ``memory_baseline`` (and ``numba`` for extremitypathfinder), or ``crash``
+    """
+    with tempfile.TemporaryDirectory(prefix="epf_benchmark_") as tmp:
+        task_path = Path(tmp) / "task.json"
+        output = Path(tmp) / "result.json"
+        with open(task_path, "w") as f:
+            json.dump(
+                {
+                    "package": package,
+                    "baseline_only": True,
+                    "without_numba": without_numba,
+                    "output": str(output),
+                },
+                f,
+            )
+        try:
+            process = subprocess.run(
+                [*WORKER_COMMAND, str(task_path)],
+                cwd=REPO_ROOT,
+                capture_output=True,
+                env={**os.environ, "PYTHONHASHSEED": "0"},
+                timeout=timeout,
+                check=False,
+            )
+        except subprocess.TimeoutExpired:
+            return {"status": CRASH, "error": f"no baseline within {timeout:g} s"}
+        if not output.exists():
+            return {
+                "status": CRASH,
+                "error": f"worker exited with code {process.returncode} without result",
+            }
+        with open(output) as f:
+            return json.load(f)
 
 
 def _supervise(process: subprocess.Popen, output: Path, budget, query_limit) -> dict:

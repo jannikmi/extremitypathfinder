@@ -86,6 +86,9 @@ Measurements
   the imports, the warm-up and loading the input (the interpreter, the package, its dependencies and,
   for ``extremitypathfinder``, Numba with the compiled functions). The peak above the baseline compares
   the data structures, the total is what a process needs.
+  In addition, each run measures the baselines without input data in separate processes:
+  ``extremitypathfinder`` with Numba, ``extremitypathfinder`` without Numba (Numba blocked in the process,
+  as if it was not installed) and pyvisgraph. They are listed below the memory table.
 * **Graph size**: nodes and edges of ``extremitypathfinder``'s reduced visibility graph
   and of pyvisgraph's full visibility graph.
 * **Budget**: 10 min per build. Each package and size runs in its own subprocess, which is killed when the build
@@ -180,7 +183,7 @@ Weaknesses and limitations:
   Its baseline is much larger: 86 to 88 MiB with Numba, pyvisgraph's 18 to 19 MiB.
   In total its process needs 4.6 times as much memory on the smallest map (88 MiB vs 19 MiB)
   and 1.6 times as much at 4,954 vertices (123 MiB vs 77 MiB).
-  Numba is optional, the baseline without it was not measured.
+  Numba is optional: the baseline without it is listed below the memory table.
 - **Query time grows with the map.** A query takes 1.5 ms (median) on 249 vertices and 183 ms on 9,952 vertices:
   connecting start and goal to the graph checks the visibility of all vertices (cf. :ref:`design`).
 - **Scope of the comparison.** One machine, single-threaded (pyvisgraph can build its graph with several processes,
@@ -291,6 +294,8 @@ and committed with the tables and figures, so the published numbers can be check
 The paths of the measurements, needed only to resume a run, stay in the gitignored ``benchmarks/results/raw/``.
 The tables are written to ``benchmarks/results/`` and the figures to ``docs/_static/``.
 ``--render-only benchmarks/results/benchmark.json`` renders them again from the raw results.
+``--baselines benchmarks/results/benchmark.json`` measures the baselines without input data (cf. `Measurements`_)
+and adds them to the raw results of a run on the same machine, without repeating the run.
 
 Full run on a laptop
 ~~~~~~~~~~~~~~~~~~~~
