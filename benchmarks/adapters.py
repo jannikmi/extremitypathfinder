@@ -75,9 +75,16 @@ class PyVisGraph(Adapter):
     label = "pyvisgraph"
 
     def __init__(self):
+        import threading
+
         import pyvisgraph
+        from tqdm import tqdm
 
         self._vg = pyvisgraph
+        # pyvisgraph wraps every build in a (disabled) tqdm progress bar, which creates a multiprocessing lock:
+        # a named semaphore. A worker killed over the budget leaves it to the resource tracker,
+        # which warns about a "leaked semaphore". A thread lock suffices (one process, workers=1).
+        tqdm.set_lock(threading.RLock())
 
     def version(self) -> str:
         from importlib.metadata import version

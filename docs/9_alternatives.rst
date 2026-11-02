@@ -42,8 +42,8 @@ Other packages
     Obstacles are polygons in the unbounded plane (no boundary polygon).
     Differences to this package:
 
-    - this package only keeps the extremities (convex vertices) and the edges which can be part of a shortest path,
-      a much smaller graph (time and memory)
+    - this package only keeps the extremities (convex vertices) and the edges which can be part of a shortest path:
+      a much smaller graph and faster queries (cf. :ref:`speed-tests`)
     - A* search with the euclidean distance as heuristic instead of Dijkstra's algorithm
     - boundary polygon, touching and intersecting polygons and grids with blocked cells as input
     - this package does not support parallel graph construction (so far)

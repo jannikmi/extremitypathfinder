@@ -325,15 +325,26 @@ def load_resumable(args, argv) -> dict:
     return results
 
 
+def on_battery() -> bool:
+    """macOS: whether the machine runs on battery power"""
+    return sys.platform == "darwin" and measure.power_source() == "Battery Power"
+
+
 def keep_awake():
-    """macOS: prevent idle sleep while this process runs (sleep pauses the measurements)"""
+    """macOS: prevent idle sleep while this process runs (sleep pauses the measurements)
+
+    Warns on battery power (laptops may throttle), but does not refuse to run.
+    """
+    if on_battery():
+        _log(
+            "WARNING: on battery power: connect the power adapter for the full run "
+            "(laptops may throttle on battery)"
+        )
     if sys.platform != "darwin" or shutil.which("caffeinate") is None:
         return
     # -i: idle sleep, -s: system sleep (on AC power), -w: until this process exits
     subprocess.Popen(["caffeinate", "-i", "-s", "-w", str(os.getpid())])
     _log("caffeinate: idle and system sleep prevented while the benchmark runs")
-    if measure.power_source() == "Battery Power":
-        _log("WARNING: on battery power: connect the power adapter (throttling, sleep)")
 
 
 def run(args, argv) -> dict:

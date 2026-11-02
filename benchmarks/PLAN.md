@@ -1,6 +1,6 @@
 # Plan: reproducible benchmarks against pyvisgraph (#111)
 
-Status: **accepted** (2026-11-01). Implemented: steps 1–4 and the documentation (step 6) with placeholder results generated from a `--quick` run. Pending: step 5, the full run on a stated machine, then the results text of the documentation.
+Status: **implemented** (2026-11-02). All steps are done: the documented results come from the full run on an Apple M1 Pro (on AC power) after #178, committed with its raw results (`benchmarks/results/benchmark.json`).
 
 ## Decisions taken
 
@@ -172,8 +172,8 @@ Decision (2026-11-01): the benchmarks do not run in CI, not even `--quick`; the 
 2. ~~Workloads, adapters and validation; investigate the pyvisgraph invalid paths~~ (done)
 3. ~~Measurement harness with budgets and subprocesses~~ (done)
 4. ~~`run.py`, `make benchmark`, the thin wrapper, the smoke run (`make benchmark`, not in CI)~~ (done)
-5. Full run on a stated machine, figures and tables: `uv run --all-extras --group benchmark python -m benchmarks.run`. First run on 2026-11-01 (Apple M1 Pro), repeated in full after #178 lowered the memory of extremitypathfinder (pending)
-6. Documentation (done, with placeholder results; the strengths and weaknesses follow the full run)
+5. Full run on a stated machine, figures and tables: `uv run --all-extras --group benchmark python -m benchmarks.run`. First run on 2026-11-01 (Apple M1 Pro), repeated in full after #178 lowered the memory of extremitypathfinder, on AC power (done, 2026-11-02)
+6. Documentation (done: results, strengths, weaknesses and limitations from the full run)
 
 ## Notes for the implementation
 

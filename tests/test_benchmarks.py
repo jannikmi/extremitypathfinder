@@ -315,3 +315,19 @@ def test_resume_refused_after_code_change():
     assert not run.measured_code_changed(head) or run._git()["dirty"]
     assert run.measured_code_changed(None)
     assert run.measured_code_changed("0" * 40)  # unknown commit
+
+
+def test_battery_only_warns(monkeypatch, tmp_path, capsys):
+    monkeypatch.setattr(run, "on_battery", lambda: True)
+    monkeypatch.setattr(run.sys, "platform", "darwin")
+    monkeypatch.setattr(run.shutil, "which", lambda name: None)  # no caffeinate here
+    monkeypatch.setattr(measure, "measure", _fake_measure([]))
+    argv = [
+        "--sizes",
+        "none",
+        "--no-render",
+        "--raw-output",
+        str(tmp_path / "raw.json"),
+    ]
+    assert run.main(argv) == 0
+    assert "on battery power" in capsys.readouterr().err
