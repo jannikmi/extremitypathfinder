@@ -1,7 +1,7 @@
 """SVG figures of the benchmark results (docs/_static/benchmark_*.svg).
 
-Only ``ok`` data points are plotted, except that the build time and memory figures also show
-invalid runs as unconnected hollow markers (their build is complete and representative).
+Query times are plotted for ``ok`` runs only. Build time, memory and the build ratio also include
+invalid runs: their build is complete, only their paths are wrong.
 Crashed and over budget runs are left out (no markers, no extrapolation).
 Figures of a ``--quick`` run carry a placeholder watermark.
 
@@ -50,11 +50,14 @@ plt.rcParams.update(
 METADATA = {"Date": None, "Creator": None}
 
 
-def _ok_points(results: dict, package: str, value, status: str = measure.OK):
+BUILT = (measure.OK, measure.INVALID)
+
+
+def _ok_points(results: dict, package: str, value, statuses=(measure.OK,)):
     xs, ys = [], []
     for entry in results["world"]:
         result = entry["results"].get(package)
-        if result is None or result["status"] != status:
+        if result is None or result["status"] not in statuses:
             continue
         xs.append(entry["map"]["vertices"])
         ys.append(value(result))
@@ -129,32 +132,11 @@ def _line(ax, xs, ys, package):
         )
 
 
-def _invalid_markers(ax, xs, ys, package):
-    """the build results of invalid runs: hollow, unconnected markers"""
-    if not xs:
-        return
-    style = STYLE[package]
-    ax.plot(
-        xs,
-        ys,
-        linestyle="none",
-        marker=style["marker"],
-        markersize=7,
-        markerfacecolor="none",
-        markeredgecolor=style["color"],
-        markeredgewidth=1.5,
-        label=f"{package} (invalid paths)",
-    )
-
-
 def build_time(results: dict, path: Path):
     fig, ax = _new_axes(results, "build time (s)")
     for package in PACKAGES:
-        _line(ax, *_ok_points(results, package, lambda r: r["build_time"]), package)
-        _invalid_markers(
-            ax,
-            *_ok_points(results, package, lambda r: r["build_time"], measure.INVALID),
-            package,
+        _line(
+            ax, *_ok_points(results, package, lambda r: r["build_time"], BUILT), package
         )
     budget = results["meta"]["budget"]
     if budget:
@@ -193,38 +175,40 @@ def query_time(results: dict, path: Path):
 def memory(results: dict, path: Path):
     fig, ax = _new_axes(results, "peak memory above baseline (MiB)")
     for package in PACKAGES:
-        xs, ys = _ok_points(results, package, lambda r: r["memory_peak"] / 2**20)
+        xs, ys = _ok_points(results, package, lambda r: r["memory_peak"] / 2**20, BUILT)
         # ru_maxrss has a coarse resolution: tiny maps may show 0
         points = [(x, y) for x, y in zip(xs, ys) if y > 0]
         _line(ax, [p[0] for p in points], [p[1] for p in points], package)
-        xs, ys = _ok_points(
-            results, package, lambda r: r["memory_peak"] / 2**20, measure.INVALID
-        )
-        points = [(x, y) for x, y in zip(xs, ys) if y > 0]
-        _invalid_markers(ax, [p[0] for p in points], [p[1] for p in points], package)
     ax.set_title("Peak memory of build and queries")
     _finish(fig, ax, results, path)
 
 
 def ratio(results: dict, path: Path):
     fig, ax = _new_axes(results, "pyvisgraph / extremitypathfinder")
-    xs, build, query = [], [], []
+    # build: both built (also with invalid paths), query: both valid
+    xs_build, build, xs_query, query = [], [], [], []
     for entry in results["world"]:
         epf = entry["results"].get("extremitypathfinder", {})
         pvg = entry["results"].get("pyvisgraph", {})
-        if epf.get("status") != measure.OK or pvg.get("status") != measure.OK:
-            continue
-        xs.append(entry["map"]["vertices"])
-        build.append(pvg["build_time"] / epf["build_time"])
-        query.append(pvg["query_stats"]["p50"] / epf["query_stats"]["p50"])
-    ax.plot(xs, build, color="#1baf7a", marker="o", linewidth=2, label="build time")
-    ax.plot(xs, query, color="#6250d6", marker="D", linewidth=2, label="query (p50)")
+        vertices = entry["map"]["vertices"]
+        if epf.get("status") in BUILT and pvg.get("status") in BUILT:
+            xs_build.append(vertices)
+            build.append(pvg["build_time"] / epf["build_time"])
+        if epf.get("status") == measure.OK and pvg.get("status") == measure.OK:
+            xs_query.append(vertices)
+            query.append(pvg["query_stats"]["p50"] / epf["query_stats"]["p50"])
+    ax.plot(
+        xs_build, build, color="#1baf7a", marker="o", linewidth=2, label="build time"
+    )
+    ax.plot(
+        xs_query, query, color="#6250d6", marker="D", linewidth=2, label="query (p50)"
+    )
     ax.axhline(1, color=TEXT_SECONDARY, linewidth=1)
     # factors as plain numbers ("6", not "6×10⁰"), only on the major ticks
     ax.yaxis.set_major_locator(LogLocator(subs=(1.0, 2.0, 5.0)))
     ax.yaxis.set_major_formatter(FuncFormatter(lambda value, _: f"{value:g}"))
     ax.yaxis.set_minor_formatter(NullFormatter())
-    ax.set_title("Speed ratio (sizes where both are valid)")
+    ax.set_title("Speed ratio (query: sizes where both are valid)")
     _finish(fig, ax, results, path)
 
 

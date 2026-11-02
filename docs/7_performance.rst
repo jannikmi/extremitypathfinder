@@ -86,9 +86,10 @@ Measurements
 * **Validation** of every path of both packages, independent of both with Shapely, before any timing is accepted:
   the path starts at the start point, ends at the goal and no segment runs through the interior of an obstacle
   (along edges and through vertices is allowed), and the lengths of both packages agree within a relative
-  tolerance of 1e-9. Packages and sizes failing a query are ``invalid``: their query times and the speed ratios
-  are left out. Their build time, graph size and memory are shown, marked as invalid: the build completed,
-  and the defect changes only a few edges (14 of 277,886 for pyvisgraph at 4,954 vertices).
+  tolerance of 1e-9. Packages and sizes failing a query are ``invalid``: their query times and the query ratio
+  are left out. Their build was measured like any other: build time, memory and the build ratio are shown.
+  Their graph size is marked as invalid, because the graph contains wrong edges
+  (14 of 277,886 for pyvisgraph at 4,954 vertices).
 
 
 .. _benchmark-results:
@@ -126,7 +127,8 @@ Results
    :width: 100%
    :alt: ratio of pyvisgraph to extremitypathfinder time for build and query
 
-   Speed ratio pyvisgraph / extremitypathfinder, for the sizes where both are valid.
+   Speed ratio pyvisgraph / extremitypathfinder: build time for the sizes where both completed the build,
+   query time for the sizes where both are valid.
 
 Strengths, weaknesses and limitations
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -135,9 +137,10 @@ Written from the measured data of this run.
 
 Strengths of ``extremitypathfinder``:
 
-- **Faster preprocessing and queries.** On the maps where both packages return valid paths (up to 1,985 vertices),
-  it builds the environment 4.4 to 6.3 times faster and answers a query 6.3 to 8.4 times faster (median).
-  Both ratios grow with the size of the map.
+- **Faster preprocessing and queries.** It builds the environment 4.4 to 7.3 times faster
+  (up to 4,954 vertices, the largest map both built within the budget).
+  On the maps where both packages return valid paths (up to 1,985 vertices), it answers a query 6.3 to 8.4 times
+  faster (median). Both ratios grow with the size of the map.
 - **Correct paths.** All its paths are valid and agree in length with the valid paths of pyvisgraph.
   On the 4,954-vertex map, pyvisgraph returned 59 of 200 paths through land (cf. :ref:`benchmark-correctness`),
   so its largest map with a valid result has 1,985 vertices.
@@ -156,7 +159,7 @@ Weaknesses and limitations:
   and its visibility graph has 8.6 times as many edges as the 4,954-vertex map's.
   Maps with tens of thousands of vertices need more than 10 minutes of preprocessing.
 - **Memory on small maps.** Up to 1,985 vertices it uses more memory than pyvisgraph (19 MiB vs 12 MiB at 1,985),
-  from 4,954 vertices on less (34 MiB vs 58 MiB, pyvisgraph's run with invalid paths).
+  from 4,954 vertices on less (34 MiB vs 58 MiB).
   At 9,952 vertices it needs 62 MiB.
 - **Query time grows with the map.** A query takes 1.5 ms (median) on 249 vertices and 183 ms on 9,952 vertices:
   connecting start and goal to the graph checks the visibility of all vertices (cf. :ref:`design`).
@@ -170,8 +173,8 @@ Weaknesses and limitations:
 Correctness
 -----------
 
-Invalid, crashed and over budget runs are listed here. Their query times and the speed ratios are left out of
-the results, the build results of invalid runs are shown marked as invalid:
+Invalid, crashed and over budget runs are listed here. The query times of invalid runs are left out of the results,
+their build results are shown (graph size marked as invalid):
 
 .. include:: ../benchmarks/results/benchmark_correctness.rst
 

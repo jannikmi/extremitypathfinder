@@ -212,6 +212,7 @@ def test_render_tables_edge_cases():
 
 
 def test_invalid_runs_show_build_results_but_no_query_results():
+    """invalid paths: no query results, the graph size is marked, the build is measured like any other"""
     meta = {
         "quick": False,
         "budget": 600,
@@ -252,10 +253,11 @@ def test_invalid_runs_show_build_results_but_no_query_results():
     }
     tables = run.render_tables({"meta": meta, "world": [entry], "examples": []})
     build = tables["benchmark_build.rst"]
-    assert build.count("(invalid)") == 3  # build time, graph size, memory of pyvisgraph
-    assert "2 s (invalid)" in build and "3 MiB (invalid)" in build
-    # no speed ratio with an invalid run
-    assert "     - 1\n" not in build
+    # build time, memory and build ratio as for valid runs, only the graph size is marked
+    assert build.count("(invalid)") == 1
+    assert "4 / 6 (invalid)" in build
+    assert build.count("     - 2 s\n") == 2 and build.count("     - 3 MiB\n") == 2
+    assert "     - 1\n" in build  # build ratio
     assert "pyvisgraph" not in tables["benchmark_query.rst"].split("Queries\n", 1)[1]
 
 

@@ -1,4 +1,4 @@
-.. list-table:: Invalid, crashed and over budget runs (left out of the query results and the speed ratios)
+.. list-table:: Invalid, crashed and over budget runs (invalid: left out of the query results)
    :header-rows: 1
 
    * - Map
