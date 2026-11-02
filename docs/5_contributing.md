@@ -18,4 +18,5 @@ contributing/documentation
 contributing/changelog
 contributing/releasing
 contributing/ai-assisted-contributions
+contributing/decisions
 ```
