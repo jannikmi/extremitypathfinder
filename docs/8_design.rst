@@ -124,9 +124,10 @@ where it may pass through and where it may arrive.
 Angle representations and distances
 -----------------------------------
 
-``reprs_n_distances`` maps every extremity to two arrays of length ``n``: the angle representations
-and the distances of all vertices seen from that extremity. They are computed once with vectorised numpy code
-and reused for the visibility computation, the graph edge weights and the A* heuristic.
+``cmp_reps_n_distances()`` computes two arrays of length ``n`` with vectorised numpy code: the angle representations
+and the distances of all vertices seen from one origin. They are computed for every extremity while the visibility
+graph is built (for the visibility computation and the edge weights) and for start and goal in every query.
+They are not stored: for all extremities this would take ``2 m n`` floats, about 1 GiB for 10,000 vertices.
 
 The visibility graph
 --------------------
@@ -166,9 +167,10 @@ so an environment object is always complete and ready for queries.
    edges passing through vertex positions are found with a vectorised bounding box prefilter
    and an exact on-edge test, then the free wedges of every point are computed.
    The extremities are the points with an extremity wedge.
-6. **Angle representations** of all vertices seen from every extremity (``cmp_reps_n_distance_dict()``).
-7. **Visibility graph** (``compute_graph()``): for every extremity in index order
+6. **Visibility graph** (``compute_graph()``): for every extremity in index order
 
+   - the angle representations and distances of all vertices seen from it are computed
+     (cf. `Angle representations and distances`_)
    - the extremities "in front" of it are removed as candidates and their existing edges to it are deleted
      ("Property One", cf. `Visibility graph reduction`_)
    - the remaining extremities with a higher index are checked for visibility with ``find_visible_from()``.
@@ -446,8 +448,8 @@ Query
   (outdated queue entries are skipped when popped), a counter as tie breaker (nodes are never compared),
   and caching of the heuristic per enqueued node. The neighbours of a node are those in the precomputed graph
   followed by the temporary edges of start and goal.
-- **Distances**: ``get_distance()`` looks up the precomputed distances of the node with the higher index.
-  Start and goal have the highest indices, their distances are computed for the query.
+- **Distances**: the heuristic uses the distances seen from the goal (computed for the query; a graph node merged
+  with the goal has the same coordinates). The length of the path is the sum of its edge weights (``edge_weight()``).
 
 Point in polygon
 ----------------
@@ -609,14 +611,14 @@ With ``n`` vertices and ``m`` extremities (usually ``m << n``):
 Step                               Time                        Notes
 =================================  ==========================  =====================================================
 points and wedges                  ``O(n²)``                   vectorised bounding box test: edges through vertices
-angle representations              ``O(m n)``                  vectorised, stored for all extremities
 visibility graph                   ``O(m n log n)``            AREA for every extremity, cf. `Algorithms`_
 query: visibility of start, goal   ``O(n log n + m)``          dominates the query time
 query: A*                          ``O(E log E)``              ``E``: graph and temporary edges
 =================================  ==========================  =====================================================
 
-Memory is dominated by the angle representations and distances (``2 m n`` floats) and the graph
-(at most ``m (m - 1) / 2`` edges, in practice far fewer thanks to the graph reduction).
+Memory is dominated by the graph (at most ``m (m - 1) / 2`` edges, in practice far fewer thanks to the graph reduction)
+and the ``O(n)`` data of the vertices. The angle representations and distances are computed per extremity
+and not stored (cf. `Angle representations and distances`_).
 A query uses ``O(n + m)`` additional memory.
 
 Profiling large environments shows that the A* search takes about 5% of the query time,

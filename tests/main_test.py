@@ -3,7 +3,7 @@ import itertools
 import numpy as np
 import pytest
 
-from extremitypathfinder import utils_numba
+from extremitypathfinder import utils, utils_numba
 from extremitypathfinder.extremitypathfinder import PolygonEnvironment
 from extremitypathfinder.plotting import plot_environment, plot_search
 from tests.helpers import other_edge_intersects
@@ -116,7 +116,7 @@ def test_graph_links_only_closest_node_per_direction(env_params):
     environment = PolygonEnvironment(*env_params)
     graph = environment.graph
     for node in graph.nodes:
-        representations, _ = environment.reprs_n_distances[node]
+        representations, _ = utils.cmp_reps_n_distances(node, environment.coords)
         neighbour_reprs = [representations[n] for n in graph.neighbors(node)]
         assert len(neighbour_reprs) == len(set(neighbour_reprs))
 
