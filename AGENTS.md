@@ -43,7 +43,10 @@ make release-check                 # build and validate the release artifacts
 8. Keep the networkx copyright notice above `utils.astar_path()`.
 9. Performance claims need before/after numbers (`docs/contributing/performance.md`).
 10. Stay in the scope of the task: no unrelated refactoring or reformatting. Never weaken or skip tests to pass.
-11. After opening a pull request, run an independent review of the diff (fresh context) and fix clear findings.
+11. Before a larger change, prepare the trade-off with a justified recommendation. Unless the winner is clear,
+    a maintainer decides. Document trade-off and decision and summarise them in the pull request
+    (`docs/contributing/workflow.md`).
+12. After opening a pull request, run an independent review of the diff (fresh context) and fix clear findings.
 
 ## Read next
 

@@ -7,6 +7,29 @@
 - Changes of the [invariants](invariants.md) (e.g. the numerical policy or the orientation convention)
   need an issue that decides them.
 
+## Trade-offs and decisions
+
+Before implementing a larger change (new behaviour, API, algorithm, data structure, dependency or anything that
+touches the [invariants](invariants.md)), consider the trade-offs:
+
+1. **List the options**, including "leave it as it is", with their advantages and disadvantages
+   (correctness, performance with numbers, maintainability, API stability, dependencies, effort).
+2. **Recommend one option and justify it.**
+3. **Decide.** If one option is clearly better on all criteria that matter, the contributor decides and goes ahead.
+   Otherwise a maintainer decides: present the trade-off and the recommendation in the issue
+   and wait for the decision before implementing.
+4. **Document the trade-off and the decision** (and who made it: the contributor, because the winner was clear,
+   or a maintainer) where the next person will look for it:
+   - design decisions about the package: the Design Decisions section of `docs/8_design.rst`
+   - rejected alternatives and lessons about working on the code: the relevant page of this guide
+     (e.g. the rejected search alternatives in [Performance](performance.md#shortest-path-search))
+   - local decisions about a single function: a comment or the docstring next to the code
+
+   Link the issue or pull request with the full discussion. Record rejected options too,
+   so that they are not proposed again without new arguments.
+5. **Summarise the trade-off in the pull request** (cf. [Pull requests](#pull-requests)), so that the reviewer can
+   check the decision, not only the code.
+
 ## Branch and commits
 
 ```sh
@@ -22,6 +45,8 @@ git checkout -b name-of-your-bugfix-or-feature
 Push your branch and open a pull request against `master`. The template asks for:
 
 - what changed and why, with a link to the issue
+- the considered trade-off of a larger change: the options, the recommendation, the decision and who made it
+  (cf. [Trade-offs and decisions](#trade-offs-and-decisions))
 - the checks you ran (`make check`, tox environments, benchmarks for performance changes)
 - a changelog entry for user-facing changes (cf. [Changelog](changelog.md))
 - documentation updates for changed behaviour (cf. [Documentation](documentation.md))
