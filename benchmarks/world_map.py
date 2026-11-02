@@ -6,7 +6,7 @@ which both extremitypathfinder and pyvisgraph accept without changing their mean
 * simple polygons only: multipolygons are split, interior rings (lakes) are dropped
 * no two polygons intersect or touch (touching obstacles block paths in extremitypathfinder only)
 * coordinates snapped to a grid and consecutive duplicate vertices removed.
-  Near-identical vertices crash the pyvisgraph build (``math domain error`` in ``angle2``).
+  Near-identical vertices crash the pyvisgraph build (``acos`` fails in ``angle2``).
 * self-touching polygons are repaired with a tiny outward buffer
 
 Coordinates are longitude/latitude degrees used as planar coordinates:

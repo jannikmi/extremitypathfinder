@@ -192,7 +192,8 @@ Weaknesses and limitations:
   Its baseline is much larger: 86 to 88 MiB with Numba, pyvisgraph's 18 to 19 MiB.
   In total its process needs 4.6 times as much memory on the smallest map (88 MiB vs 19 MiB)
   and 1.6 times as much at 4,954 vertices (123 MiB vs 77 MiB).
-  Numba is optional: the baseline without it is listed below the memory table.
+  Most of the difference is Numba: without Numba its baseline is 36 MiB instead of 87 MiB
+  (pyvisgraph: 18 MiB, each measured without input data). Numba is optional.
 - **Query time grows with the map.** A query takes 1.5 ms (median) on 249 vertices and 183 ms on 9,952 vertices:
   connecting start and goal to the graph checks the visibility of all vertices (cf. :ref:`design`).
 - **Scope of the comparison.** One machine, single-threaded (pyvisgraph can build its graph with several processes,
@@ -260,7 +261,8 @@ The smallest example is a single polygon with six vertices:
 **Build crash on nearly identical vertices.** Two vertices about 1e-6 apart
 (in the raw Natural Earth 110m data near (-122.85, 76.12) in the Canadian Arctic) make ``angle2``
 compute a cosine of -1.0000000014: the side opposite the angle is 1e-6 long and the law of cosines cancels.
-The truncation ``int(cos * 1e10) / 1e10`` keeps it below -1 and ``acos`` raises ``ValueError: math domain error``.
+The truncation ``int(cos * 1e10) / 1e10`` keeps it below -1 and ``acos`` raises ``ValueError: math domain error``
+(from Python 3.14 on: ``expected a number in range from -1 up to 1, got -1.0000000014``).
 Two valid, disjoint triangles of that data suffice (found by removing vertices); the build crashes within milliseconds:
 
 .. code-block:: python
@@ -272,7 +274,7 @@ Two valid, disjoint triangles of that data suffice (found by removing vertices);
         [(-121.499995, 75.900019), (-122.854924, 76.116543), (-122.854925, 76.116543)],
     ]
     vg.VisGraph().build([[vg.Point(*p) for p in polygon] for polygon in polygons])
-    # ValueError: math domain error
+    # ValueError: math domain error (Python 3.14: expected a number in range from -1 up to 1, ...)
 
 Clamping the cosine to [-1, 1], as proposed upstream in
 `pyvisgraph pull request #33 <https://github.com/TaipanRex/pyvisgraph/pull/33>`__ (unmerged), makes the build succeed.

@@ -19,7 +19,8 @@
 2. Build crash (``crash``): two vertices about 1e-6 apart make ``angle2`` compute a cosine
    of -1.0000000014: the side opposite the angle is 1e-6 long and the law of cosines cancels.
    The truncation ``int(cos * 1e10) / 1e10`` keeps it below -1
-   and ``acos`` raises ``ValueError: math domain error``.
+   and ``acos`` raises a ``ValueError`` (``math domain error``, from Python 3.14 on
+   ``expected a number in range from -1 up to 1, got -1.0000000014``).
    Fix: clamp the cosine to [-1, 1] (as proposed upstream in TaipanRex/pyvisgraph#33).
    The minimal reproduction: two triangles of the Natural Earth 110m data, found by removing vertices.
 

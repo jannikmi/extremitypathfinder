@@ -73,9 +73,11 @@ def test_pyvisgraph_invalid_path_reproduction():
 
 
 def test_pyvisgraph_build_crash_reproduction():
-    """the documented pyvisgraph defect: math domain error in angle2 on vertices 1e-6 apart"""
+    """the documented pyvisgraph defect: acos fails in angle2 on vertices 1e-6 apart"""
     adapter = get_adapter("pyvisgraph")
-    with pytest.raises(ValueError, match="math domain error"):
+    # the message of math.acos: "math domain error" up to Python 3.13,
+    # "expected a number in range from -1 up to 1, got -1.0000000014" from Python 3.14 on
+    with pytest.raises(ValueError, match="math domain error|range from -1 up to 1"):
         adapter.build(CRASH_POLYGONS)
     env = get_adapter("extremitypathfinder").build(CRASH_POLYGONS)
     assert env.nr_vertices == 6
