@@ -35,6 +35,8 @@ other changes:
   and the edge weights instead. Paths and lengths are identical, preparation and query times about the same.
   The undocumented attribute ``reprs_n_distances`` and the functions ``utils.cmp_reps_n_distance_dict()``
   and ``utils.get_distance()`` are removed.
+- lower peak memory when preparing environments of about 1,000 to 4,000 vertices (e.g. 9.7 to 7.4 MiB
+  for 2,000 vertices): the test which edges pass through vertices processes fewer vertex-edge pairs at once.
 - polygons are accepted with clockwise and counter clockwise vertex numbering, also mixed (#161).
   Polygons with the opposite numbering are reversed into the internal convention (boundary counter clockwise,
   holes clockwise), also in ``boundary_polygon`` and ``holes``. Previously wrongly numbered polygons

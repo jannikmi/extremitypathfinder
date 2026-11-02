@@ -6,7 +6,7 @@ from math import hypot
 import numpy as np
 import pytest
 
-from extremitypathfinder import PolygonEnvironment, utils
+from extremitypathfinder import PolygonEnvironment, utils, wedges
 from extremitypathfinder.utils_numba import (
     _compute_repr_n_dist,
     _lies_on_edge,
@@ -186,3 +186,45 @@ def test_environment_size_without_graph_is_linear_in_the_vertices():
         bytes_per_vertex.append(len(pickle.dumps(state)) / environment.nr_vertices)
     # 4 times the vertices and extremities: previously about 3 times the bytes per vertex
     assert bytes_per_vertex[1] < 1.3 * bytes_per_vertex[0]
+
+
+def _star_grid_datastructs(holes_per_side: int):
+    boundary, holes = _star_grid(holes_per_side)
+    coords, edge_vertex_idxs, *_ = utils.compile_polygon_datastructs(
+        np.array(boundary, dtype=float), [np.array(h, dtype=float) for h in holes]
+    )
+    return coords, edge_vertex_idxs
+
+
+def test_edges_through_points_bounded_memory():
+    """the bounding box test of all positions against all edges is processed in small chunks
+
+    Previously up to 2**22 position-edge pairs were tested at once:
+    several boolean arrays of 4 MiB each for about 2,000 vertices.
+    """
+    import tracemalloc
+
+    # 2,052 vertices: 4.2 million position-edge pairs
+    coords, edge_vertex_idxs = _star_grid_datastructs(16)
+    tracemalloc.start()
+    try:
+        wedges._find_edges_through_points(coords, coords, edge_vertex_idxs)
+        peak = tracemalloc.get_traced_memory()[1]
+    finally:
+        tracemalloc.stop()
+    # previously 8.6 MiB, now 3.4 MiB
+    assert peak < 5 * 2**20
+
+
+def test_edges_through_points_independent_of_the_chunks(monkeypatch):
+    coords, edge_vertex_idxs = _star_grid_datastructs(4)
+    # collinear points on edges: some positions lie on edges of other polygons
+    positions = np.concatenate([coords, (coords[:-1] + coords[1:]) / 2])
+    expected = wedges._find_edges_through_points(positions, coords, edge_vertex_idxs)
+    assert expected
+    for cells in (1, 7, len(edge_vertex_idxs) + 1):
+        monkeypatch.setattr(wedges, "MAX_BOX_TEST_PAIRS", cells)
+        assert (
+            wedges._find_edges_through_points(positions, coords, edge_vertex_idxs)
+            == expected
+        )
