@@ -57,3 +57,5 @@
      - –
      - –
      - –
+
+Baseline without input data (after the imports and the warm-up): extremitypathfinder with Numba 86.5 MiB, extremitypathfinder without Numba 36.1 MiB, pyvisgraph 18.1 MiB.

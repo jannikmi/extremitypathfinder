@@ -2960,5 +2960,54 @@
   [[120.66931913546557, -49.548056683610945], [-160.55769563723803, -12.077660250968151]],
   [[144.6628795806222, 42.12313975793724], [62.034364279414916, 15.96932425817414]],
   [[109.35559394441282, -4.349396419600055], [-168.95211127890306, 48.32457867011554]]
- ]
+ ],
+ "baselines": {
+  "date": "2026-11-02T21:47:12+00:00",
+  "system": {
+   "platform": "macOS-26.3-arm64-arm-64bit-Mach-O",
+   "machine": "arm64",
+   "processor": "arm",
+   "cpu_model": "Apple M1 Pro",
+   "cpu_count": 10,
+   "python": "3.14.2",
+   "python_implementation": "CPython",
+   "memory_bytes": 34359738368,
+   "power_source": "AC Power"
+  },
+  "git": {
+   "sha": "17d5f22677cdff2fe14cca3ce6ed4c8825391a8c",
+   "dirty": false
+  },
+  "setups": [
+   {
+    "label": "extremitypathfinder with Numba",
+    "package": "extremitypathfinder",
+    "status": "done",
+    "version": "3.0.0",
+    "numba": true,
+    "memory_method": "phys_footprint",
+    "memory_peak_reset": true,
+    "memory_baseline": 90752704
+   },
+   {
+    "label": "extremitypathfinder without Numba",
+    "package": "extremitypathfinder",
+    "status": "done",
+    "version": "3.0.0",
+    "numba": false,
+    "memory_method": "phys_footprint",
+    "memory_peak_reset": true,
+    "memory_baseline": 37880960
+   },
+   {
+    "label": "pyvisgraph",
+    "package": "pyvisgraph",
+    "status": "done",
+    "version": "0.2.1",
+    "memory_method": "phys_footprint",
+    "memory_peak_reset": true,
+    "memory_baseline": 18973824
+   }
+  ]
+ }
 }
