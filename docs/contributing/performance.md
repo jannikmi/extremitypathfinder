@@ -4,9 +4,18 @@ Measure before and after optimising, and include the numbers in the pull request
 
 ## Measuring
 
-- `scripts/speed_benchmarks.py` benchmarks environment preparation and queries on the small test environments
-  (`uv run pytest -s scripts/speed_benchmarks.py`). The results are shown in the
-  [performance section](../7_performance.rst) of the documentation.
+- `benchmarks/` compares the package with pyvisgraph on world maps of increasing size,
+  validates all paths and renders the tables and figures of the [performance section](../7_performance.rst)
+  of the documentation. Requires the `benchmark` dependency group (`uv sync --all-extras --group benchmark`).
+  - `make benchmark` runs it with `--quick`: a smoke test of a few seconds (not run in CI).
+    Its outputs go to the gitignored `benchmarks/results/raw/quick/`.
+  - The full run takes hours: `uv run --all-extras --group benchmark python -m benchmarks.run`.
+    Run it on an otherwise idle machine and state the machine. Commit the raw results
+    (`benchmarks/results/benchmark.json`) together with the tables and figures. Check the machine first with `--preflight`,
+    continue an interrupted run with `--resume`
+    (cf. {ref}`running-benchmarks`).
+- `scripts/speed_benchmarks.py` measures environment preparation and queries on the small test environments
+  with the same harness (`uv run --all-extras --group benchmark python scripts/speed_benchmarks.py`).
 - `prototypes/large_env_query_profile.py` profiles queries on a large, configurable environment
   and compares the query time with the time a copy of the visibility graph would take (queries do not copy it):
 

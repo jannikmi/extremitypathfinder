@@ -42,11 +42,17 @@ Other packages
     Obstacles are polygons in the unbounded plane (no boundary polygon).
     Differences to this package:
 
-    - this package only keeps the extremities (convex vertices) and the edges which can be part of a shortest path,
-      a much smaller graph (time and memory)
+    - this package only keeps the extremities (convex vertices) and the edges which can be part of a shortest path:
+      a much smaller graph and faster queries (cf. :ref:`speed-tests`)
     - A* search with the euclidean distance as heuristic instead of Dijkstra's algorithm
     - boundary polygon, touching and intersecting polygons and grids with blocked cells as input
     - this package does not support parallel graph construction (so far)
+
+    Measured comparison on world maps of increasing size: :ref:`speed-tests`.
+    pyvisgraph returns paths through obstacles for some inputs
+    (`issue #59 <https://github.com/TaipanRex/pyvisgraph/issues/59>`__)
+    and its build crashes on nearly identical vertices
+    (`pull request #33 <https://github.com/TaipanRex/pyvisgraph/pull/33>`__, unmerged; :ref:`benchmark-correctness`).
 
 `Polyanya <https://docs.rs/polyanya>`__ (Rust, C++ original; no Python package)
     Exact any-angle search on a navigation mesh (Cui, Harabor and Grastien, IJCAI 2017)
@@ -73,4 +79,4 @@ Grid planners, e.g. `pythetastar <https://pypi.org/project/pythetastar/>`__ (The
     any-angle planners like Theta* find shorter paths,
     but both are in general longer than the euclidean shortest paths found by this package.
 
-A speed comparison with these alternatives does not exist yet.
+A speed comparison exists for pyvisgraph only (:ref:`speed-tests`).

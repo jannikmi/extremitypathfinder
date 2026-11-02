@@ -26,7 +26,8 @@ make release-check                 # build and validate the release artifacts
 - `extremitypathfinder/`: the package. Layers, each importing only from below:
   `command_line`, `plotting` → `extremitypathfinder` (PolygonEnvironment) → `utils` → `wedges` → `utils_numba` →
   `numba` | `numba_replacements`
-- `tests/`: pytest suite. `scripts/`: release tooling, docs figures, benchmarks. `prototypes/`: untested dev scripts
+- `tests/`: pytest suite. `scripts/`: release tooling, docs figures, benchmarks. `benchmarks/`: comparison with pyvisgraph.
+  `prototypes/`: untested dev scripts
 - `docs/`: Sphinx (reStructuredText), contributing guide in Markdown (`docs/contributing/`)
 
 ## Hard rules
@@ -44,6 +45,8 @@ make release-check                 # build and validate the release artifacts
 9. Performance claims need before/after numbers (`docs/contributing/performance.md`).
 10. Stay in the scope of the task: no unrelated refactoring or reformatting. Never weaken or skip tests to pass.
 11. After opening a pull request, run an independent review of the diff (fresh context) and fix clear findings.
+12. CI must not fail because of errors in pyvisgraph or other external packages and services,
+    only because of extremitypathfinder (`docs/contributing/testing.md`).
 
 ## Read next
 

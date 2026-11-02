@@ -28,6 +28,12 @@ recreate them. Loading them raises a ``ValueError`` explaining this.
 
 other changes:
 
+- reproducible benchmarks against pyvisgraph (#111): ``python -m benchmarks.run`` (``benchmarks/``,
+  ``make benchmark``: quick smoke test, not run in CI) runs a size sweep
+  on cleaned Natural Earth world maps with a build time budget, validates every path independently with Shapely
+  and renders the tables and figures of the performance section of the documentation.
+  ``scripts/speed_benchmarks.py`` uses the same harness. The validation found pyvisgraph 0.2.1 paths
+  through obstacles; the cause is described in the documentation.
 - much lower memory use and smaller pickles of large environments: the angle representations and distances
   of all vertices seen from every extremity are no longer stored (``O(m n)`` floats for ``m`` extremities
   and ``n`` vertices, about 1 GiB for 10,000 vertices).

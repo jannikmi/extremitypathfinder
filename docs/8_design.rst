@@ -22,7 +22,7 @@ Goals
 - **Fast repeated queries**: the environment is static. Expensive work is done once when the environment is created,
   so that many queries (start, goal) can be answered quickly afterwards.
 - **Small graphs**: only extremities become graph nodes, and the graph is reduced further without losing optimality
-  (cf. `Visibility graph reduction`_). A small graph makes the queries fast and keeps the memory low.
+  (cf. `Visibility graph reduction`_). A small graph makes the queries fast.
 - **Well defined behaviour at the edge cases**: touching obstacles, points on edges and collinear vertices
   are handled by one consistent set of rules (cf. :ref:`touching`), not by special cases spread over the code.
 - **Few dependencies**: ``numpy`` and ``networkx`` only. ``numba`` is an optional accelerator, the package

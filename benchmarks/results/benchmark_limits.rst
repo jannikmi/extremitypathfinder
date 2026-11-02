@@ -1,0 +1,2 @@
+- extremitypathfinder: largest map within the budget: 9,952 vertices. Exceeded the 600 s build budget at 19,956 vertices, larger maps were not run.
+- pyvisgraph: largest map within the budget: 4,954 vertices. Exceeded the 600 s build budget at 9,952 vertices, larger maps were not run.

@@ -48,10 +48,15 @@ release-check:
 release-prepare:
 	uv run python scripts/release.py prepare $(BUMP)
 
+# comparison with pyvisgraph (docs/7_performance.rst): quick smoke test (seconds).
+# Full run (hours, on an idle machine): uv run --all-extras --group benchmark python -m benchmarks.run
+benchmark:
+	uv run --all-extras --group benchmark python -m benchmarks.run --quick $(ARGS)
+
 # documentation generation:
 # https://docs.readthedocs.io/en/stable/intro/getting-started-with-sphinx.html
 docs:
 	(cd docs && uv run make html)
 
 
-.PHONY: clean test check build release-check release-prepare docs
+.PHONY: clean test check benchmark build release-check release-prepare docs
