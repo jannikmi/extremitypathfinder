@@ -28,6 +28,8 @@ The packages solve the same problem only on a subset of the inputs. All benchmar
 * **Query points strictly in free space**, at least 0.1° away from every polygon.
   On an edge, the two packages define "inside" differently.
 
+The polygon orientation needs no preprocessing: both packages accept either orientation.
+
 Maps with a boundary polygon, grids and touching or intersecting obstacles are supported by ``extremitypathfinder`` only
 and are not benchmarked.
 
@@ -47,11 +49,15 @@ SHA-256 verified), the land masses as obstacles and the sea as free space.
 * **Size sweep**: Douglas-Peucker simplification (``preserve_topology=True``) to a target number of vertices
   (within 2 %), from the coarsest Natural Earth resolution with enough vertices:
   250, 500, 1k, 2k, 5k (the raw 110m data), 10k, 20k, 50k, 100k, 200k and 400k vertices.
+  The tolerance is found by bisection. The simplification comes before the cleaning steps above,
+  and polygons with an area below the squared tolerance are dropped (slivers, tiny islands).
+  The polygons dropped because they intersect or touch another one are counted in the table below.
   This keeps realistic geometry, a realistic distribution of obstacle sizes and narrow passages at every size.
 * **Queries**: one shared set of 200 seeded random point pairs for all sizes and both packages,
   so query latencies are directly comparable across the sweep.
   The points are uniform over longitude [-180, 180] and latitude [-60, 75]
-  and at least 0.1° away from the land of every map of the sweep.
+  and at least 0.1° away from the land of every map of the sweep
+  (the coarse maps move the coastline by up to the simplification tolerance).
   A path always exists (unbounded free space, disjoint obstacles).
 * **Limitations**: longitude and latitude are used as planar coordinates.
   Distances are not geodesic and paths do not wrap around the antimeridian (like pyvisgraph's own example).
@@ -75,6 +81,7 @@ Measurements
   reset after the imports, the warm-up and loading the input, minus its baseline at that point.
   Linux: peak resident memory (``VmHWM``), macOS: peak physical footprint (``proc_pid_rusage``,
   the memory figure of the Activity Monitor). A coarse figure: the allocator keeps freed memory.
+  It is measured in the same run as the timings, without ``tracemalloc``, whose overhead would distort the timings.
   The baseline (the interpreter with the imported packages) is not included: with Numba,
   ``extremitypathfinder``'s process starts at about 86 MiB, pyvisgraph's at about 18 MiB.
 * **Graph size**: nodes and edges of ``extremitypathfinder``'s reduced visibility graph
@@ -82,7 +89,12 @@ Measurements
 * **Budget**: 10 min per build. Each package and size runs in its own subprocess, which is killed when the build
   exceeds the budget. The sizes run in ascending order. Once a package exceeds the budget it is not run at larger sizes,
   and the sweep ends when ``extremitypathfinder`` exceeds it. Data points beyond the budget are left out:
-  no extrapolation.
+  no extrapolation. The queries are not limited by default.
+  With ``--query-limit``, the queries stop after that time per package and size: the query set is in random order,
+  so the queries completed are an unbiased prefix, and the statistics are reported over it
+  with the number of completed queries.
+* **Crashes**: a package raising an exception is ``crash``, with the message recorded.
+  Crashed runs are left out of the results and listed under :ref:`benchmark-correctness`.
 * **Validation** of every path of both packages, independent of both with Shapely, before any timing is accepted:
   the path starts at the start point, ends at the goal and no segment runs through the interior of an obstacle
   (along edges and through vertices is allowed), and the lengths of both packages agree within a relative
@@ -288,6 +300,10 @@ Full run on a laptop
    The raw results are written after every measurement: the finished measurements are kept,
    the interrupted one is repeated. Resuming refuses changed settings, versions, code of the package or the benchmark, or a different machine.
    ``--fresh`` starts over. An existing run is never overwritten without one of the two options.
+
+While developing the benchmark, use ``--quick``: shared or virtual machines give noisy timings.
+To develop the validation on maps where pyvisgraph builds for minutes, cache its graphs
+(``VisGraph.save``/``load``), but never use a cached graph for the timings.
 
 ``scripts/speed_benchmarks.py`` measures ``extremitypathfinder`` alone on the small test environments
 with the same harness.

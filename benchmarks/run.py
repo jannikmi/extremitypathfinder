@@ -349,7 +349,7 @@ def keep_awake():
 
 def run(args, argv) -> dict:
     packages = args.packages
-    # the plan: extremitypathfinder is only compared with Numba (best case)
+    # extremitypathfinder is only compared with Numba (best case, cf. docs/7_performance.rst)
     numba_missing = importlib.util.find_spec("numba") is None
     if "extremitypathfinder" in packages and numba_missing and not args.allow_no_numba:
         raise SystemExit(

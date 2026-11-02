@@ -1,7 +1,7 @@
 """Benchmark workloads: the world map size sweep, small examples and seeded query generation.
 
 All maps are unbounded (``boundary=None``) with simple, pairwise disjoint polygons as obstacles,
-the common input semantics of extremitypathfinder and pyvisgraph (see ``benchmarks/PLAN.md``).
+the common input semantics of extremitypathfinder and pyvisgraph (see ``docs/7_performance.rst``).
 """
 
 import json

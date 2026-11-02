@@ -15,12 +15,14 @@ Entries are not edited, except that a maintainer confirms an agent decision by c
 and a revised decision gets a new entry that marks the old one **superseded**.
 Earlier decisions are described in the {ref}`Design Decisions <design_decisions>` and the issues linked there.
 
-## Benchmarks against pyvisgraph as specified in `benchmarks/PLAN.md` (#165)
+## Benchmarks against pyvisgraph on Natural Earth world maps of increasing size (#165)
 
 - **Decided by:** a maintainer
-- **Rejected:** the options listed in the plan's decisions table (e.g. GSHHG data: LGPL and less accessible;
-  extrapolating the sizes beyond the build budget; a benchmark run without Numba).
-- **Details:** `benchmarks/PLAN.md`
+- **Rejected:** GSHHG data (LGPL and less accessible); extrapolating the sizes beyond the 10 min build budget;
+  a benchmark run without Numba; repeating builds slower than 1 s (minutes per build);
+  a separate query set per size (latencies not comparable across sizes);
+  measuring memory with `tracemalloc` (distorts the timings or needs a second build).
+- **Details:** [Method](../7_performance.rst) of the performance section
 
 ## The benchmarks do not run in CI, and CI never fails because of external packages (#165)
 
@@ -35,7 +37,7 @@ Earlier decisions are described in the {ref}`Design Decisions <design_decisions>
 - **Rejected:** only the tables and figures (the published numbers cannot be checked or rendered again without a rerun
   of hours on that machine); a release asset (separated from the commit that produced the docs).
   The file is written compactly (one list per line) and marked as generated in `.gitattributes`.
-- **Details:** `benchmarks/PLAN.md` (Committed outputs)
+- **Details:** [Running the benchmarks](../7_performance.rst)
 
 ## The benchmark is rerun in full after a change of the package (#165)
 
