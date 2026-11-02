@@ -16,6 +16,22 @@ A maintainer confirms an agent decision by changing **Decided by**.
 A revised decision gets a new entry that marks the old one **superseded**.
 Earlier decisions are described in the {ref}`Design Decisions <design_decisions>` and the issues linked there.
 
+## Benchmark memory: peak above the baseline, the baseline and the total (#165)
+
+- **Decided by:** a maintainer
+- **Rejected:** only the peak above the baseline (hides the cost of the imports, about 86 MiB with Numba
+  vs 18 MiB, which a process pays on small maps); only the total (the fixed baseline hides the part that grows
+  with the map).
+- **Details:** [Measurements](../7_performance.rst) of the performance section
+
+## Invalid benchmark runs: queries left out, build measured like any other (#165)
+
+- **Decided by:** a maintainer
+- **Rejected:** leaving out all results of an invalid run (its build time and memory are measured correctly,
+  only its paths are wrong); marking build time and memory as invalid (suggests a wrong measurement).
+  The graph size stays marked, because the graph contains wrong edges.
+- **Details:** [Measurements](../7_performance.rst) of the performance section
+
 ## Benchmarks against pyvisgraph on Natural Earth world maps of increasing size (#165)
 
 - **Decided by:** a maintainer
