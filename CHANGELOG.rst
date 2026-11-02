@@ -42,9 +42,8 @@ internal:
 - the documentation build in CI (``tox -e docs``) fails on warnings.
 - contributing guide for human and AI contributors in Markdown: ``CONTRIBUTING.md`` with topic pages in
   ``docs/contributing/`` (rendered with MyST), ``AGENTS.md`` and ``CLAUDE.md`` for coding agents,
-  pull request and issue templates, ``make check`` for a quick check before committing.
-- contributing guide: trade-offs of larger changes are prepared with a recommendation, decided by a maintainer
-  unless the winner is clear, documented and summarised in the pull request.
+  pull request and issue templates, ``make check`` for a quick check before committing,
+  rules for considering, deciding and documenting the trade-offs of larger changes.
 
 
 3.0.0 (2026-10-29)

@@ -2,8 +2,8 @@
 
 ## Before you start
 
-- Work on an issue. For anything larger than a small fix, open or comment on an issue first,
-  so that the approach can be agreed on before you write the code.
+- Work on an issue. For a larger change (cf. [Trade-offs and decisions](#trade-offs-and-decisions)),
+  open or comment on an issue first, so that the approach can be agreed on before you write the code.
 - Changes of the [invariants](invariants.md) (e.g. the numerical policy or the orientation convention)
   need an issue that decides them.
 
@@ -15,11 +15,12 @@ touches the [invariants](invariants.md)), consider the trade-offs:
 1. **List the options**, including "leave it as it is", with their advantages and disadvantages
    (correctness, performance with numbers, maintainability, API stability, dependencies, effort).
 2. **Recommend one option and justify it.**
-3. **Decide.** If one option is clearly better on all criteria that matter, the contributor decides and goes ahead.
-   Otherwise a maintainer decides: present the trade-off and the recommendation in the issue
-   and wait for the decision before implementing.
-4. **Document the trade-off and the decision** (and who made it: the contributor, because the winner was clear,
-   or a maintainer) where the next person will look for it:
+3. **Decide.** Post the trade-off and the recommendation in the issue.
+   If one option is clearly better on all criteria that matter, the contributor decides and goes ahead.
+   Otherwise a maintainer decides: wait for the decision before implementing.
+   Changes of the invariants are always decided by a maintainer.
+4. **Document the trade-off and the decision** and who made it (the contributor or a maintainer)
+   where the next person will look for it:
    - design decisions about the package: the Design Decisions section of `docs/8_design.rst`
    - rejected alternatives and lessons about working on the code: the relevant page of this guide
      (e.g. the rejected search alternatives in [Performance](performance.md#shortest-path-search))
