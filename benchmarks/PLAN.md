@@ -172,7 +172,7 @@ Decision (2026-11-01): the benchmarks do not run in CI, not even `--quick`; the 
 2. ~~Workloads, adapters and validation; investigate the pyvisgraph invalid paths~~ (done)
 3. ~~Measurement harness with budgets and subprocesses~~ (done)
 4. ~~`run.py`, `make benchmark`, the thin wrapper, the smoke run (`make benchmark`, not in CI)~~ (done)
-5. Full run on a stated machine, figures and tables: `uv run --all-extras --group benchmark python -m benchmarks.run` (pending)
+5. Full run on a stated machine, figures and tables: `uv run --all-extras --group benchmark python -m benchmarks.run`. First run on 2026-11-01 (Apple M1 Pro), repeated in full after #178 lowered the memory of extremitypathfinder (pending)
 6. Documentation (done, with placeholder results; the strengths and weaknesses follow the full run)
 
 ## Notes for the implementation

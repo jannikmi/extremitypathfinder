@@ -268,8 +268,13 @@ def test_resume_after_interruption(monkeypatch, tmp_path):
         run.main(argv)  # never overwritten silently
     with pytest.raises(SystemExit, match="nr_queries"):
         run.main([*argv, "--resume", "--queries", "4"])  # other settings
+    monkeypatch.setattr(run, "measured_code_changed", lambda sha: True)
+    with pytest.raises(SystemExit, match="code of the package"):
+        run.main([*argv, "--resume"])  # other code
     calls.clear()
     monkeypatch.setattr(measure, "measure", _fake_measure(calls))
+    # independent of uncommitted changes in this checkout (tested separately)
+    monkeypatch.setattr(run, "measured_code_changed", lambda sha: False)
     assert run.main([*argv, "--resume"]) == 0
     # only the interrupted and the remaining measurements: 3 examples x 2 packages - 3 stored
     assert len(calls) == 3
@@ -302,3 +307,11 @@ def test_default_outputs():
     assert quick.raw_output.parent == run.RAW_DIR
     paths_dir = run.Checkpoint({}, full.raw_output).paths_dir
     assert paths_dir == run.RAW_DIR / "benchmark_paths"
+
+
+def test_resume_refused_after_code_change():
+    """a resumed run must not mix measurements of different code"""
+    head = run._git()["sha"]
+    assert not run.measured_code_changed(head) or run._git()["dirty"]
+    assert run.measured_code_changed(None)
+    assert run.measured_code_changed("0" * 40)  # unknown commit

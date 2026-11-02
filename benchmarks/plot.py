@@ -15,6 +15,7 @@ from pathlib import Path
 
 import matplotlib
 import matplotlib.pyplot as plt
+from matplotlib.ticker import FuncFormatter, LogLocator, NullFormatter
 
 from benchmarks import measure, workloads
 from benchmarks.adapters import PACKAGES
@@ -189,6 +190,10 @@ def ratio(results: dict, path: Path):
     ax.plot(xs, build, color="#1baf7a", marker="o", linewidth=2, label="build time")
     ax.plot(xs, query, color="#6250d6", marker="D", linewidth=2, label="query (p50)")
     ax.axhline(1, color=TEXT_SECONDARY, linewidth=1)
+    # factors as plain numbers ("6", not "6×10⁰"), only on the major ticks
+    ax.yaxis.set_major_locator(LogLocator(subs=(1.0, 2.0, 5.0)))
+    ax.yaxis.set_major_formatter(FuncFormatter(lambda value, _: f"{value:g}"))
+    ax.yaxis.set_minor_formatter(NullFormatter())
     ax.set_title("Speed ratio (sizes where both are valid)")
     _finish(fig, ax, results, path)
 

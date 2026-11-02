@@ -250,7 +250,7 @@ Full run on a laptop
    (the monotonic clocks of the timings stop during sleep, the wall clock does not).
 4. After an interruption (Ctrl-C, crash, restart), continue with the same command and ``--resume``.
    The raw results are written after every measurement: the finished measurements are kept,
-   the interrupted one is repeated. Resuming refuses changed settings, versions or a different machine.
+   the interrupted one is repeated. Resuming refuses changed settings, versions, code of the package or the benchmark, or a different machine.
    ``--fresh`` starts over. An existing run is never overwritten without one of the two options.
 
 ``scripts/speed_benchmarks.py`` measures ``extremitypathfinder`` alone on the small test environments

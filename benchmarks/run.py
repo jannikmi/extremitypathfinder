@@ -273,6 +273,24 @@ def run_map(
     return entry
 
 
+# the code which determines the measurements: a change forbids resuming a run
+MEASURED_CODE = ("extremitypathfinder", "benchmarks/*.py", "pyproject.toml", "uv.lock")
+
+
+def measured_code_changed(sha: str | None) -> bool:
+    """whether the measured code differs from the given commit (also uncommitted changes)"""
+    if sha is None:
+        return True
+    diff = subprocess.run(
+        ["git", "diff", "--quiet", sha, "--", *MEASURED_CODE],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        check=False,
+    )
+    # 0: unchanged, 1: changed, other: unknown commit or no git
+    return diff.returncode != 0
+
+
 def load_resumable(args, argv) -> dict:
     """the stored raw results to resume, checked against the settings of this run"""
     with open(args.raw_output) as f:
@@ -292,9 +310,14 @@ def load_resumable(args, argv) -> dict:
             f"cannot resume {args.raw_output}: changed {', '.join(changed)}. "
             "Run with the settings of the interrupted run, or with --fresh to start over."
         )
+    if measured_code_changed(stored["git"].get("sha")):
+        raise SystemExit(
+            f"cannot resume {args.raw_output}: the code of the package or the benchmark changed since the "
+            f"interrupted run ({stored['git']['sha']}). Start over with --fresh."
+        )
     if stored["git"] != current["git"]:
         _log(
-            f"WARNING: the code changed since the interrupted run: {stored['git']} -> {current['git']}"
+            f"note: other files changed since the interrupted run: {stored['git']} -> {current['git']}"
         )
     stored.setdefault("resumed", []).append(
         {"date": current["date"], "git": current["git"], "command": current["command"]}
