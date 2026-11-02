@@ -614,6 +614,21 @@ def is_ok(result: dict) -> bool:
     return result.get("status") == measure.OK
 
 
+def has_build_results(result: dict) -> bool:
+    """whether build time, graph size and memory are shown: also for invalid runs
+
+    An invalid run built its graph completely, its defect changes only a few edges (cf. ``pyvisgraph_issues``),
+    so its build cost is representative. Its query times and the speed ratios are left out.
+    """
+    return (
+        result.get("status") in (measure.OK, measure.INVALID) and "build_time" in result
+    )
+
+
+def _mark(result: dict, text: str) -> str:
+    return f"{text} (invalid)" if result.get("status") == measure.INVALID else text
+
+
 def largest_ok(results: dict) -> dict:
     """per package the largest map within the budget and the first one over the budget"""
     summary = {}
@@ -697,7 +712,9 @@ def render_tables(results: dict) -> dict[str, str]:
         row = [f"{e['map']['vertices']:,}"]
         for r in (epf, pvg):
             row.append(
-                format_time(r["build_time"]) if is_ok(r) else r.get("status", "–")
+                _mark(r, format_time(r["build_time"]))
+                if has_build_results(r)
+                else r.get("status", "–")
             )
         ratio = (
             f"{pvg['build_time'] / epf['build_time']:.3g}"
@@ -707,16 +724,18 @@ def render_tables(results: dict) -> dict[str, str]:
         row.append(ratio)
         for r in (epf, pvg):
             row.append(
-                f"{r['graph_nodes']:,} / {r['graph_edges']:,}" if is_ok(r) else "–"
+                _mark(r, f"{r['graph_nodes']:,} / {r['graph_edges']:,}")
+                if has_build_results(r)
+                else "–"
             )
         for r in (epf, pvg):
-            if not is_ok(r):
+            if not has_build_results(r):
                 row.append("–")
             elif r["memory_peak"] < 2**20:
                 # below the resolution of the peak resident memory
-                row.append("< 1 MiB")
+                row.append(_mark(r, "< 1 MiB"))
             else:
-                row.append(format_bytes(r["memory_peak"]))
+                row.append(_mark(r, format_bytes(r["memory_peak"])))
         rows.append(row)
     tables["benchmark_build.rst"] = note + _list_table(
         "Preprocessing (build) time, graph size and peak memory",
@@ -785,7 +804,7 @@ def render_tables(results: dict) -> dict[str, str]:
     if not rows:
         rows.append(["–", "–", "–", "–", "all runs valid and within the budget"])
     tables["benchmark_correctness.rst"] = note + _list_table(
-        "Invalid, crashed and over budget runs (left out of the speed results)",
+        "Invalid, crashed and over budget runs (left out of the query results and the speed ratios)",
         ["Map", "Vertices", "Package", "Status", "Details"],
         rows,
     )

@@ -1,7 +1,9 @@
 """SVG figures of the benchmark results (docs/_static/benchmark_*.svg).
 
-Only ``ok`` data points are plotted: invalid, crashed and over budget runs are left out
-(no markers, no extrapolation). Figures of a ``--quick`` run carry a placeholder watermark.
+Only ``ok`` data points are plotted, except that the build time and memory figures also show
+invalid runs as unconnected hollow markers (their build is complete and representative).
+Crashed and over budget runs are left out (no markers, no extrapolation).
+Figures of a ``--quick`` run carry a placeholder watermark.
 
 Usage::
 
@@ -48,11 +50,11 @@ plt.rcParams.update(
 METADATA = {"Date": None, "Creator": None}
 
 
-def _ok_points(results: dict, package: str, value):
+def _ok_points(results: dict, package: str, value, status: str = measure.OK):
     xs, ys = [], []
     for entry in results["world"]:
         result = entry["results"].get(package)
-        if result is None or result["status"] != measure.OK:
+        if result is None or result["status"] != status:
             continue
         xs.append(entry["map"]["vertices"])
         ys.append(value(result))
@@ -127,10 +129,33 @@ def _line(ax, xs, ys, package):
         )
 
 
+def _invalid_markers(ax, xs, ys, package):
+    """the build results of invalid runs: hollow, unconnected markers"""
+    if not xs:
+        return
+    style = STYLE[package]
+    ax.plot(
+        xs,
+        ys,
+        linestyle="none",
+        marker=style["marker"],
+        markersize=7,
+        markerfacecolor="none",
+        markeredgecolor=style["color"],
+        markeredgewidth=1.5,
+        label=f"{package} (invalid paths)",
+    )
+
+
 def build_time(results: dict, path: Path):
     fig, ax = _new_axes(results, "build time (s)")
     for package in PACKAGES:
         _line(ax, *_ok_points(results, package, lambda r: r["build_time"]), package)
+        _invalid_markers(
+            ax,
+            *_ok_points(results, package, lambda r: r["build_time"], measure.INVALID),
+            package,
+        )
     budget = results["meta"]["budget"]
     if budget:
         ax.axhline(budget, color=TEXT_SECONDARY, linestyle="--", linewidth=1)
@@ -172,6 +197,11 @@ def memory(results: dict, path: Path):
         # ru_maxrss has a coarse resolution: tiny maps may show 0
         points = [(x, y) for x, y in zip(xs, ys) if y > 0]
         _line(ax, [p[0] for p in points], [p[1] for p in points], package)
+        xs, ys = _ok_points(
+            results, package, lambda r: r["memory_peak"] / 2**20, measure.INVALID
+        )
+        points = [(x, y) for x, y in zip(xs, ys) if y > 0]
+        _invalid_markers(ax, [p[0] for p in points], [p[1] for p in points], package)
     ax.set_title("Peak memory of build and queries")
     _finish(fig, ax, results, path)
 

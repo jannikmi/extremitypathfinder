@@ -211,6 +211,54 @@ def test_render_tables_edge_cases():
                 assert content.count("   * - ") >= 2, name
 
 
+def test_invalid_runs_show_build_results_but_no_query_results():
+    meta = {
+        "quick": False,
+        "budget": 600,
+        "query_limit": None,
+        "nr_queries": 1,
+        **_system_meta(),
+    }
+    stats = dict.fromkeys(("p5", "p50", "p95", "p99", "mean"), 1e-3)
+    built = {
+        "build_time": 2.0,
+        "graph_nodes": 4,
+        "graph_edges": 6,
+        "memory_peak": 3 * 2**20,
+        "query_stats": {**stats, "queries_per_s": 1000.0, "n": 1},
+    }
+    entry = {
+        "map": {
+            "name": "m",
+            "resolution": "110m",
+            "polygons": 1,
+            "vertices": 4,
+            "tolerance": 0.0,
+            "dropped_intersecting": 0,
+        },
+        "results": {
+            "extremitypathfinder": {"status": measure.OK, **built},
+            "pyvisgraph": {
+                "status": measure.INVALID,
+                **built,
+                "validation": {
+                    "failed": 1,
+                    "checked": 1,
+                    "infeasible": 1,
+                    "not_optimal": 0,
+                },
+            },
+        },
+    }
+    tables = run.render_tables({"meta": meta, "world": [entry], "examples": []})
+    build = tables["benchmark_build.rst"]
+    assert build.count("(invalid)") == 3  # build time, graph size, memory of pyvisgraph
+    assert "2 s (invalid)" in build and "3 MiB (invalid)" in build
+    # no speed ratio with an invalid run
+    assert "     - 1\n" not in build
+    assert "pyvisgraph" not in tables["benchmark_query.rst"].split("Queries\n", 1)[1]
+
+
 def _system_meta():
     return {
         "system": {
