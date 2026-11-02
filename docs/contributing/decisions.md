@@ -4,7 +4,8 @@ Decided trade-offs, newest first. The log answers "was this considered before, w
 in one place, including options that were rejected, so that they are not proposed again without new arguments.
 How to decide and when to add an entry: [Trade-offs and decisions](workflow.md#trade-offs-and-decisions).
 
-Each entry is short and links to the details instead of repeating them:
+Each entry is short and links to the details instead of repeating them.
+In the heading, reference the issue, or the pull request once it is open:
 
 ```markdown
 ## <decision as a statement> (#<issue or pull request>)
@@ -15,12 +16,13 @@ Each entry is short and links to the details instead of repeating them:
 - **Details:** <link to the design page section, guide page or code with the full reasoning, if any>
 ```
 
-Entries are not edited after the fact. A decision that is revised gets a new entry, the old entry is marked
-**superseded by** the new one. An entry decided by an agent stays marked as such until a maintainer confirms it.
+Entries are not edited after the fact, with two exceptions: a maintainer confirms a decision of an agent by replacing
+its **Decided by** line with `a maintainer (link)`, and a revised decision gets a new entry while the old entry
+is marked **superseded by** the new one.
 
 ## Trade-offs are decided before larger changes and recorded in this log (#179)
 
-- **Decided by:** a maintainer (requested the rule for #179)
+- **Decided by:** a maintainer (requested the rule implemented in #179)
 - **Options:** consider, decide and document trade-offs, agents present a justified recommendation;
   rejected: no explicit rule (decisions made silently in the code, in particular by agents)
 - **Reason:** reviewers check a decision only if they see it, and documented rejected options save repeated discussions.
@@ -38,8 +40,9 @@ Entries are not edited after the fact. A decision that is revised gets a new ent
 
 ## Earlier decisions
 
-Decisions made before this log are described with their reasoning on the
-[Design Decisions](../8_design.rst) page and in the issues linked there, for example:
+Decisions made before this log have no entries. They are described with their reasoning in the
+{ref}`Design Decisions <design_decisions>` section of the Engineering Design page and in the issues linked there,
+for example:
 
 - queries do not modify the environment (#136)
 - own port of `networkx.astar_path()`, other searches and graph libraries rejected (#152,

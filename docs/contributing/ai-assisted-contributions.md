@@ -26,8 +26,8 @@ The rules below are additions for the risks specific to agents, not a separate r
   and wait for a maintainer's decision instead of implementing. Never pick a side of an open trade-off silently.
 - If you decided without a maintainer because one option was clearly better, say so explicitly in the pull request
   and record it in the [Decision log](decisions.md) as decided by an agent, so that the reviewer checks this decision
-  first. A person who directs you is not a maintainer decision, unless that person is a maintainer
-  and decided this trade-off.
+  first. A decision by the person who directs you counts as a maintainer decision only if that person
+  is a maintainer and decided this specific trade-off.
 - After opening a pull request, run an independent review of the diff and fix the clear findings
   (cf. [Workflow](workflow.md#reviews)).
 - Run `make check` before declaring the work done. Report failing checks honestly, never weaken or skip a test
