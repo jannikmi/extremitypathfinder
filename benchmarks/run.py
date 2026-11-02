@@ -526,12 +526,43 @@ def preflight(args) -> int:
     return 1 if problems else 0
 
 
+def _list_depth(value) -> int:
+    """nesting depth of lists: 0 scalar, 1 list of numbers, 2 path (list of points), ..."""
+    if not isinstance(value, list):
+        return 0
+    return 1 + max((_list_depth(item) for item in value), default=0)
+
+
+def dumps_compact(value, level: int = 0) -> str:
+    """JSON with the structure indented, but each list of numbers, point or path on one line
+
+    The raw results are committed: one number per line (``json.dumps(indent=1)``)
+    made a file of tens of thousands of lines, and their diffs unreadable.
+    """
+    pad = " " * level
+    inner = " " * (level + 1)
+    if isinstance(value, dict) and value:
+        items = [
+            f"{inner}{json.dumps(k)}: {dumps_compact(v, level + 1)}"
+            for k, v in value.items()
+        ]
+        return "{\n" + ",\n".join(items) + "\n" + pad + "}"
+    is_list = isinstance(value, list) and len(value) > 0
+    if is_list and (
+        any(isinstance(item, dict) for item in value) or _list_depth(value) > 2
+    ):
+        # entries, failures, queries (pairs of points), lists of paths: one item per line
+        items = [inner + dumps_compact(item, level + 1) for item in value]
+        return "[\n" + ",\n".join(items) + "\n" + pad + "]"
+    return json.dumps(value)
+
+
 def write_raw(results: dict, path: Path):
     """write atomically: an interruption while writing keeps the previous file"""
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_name(path.name + ".tmp")
     with open(tmp, "w") as f:
-        json.dump(results, f, indent=1)
+        f.write(dumps_compact(results))
         f.write("\n")  # pre-commit end-of-file-fixer
     os.replace(tmp, path)
 

@@ -331,3 +331,23 @@ def test_battery_only_warns(monkeypatch, tmp_path, capsys):
     ]
     assert run.main(argv) == 0
     assert "on battery power" in capsys.readouterr().err
+
+
+def test_raw_results_compact_and_lossless(tmp_path):
+    """the committed raw results: valid JSON, identical data, a list of numbers or a path per line"""
+    results = {
+        "meta": {"sizes": ["a", "b"], "nested": {}},
+        "world": [{"times": [1, 2, 3], "path": [[0.1, 0.2], [0.3, 0.4]], "x": None}],
+        "world_queries": [[[0.0, 1.0], [2.0, 3.0]], [[4.0, 5.0], [6.0, 7.0]]],
+        "paths": {"0": [[1.0, 2.0], [3.0, 4.0]]},
+        "empty": [],
+    }
+    path = tmp_path / "raw.json"
+    run.write_raw(results, path)
+    text = path.read_text()
+    assert run.json.loads(text) == results
+    assert text.endswith("}\n")
+    assert '"times": [1, 2, 3],' in text
+    assert '"path": [[0.1, 0.2], [0.3, 0.4]],' in text
+    assert "  [[0.0, 1.0], [2.0, 3.0]]," in text  # one query per line
+    assert not any(line != line.rstrip() for line in text.splitlines())
