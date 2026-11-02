@@ -4,12 +4,8 @@
 
 ## Trade-off
 
-<!--
-Larger changes only (cf. the "Trade-offs and decisions" section of the workflow guide), otherwise delete this section.
-Options considered (with advantages and disadvantages), the recommendation, the decision and who made it:
-a maintainer (link the comment), or the contributor or an agent because one option was clearly better (no maintainer decision).
-Link the entry in the decision log (docs/contributing/decisions.md) and where the reasoning is documented.
--->
+<!-- Larger changes only, otherwise delete this section. Options, recommendation, decision and who made it
+(a maintainer, the contributor or an agent). Cf. "Trade-offs and decisions" in the workflow guide. -->
 
 ## Checks
 

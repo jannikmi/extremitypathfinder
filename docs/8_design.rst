@@ -513,8 +513,7 @@ Diagonally adjacent blocked cells produce polygons (or a polygon) touching at a 
 Design Decisions
 ================
 
-Decisions made from #179 on are also listed, with the rejected options and who made them,
-in the :doc:`decision log <contributing/decisions>`.
+Newer decisions are also listed in the :doc:`decision log <contributing/decisions>`.
 
 Precompute once, query many times
 ---------------------------------
