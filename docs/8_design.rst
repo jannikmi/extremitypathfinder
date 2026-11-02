@@ -511,6 +511,8 @@ Diagonally adjacent blocked cells produce polygons (or a polygon) touching at a 
 Design Decisions
 ================
 
+The decisions with the rejected options and who made them are listed in the :doc:`decision log <contributing/decisions>`.
+
 Precompute once, query many times
 ---------------------------------
 

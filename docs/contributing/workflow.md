@@ -19,15 +19,16 @@ touches the [invariants](invariants.md)), consider the trade-offs:
    If one option is clearly better on all criteria that matter, the contributor decides and goes ahead.
    Otherwise a maintainer decides: wait for the decision before implementing.
    Changes of the invariants are always decided by a maintainer.
-4. **Document the trade-off and the decision** and who made it (the contributor or a maintainer)
-   where the next person will look for it:
-   - design decisions about the package: the Design Decisions section of `docs/8_design.rst`
-   - rejected alternatives and lessons about working on the code: the relevant page of this guide
+   Coding agents are contributors too, but their decisions are marked as such
+   (cf. [AI-assisted contributions](ai-assisted-contributions.md#for-agents)).
+4. **Document the decision.** Every decision gets a short entry in the [Decision log](decisions.md):
+   the options, the decision, who made it and a link to the discussion. Record rejected options too.
+   The full reasoning goes where it is read:
+   - the design of the package: the Design Decisions section of the [Engineering Design](../8_design.rst) page
+   - how to work on the code: the resulting rule on the relevant page of this guide
      (e.g. the rejected search alternatives in [Performance](performance.md#shortest-path-search))
-   - local decisions about a single function: a comment or the docstring next to the code
-
-   Link the issue or pull request with the full discussion. Record rejected options too,
-   so that they are not proposed again without new arguments.
+   - a single function: a comment or the docstring next to the code. A decision that only concerns
+     a single function needs no log entry.
 5. **Summarise the trade-off in the pull request** (cf. [Pull requests](#pull-requests)), so that the reviewer can
    check the decision, not only the code.
 

@@ -44,8 +44,8 @@ make release-check                 # build and validate the release artifacts
 9. Performance claims need before/after numbers (`docs/contributing/performance.md`).
 10. Stay in the scope of the task: no unrelated refactoring or reformatting. Never weaken or skip tests to pass.
 11. Before a larger change, prepare the trade-off with a justified recommendation. Unless one option is clearly
-    better on all criteria that matter, a maintainer decides. Document the trade-off and the decision and summarise
-    both in the pull request (`docs/contributing/workflow.md`).
+    better on all criteria that matter, a maintainer decides. Record the decision in `docs/contributing/decisions.md`
+    (marked as decided by an agent if no maintainer decided) and summarise the trade-off in the pull request.
 12. After opening a pull request, run an independent review of the diff (fresh context) and fix clear findings.
 
 ## Read next
@@ -61,6 +61,7 @@ make release-check                 # build and validate the release artifacts
 | optimising | `docs/contributing/performance.md` |
 | releases (only when asked) | `docs/contributing/releasing.md` |
 | rules for AI-assisted work | `docs/contributing/ai-assisted-contributions.md` |
+| trade-offs, past decisions | `docs/contributing/workflow.md`, `docs/contributing/decisions.md` |
 | algorithms and design decisions | `docs/8_design.rst` |
 
 When a correction repeats, add it to the relevant guide page (or here, if it applies to almost every change).

@@ -42,5 +42,6 @@ which links back to the topics below.
 | [Changelog](docs/contributing/changelog.md) | describe your change for users |
 | [Releasing](docs/contributing/releasing.md) | validate or publish a release (maintainers) |
 | [AI-assisted contributions](docs/contributing/ai-assisted-contributions.md) | use a coding agent or AI assistant |
+| [Decision log](docs/contributing/decisions.md) | look up or record a decided trade-off |
 
 The background of the code is in the [Engineering Design](docs/8_design.rst) page.

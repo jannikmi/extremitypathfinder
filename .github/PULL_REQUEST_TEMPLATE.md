@@ -7,8 +7,8 @@
 <!--
 Larger changes only (cf. the "Trade-offs and decisions" section of the workflow guide), otherwise delete this section.
 Options considered (with advantages and disadvantages), the recommendation, the decision and who made it:
-a maintainer (link the comment) or the contributor/agent without a maintainer, because the winner was clear.
-Where is the trade-off documented (design page, contributing guide, code comment)?
+a maintainer (link the comment), the contributor or an agent without a maintainer, because the winner was clear.
+Link the entry in the decision log (docs/contributing/decisions.md) and where the reasoning is documented.
 -->
 
 ## Checks
