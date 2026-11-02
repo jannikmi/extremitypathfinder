@@ -305,6 +305,35 @@ def _fake_measure(calls: list, interrupt_at: int | None = None):
     return fake
 
 
+def test_baselines_carry_the_commit_of_the_run(monkeypatch, tmp_path):
+    """a run rewrites its tracked raw results: the working tree is modified when the baselines are measured"""
+    states = iter([{"sha": "a", "dirty": False}, {"sha": "a", "dirty": True}])
+    monkeypatch.setattr(run, "_git", lambda: next(states))
+    monkeypatch.setattr(measure, "measure", _fake_measure([]))
+    monkeypatch.setattr(
+        measure,
+        "measure_baseline",
+        lambda package, without_numba=False: {"status": "done", "memory_baseline": 1},
+    )
+    raw = tmp_path / "raw.json"
+    argv = [
+        "--sizes",
+        "none",
+        "--queries",
+        "1",
+        "--raw-output",
+        str(raw),
+        "--no-render",
+    ]
+    assert run.main(argv) == 0
+    results = run.json.loads(raw.read_text())
+    assert (
+        results["baselines"]["git"]
+        == results["meta"]["git"]
+        == {"sha": "a", "dirty": False}
+    )
+
+
 def test_resume_after_interruption(monkeypatch, tmp_path):
     raw = tmp_path / "raw.json"
     argv = [

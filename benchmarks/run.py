@@ -429,7 +429,7 @@ def run(args, argv) -> dict:
                 _log("extremitypathfinder exceeded the build budget: end of the sweep")
                 break
     if "baselines" not in results:
-        results["baselines"] = measure_baselines(packages)
+        results["baselines"] = measure_baselines(packages, results["meta"]["git"])
     results["meta"]["completed"] = datetime.datetime.now(datetime.UTC).isoformat(
         timespec="seconds"
     )
@@ -445,11 +445,14 @@ BASELINE_SETUPS = (
 )
 
 
-def measure_baselines(packages) -> dict:
+def measure_baselines(packages, git: dict | None = None) -> dict:
     """the memory of a worker after the imports and the warm-up, without input data, per setup
 
     extremitypathfinder is also measured without Numba (Numba blocked in the worker),
     with Numba only if it is installed.
+
+    :param git: the commit of the run. Default: the current one (a run rewrites its tracked raw results,
+        so the working tree is modified when the baselines are measured at its end)
     """
     numba_installed = importlib.util.find_spec("numba") is not None
     setups = []
@@ -463,7 +466,7 @@ def measure_baselines(packages) -> dict:
     return {
         "date": datetime.datetime.now(datetime.UTC).isoformat(timespec="seconds"),
         "system": measure.system_info(),
-        "git": _git(),
+        "git": git or _git(),
         "setups": setups,
     }
 
