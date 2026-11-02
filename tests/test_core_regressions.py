@@ -217,13 +217,25 @@ def test_edges_through_points_bounded_memory():
 
 
 def test_edges_through_points_independent_of_the_chunks(monkeypatch):
-    coords, edge_vertex_idxs = _star_grid_datastructs(4)
-    # collinear points on edges: some positions lie on edges of other polygons
-    positions = np.concatenate([coords, (coords[:-1] + coords[1:]) / 2])
+    """the edges through every position (and their order) do not depend on how the positions are chunked"""
+    rng = np.random.default_rng(0)
+    # axis parallel edges between integer points: exact on-edge tests, overlapping and crossing edges
+    starts = rng.integers(0, 12, size=(40, 2))
+    lengths = rng.integers(1, 8, size=40)
+    horizontal = rng.random(40) < 0.5
+    ends = starts + np.where(horizontal[:, None], [1, 0], [0, 1]) * lengths[:, None]
+    coords = np.concatenate([starts, ends]).astype(float)
+    edge_vertex_idxs = np.stack([np.arange(40), np.arange(40, 80)], axis=1)
+    # all integer points of the area: vertices, points on one or several edges, points off any edge
+    xs, ys = np.meshgrid(np.arange(20.0), np.arange(20.0))
+    positions = np.stack([xs.ravel(), ys.ravel()], axis=1)
+
     expected = wedges._find_edges_through_points(positions, coords, edge_vertex_idxs)
-    assert expected
-    for cells in (1, 7, len(edge_vertex_idxs) + 1):
-        monkeypatch.setattr(wedges, "MAX_BOX_TEST_PAIRS", cells)
+    assert any(len(edges) >= 2 for edges in expected.values())
+    nr_edges = len(edge_vertex_idxs)
+    # one position per chunk, several positions per chunk with a partial last chunk, a single chunk
+    for pairs in (1, 7 * nr_edges, 13 * nr_edges, len(positions) * nr_edges):
+        monkeypatch.setattr(wedges, "MAX_BOX_TEST_PAIRS", pairs)
         assert (
             wedges._find_edges_through_points(positions, coords, edge_vertex_idxs)
             == expected
