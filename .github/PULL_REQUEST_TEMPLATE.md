@@ -2,6 +2,11 @@
 
 <!-- What does this change and why? Link the issue, e.g. "closes #123". -->
 
+## Trade-off
+
+<!-- Larger changes only, otherwise delete this section. Options, recommendation, decision and who made it
+(a maintainer, the contributor or an agent). Cf. "Trade-offs and decisions" in the workflow guide. -->
+
 ## Checks
 
 - [ ] `make check` passes (pre-commit hooks and tests)

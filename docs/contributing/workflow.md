@@ -2,10 +2,26 @@
 
 ## Before you start
 
-- Work on an issue. For anything larger than a small fix, open or comment on an issue first,
-  so that the approach can be agreed on before you write the code.
+- Work on an issue. For a larger change (cf. [Trade-offs and decisions](#trade-offs-and-decisions)),
+  open or comment on an issue first, so that the approach can be agreed on before you write the code.
 - Changes of the [invariants](invariants.md) (e.g. the numerical policy or the orientation convention)
   need an issue that decides them.
+
+## Trade-offs and decisions
+
+A larger change is new behaviour, API, algorithm, data structure or dependency, or anything that touches
+the [invariants](invariants.md). Before implementing one:
+
+1. **List the options**, including "leave it as it is", with their advantages and disadvantages
+   (correctness, performance with numbers, maintainability, API stability, dependencies, effort).
+2. **Recommend one** and justify it in the issue.
+3. **Decide.** If one option is clearly better on all criteria that matter, the contributor decides.
+   Otherwise, and always for the invariants, a maintainer decides before anything is implemented.
+4. **Record** the decision in the [Decision log](decisions.md), in the pull request that implements it.
+   The full reasoning goes where it is read: the {ref}`Design Decisions <design_decisions>` (package design),
+   the relevant page of this guide (working on the code) or a comment next to the code (a single function,
+   no log entry needed).
+5. **Summarise** the trade-off in the pull request, so that the reviewer checks the decision, not only the code.
 
 ## Branch and commits
 
@@ -22,6 +38,7 @@ git checkout -b name-of-your-bugfix-or-feature
 Push your branch and open a pull request against `master`. The template asks for:
 
 - what changed and why, with a link to the issue
+- the trade-off of a larger change (cf. [Trade-offs and decisions](#trade-offs-and-decisions))
 - the checks you ran (`make check`, tox environments, benchmarks for performance changes)
 - a changelog entry for user-facing changes (cf. [Changelog](changelog.md))
 - documentation updates for changed behaviour (cf. [Documentation](documentation.md))
