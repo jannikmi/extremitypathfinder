@@ -2,6 +2,15 @@
 
 <!-- What does this change and why? Link the issue, e.g. "closes #123". -->
 
+## Trade-off
+
+<!--
+Larger changes only (cf. the "Trade-offs and decisions" section of the workflow guide), otherwise delete this section.
+Options considered (with advantages and disadvantages), the recommendation, the decision and who made it:
+a maintainer (link the comment), or the contributor or an agent because one option was clearly better (no maintainer decision).
+Link the entry in the decision log (docs/contributing/decisions.md) and where the reasoning is documented.
+-->
+
 ## Checks
 
 - [ ] `make check` passes (pre-commit hooks and tests)

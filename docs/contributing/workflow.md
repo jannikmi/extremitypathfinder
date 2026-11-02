@@ -2,10 +2,35 @@
 
 ## Before you start
 
-- Work on an issue. For anything larger than a small fix, open or comment on an issue first,
-  so that the approach can be agreed on before you write the code.
+- Work on an issue. For a larger change (cf. [Trade-offs and decisions](#trade-offs-and-decisions)),
+  open or comment on an issue first, so that the approach can be agreed on before you write the code.
 - Changes of the [invariants](invariants.md) (e.g. the numerical policy or the orientation convention)
   need an issue that decides them.
+
+## Trade-offs and decisions
+
+Before implementing a larger change (new behaviour, API, algorithm, data structure, dependency or anything that
+touches the [invariants](invariants.md)), consider the trade-offs:
+
+1. **List the options**, including "leave it as it is", with their advantages and disadvantages
+   (correctness, performance with numbers, maintainability, API stability, dependencies, effort).
+2. **Recommend one option and justify it.**
+3. **Decide.** Post the trade-off and the recommendation in the issue.
+   If one option is clearly better on all criteria that matter, the contributor decides and goes ahead.
+   Otherwise a maintainer decides: wait for the decision before implementing.
+   Changes of the invariants are always decided by a maintainer.
+   Coding agents decide like any contributor, with additional rules
+   (cf. [AI-assisted contributions](ai-assisted-contributions.md#for-agents)).
+4. **Document the decision.** Every decision beyond a single function gets a short entry at the top of the
+   [Decision log](decisions.md), added in the pull request that implements it:
+   the options, the decision, who made it and a link to the discussion. Record rejected options too.
+   The full reasoning goes where it is read:
+   - the design of the package: the {ref}`Design Decisions <design_decisions>` section of the Engineering Design page
+   - how to work on the code: the resulting rule on the relevant page of this guide
+     (e.g. the rejected search alternatives in [Performance](performance.md#shortest-path-search))
+   - a single function: a comment or the docstring next to the code
+5. **Summarise the trade-off in the pull request** (cf. [Pull requests](#pull-requests)), so that the reviewer can
+   check the decision, not only the code.
 
 ## Branch and commits
 
@@ -22,6 +47,8 @@ git checkout -b name-of-your-bugfix-or-feature
 Push your branch and open a pull request against `master`. The template asks for:
 
 - what changed and why, with a link to the issue
+- the considered trade-off of a larger change: the options, the recommendation, the decision and who made it
+  (cf. [Trade-offs and decisions](#trade-offs-and-decisions))
 - the checks you ran (`make check`, tox environments, benchmarks for performance changes)
 - a changelog entry for user-facing changes (cf. [Changelog](changelog.md))
 - documentation updates for changed behaviour (cf. [Documentation](documentation.md))

@@ -510,8 +510,13 @@ Diagonally adjacent blocked cells produce polygons (or a polygon) touching at a 
 (no corner cutting).
 
 
+.. _design_decisions:
+
 Design Decisions
 ================
+
+Decisions made from #179 on are also listed, with the rejected options and who made them,
+in the :doc:`decision log <contributing/decisions>`.
 
 Precompute once, query many times
 ---------------------------------

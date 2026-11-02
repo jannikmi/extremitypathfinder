@@ -13,9 +13,21 @@ Coding agents and AI assistants are welcome tools. The same standards apply to t
 
 ## For agents
 
+An agent working on this repository is a contributor: the whole guide applies to it,
+with the person who directs it (cf. above) being responsible for its work.
+The rules below are additions for the risks specific to agents, not a separate rule set.
+
 - Start from an issue or an explicit task, and stay in its scope:
   no drive-by refactoring, reformatting or "improvements" elsewhere.
 - Read the [Invariants](invariants.md) before changing the package.
+- Before implementing a larger change, prepare the trade-off with a justified recommendation and follow
+  [Trade-offs and decisions](workflow.md#trade-offs-and-decisions). Unless one option is clearly better on all
+  criteria that matter, present it in the issue (or to the human in charge, if there is none)
+  and wait for a maintainer's decision instead of implementing. Never pick a side of an open trade-off silently.
+- If you decided without a maintainer because one option was clearly better, say so explicitly in the pull request
+  and record it in the [Decision log](decisions.md) as decided by an agent, so that the reviewer checks this decision
+  first. A decision by the person who directs you counts as a maintainer decision only if that person
+  is a maintainer and decided this specific trade-off.
 - After opening a pull request, run an independent review of the diff and fix the clear findings
   (cf. [Workflow](workflow.md#reviews)).
 - Run `make check` before declaring the work done. Report failing checks honestly, never weaken or skip a test
