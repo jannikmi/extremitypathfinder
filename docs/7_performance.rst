@@ -143,6 +143,15 @@ Results
 
 .. include:: ../benchmarks/results/benchmark_memory.rst
 
+.. figure:: _static/benchmark_memory_composition.svg
+   :width: 100%
+   :alt: stacked bars of the peak memory per map size: interpreter and imports, Numba, data
+
+   What the peak memory consists of (the totals of the table).
+   Numba is the difference of ``extremitypathfinder``'s baselines with and without Numba (without input data),
+   the rest of the baseline is the interpreter, the imports and the input.
+   The data part is measured with Numba: a build without Numba may peak differently.
+
 .. figure:: _static/benchmark_ratio.svg
    :width: 100%
    :alt: ratio of pyvisgraph to extremitypathfinder time for build and query

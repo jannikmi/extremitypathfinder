@@ -324,10 +324,152 @@ def world_example(results: dict, path: Path):
     _finish(fig, ax, results, path)
 
 
+NUMBA_COLOR = "#6250d6"
+BASE_COLOR = "#b5b3ab"
+
+
+def numba_share(results: dict) -> int | None:
+    """the memory of Numba in extremitypathfinder's baseline (imports and compiled code)
+
+    The difference of the baselines (without input data) with and without Numba.
+    None if they are not measured, or if the share is larger than a baseline of the run
+    (measured under other conditions, e.g. on another machine).
+    """
+    baselines = {}
+    for setup in results.get("baselines", {}).get("setups", []):
+        if setup["package"] == "extremitypathfinder" and setup.get("status") == "done":
+            baselines[setup["numba"]] = setup["memory_baseline"]
+    if True not in baselines or False not in baselines:
+        return None
+    share = baselines[True] - baselines[False]
+    for entry in _built(results):
+        if entry["results"]["extremitypathfinder"]["memory_baseline"] < share:
+            return None
+    return share
+
+
+def _built(results: dict) -> list[dict]:
+    """the world maps on which extremitypathfinder completed the build"""
+    return [
+        entry
+        for entry in results["world"]
+        if entry["results"].get("extremitypathfinder", {}).get("status") in BUILT
+    ]
+
+
+def memory_composition(results: dict, path: Path):
+    """stacked bars per map size: baseline without Numba, Numba, data (extremitypathfinder) | baseline, data"""
+    share = numba_share(results)
+    built = _built(results)
+    if share is None:
+        fig, ax = plt.subplots(figsize=FIGSIZE)
+        ax.axis("off")
+        ax.text(
+            0.5,
+            0.5,
+            "The baselines with and without Numba are missing or do not match the run\n"
+            "(e.g. measured on another machine). On the machine of the run:\n"
+            "python -m benchmarks.run --baselines benchmarks/results/benchmark.json",
+            ha="center",
+            va="center",
+            color=TEXT_SECONDARY,
+        )
+        _finish(fig, ax, results, path, legend=False)
+        return
+    fig, ax = _new_axes(results, "peak memory (MiB)")
+    ax.set_xscale("linear")
+    ax.set_yscale("linear")
+    ax.grid(True, axis="y", color=GRID, linewidth=0.8)
+    ax.grid(False, axis="x")
+    mib = 2**20
+    width = 0.38
+    labels, centers = [], []
+    seen = set()
+
+    def bar(x, bottom, height, color, label):
+        # one legend entry per segment kind
+        ax.bar(
+            x,
+            height,
+            width,
+            bottom=bottom,
+            color=color,
+            label=None if label in seen else label,
+        )
+        seen.add(label)
+
+    for i, entry in enumerate(built):
+        epf = entry["results"]["extremitypathfinder"]
+        labels.append(f"{entry['map']['vertices']:,}")
+        centers.append(i)
+        base = (epf["memory_baseline"] - share) / mib
+        segments = [
+            (base, BASE_COLOR, "interpreter and imports without Numba"),
+            (share / mib, NUMBA_COLOR, "Numba (imports and compiled functions)"),
+            (
+                epf["memory_peak"] / mib,
+                STYLE["extremitypathfinder"]["color"],
+                "data: extremitypathfinder",
+            ),
+        ]
+        bottom = 0.0
+        for height, color, label in segments:
+            bar(i - width / 2, bottom, height, color, label)
+            bottom += height
+        ax.annotate(
+            f"{bottom:.0f}",
+            (i - width / 2, bottom),
+            xytext=(0, 2),
+            textcoords="offset points",
+            ha="center",
+            fontsize=7,
+            color=TEXT_SECONDARY,
+        )
+        pvg = entry["results"].get("pyvisgraph", {})
+        if pvg.get("status") in BUILT:
+            bottom = 0.0
+            for height, color, label in (
+                (
+                    pvg["memory_baseline"] / mib,
+                    BASE_COLOR,
+                    "interpreter and imports without Numba",
+                ),
+                (
+                    pvg["memory_peak"] / mib,
+                    STYLE["pyvisgraph"]["color"],
+                    "data: pyvisgraph",
+                ),
+            ):
+                bar(i + width / 2, bottom, height, color, label)
+                bottom += height
+            ax.annotate(
+                f"{bottom:.0f}",
+                (i + width / 2, bottom),
+                xytext=(0, 2),
+                textcoords="offset points",
+                ha="center",
+                fontsize=7,
+                color=TEXT_SECONDARY,
+            )
+    ax.set_xticks(centers, labels)
+    ax.set_title("Peak memory: extremitypathfinder (left), pyvisgraph (right)")
+    _finish(
+        fig,
+        ax,
+        results,
+        path,
+        loc="upper center",
+        bbox_to_anchor=(0.5, -0.17),
+        ncol=2,
+        fontsize=8,
+    )
+
+
 FIGURES = {
     "benchmark_build_time.svg": build_time,
     "benchmark_query_time.svg": query_time,
     "benchmark_memory.svg": memory,
+    "benchmark_memory_composition.svg": memory_composition,
     "benchmark_ratio.svg": ratio,
     "benchmark_world_example.svg": world_example,
 }

@@ -439,3 +439,38 @@ def test_baselines_rendered_and_added_on_the_same_machine_only(monkeypatch, tmp_
     monkeypatch.setattr(run.measure, "system_info", lambda: {"cpu_model": "other"})
     assert run.add_baselines(raw, ["pyvisgraph"])["baselines"]["setups"] == setups
     assert run.json.loads(raw.read_text())["baselines"]["setups"] == setups
+
+
+def test_memory_composition_needs_matching_baselines(tmp_path):
+    from benchmarks import plot
+
+    def setup(numba, mib):
+        return {
+            "label": "x",
+            "package": "extremitypathfinder",
+            "status": "done",
+            "numba": numba,
+            "memory_baseline": mib * 2**20,
+        }
+
+    results = {
+        "world": [
+            {
+                "results": {
+                    "extremitypathfinder": {
+                        "status": measure.OK,
+                        "memory_baseline": 80 * 2**20,
+                    }
+                }
+            }
+        ]
+    }
+    assert plot.numba_share(results) is None
+    results["baselines"] = {"setups": [setup(True, 86), setup(False, 26)]}
+    assert plot.numba_share(results) == 60 * 2**20
+    # a share larger than a baseline of the run (80 MiB): measured elsewhere, no bars
+    results["baselines"] = {"setups": [setup(True, 160), setup(False, 46)]}
+    assert plot.numba_share(results) is None
+    # only the baseline with Numba
+    results["baselines"] = {"setups": [setup(True, 86)]}
+    assert plot.numba_share(results) is None
