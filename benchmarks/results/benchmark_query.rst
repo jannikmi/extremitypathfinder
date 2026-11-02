@@ -11,81 +11,81 @@
      - Queries
    * - 249
      - extremitypathfinder
-     - 1.46 ms
-     - 1.65 ms
-     - 1.73 ms
-     - 1.31 ms
-     - 764
+     - 1.51 ms
+     - 1.86 ms
+     - 1.99 ms
+     - 1.4 ms
+     - 716
      - 200 / 200
    * - 249
      - pyvisgraph
-     - 9.37 ms
-     - 11.4 ms
-     - 11.5 ms
-     - 9.39 ms
-     - 107
+     - 9.76 ms
+     - 12 ms
+     - 12.4 ms
+     - 9.88 ms
+     - 101
      - 200 / 200
    * - 494
      - extremitypathfinder
-     - 2.9 ms
-     - 3.3 ms
-     - 3.48 ms
-     - 2.63 ms
-     - 380
+     - 3.07 ms
+     - 3.77 ms
+     - 4.02 ms
+     - 2.84 ms
+     - 352
      - 200 / 200
    * - 494
      - pyvisgraph
-     - 20.5 ms
-     - 25.7 ms
-     - 27 ms
-     - 20.7 ms
-     - 48.4
+     - 21.6 ms
+     - 26.7 ms
+     - 27.7 ms
+     - 21.5 ms
+     - 46.6
      - 200 / 200
    * - 994
      - extremitypathfinder
-     - 6.12 ms
-     - 7.05 ms
-     - 7.53 ms
-     - 5.56 ms
-     - 180
+     - 6.43 ms
+     - 7.51 ms
+     - 8.11 ms
+     - 5.9 ms
+     - 169
      - 200 / 200
    * - 994
      - pyvisgraph
-     - 47 ms
-     - 59.8 ms
-     - 62.4 ms
-     - 46.7 ms
-     - 21.4
+     - 50.2 ms
+     - 63.6 ms
+     - 64.8 ms
+     - 49.2 ms
+     - 20.3
      - 200 / 200
    * - 1,985
      - extremitypathfinder
-     - 12.8 ms
-     - 14.4 ms
-     - 15.4 ms
-     - 11.5 ms
-     - 86.9
+     - 13.6 ms
+     - 15.7 ms
+     - 16.9 ms
+     - 12.4 ms
+     - 80.6
      - 200 / 200
    * - 1,985
      - pyvisgraph
-     - 107 ms
-     - 141 ms
-     - 144 ms
-     - 105 ms
-     - 9.5
+     - 114 ms
+     - 151 ms
+     - 153 ms
+     - 112 ms
+     - 8.95
      - 200 / 200
    * - 4,954
      - extremitypathfinder
-     - 42.8 ms
-     - 46 ms
-     - 47.2 ms
-     - 38.6 ms
-     - 25.9
+     - 47.1 ms
+     - 50.7 ms
+     - 51.7 ms
+     - 42.4 ms
+     - 23.6
      - 200 / 200
    * - 9,952
      - extremitypathfinder
-     - 178 ms
-     - 199 ms
-     - 215 ms
-     - 162 ms
-     - 6.17
+     - 181 ms
+     - 202 ms
+     - 226 ms
+     - 165 ms
+     - 6.07
      - 200 / 200
