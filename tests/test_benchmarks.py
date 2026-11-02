@@ -226,6 +226,7 @@ def test_invalid_runs_show_build_results_but_no_query_results():
         "graph_nodes": 4,
         "graph_edges": 6,
         "memory_peak": 3 * 2**20,
+        "memory_baseline": 10 * 2**20,
         "query_stats": {**stats, "queries_per_s": 1000.0, "n": 1},
     }
     entry = {
@@ -256,8 +257,13 @@ def test_invalid_runs_show_build_results_but_no_query_results():
     # build time, memory and build ratio as for valid runs, only the graph size is marked
     assert build.count("(invalid)") == 1
     assert "4 / 6 (invalid)" in build
-    assert build.count("     - 2 s\n") == 2 and build.count("     - 3 MiB\n") == 2
+    assert build.count("     - 2 s\n") == 2
     assert "     - 1\n" in build  # build ratio
+    # memory above the baseline, baseline and total for both packages, also for the invalid run
+    memory = tables["benchmark_memory.rst"]
+    assert "(invalid)" not in memory
+    for cell in ("3 MiB", "10 MiB", "13 MiB"):
+        assert memory.count(f"     - {cell}\n") == 2
     assert "pyvisgraph" not in tables["benchmark_query.rst"].split("Queries\n", 1)[1]
 
 

@@ -75,7 +75,7 @@ def _new_axes(results: dict, ylabel: str):
     return fig, ax
 
 
-def _finish(fig, ax, results: dict, path: Path, legend: bool = True):
+def _finish(fig, ax, results: dict, path: Path, legend: bool = True, **legend_kwargs):
     meta = results["meta"]
     system = meta["system"]
     caption = (
@@ -97,7 +97,7 @@ def _finish(fig, ax, results: dict, path: Path, legend: bool = True):
             rotation=20,
         )
     if legend and ax.get_legend_handles_labels()[0]:
-        ax.legend(frameon=False, loc="best")
+        ax.legend(frameon=False, **({"loc": "best"} | legend_kwargs))
     fig.tight_layout(rect=(0, 0.04, 1, 1))
     fig.savefig(path, format="svg", metadata=METADATA)
     plt.close(fig)
@@ -108,7 +108,7 @@ def _finish(fig, ax, results: dict, path: Path, legend: bool = True):
     )
 
 
-def _line(ax, xs, ys, package):
+def _line(ax, xs, ys, package, label=None, linestyle="-"):
     style = STYLE[package]
     ax.plot(
         xs,
@@ -117,9 +117,11 @@ def _line(ax, xs, ys, package):
         marker=style["marker"],
         markersize=6,
         linewidth=2,
-        label=package,
+        linestyle=linestyle,
+        markerfacecolor=style["color"] if linestyle == "-" else "none",
+        label=label or package,
     )
-    if xs:
+    if xs and label is None:
         # direct label at the last point
         ax.annotate(
             package,
@@ -173,14 +175,44 @@ def query_time(results: dict, path: Path):
 
 
 def memory(results: dict, path: Path):
-    fig, ax = _new_axes(results, "peak memory above baseline (MiB)")
+    fig, ax = _new_axes(results, "peak memory (MiB)")
     for package in PACKAGES:
         xs, ys = _ok_points(results, package, lambda r: r["memory_peak"] / 2**20, BUILT)
         # ru_maxrss has a coarse resolution: tiny maps may show 0
         points = [(x, y) for x, y in zip(xs, ys) if y > 0]
         _line(ax, [p[0] for p in points], [p[1] for p in points], package)
-    ax.set_title("Peak memory of build and queries")
-    _finish(fig, ax, results, path)
+        # the total: including the baseline of the process (imports, warm-up, input)
+        xs, ys = _ok_points(
+            results,
+            package,
+            lambda r: (
+                None
+                if r.get("memory_baseline") is None
+                else (r["memory_baseline"] + r["memory_peak"]) / 2**20
+            ),
+            BUILT,
+        )
+        points = [(x, y) for x, y in zip(xs, ys) if y is not None]
+        _line(
+            ax,
+            [p[0] for p in points],
+            [p[1] for p in points],
+            package,
+            label=f"{package}, total incl. imports",
+            linestyle="--",
+        )
+    ax.set_title("Peak memory: above the baseline (solid), total (dashed)")
+    # below the axes: no free corner for four entries
+    _finish(
+        fig,
+        ax,
+        results,
+        path,
+        loc="upper center",
+        bbox_to_anchor=(0.5, -0.17),
+        ncol=2,
+        fontsize=8,
+    )
 
 
 def ratio(results: dict, path: Path):

@@ -626,6 +626,17 @@ def has_build_results(result: dict) -> bool:
     )
 
 
+def memory_cells(result: dict) -> list[str]:
+    """peak memory above the baseline, the baseline (imports, warm-up, input) and their sum"""
+    peak = result["memory_peak"]
+    baseline = result.get("memory_baseline")
+    # below the resolution of the peak resident memory
+    above = "< 1 MiB" if peak < 2**20 else format_bytes(peak)
+    if baseline is None:
+        return [above, "–", "–"]
+    return [above, format_bytes(baseline), format_bytes(baseline + peak)]
+
+
 def _mark(result: dict, text: str) -> str:
     return f"{text} (invalid)" if result.get("status") == measure.INVALID else text
 
@@ -729,17 +740,9 @@ def render_tables(results: dict) -> dict[str, str]:
                 if has_build_results(r)
                 else "–"
             )
-        for r in (epf, pvg):
-            if not has_build_results(r):
-                row.append("–")
-            elif r["memory_peak"] < 2**20:
-                # below the resolution of the peak resident memory
-                row.append("< 1 MiB")
-            else:
-                row.append(format_bytes(r["memory_peak"]))
         rows.append(row)
     tables["benchmark_build.rst"] = note + _list_table(
-        "Preprocessing (build) time, graph size and peak memory",
+        "Preprocessing (build) time and graph size",
         [
             "Vertices",
             "Build extremitypathfinder",
@@ -747,8 +750,27 @@ def render_tables(results: dict) -> dict[str, str]:
             "Ratio",
             "Graph extremitypathfinder (nodes / edges)",
             "Graph pyvisgraph (nodes / edges)",
-            "Memory extremitypathfinder",
-            "Memory pyvisgraph",
+        ],
+        rows,
+    )
+
+    rows = []
+    for e in world:
+        row = [f"{e['map']['vertices']:,}"]
+        for package in PACKAGES:
+            r = e["results"].get(package, {})
+            row.extend(memory_cells(r) if has_build_results(r) else ["–"] * 3)
+        rows.append(row)
+    tables["benchmark_memory.rst"] = note + _list_table(
+        "Peak memory of the build and the queries: above the baseline, the baseline "
+        "(imports and warm-up) and the total",
+        [
+            "Vertices",
+            *(
+                f"{column} {package}"
+                for package in PACKAGES
+                for column in ("Above baseline", "Baseline", "Total")
+            ),
         ],
         rows,
     )

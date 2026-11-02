@@ -82,8 +82,10 @@ Measurements
   Linux: peak resident memory (``VmHWM``), macOS: peak physical footprint (``proc_pid_rusage``,
   the memory figure of the Activity Monitor). A coarse figure: the allocator keeps freed memory.
   It is measured in the same run as the timings, without ``tracemalloc``, whose overhead would distort the timings.
-  The baseline (the interpreter with the imported packages) is not included: with Numba,
-  ``extremitypathfinder``'s process starts at about 86 MiB, pyvisgraph's at about 18 MiB.
+  The baseline is reported separately, and the total is the sum of both: the memory of the process after
+  the imports, the warm-up and loading the input (the interpreter, the package, its dependencies and,
+  for ``extremitypathfinder``, Numba with the compiled functions). The peak above the baseline compares
+  the data structures, the total is what a process needs.
 * **Graph size**: nodes and edges of ``extremitypathfinder``'s reduced visibility graph
   and of pyvisgraph's full visibility graph.
 * **Budget**: 10 min per build. Each package and size runs in its own subprocess, which is killed when the build
@@ -133,7 +135,10 @@ Results
    :width: 100%
    :alt: peak memory over the number of vertices
 
-   Peak memory of the build and the queries.
+   Peak memory of the build and the queries: above the baseline (solid) and the total including the imports
+   and the warm-up (dashed).
+
+.. include:: ../benchmarks/results/benchmark_memory.rst
 
 .. figure:: _static/benchmark_ratio.svg
    :width: 100%
@@ -170,9 +175,12 @@ Weaknesses and limitations:
   The 9,952-vertex map comes from the finer source data with many more polygons (730 instead of 127),
   and its visibility graph has 8.6 times as many edges as the 4,954-vertex map's.
   Maps with tens of thousands of vertices need more than 10 minutes of preprocessing.
-- **Memory on small maps.** Up to 1,985 vertices it uses more memory than pyvisgraph (19 MiB vs 12 MiB at 1,985),
-  from 4,954 vertices on less (34 MiB vs 58 MiB).
-  At 9,952 vertices it needs 62 MiB.
+- **Memory on small maps.** Above the baseline, it uses more memory than pyvisgraph up to 1,985 vertices
+  (19 MiB vs 12 MiB at 1,985) and less from 4,954 vertices on (34 MiB vs 58 MiB). At 9,952 vertices it needs 62 MiB.
+  Its baseline is much larger: 86 to 88 MiB with Numba, pyvisgraph's 18 to 19 MiB.
+  In total its process needs 4.6 times as much memory on the smallest map (88 MiB vs 19 MiB)
+  and 1.6 times as much at 4,954 vertices (123 MiB vs 77 MiB).
+  Numba is optional, the baseline without it was not measured.
 - **Query time grows with the map.** A query takes 1.5 ms (median) on 249 vertices and 183 ms on 9,952 vertices:
   connecting start and goal to the graph checks the visibility of all vertices (cf. :ref:`design`).
 - **Scope of the comparison.** One machine, single-threaded (pyvisgraph can build its graph with several processes,
