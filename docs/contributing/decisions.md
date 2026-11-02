@@ -11,8 +11,9 @@ Decided trade-offs, newest first, including the rejected options
 - **Details:** <link to the full reasoning, if any>
 ```
 
-Entries are not edited, except that a maintainer confirms an agent decision by changing **Decided by**,
-and a revised decision gets a new entry that marks the old one **superseded**.
+Keep the entries correct: update links and wording when the referenced content moves or changes.
+A maintainer confirms an agent decision by changing **Decided by**.
+A revised decision gets a new entry that marks the old one **superseded**.
 Earlier decisions are described in the {ref}`Design Decisions <design_decisions>` and the issues linked there.
 
 ## Benchmarks against pyvisgraph on Natural Earth world maps of increasing size (#165)
