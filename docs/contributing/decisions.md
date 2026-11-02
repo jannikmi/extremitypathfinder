@@ -19,7 +19,7 @@ Earlier decisions are described in the {ref}`Design Decisions <design_decisions>
 ## Benchmark memory: peak above the baseline, the baseline and the total (#165)
 
 - **Decided by:** a maintainer
-- **Rejected:** only the peak above the baseline (hides the cost of the imports, about 86 MiB with Numba
+- **Rejected:** only the peak above the baseline (hides the cost of the imports, about 87 MiB with Numba
   vs 18 MiB, which a process pays on small maps); only the total (the fixed baseline hides the part that grows
   with the map).
 - **Details:** [Measurements](../7_performance.rst) of the performance section

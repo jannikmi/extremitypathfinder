@@ -11,81 +11,81 @@
      - Queries
    * - 249
      - extremitypathfinder
-     - 1.5 ms
-     - 1.77 ms
-     - 1.88 ms
-     - 1.37 ms
-     - 728
+     - 1.48 ms
+     - 1.81 ms
+     - 1.87 ms
+     - 1.36 ms
+     - 735
      - 200 / 200
    * - 249
      - pyvisgraph
-     - 9.49 ms
-     - 11.4 ms
+     - 9.64 ms
      - 11.9 ms
-     - 9.48 ms
-     - 106
+     - 12.1 ms
+     - 9.71 ms
+     - 103
      - 200 / 200
    * - 494
      - extremitypathfinder
-     - 2.9 ms
-     - 3.34 ms
-     - 3.49 ms
-     - 2.63 ms
-     - 381
+     - 3.03 ms
+     - 3.62 ms
+     - 3.83 ms
+     - 2.77 ms
+     - 361
      - 200 / 200
    * - 494
      - pyvisgraph
-     - 20.6 ms
-     - 25.6 ms
-     - 27 ms
-     - 20.7 ms
-     - 48.2
+     - 21.4 ms
+     - 26.9 ms
+     - 27.3 ms
+     - 21.5 ms
+     - 46.6
      - 200 / 200
    * - 994
      - extremitypathfinder
-     - 6.1 ms
-     - 7.09 ms
-     - 7.62 ms
-     - 5.6 ms
-     - 178
+     - 6.46 ms
+     - 7.49 ms
+     - 8 ms
+     - 5.88 ms
+     - 170
      - 200 / 200
    * - 994
      - pyvisgraph
-     - 48.6 ms
-     - 60.6 ms
-     - 62.7 ms
-     - 47.3 ms
-     - 21.1
+     - 49.2 ms
+     - 63.2 ms
+     - 64.5 ms
+     - 48.9 ms
+     - 20.5
      - 200 / 200
    * - 1,985
      - extremitypathfinder
-     - 12.8 ms
-     - 14.4 ms
-     - 15.4 ms
-     - 11.6 ms
-     - 86.5
+     - 13.4 ms
+     - 15.5 ms
+     - 16.4 ms
+     - 12.2 ms
+     - 82.1
      - 200 / 200
    * - 1,985
      - pyvisgraph
-     - 107 ms
-     - 142 ms
-     - 144 ms
-     - 106 ms
-     - 9.47
+     - 113 ms
+     - 149 ms
+     - 152 ms
+     - 110 ms
+     - 9.05
      - 200 / 200
    * - 4,954
      - extremitypathfinder
-     - 43.2 ms
-     - 46.3 ms
-     - 47.2 ms
-     - 38.8 ms
-     - 25.8
+     - 45.4 ms
+     - 49.4 ms
+     - 50.8 ms
+     - 41 ms
+     - 24.4
      - 200 / 200
    * - 9,952
      - extremitypathfinder
      - 183 ms
-     - 212 ms
-     - 229 ms
-     - 168 ms
-     - 5.96
+     - 205 ms
+     - 225 ms
+     - 167 ms
+     - 6
      - 200 / 200

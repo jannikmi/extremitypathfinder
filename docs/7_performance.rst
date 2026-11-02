@@ -166,9 +166,9 @@ Written from the measured data of this run.
 
 Strengths of ``extremitypathfinder``:
 
-- **Faster preprocessing and queries.** It builds the environment 4.4 to 7.3 times faster
+- **Faster preprocessing and queries.** It builds the environment 4.4 to 7.1 times faster
   (up to 4,954 vertices, the largest map both built within the budget).
-  On the maps where both packages return valid paths (up to 1,985 vertices), it answers a query 6.3 to 8.4 times
+  On the maps where both packages return valid paths (up to 1,985 vertices), it answers a query 6.5 to 8.4 times
   faster (median). Both ratios grow with the size of the map.
 - **Correct paths.** All its paths are valid and agree in length with the valid paths of pyvisgraph.
   On the 4,954-vertex map, pyvisgraph returned 59 of 200 paths through land (cf. :ref:`benchmark-correctness`),
@@ -182,16 +182,16 @@ Strengths of ``extremitypathfinder``:
 Weaknesses and limitations:
 
 - **The preprocessing limits the map size.** The build time grows steeply with the map:
-  32 s at 4,954 vertices, 215 s at 9,952 vertices (6.7 times as long for twice the vertices),
+  34 s at 4,954 vertices, 215 s at 9,952 vertices (6.3 times as long for twice the vertices),
   and the 19,956-vertex map exceeded the 10 min budget.
   The 9,952-vertex map comes from the finer source data with many more polygons (730 instead of 127),
   and its visibility graph has 8.6 times as many edges as the 4,954-vertex map's.
   Maps with tens of thousands of vertices need more than 10 minutes of preprocessing.
 - **Memory on small maps.** Above the baseline, it uses more memory than pyvisgraph up to 1,985 vertices
-  (19 MiB vs 12 MiB at 1,985) and less from 4,954 vertices on (34 MiB vs 58 MiB). At 9,952 vertices it needs 62 MiB.
-  Its baseline is much larger: 86 to 88 MiB with Numba, pyvisgraph's 18 to 19 MiB.
-  In total its process needs 4.6 times as much memory on the smallest map (88 MiB vs 19 MiB)
-  and 1.6 times as much at 4,954 vertices (123 MiB vs 77 MiB).
+  (19 MiB vs 12 MiB at 1,985) and less from 4,954 vertices on (35 MiB vs 58 MiB). At 9,952 vertices it needs 71 MiB.
+  Its baseline is much larger: 87 to 90 MiB with Numba, pyvisgraph's 18 to 19 MiB.
+  In total its process needs 4.8 times as much memory on the smallest map (89 MiB vs 18 MiB)
+  and 1.6 times as much at 4,954 vertices (122 MiB vs 77 MiB).
   Most of the difference is Numba: without Numba its baseline is 36 MiB instead of 87 MiB
   (pyvisgraph: 18 MiB, each measured without input data). Numba is optional.
 - **Query time grows with the map.** A query takes 1.5 ms (median) on 249 vertices and 183 ms on 9,952 vertices:
