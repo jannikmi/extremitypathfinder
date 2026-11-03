@@ -1,67 +1,39 @@
-import random
-import timeit
-from collections.abc import Callable
+"""Speed of extremitypathfinder on the small example environments.
 
-from extremitypathfinder import PolygonEnvironment
-from tests.test_cases import POLYGON_ENVS
+Thin wrapper around the benchmark harness (``benchmarks.measure``):
+each example is built and queried in a subprocess after a warm-up (Numba compiled, if installed),
+with seeded random queries in the free space. The comparison with pyvisgraph
+on the world map size sweep is ``python -m benchmarks.run`` (``make benchmark``).
 
-RUNS_ENV_PREP = int(1e3)
-RUNS_QUERY = int(1e3)
+usage: uv run --all-extras --group benchmark python scripts/speed_benchmarks.py [nr_queries]
+"""
 
+import sys
+from pathlib import Path
 
-def timefunc(function: Callable, nr_runs: int, *args):
-    def wrap():
-        function(*args)
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-    timer = timeit.Timer(wrap)
-    t_in_sec = timer.timeit(nr_runs)
-    return t_in_sec
+from benchmarks import measure, run, workloads
 
-
-def get_random_env():
-    return random.choice(POLYGON_ENVS)
+PACKAGE = "extremitypathfinder"
 
 
-def get_prepared_env(env_data):
-    env = PolygonEnvironment(*env_data)
-    return env
+def main(nr_queries: int = 1000):
+    for data in workloads.small_example_maps():
+        queries = workloads.generate_queries([data], nr_queries, region=None)
+        result = measure.measure(PACKAGE, data["holes"], queries, budget=None)
+        if result["status"] != "done":
+            print(f"{data['name']}: {result['status']} {result.get('error', '')}")
+            continue
+        stats = run.query_stats(result["query_times_ns"])
+        print(
+            f"{data['name']} ({data['vertices']} vertices, Numba: {result['numba']}): "
+            f"build {run.format_time(result['build_time'])}, "
+            f"query p50 {run.format_time(stats['p50'])}, "
+            f"mean {run.format_time(stats['mean'])} "
+            f"({stats['queries_per_s']:.3g} queries/s, {stats['n']} queries)"
+        )
 
 
-def get_rnd_query_pts(env):
-    # return any of the environments points
-    start_idx = random.randint(0, env.nr_vertices - 1)
-    goal_idx = random.randint(0, env.nr_vertices - 1)
-    start = env.coords[start_idx]
-    goal = env.coords[goal_idx]
-    return goal, start
-
-
-def test_env_preparation_speed():
-    def run_func():
-        env_data = get_random_env()
-        _ = get_prepared_env(env_data)
-
-    print()
-    t = timefunc(run_func, RUNS_ENV_PREP)
-    t_avg = t / RUNS_ENV_PREP
-    pts_p_sec = t_avg**-1
-    print(
-        f"avg. environment preparation time {t_avg:.1e} s/run, {pts_p_sec:.1e} runs/s"
-    )
-    print(f"averaged over {RUNS_ENV_PREP:,} runs")
-
-
-def test_query_speed():
-    prepared_envs = [get_prepared_env(d) for d in POLYGON_ENVS]
-
-    def run_func():
-        env = random.choice(prepared_envs)
-        goal, start = get_rnd_query_pts(env)
-        env.find_shortest_path(start, goal, verify=False)
-
-    print()
-    t = timefunc(run_func, RUNS_QUERY)
-    t_avg = t / RUNS_QUERY
-    pts_p_sec = t_avg**-1
-    print(f"avg. query time {t_avg:.1e} s/run, {pts_p_sec:.1e} runs/s")
-    print(f"averaged over {RUNS_QUERY:,} runs")
+if __name__ == "__main__":
+    main(*(int(a) for a in sys.argv[1:2]))
