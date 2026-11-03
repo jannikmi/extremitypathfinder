@@ -12,6 +12,7 @@ which links back to the topics below.
   the steps to reproduce the bug (ideally a minimal environment) and the full error message.
 - **Fix bugs**: issues labelled "bug" are open to whoever wants to fix them.
 - **Implement features**: issues labelled "help wanted" and not assigned to anyone are open.
+  Start with those labelled `priority: high` (cf. [Prioritising issues](docs/contributing/workflow.md#prioritising-issues)).
   Comment on the issue that you have started, and open a (draft) pull request early, so that CI runs.
   Issues without "help wanted" may already have code in the background. You can still help by describing
   how the feature would be useful to you or by linking to prior art.

@@ -7,6 +7,27 @@
 - Changes of the [invariants](invariants.md) (e.g. the numerical policy or the orientation convention)
   need an issue that decides them.
 
+## Prioritising issues
+
+Open issues carry one of the labels `priority: high`, `priority: medium` and `priority: low`.
+Pick the work from the top, and label new issues when triaging them. The priorities are:
+
+1. **Stability:** correct results, no crashes, a reliable installation and no regressions for existing users.
+2. **Popularity:** easier to find, install, adopt and cite, or a common reason less to choose another package.
+
+Rate an issue on both, then weigh the effort and the risk of breaking something (core algorithms, the
+[invariants](invariants.md)). If two issues are rated the same, stability comes first, then the cheaper issue.
+
+- **Demand counts:** a 👍 reaction, a use case in a comment or a report by a user raises the priority.
+- **An issue inherits the highest priority of the issues it blocks.** A benchmark that a paper and all
+  performance work wait for is as important as they are.
+- **Decision issues before implementations:** decide the issues that change other issues
+  (e.g. replacing Numba) before implementing those.
+- **Large changes of the core** (new engines, optimisations) stay low until a benchmark or a user shows the need.
+
+Record the relations on GitHub, not in a file: "blocked by" for an issue that must be done first,
+sub-issues for the parts of a larger issue. Update the labels when an issue changes its scope or what it blocks.
+
 ## Trade-offs and decisions
 
 A larger change is new behaviour, API, algorithm, data structure or dependency, or anything that touches

@@ -56,7 +56,7 @@ internal:
 - contributing guide for human and AI contributors in Markdown: ``CONTRIBUTING.md`` with topic pages in
   ``docs/contributing/`` (rendered with MyST), ``AGENTS.md`` and ``CLAUDE.md`` for coding agents,
   pull request and issue templates, ``make check`` for a quick check before committing,
-  trade-off rules and a decision log.
+  trade-off rules, a decision log and rules for prioritising issues.
 
 
 3.0.0 (2026-10-29)
