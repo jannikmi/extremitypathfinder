@@ -17,7 +17,7 @@ Leave out details that are fully explained on the page they affect.
 
 Keep the entries correct: update links and wording when the referenced content moves or changes.
 A maintainer confirms an agent decision by changing **Decided by**.
-A revised decision gets a new entry that marks the old one **superseded**.
+A decision revised by a later pull request gets a new entry that marks the old one **superseded**.
 Earlier decisions are described in the {ref}`Design Decisions <design_decisions>` and the issues linked there.
 
 ## Benchmarks against pyvisgraph on Natural Earth world maps of increasing size (#165)
