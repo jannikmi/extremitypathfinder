@@ -105,8 +105,7 @@ Measurements
   (along edges and through vertices is allowed), and the lengths of both packages agree within a relative
   tolerance of 1e-9. Packages and sizes failing a query are ``invalid``: their query times and the query ratio
   are left out. Their build was measured like any other: build time, memory and the build ratio are shown.
-  Their graph size is marked as invalid, because the graph contains wrong edges
-  (14 of 277,886 for pyvisgraph at 4,954 vertices).
+  Their graph size is marked as invalid, because the graph contains wrong edges (cf. :ref:`benchmark-correctness`).
 
 
 .. _benchmark-results:
@@ -166,36 +165,28 @@ Written from the measured data of this run.
 
 Strengths of ``extremitypathfinder``:
 
-- **Faster preprocessing and queries.** It builds the environment 4.4 to 7.1 times faster
-  (up to 4,954 vertices, the largest map both built within the budget).
-  On the maps where both packages return valid paths (up to 1,985 vertices), it answers a query 6.5 to 8.4 times
+- **Faster preprocessing and queries.** It builds the environment several times faster on all maps both packages
+  built within the budget. On the maps where both packages return valid paths, it also answers queries several times
   faster (median). Both ratios grow with the size of the map.
 - **Correct paths.** All its paths are valid and agree in length with the valid paths of pyvisgraph.
-  On the 4,954-vertex map, pyvisgraph returned 59 of 200 paths through land (cf. :ref:`benchmark-correctness`),
-  so its largest map with a valid result has 1,985 vertices.
-- **The graph reduction pays off at query time.** Its visibility graph has 3 to 5.9 times fewer edges than
-  pyvisgraph's full visibility graph on the valid maps, and the difference grows with the size of the map
-  (22 times at 4,954 vertices, where pyvisgraph's graph contains 14 invalid edges).
+  On larger maps pyvisgraph returned paths through land (cf. :ref:`benchmark-correctness`).
+- **The graph reduction pays off at query time.** Its visibility graph has several times fewer edges than
+  pyvisgraph's full visibility graph, and the difference grows with the size of the map.
   The queries search this smaller graph.
-- **Larger maps within the budget.** It handled 9,952 vertices, pyvisgraph exceeded the 10 min build budget there.
+- **Larger maps within the budget.** It built maps for which pyvisgraph exceeded the build budget.
 
 Weaknesses and limitations:
 
-- **The preprocessing limits the map size.** The build time grows steeply with the map:
-  34 s at 4,954 vertices, 215 s at 9,952 vertices (6.3 times as long for twice the vertices),
-  and the 19,956-vertex map exceeded the 10 min budget.
-  The 9,952-vertex map comes from the finer source data with many more polygons (730 instead of 127),
-  and its visibility graph has 8.6 times as many edges as the 4,954-vertex map's.
-  Maps with tens of thousands of vertices need more than 10 minutes of preprocessing.
-- **Memory on small maps.** Above the baseline, it uses more memory than pyvisgraph up to 1,985 vertices
-  (19 MiB vs 12 MiB at 1,985) and less from 4,954 vertices on (35 MiB vs 58 MiB). At 9,952 vertices it needs 71 MiB.
-  Its baseline is much larger: 87 to 90 MiB with Numba, pyvisgraph's 18 to 19 MiB.
-  In total its process needs 4.8 times as much memory on the smallest map (89 MiB vs 18 MiB)
-  and 1.6 times as much at 4,954 vertices (122 MiB vs 77 MiB).
-  Most of the difference is Numba: without Numba its baseline is 36 MiB instead of 87 MiB
-  (pyvisgraph: 18 MiB, each measured without input data). Numba is optional.
-- **Query time grows with the map.** A query takes 1.5 ms (median) on 249 vertices and 183 ms on 9,952 vertices:
-  connecting start and goal to the graph checks the visibility of all vertices (cf. :ref:`design`).
+- **The preprocessing limits the map size.** The build time grows steeply with the map,
+  and the sweep ends where it exceeds the build budget (cf. the build table).
+  Going from the raw 110m data to the finer source data adds many polygons, and the visibility graph
+  grows much faster than the number of vertices there.
+- **Memory on small maps.** Above the baseline, it uses more memory than pyvisgraph on small maps and less on large ones.
+  Its baseline is much larger, so its process needs several times as much memory in total on the smallest maps.
+  The gap shrinks with the size of the map.
+  Most of the difference in the baseline is Numba (which is optional, cf. the baselines without input data).
+- **Query time grows with the map.** Connecting start and goal to the graph checks the visibility of all vertices
+  (cf. :ref:`design`).
 - **Scope of the comparison.** One machine, single-threaded (pyvisgraph can build its graph with several processes,
   which was not measured), ``extremitypathfinder`` with Numba only. Longitude and latitude are used as
   planar coordinates, and the query points keep a distance from the coasts.
