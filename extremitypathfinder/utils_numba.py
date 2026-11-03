@@ -3,7 +3,6 @@ from collections.abc import Iterable
 
 import numpy as np
 
-
 try:
     from numba import b1, f8, i8, njit, typeof
 except ImportError:
