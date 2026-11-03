@@ -30,7 +30,7 @@ from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 
 from benchmarks import measure, validate, workloads, world_map
-from benchmarks.adapters import PACKAGES
+from benchmarks.adapters import ADAPTERS, NO_NUMBA, OWN_PACKAGES, PACKAGES
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 RESULTS_DIR = Path(__file__).parent / "results"
@@ -349,7 +349,7 @@ def keep_awake():
 
 def run(args, argv) -> dict:
     packages = args.packages
-    # extremitypathfinder is only compared with Numba (best case, cf. docs/7_performance.rst)
+    # extremitypathfinder is compared with pyvisgraph with Numba (best case, cf. docs/7_performance.rst)
     numba_missing = importlib.util.find_spec("numba") is None
     if "extremitypathfinder" in packages and numba_missing and not args.allow_no_numba:
         raise SystemExit(
@@ -513,6 +513,8 @@ def preflight(args) -> int:
                 result["numba"] or args.allow_no_numba,
                 f"Numba active: {result['numba']}",
             )
+        if package == NO_NUMBA and result["status"] == "done":
+            check(not result["numba"], f"{package}: Numba active: {result['numba']}")
     # the peak memory of a worker must not include the peak of this (large) process
     ballast = bytearray(300 * 2**20)
     for k in range(0, len(ballast), 4096):
@@ -678,14 +680,19 @@ def has_build_results(result: dict) -> bool:
 
 
 def memory_cells(result: dict) -> list[str]:
-    """peak memory above the baseline, the baseline (imports, warm-up, input) and their sum"""
+    """peak and retained memory above the baseline, the baseline (imports, warm-up, input) and the total peak"""
+
+    def above(nr_bytes: int) -> str:
+        # below the resolution of the resident memory
+        return "< 1 MiB" if nr_bytes < 2**20 else format_bytes(nr_bytes)
+
     peak = result["memory_peak"]
+    retained = result.get("memory_retained")
     baseline = result.get("memory_baseline")
-    # below the resolution of the peak resident memory
-    above = "< 1 MiB" if peak < 2**20 else format_bytes(peak)
+    cells = [above(peak), "–" if retained is None else above(retained)]
     if baseline is None:
-        return [above, "–", "–"]
-    return [above, format_bytes(baseline), format_bytes(baseline + peak)]
+        return [*cells, "–", "–"]
+    return [*cells, format_bytes(baseline), format_bytes(baseline + peak)]
 
 
 def baseline_note(results: dict) -> str:
@@ -787,8 +794,9 @@ def render_tables(results: dict) -> dict[str, str]:
     for e in world:
         epf = e["results"].get("extremitypathfinder", {})
         pvg = e["results"].get("pyvisgraph", {})
+        no_numba = e["results"].get(NO_NUMBA, {})
         row = [f"{e['map']['vertices']:,}"]
-        for r in (epf, pvg):
+        for r in (epf, no_numba, pvg):
             row.append(
                 format_time(r["build_time"])
                 if has_build_results(r)
@@ -812,8 +820,9 @@ def render_tables(results: dict) -> dict[str, str]:
         [
             "Vertices",
             "Build extremitypathfinder",
+            "Build extremitypathfinder without Numba",
             "Build pyvisgraph",
-            "Ratio",
+            "Ratio pyvisgraph / extremitypathfinder",
             "Graph extremitypathfinder (nodes / edges)",
             "Graph pyvisgraph (nodes / edges)",
         ],
@@ -822,22 +831,20 @@ def render_tables(results: dict) -> dict[str, str]:
 
     rows = []
     for e in world:
-        row = [f"{e['map']['vertices']:,}"]
         for package in PACKAGES:
             r = e["results"].get(package, {})
-            row.extend(memory_cells(r) if has_build_results(r) else ["–"] * 3)
-        rows.append(row)
+            if has_build_results(r):
+                rows.append(
+                    [
+                        f"{e['map']['vertices']:,}",
+                        ADAPTERS[package].label,
+                        *memory_cells(r),
+                    ]
+                )
     memory_table = _list_table(
-        "Peak memory of the build and the queries: above the baseline, the baseline "
-        "(imports and warm-up) and the total",
-        [
-            "Vertices",
-            *(
-                f"{column} {package}"
-                for package in PACKAGES
-                for column in ("Above baseline", "Baseline", "Total")
-            ),
-        ],
+        "Memory above the baseline: the peak of the build and the queries, and what is retained after the build. "
+        "The baseline (imports and warm-up) and the total peak",
+        ["Vertices", "Package", "Peak", "Retained", "Baseline", "Total peak"],
         rows,
     )
     tables["benchmark_memory.rst"] = note + memory_table + baseline_note(results)
@@ -852,7 +859,7 @@ def render_tables(results: dict) -> dict[str, str]:
             rows.append(
                 [
                     f"{e['map']['vertices']:,}",
-                    package,
+                    ADAPTERS[package].label,
                     format_time(q["p50"]),
                     format_time(q["p95"]),
                     format_time(q["p99"]),
@@ -886,7 +893,7 @@ def render_tables(results: dict) -> dict[str, str]:
                 [
                     e["map"]["name"],
                     f"{e['map']['vertices']:,}",
-                    package,
+                    ADAPTERS[package].label,
                     r["status"],
                     detail,
                 ]
@@ -903,7 +910,7 @@ def render_tables(results: dict) -> dict[str, str]:
     for package, s in largest_ok(results).items():
         if s["largest_within_budget"] is None and s["first_over_budget"] is None:
             continue
-        line = f"- {package}: largest map within the budget: "
+        line = f"- {ADAPTERS[package].label}: largest map within the budget: "
         line += (
             f"{s['largest_within_budget']:,} vertices"
             if s["largest_within_budget"]
@@ -1036,7 +1043,8 @@ def parse_args(argv):
     parser.add_argument(
         "--allow-no-numba",
         action="store_true",
-        help="run extremitypathfinder without Numba (not comparable with the documented results)",
+        help="allow a run without the Numba extra: extremitypathfinder then also runs without Numba "
+        "(not comparable with the documented results)",
     )
     parser.add_argument(
         "--fail-on-invalid",
@@ -1095,15 +1103,12 @@ def main(argv: list[str] | None = None) -> int:
 
         write_tables(results, args.tables_dir)
         plot.write_figures(results, args.figures_dir)
+    failed = (measure.INVALID, measure.CRASH)
     report_failures = [
         f"{entry['map']['name']}: {result['status']}"
         for entry in results["world"] + results["examples"]
         for package, result in entry["results"].items()
-        if (package, result["status"])
-        in {
-            ("extremitypathfinder", measure.INVALID),
-            ("extremitypathfinder", measure.CRASH),
-        }
+        if package in OWN_PACKAGES and result["status"] in failed
     ]
     if report_failures:
         _log("extremitypathfinder failures:", *report_failures, sep="\n  ")

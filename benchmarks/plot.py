@@ -20,14 +20,15 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import FuncFormatter, LogLocator, NullFormatter
 
 from benchmarks import measure, workloads
-from benchmarks.adapters import PACKAGES
+from benchmarks.adapters import ADAPTERS, COMPARED_PACKAGES, NO_NUMBA, PACKAGES
 
 matplotlib.use("Agg")
 
-# fixed colors per package (categorical slots 1 and 2), markers as secondary encoding
+# fixed colors per package (categorical slots 1 to 3), markers as secondary encoding
 STYLE = {
     "extremitypathfinder": {"color": "#2a78d6", "marker": "o"},
     "pyvisgraph": {"color": "#eb6834", "marker": "s"},
+    NO_NUMBA: {"color": "#1baf7a", "marker": "^"},
 }
 TEXT_SECONDARY = "#52514e"
 GRID = "#e4e3df"
@@ -110,6 +111,7 @@ def _finish(fig, ax, results: dict, path: Path, legend: bool = True, **legend_kw
 
 def _line(ax, xs, ys, package, label=None, linestyle="-"):
     style = STYLE[package]
+    name = ADAPTERS[package].label
     ax.plot(
         xs,
         ys,
@@ -119,12 +121,13 @@ def _line(ax, xs, ys, package, label=None, linestyle="-"):
         linewidth=2,
         linestyle=linestyle,
         markerfacecolor=style["color"] if linestyle == "-" else "none",
-        label=label or package,
+        label=label or name,
     )
     if xs and label is None:
         # direct label at the last point
         ax.annotate(
-            package,
+            # short: a long label takes the width from the axes
+            name.removeprefix("extremitypathfinder "),
             (xs[-1], ys[-1]),
             xytext=(6, 0),
             textcoords="offset points",
@@ -153,7 +156,7 @@ def build_time(results: dict, path: Path):
             color=TEXT_SECONDARY,
         )
     ax.set_title("Preprocessing (build) time")
-    _finish(fig, ax, results, path)
+    _finish(fig, ax, results, path, loc="lower right", fontsize=8)
 
 
 def query_time(results: dict, path: Path):
@@ -171,12 +174,12 @@ def query_time(results: dict, path: Path):
                 linewidth=0,
             )
     ax.set_title("Query latency: median, 5th–95th percentile band")
-    _finish(fig, ax, results, path)
+    _finish(fig, ax, results, path, loc="lower right", fontsize=8)
 
 
 def memory(results: dict, path: Path):
     fig, ax = _new_axes(results, "peak memory (MiB)")
-    for package in PACKAGES:
+    for package in COMPARED_PACKAGES:
         xs, ys = _ok_points(results, package, lambda r: r["memory_peak"] / 2**20, BUILT)
         # ru_maxrss has a coarse resolution: tiny maps may show 0
         points = [(x, y) for x, y in zip(xs, ys) if y > 0]
@@ -215,13 +218,69 @@ def memory(results: dict, path: Path):
     )
 
 
+def memory_retained(results: dict, path: Path):
+    """what is left of the peak after the build: the temporary data is the difference"""
+    fig, ax = _new_axes(results, "memory above the baseline (MiB)")
+    for package in COMPARED_PACKAGES:
+        name = ADAPTERS[package].label
+        for key, what, linestyle in (
+            ("memory_peak", "peak", "-"),
+            ("memory_retained", "retained after the build", "--"),
+        ):
+            xs, ys = _ok_points(
+                results, package, lambda r, key=key: (r.get(key) or 0) / 2**20, BUILT
+            )
+            points = [(x, y) for x, y in zip(xs, ys) if y > 0]
+            _line(
+                ax,
+                [p[0] for p in points],
+                [p[1] for p in points],
+                package,
+                label=f"{name}, {what}",
+                linestyle=linestyle,
+            )
+    ax.set_title("Memory above the baseline: peak (solid), retained (dashed)")
+    _finish(
+        fig,
+        ax,
+        results,
+        path,
+        loc="upper center",
+        bbox_to_anchor=(0.5, -0.17),
+        ncol=2,
+        fontsize=8,
+    )
+
+
 def ratio(results: dict, path: Path):
-    fig, ax = _new_axes(results, "pyvisgraph / extremitypathfinder")
+    _ratio_figure(
+        results,
+        path,
+        "pyvisgraph",
+        "extremitypathfinder",
+        "pyvisgraph / extremitypathfinder",
+        "Speed ratio (query: sizes where both are valid)",
+    )
+
+
+def numba_ratio(results: dict, path: Path):
+    _ratio_figure(
+        results,
+        path,
+        NO_NUMBA,
+        "extremitypathfinder",
+        "without Numba / with Numba",
+        "Speed-up of extremitypathfinder by Numba",
+    )
+
+
+def _ratio_figure(results, path, slower, faster, ylabel, title):
+    fig, ax = _new_axes(results, ylabel)
     # build: both built (also with invalid paths), query: both valid
     xs_build, build, xs_query, query = [], [], [], []
     for entry in results["world"]:
-        epf = entry["results"].get("extremitypathfinder", {})
-        pvg = entry["results"].get("pyvisgraph", {})
+        epf = entry["results"].get(faster, {})
+        pvg = entry["results"].get(slower, {})
         vertices = entry["map"]["vertices"]
         if epf.get("status") in BUILT and pvg.get("status") in BUILT:
             xs_build.append(vertices)
@@ -240,7 +299,7 @@ def ratio(results: dict, path: Path):
     ax.yaxis.set_major_locator(LogLocator(subs=(1.0, 2.0, 5.0)))
     ax.yaxis.set_major_formatter(FuncFormatter(lambda value, _: f"{value:g}"))
     ax.yaxis.set_minor_formatter(NullFormatter())
-    ax.set_title("Speed ratio (query: sizes where both are valid)")
+    ax.set_title(title)
     _finish(fig, ax, results, path)
 
 
@@ -289,7 +348,7 @@ def world_example(results: dict, path: Path):
     for hole in data["holes"]:
         xs, ys = zip(*hole)
         ax.fill(xs, ys, color=LAND, linewidth=0)
-    for package in PACKAGES:
+    for package in COMPARED_PACKAGES:
         result = entry["results"].get(package, {})
         failure = next(
             (
@@ -326,6 +385,7 @@ def world_example(results: dict, path: Path):
 
 NUMBA_COLOR = "#6250d6"
 BASE_COLOR = "#b5b3ab"
+TEMPORARY_COLOR = "#e4e3df"
 
 
 def numba_share(results: dict) -> int | None:
@@ -357,8 +417,28 @@ def _built(results: dict) -> list[dict]:
     ]
 
 
+def _data_segments(result: dict, package: str) -> list[tuple[float, str, str]]:
+    """the peak above the baseline as bar segments: retained after the build, and the rest"""
+    peak = result["memory_peak"]
+    # in allocated bytes, the peak in pages of the process: possibly above the peak or negative on tiny maps
+    retained = max(0, min(result.get("memory_retained") or 0, peak))
+    return [
+        (
+            retained / 2**20,
+            STYLE[package]["color"],
+            f"retained data: {package}",
+        ),
+        (
+            (peak - retained) / 2**20,
+            TEMPORARY_COLOR,
+            "temporary data, allocator overhead",
+        ),
+    ]
+
+
 def memory_composition(results: dict, path: Path):
-    """stacked bars per map size: baseline without Numba, Numba, data (extremitypathfinder) | baseline, data"""
+    """stacked bars per map size: baseline without Numba, Numba, retained and temporary data
+    (extremitypathfinder) | baseline, retained and temporary data (pyvisgraph)"""
     share = numba_share(results)
     built = _built(results)
     if share is None:
@@ -406,11 +486,7 @@ def memory_composition(results: dict, path: Path):
         segments = [
             (base, BASE_COLOR, "interpreter and imports without Numba"),
             (share / mib, NUMBA_COLOR, "Numba (imports and compiled functions)"),
-            (
-                epf["memory_peak"] / mib,
-                STYLE["extremitypathfinder"]["color"],
-                "data: extremitypathfinder",
-            ),
+            *_data_segments(epf, "extremitypathfinder"),
         ]
         bottom = 0.0
         for height, color, label in segments:
@@ -434,11 +510,7 @@ def memory_composition(results: dict, path: Path):
                     BASE_COLOR,
                     "interpreter and imports without Numba",
                 ),
-                (
-                    pvg["memory_peak"] / mib,
-                    STYLE["pyvisgraph"]["color"],
-                    "data: pyvisgraph",
-                ),
+                *_data_segments(pvg, "pyvisgraph"),
             ):
                 bar(i + width / 2, bottom, height, color, label)
                 bottom += height
@@ -469,8 +541,10 @@ FIGURES = {
     "benchmark_build_time.svg": build_time,
     "benchmark_query_time.svg": query_time,
     "benchmark_memory.svg": memory,
+    "benchmark_memory_retained.svg": memory_retained,
     "benchmark_memory_composition.svg": memory_composition,
     "benchmark_ratio.svg": ratio,
+    "benchmark_numba_ratio.svg": numba_ratio,
     "benchmark_world_example.svg": world_example,
 }
 

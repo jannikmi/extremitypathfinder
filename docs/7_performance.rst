@@ -7,6 +7,8 @@ the closest alternative (see :ref:`alternatives`), on realistic maps of increasi
 Everything is reproducible with one command (see :ref:`running-benchmarks`); the code is in ``benchmarks/``.
 
 The results below come from one full run on the machine stated in :ref:`benchmark-results`.
+``extremitypathfinder`` is compared with Numba, its best case, and is also measured without Numba:
+Numba is optional, and it costs memory.
 The raw results of that run are in ``benchmarks/results/benchmark.json``.
 
 
@@ -69,9 +71,12 @@ SHA-256 verified), the land masses as obstacles and the sea as free space.
 Measurements
 ~~~~~~~~~~~~
 
-* **extremitypathfinder with Numba, warmed up**: an environment is built and queried in the same process
+* **extremitypathfinder with and without Numba, warmed up**: an environment is built and queried in the same process
   before timing starts. Compilation and import times are excluded.
-  pyvisgraph is pure Python. Both run single-threaded (pyvisgraph ``workers=1``).
+  Without Numba, Numba is blocked in the process, as if it was not installed. This setup is measured
+  like the others, with the same budget and validation, and takes part in the check that all lengths agree.
+  The comparison with pyvisgraph (ratios, graph size) uses the setup with Numba.
+  pyvisgraph is pure Python. All run single-threaded (pyvisgraph ``workers=1``).
 * **Build (preprocessing) time**: wall time of ``PolygonEnvironment(None, holes)``
   and ``VisGraph().build(polygons, workers=1)``.
   One build per package and size. Builds under 1 s are repeated until 5 s or 5 runs and the minimum is reported.
@@ -86,9 +91,17 @@ Measurements
   the imports, the warm-up and loading the input (the interpreter, the package, its dependencies and,
   for ``extremitypathfinder``, Numba with the compiled functions). The peak above the baseline compares
   the data structures, the total is what a process needs.
-  In addition, each run measures the baselines without input data in separate processes:
-  ``extremitypathfinder`` with Numba, ``extremitypathfinder`` without Numba (Numba blocked in the process,
-  as if it was not installed) and pyvisgraph. They are listed below the memory table.
+* **Retained memory**: what the prepared environment keeps, without the temporary data of the build:
+  the bytes allocated and not freed after the build, minus the same figure before it.
+  The bytes are the sum of the C allocator's statistics (``malloc_zone_statistics`` on macOS,
+  ``mallinfo2`` on Linux) and Python's allocator for small objects (``sys._debugmallocstats``), after a garbage collection.
+  The resident memory or the footprint cannot show this: allocators keep freed memory, and macOS does not return it
+  on request. The figure counts bytes and the peak counts pages of the process, so on tiny maps
+  the retained memory can slightly exceed the peak. Reading it takes place after the build
+  and before the queries, outside of all timings.
+* **Baselines without input data**: each run measures the baselines without input data in separate processes:
+  ``extremitypathfinder`` with Numba, ``extremitypathfinder`` without Numba and pyvisgraph.
+  They are listed below the memory table.
 * **Graph size**: nodes and edges of ``extremitypathfinder``'s reduced visibility graph
   and of pyvisgraph's full visibility graph.
 * **Budget**: 10 min per build. Each package and size runs in its own subprocess, which is killed when the build
@@ -140,16 +153,23 @@ Results
    Peak memory of the build and the queries: above the baseline (solid) and the total including the imports
    and the warm-up (dashed).
 
+.. figure:: _static/benchmark_memory_retained.svg
+   :width: 100%
+   :alt: peak memory and retained memory above the baseline over the number of vertices
+
+   Above the baseline: the peak (solid) and what is retained after the build (dashed).
+   The difference is temporary data of the build and the queries, and memory the allocator keeps.
+
 .. include:: ../benchmarks/results/benchmark_memory.rst
 
 .. figure:: _static/benchmark_memory_composition.svg
    :width: 100%
-   :alt: stacked bars of the peak memory per map size: interpreter and imports, Numba, data
+   :alt: stacked bars of the peak memory per map size: interpreter and imports, Numba, retained and temporary data
 
    What the peak memory consists of (the totals of the table).
    Numba is the difference of ``extremitypathfinder``'s baselines with and without Numba (without input data),
    the rest of the baseline is the interpreter, the imports and the input.
-   The data part is measured with Numba: a build without Numba may peak differently.
+   The data parts are measured with Numba: a build without Numba may peak differently.
 
 .. figure:: _static/benchmark_ratio.svg
    :width: 100%
@@ -157,6 +177,12 @@ Results
 
    Speed ratio pyvisgraph / extremitypathfinder: build time for the sizes where both completed the build,
    query time for the sizes where both are valid.
+
+.. figure:: _static/benchmark_numba_ratio.svg
+   :width: 100%
+   :alt: ratio of the time of extremitypathfinder without Numba to with Numba for build and query
+
+   Speed-up of ``extremitypathfinder`` by Numba: time without Numba / with Numba.
 
 Strengths, weaknesses and limitations
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -188,7 +214,7 @@ Weaknesses and limitations:
 - **Query time grows with the map.** Connecting start and goal to the graph checks the visibility of all vertices
   (cf. :ref:`design`).
 - **Scope of the comparison.** One machine, single-threaded (pyvisgraph can build its graph with several processes,
-  which was not measured), ``extremitypathfinder`` with Numba only. Longitude and latitude are used as
+  which was not measured). Longitude and latitude are used as
   planar coordinates, and the query points keep a distance from the coasts.
 
 

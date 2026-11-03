@@ -16,6 +16,14 @@ A maintainer confirms an agent decision by changing **Decided by**.
 A revised decision gets a new entry that marks the old one **superseded**.
 Earlier decisions are described in the {ref}`Design Decisions <design_decisions>` and the issues linked there.
 
+## Benchmarks also measure the retained memory and extremitypathfinder without Numba (#165)
+
+- **Decided by:** a maintainer. Supersedes "a benchmark run without Numba" as a rejected option below.
+- **Rejected:** retained memory from the footprint or resident memory after the build (allocators keep freed memory,
+  so it stays close to the peak on macOS); from `tracemalloc` (a second, much slower build);
+  a separate run without Numba (the results would mix two runs).
+- **Details:** [Measurements](../7_performance.rst) of the performance section
+
 ## Benchmark memory: peak above the baseline, the baseline and the total (#165)
 
 - **Decided by:** a maintainer
@@ -36,7 +44,7 @@ Earlier decisions are described in the {ref}`Design Decisions <design_decisions>
 
 - **Decided by:** a maintainer
 - **Rejected:** GSHHG data (LGPL and less accessible); extrapolating the sizes beyond the 10 min build budget;
-  a benchmark run without Numba; repeating builds slower than 1 s (minutes per build);
+  a benchmark run without Numba (**superseded**, see above); repeating builds slower than 1 s (minutes per build);
   a separate query set per size (latencies not comparable across sizes);
   measuring memory with `tracemalloc` (distorts the timings or needs a second build).
 - **Details:** [Method](../7_performance.rst) of the performance section

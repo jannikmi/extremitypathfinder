@@ -8,20 +8,24 @@ The worker subprocess (``python -m benchmarks.measure TASK.json``)
 3. builds the environment. Builds faster than ``REPEAT_BELOW`` are repeated
    until ``REPEAT_TOTAL`` seconds or ``REPEAT_MAX_RUNS`` runs, the minimum is reported,
 4. reports the build on stdout (the parent kills the worker if this takes longer than the budget),
-5. runs the queries, each timed with ``perf_counter_ns``,
+5. records the retained memory: what is still allocated after the build (see :func:`allocated_memory_bytes`),
+6. runs the queries, each timed with ``perf_counter_ns``,
    optionally stopping after a query time limit (the queries done are a prefix of the query set),
-6. writes the timings, the paths, the graph size and the peak memory above the baseline to a JSON file.
+7. writes the timings, the paths, the graph size and the peak and retained memory above the baseline to a JSON file.
 
 Validation of the paths happens in the parent (``benchmarks.validate``), not in the measured process.
+The setup without Numba blocks Numba before the import, as if it was not installed.
 
 A baseline task (:func:`measure_baseline`) stops after step 2: the memory of the process after the imports
 and the warm-up, without input data, optionally with Numba blocked (extremitypathfinder without Numba).
 """
 
 import ctypes
+import gc
 import json
 import os
 import platform
+import re
 import resource
 import select
 import subprocess
@@ -31,7 +35,7 @@ import time
 import traceback
 from pathlib import Path
 
-from benchmarks.adapters import get_adapter, path_length
+from benchmarks.adapters import NO_NUMBA, OWN_PACKAGES, get_adapter, path_length
 
 REPEAT_BELOW = 1.0  # s
 REPEAT_TOTAL = 5.0  # s
@@ -175,6 +179,98 @@ def peak_memory_bytes() -> int:
     return maxrss if sys.platform == "darwin" else maxrss * 1024
 
 
+class _MallocStatistics(ctypes.Structure):
+    """``malloc_statistics_t`` of macOS (``<malloc/malloc.h>``)"""
+
+    _fields_ = [
+        ("blocks_in_use", ctypes.c_uint),
+        ("size_in_use", ctypes.c_size_t),
+        ("max_size_in_use", ctypes.c_size_t),
+        ("size_allocated", ctypes.c_size_t),
+    ]
+
+
+class _Mallinfo2(ctypes.Structure):
+    """``struct mallinfo2`` of glibc (``<malloc.h>``)"""
+
+    _fields_ = [
+        (name, ctypes.c_size_t)
+        for name in (
+            "arena",
+            "ordblks",
+            "smblks",
+            "hblks",
+            "hblkhd",
+            "usmblks",
+            "fsmblks",
+            "uordblks",
+            "fordblks",
+            "keepcost",
+        )
+    ]
+
+
+def _malloc_bytes_in_use() -> int | None:
+    """the bytes in use in the C allocator, without the freed memory it keeps"""
+    try:
+        if sys.platform == "darwin":
+            libc = ctypes.CDLL("/usr/lib/libSystem.dylib")
+            stats = _MallocStatistics()
+            libc.malloc_zone_statistics.argtypes = [
+                ctypes.c_void_p,
+                ctypes.POINTER(_MallocStatistics),
+            ]
+            libc.malloc_zone_statistics.restype = None
+            libc.malloc_zone_statistics(None, ctypes.byref(stats))  # all zones
+            return stats.size_in_use
+        if sys.platform.startswith("linux"):
+            mallinfo2 = ctypes.CDLL(None).mallinfo2
+            mallinfo2.restype = _Mallinfo2
+            info = mallinfo2()
+            return info.uordblks + info.hblkhd
+    except (OSError, AttributeError):
+        pass
+    return None
+
+
+def _python_bytes_in_use() -> int | None:
+    """the bytes in use in Python's allocator for small objects (its arenas are not in the C allocator)
+
+    Only ``sys._debugmallocstats()`` reports them. It writes to the file descriptor of stderr.
+    """
+    if not hasattr(sys, "_debugmallocstats"):
+        return None
+    sys.stderr.flush()
+    saved = os.dup(2)
+    try:
+        with tempfile.TemporaryFile() as f:
+            os.dup2(f.fileno(), 2)
+            sys._debugmallocstats()
+            os.dup2(saved, 2)
+            f.seek(0)
+            output = f.read().decode(errors="replace")
+    finally:
+        os.dup2(saved, 2)
+        os.close(saved)
+    match = re.search(r"# bytes in allocated blocks\s*=\s*([\d,]+)", output)
+    # no such line: Python's allocator is not in use, all objects are in the C allocator
+    return int(match.group(1).replace(",", "")) if match else 0
+
+
+def allocated_memory_bytes() -> int | None:
+    """the bytes this process has allocated and not freed: garbage collected, in both allocators
+
+    Unlike the resident memory or the footprint, this does not include the freed memory an allocator keeps.
+    None: not available on this system.
+    """
+    gc.collect()
+    malloc_bytes = _malloc_bytes_in_use()
+    python_bytes = _python_bytes_in_use()
+    if malloc_bytes is None or python_bytes is None:
+        return None
+    return malloc_bytes + python_bytes
+
+
 def memory_probe(nr_bytes: int) -> dict:
     """allocate and touch ``nr_bytes``: the measured peak must grow by about that much"""
     reset = reset_peak_memory()
@@ -218,7 +314,7 @@ def timed_build(adapter, holes) -> tuple[object, float, list[float]]:
 
 def run_task(task: dict) -> dict:
     """the measurement of one package on one map (runs in the worker process)"""
-    if task.get("without_numba"):
+    if task.get("without_numba") or task["package"] == NO_NUMBA:
         # as if Numba was not installed: extremitypathfinder falls back to plain Python
         sys.modules["numba"] = None
     adapter = get_adapter(task["package"])
@@ -226,13 +322,14 @@ def run_task(task: dict) -> dict:
     adapter.query(warmup_env, *WARMUP_QUERY)
     del warmup_env
     info = {"version": adapter.version()}
-    if task["package"] == "extremitypathfinder":
+    if task["package"] in OWN_PACKAGES:
         info["numba"] = adapter.numba_active()
     if task.get("baseline_only"):
         info["memory_method"] = memory_method()
         info["memory_peak_reset"] = reset_peak_memory()
         return {**info, "memory_baseline": peak_memory_bytes()}
     holes = [[tuple(c) for c in hole] for hole in task["holes"]]
+    allocated_before = allocated_memory_bytes()
     # the baseline: after the imports, the warm-up and the input data
     info["memory_method"] = memory_method()
     info["memory_peak_reset"] = reset_peak_memory()
@@ -242,6 +339,11 @@ def run_task(task: dict) -> dict:
     env, build_time, build_times = timed_build(adapter, holes)
     _emit({"event": "built", "build_time": build_time})
     nodes, edges = adapter.graph_size(env)
+    # the environment, without the temporary data of the build
+    allocated = allocated_memory_bytes()
+    retained = (
+        None if None in (allocated, allocated_before) else allocated - allocated_before
+    )
 
     query_limit = task.get("query_limit")
     query_times = []
@@ -271,6 +373,7 @@ def run_task(task: dict) -> dict:
         "paths": [[list(p) for p in path] for path in paths],
         "memory_baseline": baseline,
         "memory_peak": peak_memory_bytes() - baseline,
+        "memory_retained": retained,
     }
 
 

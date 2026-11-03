@@ -70,6 +70,13 @@ class ExtremityPathfinder(Adapter):
         return env.graph.number_of_nodes(), env.graph.number_of_edges()
 
 
+class ExtremityPathfinderNoNumba(ExtremityPathfinder):
+    """the worker blocks Numba before the import (cf. ``benchmarks.measure.run_task``)"""
+
+    name = "extremitypathfinder_no_numba"
+    label = "extremitypathfinder without Numba"
+
+
 class PyVisGraph(Adapter):
     name = "pyvisgraph"
     label = "pyvisgraph"
@@ -105,8 +112,16 @@ class PyVisGraph(Adapter):
         return len(env.visgraph.graph), len(env.visgraph.edges)
 
 
-ADAPTERS = {cls.name: cls for cls in (ExtremityPathfinder, PyVisGraph)}
+ADAPTERS = {
+    cls.name: cls
+    for cls in (ExtremityPathfinder, ExtremityPathfinderNoNumba, PyVisGraph)
+}
+# everything measured. The comparison of the packages is with Numba (cf. COMPARED_PACKAGES)
 PACKAGES = tuple(ADAPTERS)
+COMPARED_PACKAGES = (ExtremityPathfinder.name, PyVisGraph.name)
+NO_NUMBA = ExtremityPathfinderNoNumba.name
+# the setups of this package: their failures are errors of the package, not of an external one
+OWN_PACKAGES = (ExtremityPathfinder.name, NO_NUMBA)
 
 
 def get_adapter(name: str) -> Adapter:

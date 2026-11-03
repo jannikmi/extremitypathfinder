@@ -10,7 +10,7 @@ pytest.importorskip("pyvisgraph")
 from shapely.geometry import Point
 
 from benchmarks import measure, run, validate, workloads, world_map
-from benchmarks.adapters import get_adapter
+from benchmarks.adapters import NO_NUMBA, get_adapter
 from benchmarks.pyvisgraph_issues import CRASH_POLYGONS, POLYGON, QUERY
 
 SQUARE = [(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)]
@@ -350,7 +350,8 @@ def test_resume_after_interruption(monkeypatch, tmp_path):
     with pytest.raises(KeyboardInterrupt):
         run.main(argv)
     stored = run.json.loads(raw.read_text())
-    assert [e["complete"] for e in stored["examples"]] == [True, False]
+    assert [e["complete"] for e in stored["examples"]] == [True]
+    assert len(stored["examples"][0]["results"]) == 3
     with pytest.raises(SystemExit, match="--resume"):
         run.main(argv)  # never overwritten silently
     with pytest.raises(SystemExit, match="nr_queries"):
@@ -363,8 +364,8 @@ def test_resume_after_interruption(monkeypatch, tmp_path):
     # independent of uncommitted changes in this checkout (tested separately)
     monkeypatch.setattr(run, "measured_code_changed", lambda sha: False)
     assert run.main([*argv, "--resume"]) == 0
-    # only the interrupted and the remaining measurements: 3 examples x 2 packages - 3 stored
-    assert len(calls) == 3
+    # only the interrupted and the remaining measurements: 3 examples x 3 setups - 3 stored
+    assert len(calls) == 6
     results = run.json.loads(raw.read_text())
     assert all(e["complete"] for e in results["examples"])
     assert len(results["meta"]["resumed"]) == 1
@@ -446,6 +447,66 @@ def test_baseline_without_numba():
     assert result["status"] == "done", result.get("error")
     assert result["numba"] is False
     assert result["memory_baseline"] > 0
+
+
+def test_setup_without_numba_and_retained_memory():
+    """the same paths as with Numba, Numba blocked in the worker, the retained memory within the peak"""
+    data = workloads.small_example_maps()[-1]
+    queries = workloads.generate_queries([data], 5, region=None)
+    with_numba = measure.measure("extremitypathfinder", data["holes"], queries, 60)
+    without = measure.measure(NO_NUMBA, data["holes"], queries, 60)
+    assert without["status"] == "done", without.get("error")
+    assert without["numba"] is False
+    report = validate.validate_paths(
+        data["holes"],
+        queries,
+        {"with": with_numba["paths"], "without": without["paths"]},
+    )
+    assert report["with"]["failed"] == report["without"]["failed"] == 0
+    assert (without["graph_nodes"], without["graph_edges"]) == (
+        with_numba["graph_nodes"],
+        with_numba["graph_edges"],
+    )
+    if measure.allocated_memory_bytes() is not None:
+        assert without["memory_retained"] > 0
+
+
+@pytest.mark.skipif(
+    measure.allocated_memory_bytes() is None,
+    reason="allocator statistics not available",
+)
+@pytest.mark.parametrize(
+    "allocate",
+    [lambda: bytearray(50 * 2**20), lambda: [(float(i),) for i in range(500_000)]],
+    ids=["C allocator", "small Python objects"],
+)
+def test_allocated_memory_excludes_freed_memory(allocate):
+    """the retained memory counts what is in use, not the freed memory an allocator keeps"""
+    before = measure.allocated_memory_bytes()
+    data = allocate()
+    assert measure.allocated_memory_bytes() - before > 30 * 2**20
+    del data
+    assert measure.allocated_memory_bytes() - before < 2**20
+
+
+def test_memory_cells_with_retained_memory():
+    result = {
+        "memory_peak": 3 * 2**20,
+        "memory_retained": 2 * 2**20,
+        "memory_baseline": 10 * 2**20,
+    }
+    assert run.memory_cells(result) == ["3 MiB", "2 MiB", "10 MiB", "13 MiB"]
+    # less than before the build, not available (results without it)
+    assert run.memory_cells({**result, "memory_retained": -5})[1] == "< 1 MiB"
+    assert run.memory_cells({**result, "memory_retained": None})[1] == "–"
+
+
+def test_failures_without_numba_are_failures_of_the_package(monkeypatch, tmp_path):
+    raw = tmp_path / "raw.json"
+    entry = {"map": {"name": "m"}, "results": {NO_NUMBA: {"status": measure.CRASH}}}
+    raw.write_text(run.json.dumps({"meta": {}, "world": [entry], "examples": []}))
+    argv = ["--render-only", str(raw), "--no-render", "--fail-on-invalid"]
+    assert run.main(argv) == 1
 
 
 def test_baselines_rendered_and_added_on_the_same_machine_only(monkeypatch, tmp_path):
