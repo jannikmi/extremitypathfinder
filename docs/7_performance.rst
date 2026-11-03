@@ -200,6 +200,11 @@ Strengths of ``extremitypathfinder``:
   pyvisgraph's full visibility graph, and the difference grows with the size of the map.
   The queries search this smaller graph.
 - **Larger maps within the budget.** It built maps for which pyvisgraph exceeded the build budget.
+- **Less retained memory.** On every map its prepared environment keeps less memory than pyvisgraph's,
+  and the difference grows with the size of the map.
+- **Fast without Numba too.** Without Numba, builds take more than twice as long and queries moderately longer.
+  It is still faster than pyvisgraph, and it built the same maps within the budget.
+  The baseline drops by more than half, the retained memory stays the same.
 
 Weaknesses and limitations:
 
@@ -207,7 +212,8 @@ Weaknesses and limitations:
   and the sweep ends where it exceeds the build budget (cf. the build table).
   Going from the raw 110m data to the finer source data adds many polygons, and the visibility graph
   grows much faster than the number of vertices there.
-- **Memory on small maps.** Above the baseline, it uses more memory than pyvisgraph on small maps and less on large ones.
+- **Memory on small maps.** Its peak above the baseline is close to pyvisgraph's on small maps, despite the lower
+  retained memory: the build needs temporary data. On large maps the peak is much lower than pyvisgraph's.
   Its baseline is much larger, so its process needs several times as much memory in total on the smallest maps.
   The gap shrinks with the size of the map.
   Most of the difference in the baseline is Numba (which is optional, cf. the baselines without input data).

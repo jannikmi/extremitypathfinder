@@ -21,3 +21,8 @@
      - extremitypathfinder
      - over budget
      - build exceeded 600 s
+   * - world_20k
+     - 19,956
+     - extremitypathfinder without Numba
+     - over budget
+     - build exceeded 600 s
