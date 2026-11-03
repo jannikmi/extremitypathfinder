@@ -38,6 +38,12 @@ other changes:
 - lower peak memory when preparing some environments with a few thousand vertices: the test which edges pass
   through vertices processes fewer vertex-edge pairs at once (e.g. 9.7 to 7.4 MiB for the 1,985-vertex world map
   of the benchmarks). No change where the visibility graph dominates the peak memory.
+- the ``numba`` extra no longer installs SciPy (#185): a smaller installation (SciPy takes about 110 MB)
+  and less memory per process with Numba (about 18 MiB less after import on Linux when SciPy is not installed).
+  The test whether a vertex lies behind an edge solves its 2×2 system in closed form instead of with
+  ``numpy.linalg.solve``, the same code with and without Numba. It is exact for integer coordinates
+  (e.g. grids), where LAPACK misjudged some vertices lying exactly on an edge. No paths or visibility graphs
+  change: these vertices never reach the test (they touch the edge and are no extremities).
 - polygons are accepted with clockwise and counter clockwise vertex numbering, also mixed (#161).
   Polygons with the opposite numbering are reversed into the internal convention (boundary counter clockwise,
   holes clockwise), also in ``boundary_polygon`` and ``holes``. Previously wrongly numbered polygons
