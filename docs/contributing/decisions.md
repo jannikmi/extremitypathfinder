@@ -16,13 +16,20 @@ A maintainer confirms an agent decision by changing **Decided by**.
 A revised decision gets a new entry that marks the old one **superseded**.
 Earlier decisions are described in the {ref}`Design Decisions <design_decisions>` and the issues linked there.
 
+## The benchmark documentation is split into results, method and running them (#165)
+
+- **Decided by:** a maintainer
+- **Rejected:** only moving the conclusions to the top (the page stays as long, three kinds of readers on one page);
+  separate pages for speed and memory (they are read side by side); a page of its own for the pyvisgraph defects
+  (they belong next to the validation that found them).
+
 ## Benchmarks also measure the retained memory and extremitypathfinder without Numba (#165)
 
 - **Decided by:** a maintainer. Supersedes "a benchmark run without Numba" as a rejected option below.
 - **Rejected:** retained memory from the footprint or resident memory after the build (allocators keep freed memory,
   so it stays close to the peak on macOS); from `tracemalloc` (a second, much slower build);
   a separate run without Numba (the results would mix two runs).
-- **Details:** [Measurements](../7_performance.rst) of the performance section
+- **Details:** [Measurements](../7_benchmark_method.rst) of the benchmark method
 
 ## Benchmark memory: peak above the baseline, the baseline and the total (#165)
 
@@ -30,7 +37,7 @@ Earlier decisions are described in the {ref}`Design Decisions <design_decisions>
 - **Rejected:** only the peak above the baseline (hides the cost of the imports, much larger with Numba
   than for pyvisgraph, which a process pays on small maps); only the total (the fixed baseline hides the part that grows
   with the map).
-- **Details:** [Measurements](../7_performance.rst) of the performance section
+- **Details:** [Measurements](../7_benchmark_method.rst) of the benchmark method
 
 ## Invalid benchmark runs: queries left out, build measured like any other (#165)
 
@@ -38,7 +45,7 @@ Earlier decisions are described in the {ref}`Design Decisions <design_decisions>
 - **Rejected:** leaving out all results of an invalid run (its build time and memory are measured correctly,
   only its paths are wrong); marking build time and memory as invalid (suggests a wrong measurement).
   The graph size stays marked, because the graph contains wrong edges.
-- **Details:** [Measurements](../7_performance.rst) of the performance section
+- **Details:** [Measurements](../7_benchmark_method.rst) of the benchmark method
 
 ## Benchmarks against pyvisgraph on Natural Earth world maps of increasing size (#165)
 
@@ -47,7 +54,7 @@ Earlier decisions are described in the {ref}`Design Decisions <design_decisions>
   a benchmark run without Numba (**superseded**, see above); repeating builds slower than 1 s (minutes per build);
   a separate query set per size (latencies not comparable across sizes);
   measuring memory with `tracemalloc` (distorts the timings or needs a second build).
-- **Details:** [Method](../7_performance.rst) of the performance section
+- **Details:** [Benchmark method](../7_benchmark_method.rst)
 
 ## The benchmarks do not run in CI, and CI never fails because of external packages (#165)
 
@@ -62,14 +69,14 @@ Earlier decisions are described in the {ref}`Design Decisions <design_decisions>
 - **Rejected:** only the tables and figures (the published numbers cannot be checked or rendered again without a rerun
   of hours on that machine); a release asset (separated from the commit that produced the docs).
   The file is written compactly (one list per line) and marked as generated in `.gitattributes`.
-- **Details:** [Running the benchmarks](../7_performance.rst)
+- **Details:** [Running the benchmarks](performance.md#running-the-benchmarks)
 
 ## The benchmark is rerun in full after a change of the package (#165)
 
 - **Decided by:** a maintainer
 - **Rejected:** rerunning only the changed package: the results would mix two runs (conditions, commit).
   Resuming an interrupted run is refused when the package or the benchmark code changed.
-- **Details:** [Running the benchmarks](../7_performance.rst) (Full run on a laptop)
+- **Details:** [Full run on a laptop](performance.md#full-run-on-a-laptop)
 
 ## Trade-offs are decided before larger changes and recorded in this log (#179)
 

@@ -11,7 +11,7 @@ Usage::
     uv run --all-extras --group benchmark python -m benchmarks.run    # full run, hours
     uv run --all-extras --group benchmark python -m benchmarks.run --sizes 250,1k,5k ...
 
-See ``docs/7_performance.rst`` for the method and the results.
+See ``docs/7_performance.rst`` for the results and ``docs/7_benchmark_method.rst`` for the method.
 """
 
 import argparse
@@ -349,7 +349,7 @@ def keep_awake():
 
 def run(args, argv) -> dict:
     packages = args.packages
-    # extremitypathfinder is compared with pyvisgraph with Numba (best case, cf. docs/7_performance.rst)
+    # extremitypathfinder is compared with pyvisgraph with Numba (best case, cf. docs/7_benchmark_method.rst)
     numba_missing = importlib.util.find_spec("numba") is None
     if "extremitypathfinder" in packages and numba_missing and not args.allow_no_numba:
         raise SystemExit(

@@ -68,6 +68,7 @@ Where to start
     About <3_about>
     Engineering Design <8_design>
     Performance <7_performance>
+    Benchmark Method <7_benchmark_method>
     Alternatives <9_alternatives>
 
 .. toctree::

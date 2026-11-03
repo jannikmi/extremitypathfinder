@@ -52,7 +52,7 @@ Other packages
     pyvisgraph returns paths through obstacles for some inputs
     (`issue #59 <https://github.com/TaipanRex/pyvisgraph/issues/59>`__)
     and its build crashes on nearly identical vertices
-    (`pull request #33 <https://github.com/TaipanRex/pyvisgraph/pull/33>`__, unmerged; :ref:`benchmark-correctness`).
+    (`pull request #33 <https://github.com/TaipanRex/pyvisgraph/pull/33>`__, unmerged; :ref:`pyvisgraph-defects`).
 
 `Polyanya <https://docs.rs/polyanya>`__ (Rust, C++ original; no Python package)
     Exact any-angle search on a navigation mesh (Cui, Harabor and Grastien, IJCAI 2017)
