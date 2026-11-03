@@ -1,0 +1,19 @@
+{
+  "configurations": [
+    {
+      "name": "docs",
+      "port": 8765,
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8765",
+        "--bind",
+        "127.0.0.1",
+        "--directory",
+        ".tox/docs_out"
+      ],
+      "runtimeExecutable": "python3"
+    }
+  ],
+  "version": "0.0.1"
+}

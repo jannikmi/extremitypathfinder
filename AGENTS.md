@@ -26,7 +26,8 @@ make release-check                 # build and validate the release artifacts
 - `extremitypathfinder/`: the package. Layers, each importing only from below:
   `command_line`, `plotting` → `extremitypathfinder` (PolygonEnvironment) → `utils` → `wedges` → `utils_numba` →
   `numba` | `numba_replacements`
-- `tests/`: pytest suite. `scripts/`: release tooling, docs figures, benchmarks. `prototypes/`: untested dev scripts
+- `tests/`: pytest suite. `scripts/`: release tooling, docs figures, benchmarks. `benchmarks/`: comparison with pyvisgraph.
+  `prototypes/`: untested dev scripts
 - `docs/`: Sphinx (reStructuredText), contributing guide in Markdown (`docs/contributing/`)
 
 ## Hard rules
@@ -46,6 +47,8 @@ make release-check                 # build and validate the release artifacts
 11. Before a larger change, present the trade-off with a recommendation. Unless one option is clearly better,
     a maintainer decides. Record and summarise it (`docs/contributing/workflow.md#trade-offs-and-decisions`).
 12. After opening a pull request, run an independent review of the diff (fresh context) and fix clear findings.
+13. CI must not fail because of errors in pyvisgraph or other external packages and services,
+    only because of extremitypathfinder (`docs/contributing/testing.md`).
 
 ## Read next
 
@@ -54,7 +57,7 @@ make release-check                 # build and validate the release artifacts
 | any change to the package | `docs/contributing/invariants.md`, `docs/contributing/codebase-map.md` |
 | writing or running tests | `docs/contributing/testing.md` |
 | style and linting | `docs/contributing/code-style.md` |
-| branches, commits, pull requests | `docs/contributing/workflow.md` |
+| prioritising issues, branches, commits, pull requests | `docs/contributing/workflow.md` |
 | documentation and figures | `docs/contributing/documentation.md` |
 | changelog entries | `docs/contributing/changelog.md` |
 | optimising | `docs/contributing/performance.md` |

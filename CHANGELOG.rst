@@ -28,6 +28,13 @@ recreate them. Loading them raises a ``ValueError`` explaining this.
 
 other changes:
 
+- reproducible benchmarks against pyvisgraph (#111): ``python -m benchmarks.run`` (``benchmarks/``,
+  ``make benchmark``: quick smoke test, not run in CI) runs a size sweep
+  on cleaned Natural Earth world maps with a build time budget, validates every path independently with Shapely
+  and renders the tables and figures of the performance section of the documentation.
+  It measures time, peak and retained memory, with and without Numba.
+  ``scripts/speed_benchmarks.py`` uses the same harness. The validation found pyvisgraph 0.2.1 paths
+  through obstacles; the cause is described in the documentation.
 - much lower memory use and smaller pickles of large environments: the angle representations and distances
   of all vertices seen from every extremity are no longer stored (``O(m n)`` floats for ``m`` extremities
   and ``n`` vertices, about 1 GiB for 10,000 vertices).
@@ -62,7 +69,7 @@ internal:
 - contributing guide for human and AI contributors in Markdown: ``CONTRIBUTING.md`` with topic pages in
   ``docs/contributing/`` (rendered with MyST), ``AGENTS.md`` and ``CLAUDE.md`` for coding agents,
   pull request and issue templates, ``make check`` for a quick check before committing,
-  trade-off rules and a decision log.
+  trade-off rules, a decision log and rules for prioritising issues.
 
 
 3.0.0 (2026-10-29)

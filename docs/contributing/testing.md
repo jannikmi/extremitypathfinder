@@ -24,6 +24,18 @@ uv run tox -e docs        # strict documentation build
 uv run tox -e release     # tests of the release tooling (scripts/release.py)
 ```
 
+## CI and external packages
+
+CI must not fail because of errors in pyvisgraph or other external packages and services,
+only because of errors in extremitypathfinder:
+
+- The benchmarks against pyvisgraph (`benchmarks/`) do not run in CI. Run the smoke test locally
+  with `make benchmark` (`--quick`) when you change them.
+- Tests depending on such packages skip when they are not installed (`pytest.importorskip`)
+  and do not run in the tox environments of CI.
+
+Keep it this way when adding CI jobs or tests that use external packages or services.
+
 The tox environments set `EXPECT_NUMBA` to `0` or `1`, and `tests/test_acceleration.py` fails
 when the environment does not run in the expected mode. Run the affected tests with and without Numba
 when you change `utils_numba.py` or code calling it.
