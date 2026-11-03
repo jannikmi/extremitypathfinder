@@ -16,7 +16,7 @@ A maintainer confirms an agent decision by changing **Decided by**.
 A revised decision gets a new entry that marks the old one **superseded**.
 Earlier decisions are described in the {ref}`Design Decisions <design_decisions>` and the issues linked there.
 
-## Open decisions are compiled and cleared in batches, by a procedure in the workflow guide (#<pr>)
+## Open decisions are compiled and cleared in batches, by a procedure in the workflow guide (#188)
 
 - **Decided by:** an agent
 - **Rejected:** leaving it as it is (open decisions stay spread over issues, pull requests and the log);
