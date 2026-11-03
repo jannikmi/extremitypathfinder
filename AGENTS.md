@@ -57,7 +57,7 @@ make release-check                 # build and validate the release artifacts
 | any change to the package | `docs/contributing/invariants.md`, `docs/contributing/codebase-map.md` |
 | writing or running tests | `docs/contributing/testing.md` |
 | style and linting | `docs/contributing/code-style.md` |
-| branches, commits, pull requests | `docs/contributing/workflow.md` |
+| prioritising issues, branches, commits, pull requests | `docs/contributing/workflow.md` |
 | documentation and figures | `docs/contributing/documentation.md` |
 | changelog entries | `docs/contributing/changelog.md` |
 | optimising | `docs/contributing/performance.md` |

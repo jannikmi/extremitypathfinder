@@ -7,6 +7,9 @@ which links back to the topics below.
 
 ## Ways to contribute
 
+Whether fixing bugs or implementing features, start with the issues labelled "priority: high"
+(cf. [Prioritising issues](docs/contributing/workflow.md#prioritising-issues)).
+
 - **Report bugs** via [GitHub Issues](https://github.com/jannikmi/extremitypathfinder/issues).
   Include your versions of the package, Python and Numba (if installed), your operating system,
   the steps to reproduce the bug (ideally a minimal environment) and the full error message.
@@ -32,7 +35,7 @@ which links back to the topics below.
 | Topic | Read it when you … |
 | --- | --- |
 | [Setup](docs/contributing/setup.md) | set up the development environment |
-| [Workflow](docs/contributing/workflow.md) | work on an issue, open a pull request or review one |
+| [Workflow](docs/contributing/workflow.md) | choose and work on an issue, open a pull request or review one |
 | [Testing](docs/contributing/testing.md) | run or write tests |
 | [Code style](docs/contributing/code-style.md) | write code |
 | [Codebase map](docs/contributing/codebase-map.md) | look for the place to make a change |

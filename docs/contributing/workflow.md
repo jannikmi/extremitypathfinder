@@ -7,6 +7,28 @@
 - Changes of the [invariants](invariants.md) (e.g. the numerical policy or the orientation convention)
   need an issue that decides them.
 
+## Prioritising issues
+
+Open issues carry one of the labels `priority: high`, `priority: medium` and `priority: low`.
+Pick work from `priority: high` down. Maintainers label new issues when triaging them.
+Contributors can suggest a priority or a dependency in a comment. The criteria are:
+
+1. **Stability:** correct results, no crashes, a reliable installation and no regressions for existing users.
+2. **Popularity:** easier to find, install, adopt and cite, or one common reason less to choose another package.
+
+Combine both with the effort and the risk of breaking something (core algorithms, the [invariants](invariants.md))
+into one label. Within a label, stability issues come first, then the ones with less effort.
+
+- **Demand counts:** a thumbs-up reaction, a use case in a comment or a report by a user raises the priority.
+- **An issue inherits the highest priority of the issues it blocks,** e.g. a benchmark that other work waits for.
+- **Decision issues before implementations:** decide the issues that change other issues
+  (e.g. replacing a dependency) before implementing those.
+- **Large changes of the core** (new engines, optimisations) stay low until a benchmark or a user shows the need,
+  unless they block a higher-priority issue.
+
+Maintainers record the dependencies on GitHub, not in a file: "blocked by" for an issue that must be done first,
+sub-issues for the parts of a larger issue. They update the labels when an issue changes its scope or what it blocks.
+
 ## Trade-offs and decisions
 
 A larger change is new behaviour, API, algorithm, data structure or dependency, or anything that touches
