@@ -45,6 +45,35 @@ the [invariants](invariants.md). Before implementing one:
    no log entry needed).
 5. **Summarise** the trade-off in the pull request, so that the reviewer checks the decision, not only the code.
 
+### Clearing open decisions
+
+Decisions that wait for a maintainer block work. Collect them and put them to a maintainer in one batch,
+on request (e.g. `/decisions` in Claude Code) or before work that depends on them.
+
+1. **Collect** the open decisions. Each one is a question no rule of this guide answers and no maintainer
+   has answered yet:
+   - the current task: trade-offs found while working on it, review findings that need a decision
+     (cf. [Reviews](#reviews));
+   - open pull requests: an undecided or agent-decided **Trade-off** section, review threads that ask
+     for a decision;
+   - the [Decision log](decisions.md): entries **Decided by: an agent** that a maintainer has not confirmed;
+   - open issues: changes of the [invariants](invariants.md), new dependencies, issues titled "Discussion",
+     issues that compare options without a maintainer answer and issues that block others.
+2. **Leave out** what is not a decision: questions answered by this guide, the issue or the code,
+   and choices with one option clearly better on all criteria that matter (the contributor decides those, step 3 above).
+3. **Order** the decisions like the issues (cf. [Prioritising issues](#prioritising-issues)):
+   decisions that block others first, then by the priority label of the work they block.
+4. **Prepare** each one: the question in one sentence, links to its sources, the options including
+   "leave it as it is" with their advantages and disadvantages, the recommendation and what the decision unblocks.
+   Check the facts (code, numbers, links) before presenting them. Merge duplicates found in several places.
+5. **Ask** a maintainer, a few decisions at a time, most important first. Accept "defer" and "need more information"
+   as answers: the decision stays open, with what is missing noted.
+6. **Record** each decision where the workflow expects it (step 4 above): the issue or pull request
+   (a comment with the decision and the rejected options), and the [Decision log](decisions.md) in the pull request
+   that implements it. Confirming an agent decision changes its **Decided by**. Show the maintainer the text
+   before posting it.
+7. **Report** what was decided, deferred and still open. Implementing a decision is a separate task.
+
 ## Branch and commits
 
 ```sh

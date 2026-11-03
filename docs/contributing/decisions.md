@@ -16,6 +16,15 @@ A maintainer confirms an agent decision by changing **Decided by**.
 A revised decision gets a new entry that marks the old one **superseded**.
 Earlier decisions are described in the {ref}`Design Decisions <design_decisions>` and the issues linked there.
 
+## Open decisions are compiled and cleared in batches, by a procedure in the workflow guide (#<pr>)
+
+- **Decided by:** an agent
+- **Rejected:** leaving it as it is (open decisions stay spread over issues, pull requests and the log);
+  the procedure only in the Claude Code skill (other tools and humans would not find it);
+  a `decision needed` label (needs triage by a maintainer, and the agent entries in the log stay unlisted);
+  agents recording decisions without showing the text first (comments notify people and cannot be taken back).
+- **Details:** [Clearing open decisions](workflow.md#clearing-open-decisions)
+
 ## The benchmark documentation is split into results, method and running them (#165)
 
 - **Decided by:** a maintainer
