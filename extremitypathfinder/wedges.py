@@ -250,6 +250,13 @@ def _group_identical(coords: np.ndarray) -> list[list[int]]:
     return [order[start:end] for start, end in itertools.pairwise(starts)]
 
 
+# the maximal number of position-edge pairs tested at once in ``_find_edges_through_points()``:
+# bounds its temporary arrays (several of this many booleans) to a few MiB.
+# Measured: 2**22 pairs gave 8 MiB peak memory for 2,000 vertices, 13 MiB for 10,000.
+# 2**20 is not slower up to 80,000 vertices, 2**18 was 10% slower at 80,000 vertices (chunks of 3 positions).
+MAX_BOX_TEST_PAIRS = 2**20
+
+
 def _find_edges_through_points(
     positions: np.ndarray, coords: np.ndarray, edge_vertex_idxs: np.ndarray
 ) -> dict[int, list[int]]:
@@ -265,7 +272,7 @@ def _find_edges_through_points(
     y_max = np.maximum(p1[:, 1], p2[:, 1])
     edges_through = defaultdict(list)
     # limit the memory used by the bounding box candidates
-    chunk_size = max(1, 2**22 // max(1, len(edge_vertex_idxs)))
+    chunk_size = max(1, MAX_BOX_TEST_PAIRS // max(1, len(edge_vertex_idxs)))
     for chunk_start in range(0, len(positions), chunk_size):
         chunk = positions[chunk_start : chunk_start + chunk_size]
         x = chunk[:, 0, None]

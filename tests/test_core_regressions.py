@@ -6,7 +6,7 @@ from math import hypot
 import numpy as np
 import pytest
 
-from extremitypathfinder import PolygonEnvironment, utils
+from extremitypathfinder import PolygonEnvironment, utils, wedges
 from extremitypathfinder.utils_numba import (
     _compute_repr_n_dist,
     _lies_on_edge,
@@ -186,3 +186,57 @@ def test_environment_size_without_graph_is_linear_in_the_vertices():
         bytes_per_vertex.append(len(pickle.dumps(state)) / environment.nr_vertices)
     # 4 times the vertices and extremities: previously about 3 times the bytes per vertex
     assert bytes_per_vertex[1] < 1.3 * bytes_per_vertex[0]
+
+
+def _star_grid_datastructs(holes_per_side: int):
+    boundary, holes = _star_grid(holes_per_side)
+    coords, edge_vertex_idxs, *_ = utils.compile_polygon_datastructs(
+        np.array(boundary, dtype=float), [np.array(h, dtype=float) for h in holes]
+    )
+    return coords, edge_vertex_idxs
+
+
+def test_edges_through_points_bounded_memory():
+    """the bounding box test of all positions against all edges is processed in small chunks
+
+    Previously up to 2**22 position-edge pairs were tested at once:
+    several boolean arrays of 4 MiB each for about 2,000 vertices.
+    """
+    import tracemalloc
+
+    # 2,052 vertices: 4.2 million position-edge pairs
+    coords, edge_vertex_idxs = _star_grid_datastructs(16)
+    tracemalloc.start()
+    try:
+        wedges._find_edges_through_points(coords, coords, edge_vertex_idxs)
+        peak = tracemalloc.get_traced_memory()[1]
+    finally:
+        tracemalloc.stop()
+    # previously 8.6 MiB, now 3.4 MiB
+    assert peak < 5 * 2**20
+
+
+def test_edges_through_points_independent_of_the_chunks(monkeypatch):
+    """the edges through every position (and their order) do not depend on how the positions are chunked"""
+    rng = np.random.default_rng(0)
+    # axis parallel edges between integer points: exact on-edge tests, overlapping and crossing edges
+    starts = rng.integers(0, 12, size=(40, 2))
+    lengths = rng.integers(1, 8, size=40)
+    horizontal = rng.random(40) < 0.5
+    ends = starts + np.where(horizontal[:, None], [1, 0], [0, 1]) * lengths[:, None]
+    coords = np.concatenate([starts, ends]).astype(float)
+    edge_vertex_idxs = np.stack([np.arange(40), np.arange(40, 80)], axis=1)
+    # all integer points of the area: vertices, points on one or several edges, points off any edge
+    xs, ys = np.meshgrid(np.arange(20.0), np.arange(20.0))
+    positions = np.stack([xs.ravel(), ys.ravel()], axis=1)
+
+    expected = wedges._find_edges_through_points(positions, coords, edge_vertex_idxs)
+    assert any(len(edges) >= 2 for edges in expected.values())
+    nr_edges = len(edge_vertex_idxs)
+    # one position per chunk, several positions per chunk with a partial last chunk, a single chunk
+    for pairs in (1, 7 * nr_edges, 13 * nr_edges, len(positions) * nr_edges):
+        monkeypatch.setattr(wedges, "MAX_BOX_TEST_PAIRS", pairs)
+        assert (
+            wedges._find_edges_through_points(positions, coords, edge_vertex_idxs)
+            == expected
+        )
