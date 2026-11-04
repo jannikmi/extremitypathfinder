@@ -95,10 +95,23 @@ def uv():
     pytest.skip("requires uv")
 
 
+# independent of the git configuration of the machine (e.g. commit signing, hooks)
+GIT_ENV = {
+    **os.environ,
+    "GIT_CONFIG_GLOBAL": os.devnull,
+    "GIT_CONFIG_NOSYSTEM": "1",
+    "GIT_AUTHOR_NAME": "test",
+    "GIT_AUTHOR_EMAIL": "test@example.com",
+    "GIT_COMMITTER_NAME": "test",
+    "GIT_COMMITTER_EMAIL": "test@example.com",
+}
+
+
 def git(project_dir, *args) -> str:
     result = subprocess.run(
-        ["git", "-c", "user.name=test", "-c", "user.email=test@example.com", *args],
+        ["git", *args],
         cwd=project_dir,
+        env=GIT_ENV,
         check=True,
         capture_output=True,
         text=True,
@@ -133,7 +146,7 @@ def benchmarked_dir(tmp_path):
     """a git repository with up to date benchmark results"""
     if shutil.which("git") is None:
         pytest.skip("requires git")
-    git(tmp_path, "init", "--quiet")
+    git(tmp_path, "init", "--quiet", "--template=")
     package = tmp_path / "extremitypathfinder"
     package.mkdir()
     (package / "__init__.py").write_text("", encoding="utf-8")
@@ -247,6 +260,24 @@ def test_benchmarks_outdated_by_changed_code(benchmarked_dir, path, committed):
     reasons = outdated_benchmarks(benchmarked_dir)
     assert len(reasons) == 1
     assert path in reasons[0]
+
+
+def test_benchmarks_outdated_by_new_file(benchmarked_dir):
+    # git diff ignores untracked files
+    (benchmarked_dir / "benchmarks" / "new.py").write_text("x = 1\n", encoding="utf-8")
+    reasons = outdated_benchmarks(benchmarked_dir)
+    assert len(reasons) == 1
+    assert "benchmarks/new.py" in reasons[0]
+
+
+def test_benchmarks_ignore_locked_packages_without_version(benchmarked_dir):
+    (benchmarked_dir / "uv.lock").write_text(
+        '[[package]]\nname = "numpy"\nsource = { editable = "." }\n', encoding="utf-8"
+    )
+    write_benchmark_results(
+        benchmarked_dir, versions={"extremitypathfinder": "2.8.0", "numpy": None}
+    )
+    assert outdated_benchmarks(benchmarked_dir) == []
 
 
 @pytest.mark.parametrize(

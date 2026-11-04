@@ -117,7 +117,10 @@ def _locked_versions(project_dir: Path) -> dict[str, set[str]]:
         lock = tomllib.load(f)
     versions = {}
     for package in lock.get("package", []):
-        versions.setdefault(package["name"], set()).add(package.get("version"))
+        entry = versions.setdefault(package["name"], set())
+        # Note: e.g. workspace members with a dynamic version have none
+        if package.get("version"):
+            entry.add(package["version"])
     return versions
 
 
@@ -145,17 +148,30 @@ def outdated_benchmarks(project_dir: Path = PROJECT_DIR) -> list[str]:
     if sha is None:
         reasons.append("the results do not name the measured commit")
     else:
+        fetch_error = ""
         if _git(project_dir, "cat-file", "-e", f"{sha}^{{commit}}").returncode != 0:
             # e.g. a shallow clone in CI
-            _git(project_dir, "fetch", "--quiet", "--depth=1", "origin", sha)
+            fetch = _git(project_dir, "fetch", "--quiet", "--depth=1", "origin", sha)
+            fetch_error = fetch.stderr.strip()
         diff = _git(project_dir, "diff", "--name-only", sha, "--", *BENCHMARKED_CODE)
+        # Note: git diff ignores untracked files
+        untracked = _git(
+            project_dir,
+            "ls-files",
+            "--others",
+            "--exclude-standard",
+            "--",
+            *BENCHMARKED_CODE,
+        )
         if diff.returncode != 0:
+            error = "; ".join(e for e in (fetch_error, diff.stderr.strip()) if e)
             reasons.append(
-                f"cannot compare with the measured commit {sha[:10]}: {diff.stderr.strip()}"
+                f"cannot compare with the measured commit {sha[:10]}: {error}"
             )
-        elif diff.stdout.strip():
-            changed = ", ".join(diff.stdout.split())
-            reasons.append(f"changed since the measured commit {sha[:10]}: {changed}")
+        elif changed := diff.stdout.split() + untracked.stdout.split():
+            reasons.append(
+                f"changed since the measured commit {sha[:10]}: {', '.join(changed)}"
+            )
     locked = _locked_versions(project_dir)
     for name, measured in sorted((meta.get("versions") or {}).items()):
         if name == "extremitypathfinder":
