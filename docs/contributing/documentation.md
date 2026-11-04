@@ -66,8 +66,9 @@ When editing the guide:
 - **Amend instead of append.** Update the rule, sentence or section that covers the topic, merge duplicates and
   delete what stopped mattering. Add a new section only for a new topic.
 - **Condense before splitting.** When a page reaches the limit, first review whether it can be condensed without
-  losing significant information: merge duplicates, drop outdated or obvious rules, tighten the wording,
-  link to the page that already explains a detail instead of repeating it.
+  losing significant information: merge duplicates, drop outdated or obvious rules, tighten the wording.
+  Information covered elsewhere (another page, `AGENTS.md`, docstrings, the code, an issue) can be dropped,
+  with a link to it where readers need it.
 - **Split what remains.** If the page is still too long, split it along its topics or readers into pages that can
   be read on their own (e.g. a procedure and its reference), not into numbered parts. Link the new pages from
   `CONTRIBUTING.md` or a page reachable from it (and from `AGENTS.md` if agents need them), add them to the toctree
