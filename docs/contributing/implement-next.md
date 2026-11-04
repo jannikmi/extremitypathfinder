@@ -22,8 +22,8 @@ Run it on request (e.g. `/implement-next` in Claude Code), optionally for a give
    one prepares or simplifies the other, or they are small changes of the same kind that one review covers.
    Split only unrelated changes that would interfere with each other, e.g. one could be held up, rejected or reverted
    without the other, or they need a decision the other does not. The size of a pull request is no reason to split.
-4. **Claim** every issue of the bundle. Drop an issue that someone else claimed first from the bundle;
-   if it was the picked issue, release the other claims and go back to step 2.
+4. **Claim** every issue of the bundle, on a new branch for each run. Release and drop an issue that someone else
+   claimed first; if it was the picked issue, release all claims and go back to step 2.
 5. **Plan:** read the [Invariants](invariants.md), the [Codebase map](codebase-map.md) and each issue with its comments
    and links. For a larger change not yet decided in the issue, follow
    [Trade-offs and decisions](workflow.md#trade-offs-and-decisions): decide if one option is clearly better,
@@ -33,35 +33,34 @@ Run it on request (e.g. `/implement-next` in Claude Code), optionally for a give
 6. **Implement** with the rules of this guide: tests (a regression test that fails before each fix),
    results identical with and without Numba, changelog, documentation and decision log.
    Commit per issue where the changes allow it, so that reviewers can follow them.
-   Open a draft pull request after the first commit, with "closes #…" for every issue of the bundle.
+   Read the claims again, then open a draft pull request after the first commit, with "closes #…" for every issue
+   of the bundle. Release and drop an issue someone else took over.
 7. **Check:** `make check`, the tox environments with and without Numba if the package changed,
    the strict documentation build if the documentation changed, benchmarks for performance changes
    (cf. [Testing](testing.md), [Performance](performance.md)).
 8. **Review:** run the independent review (cf. [Reviews](workflow.md#reviews)) and fix the clear findings.
-   Mark the pull request ready for review when CI passes. Then fix CI failures, merge conflicts and review comments
-   until the pull request is merged or closed. Merge `master` into the branch for conflicts, do not force-push.
-   Findings outside the bundle become new issues.
+   Mark the pull request ready for review when CI passes. The run ends here; afterwards, fix CI failures,
+   merge conflicts and review comments as they come, until the pull request is merged or closed.
+   Merge `master` into the branch for conflicts, do not force-push. Findings outside the bundle become new issues.
 9. **Report** the pull request, the issues it closes, the decisions made and by whom, the follow-up issues
    and what is still open.
 
 ## Claims
 
-A claim is a comment on the issue. Comments work for every tool and person, and GitHub orders them in time,
+A claim is a comment on the issue. Comments work for every tool and person, and GitHub orders them,
 so everyone reading them sees the same order. Agents of one maintainer often share a GitHub account:
-the branch, not the account, identifies a claim.
+the branch, new for each run, identifies a claim, not the account.
 
 ```markdown
-<!-- claim branch=<branch> -->
+<!-- claim branch=<owner>:<branch> -->
 Claimed for implementation on branch `<branch>` by <name or agent session link>, together with #… (if bundled).
 ```
 
-- **Claim** before writing code: post the comment and add the label `in progress`.
-  Then read all comments of the issue again. The oldest active claim wins: if another one is older, release yours.
-- **Active:** a claim is active until it is released, until its pull request is merged or closed, or until it is stale:
-  no pull request one day after the claim, or no commit and no comment in its pull request for 14 days.
-  To take over a stale claim, name it in your claim comment.
-- **Release** when you give up an issue or your pull request is closed without merging:
-  `<!-- release branch=<branch> -->` and the reason. Remove the label if no other active claim is left.
-  A merged pull request closes the issue, no release is needed.
-- An issue assigned to a person is claimed by that person. The label `in progress` only helps to find claimed issues:
-  the comments decide.
+- **Claim** before writing code: post the comment, wait a few seconds and read all comments of the issue again.
+  The oldest active claim wins (ordered by comment id): if another one is older, release yours.
+- **Active:** a claim is active while its pull request is open. Before there is a pull request, it goes stale
+  one day after the claim or after its last refresh (a comment with the same marker, for a longer planning phase).
+  Take over a stale claim by naming it in your claim. A claim that went stale does not become active again.
+- **Release** when you drop an issue or your pull request is closed without merging:
+  `<!-- release branch=<owner>:<branch> -->` and the reason. A merged pull request closes the issue.
+- An issue assigned to someone is claimed by them. Agents do not assign issues.

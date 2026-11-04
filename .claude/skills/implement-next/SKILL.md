@@ -12,7 +12,8 @@ first. This file only adds how to run it in Claude Code.
 
 Arguments: an issue number is the issue to implement (still checked and claimed).
 `--dry-run` stops after step 3 and shows the ranking, the pick and the bundle, without claiming anything.
-One run implements one bundle; for continuous work, run it in a loop (`/loop /implement-next`).
+One run implements one bundle and ends when its pull request is ready for review; for continuous work, run it in
+a loop (`/loop /implement-next`). PR events of earlier runs wake the session in between.
 
 ## Rank and pick (steps 1 and 2)
 
@@ -20,30 +21,31 @@ Gather the issues, their dependencies and the open pull requests as in "Rank and
 [unblock skill](../unblock/SKILL.md), with the GitHub MCP tools (`mcp__github__*`, load them with ToolSearch).
 In addition, for each candidate from the top down:
 
-- read all pages of `issue_read` `get_comments` and evaluate the claims: comments with `<!-- claim branch=… -->`
-  and `<!-- release branch=… -->` markers, ordered by creation time, and the assignees.
-  Check a claim's pull request with `list_pull_requests` (`head`, `state: all`) for merged, closed or stale.
-- check the open pull requests' bodies for "closes #…", "fixes #…" or "resolves #…".
+- `issue_read` `get`: the assignees and `closed_by_pull_requests` (an open one means not ready).
+- all pages of `issue_read` `get_comments`: the comments with `<!-- claim branch=… -->` and
+  `<!-- release branch=… -->` markers, ordered by comment id. A release cancels the earlier claims of its branch.
+  Find a claim's pull request with `list_pull_requests` (`head: "<owner>:<branch>"`, `state: all`).
 
 Show the top of the ranking as a short Markdown table (issue, priority, ready or what blocks it, claimed by)
 and the bundle with one sentence per issue on why it belongs in it.
 
 ## Claim (step 4)
 
-- Branch: the branch this session must push to, if the environment designates one; otherwise
-  `implement-<issue numbers>-<short slug>` from the latest `origin/master`.
-  The agent session link goes into the claim comment.
-- Post the claim with `add_issue_comment`, then add `in progress` with `issue_write`: it replaces all labels,
-  so pass the labels just read by `issue_read` `get_labels` plus `in progress`.
-- Read the comments again, after posting, and keep only the issues where the session's claim is the oldest active one.
-- Comments end with the attribution footer of the session. Release with the same tools and the release marker.
+- Branch: a new branch for each run, `implement-<issue numbers>-<short slug>` from the latest `origin/master`,
+  even if the environment designates a branch (that one may carry the open pull request of an earlier run).
+  If pushing to a new branch is refused, stop with that reason instead of reusing a branch.
+- Post the claims with `add_issue_comment`, with the agent session link. Wait a few seconds (`sleep 5`),
+  read the comments again and keep only the issues where this run's claim is the oldest active one.
+  Post the release on every issue dropped. Comments end with the attribution footer of the session.
+- Do not change labels or assignees for a claim.
 
 ## Plan and decide (step 5)
 
 A maintainer is identified as in the unblock skill. If one is in the chat, ask with `AskUserQuestion`
 like step 5 of the unblock skill: one question per decision, the comparison in the chat message before the call.
 In a run without a person (scheduled or looped), never wait: follow the page (decide if clearly better,
-otherwise record the options in the issue and continue without it).
+otherwise write the options and the recommendation into the issue and continue without it).
+Unlike `/unblock`, this posts options without asking, but never a decision a maintainer must make.
 
 ## Implement and check (steps 6 and 7)
 
