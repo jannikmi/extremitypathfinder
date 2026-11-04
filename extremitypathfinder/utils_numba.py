@@ -3,8 +3,6 @@ from collections.abc import Iterable
 
 import numpy as np
 
-from extremitypathfinder import configs
-
 try:
     from numba import b1, f8, i8, njit, typeof
 except ImportError:
@@ -227,13 +225,17 @@ def _lies_behind_inner(p1: np.ndarray, p2: np.ndarray, v: np.ndarray) -> bool:
     # because the vertex lies within the angle range between the two edge vertices
     #    (together with the other conditions on the polygons)
     #   this set of linear equations is always solvable (the matrix is regular)
-    A = np.empty((2, 2), dtype=configs.DTYPE_FLOAT)
-    A[:, 0] = p1 - p2
-    A[:, 1] = v
+    # only mu is needed: Cramer's rule instead of a general solver (#185).
+    # No LAPACK call: identical in both modes and Numba does not need SciPy.
+    # With integer coordinates (e.g. grids) the determinant and the numerator are exact,
+    # so a vertex exactly on the edge (mu == 1) is decided exactly.
+    a = p1[0] - p2[0]
+    b = p1[1] - p2[1]
+    det = a * v[1] - v[0] * b
     # Note: parallel lines are not possible here (singular matrix)
-    x = np.linalg.solve(A, p1)
+    mu = (a * p1[1] - b * p1[0]) / det
     # vertices on the edge are possibly visible! ( < not <=)
-    return x[1] < 1.0
+    return mu < 1.0
 
 
 def is_within_map(
