@@ -81,8 +81,15 @@ No API documentation in the paper: refer to the documentation instead.
 
 <!-- ~200 words. Only verified evidence: publications, external use, integrations. No aspirational statements. -->
 
-- TODO: publications, theses and research repositories that use the package (evidence collection, cf. the plan).
-- Releases on PyPI since 2018, download numbers, dependent repositories.
+- Use by other research groups, shown by the official code of their papers (`PolygonEnvironment` imported):
+  - Chalmers (Åkesson group), multi-robot planning and navigation: @ceder2024bev (states that reference paths
+    come from visibility graphs and A\*), @zhang2025future, @roselli2025scheduling, @xue2026proactive;
+    also master theses and courses since 2020.
+  - University of Southern Denmark, UAV search and rescue: @grontved2023decentralized (`trajallocpy`).
+  - Integrations: SiTT, the traffic simulation of the ERC project STRADA (University of Trier),
+    declares the package as a dependency; `ros_sgp_tools` (SGP-Tools, informative path planning) uses it.
+- None of the papers opened so far names the package in its text: ask these groups to cite the JOSS paper.
+- Releases on PyPI since 2018, download numbers, GitHub dependents (29 repositories, 1 package in November 2026).
 - Reproducible benchmark against pyvisgraph with one command (`benchmarks/`).
 
 # AI usage disclosure
