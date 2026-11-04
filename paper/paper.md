@@ -1,0 +1,98 @@
+---
+title: "extremitypathfinder: exact Euclidean shortest paths in 2D polygon environments with reduced visibility graphs"
+tags:
+  - Python
+  - path planning
+  - shortest path
+  - visibility graph
+  - computational geometry
+authors:
+  - name: Jannik Kissinger
+    orcid: 0000-0000-0000-0000 # TODO
+    affiliation: 1
+affiliations:
+  - name: TODO
+    index: 1
+date: TODO
+bibliography: paper.bib
+---
+
+<!--
+Skeleton of the JOSS paper (issue #190). The plan and the open tasks are in the pull request that added this file.
+Sections and order as required by JOSS (https://joss.readthedocs.io/en/latest/paper.html).
+Length of the whole paper: 750-1750 words. Each bullet below is a content note, to be replaced by prose.
+No API documentation in the paper: refer to the documentation instead.
+-->
+
+# Summary
+
+<!-- ~150 words, for non-specialists. -->
+
+- The problem: the shortest path between two points in a plane with polygonal obstacles
+  (robots, ships, game characters, pedestrians in a building plan).
+- What the package does: prepare an environment once (boundary polygon with holes, or a grid),
+  then answer many shortest path queries quickly. Exact Euclidean paths, not approximations on a grid or mesh.
+- How, in one sentence: only the protruding corners ("extremities") become nodes of a reduced
+  visibility graph [@vinther2015pathfinding], searched with A\* [@hart1968astar].
+
+# Statement of need
+
+<!-- ~250 words. Problem, target audience, relation to other work. -->
+
+- Target audience: researchers and engineers in robotics, simulation, GIS and routing (e.g. maritime),
+  and game AI, who need exact shortest paths in Python with `pip install` and few dependencies.
+- Use cases with many queries in a static environment: distance matrices, simulations, route planning.
+- Inputs as they come from practice: touching and overlapping polygons, grids with blocked cells,
+  no triangulation or navigation mesh to build first.
+- Reproducibility: results are identical with and without the optional Numba accelerator [@lam2015numba].
+
+# State of the field
+
+<!-- ~300 words. Source: docs/9_alternatives.rst. Must contain a "build vs. contribute" justification. -->
+
+- Visibility graphs [@lozanoperez1979; @lee1978proximity]; any-angle search on navigation meshes, Polyanya
+  [@cui2017polyanya]; grid planners.
+- pyvisgraph [@pyvisgraph]: the closest Python alternative. Build vs. contribute: unmaintained since 2020,
+  full visibility graph (no extremity reduction), Dijkstra instead of A\*, no boundary polygon, returns invalid paths
+  on some inputs. The reduction changes the core data structure, so it cannot be added as a patch.
+- Polyanya: state of the art, but no Python package, and it needs a triangulation of the free space.
+- VisiLibity, CGAL based packages: visibility computation, no maintained Python package for shortest paths.
+- Measured comparison with pyvisgraph (docs/7_performance.rst, #111). Polyanya not measured yet (#170).
+
+# Software design
+
+<!-- ~350 words. Source: docs/8_design.rst and docs/contributing/decisions.md. Trade-offs, not code structure. -->
+
+- Preprocessing vs. query time: the visibility graph is computed once, a query only connects start and goal.
+- Graph size vs. generality: only extremities, and only edges that can be part of a shortest path
+  ("Property One" in @vinther2015pathfinding). Smaller graph, faster queries, more preprocessing logic.
+- Visibility algorithm: angle range checks of candidate extremities instead of Lee's sweep
+  [@lee1978proximity] (docs/8_design.rst).
+- Numerics: floating point with an explicit tolerance policy (docs/contributing/invariants.md, #3).
+- Acceleration: Numba is optional, results must be identical with and without it (tested in CI).
+- Dependencies: NumPy [@harris2020numpy] and NetworkX [@hagberg2008networkx] only; flat arrays referenced by index.
+- Queries never modify the prepared environment: safe for repeated queries and caching with pickle.
+
+# Research impact statement
+
+<!-- ~200 words. Only verified evidence: publications, external use, integrations. No aspirational statements. -->
+
+- TODO: publications, theses and research repositories that use the package (evidence collection, cf. the plan).
+- Releases on PyPI since 2018, download numbers, dependent repositories.
+- Reproducible benchmark against pyvisgraph with one command (`benchmarks/`).
+
+# AI usage disclosure
+
+<!-- Required. Tools used, for what, how the output was verified; human authors made the core design decisions. -->
+
+- TODO: tools and the parts of the code, tests, documentation and paper they were used for
+  (since 2026, commits with `Co-Authored-By` trailers; pull requests with the AI disclosure checkbox).
+- Verification: review of every change by the maintainer, test suite with and without Numba in CI,
+  regression tests for every bugfix, independent validation of the benchmark paths with Shapely.
+- Design decisions and the invariants were decided by the maintainer (docs/contributing/decisions.md).
+
+# Acknowledgements
+
+- TODO: contributors (cf. the GitHub contributors page), funding (if any).
+
+# References
