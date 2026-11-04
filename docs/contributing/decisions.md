@@ -26,6 +26,8 @@ Earlier decisions are described in the {ref}`Design Decisions <design_decisions>
 - **Rejected:** leaving it as it is (blocked issues and open decisions stay spread over issues and pull requests);
   the procedure only in the Claude Code skill (other tools and humans would not find it);
   a `decision needed` label (needs triage by a maintainer and finds no missing information);
+  asking in batches or up to a limit (the maintainer decides when to stop);
+  handling blocking decisions before all others (they inherit the priority of the work they block instead);
   agents posting results or changing labels without showing them first (comments notify people and cannot be taken back).
 - **Details:** [Unblock and re-rank](unblock-and-rerank.md)
 
