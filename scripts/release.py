@@ -191,14 +191,33 @@ def outdated_benchmarks(project_dir: Path = PROJECT_DIR) -> list[str]:
 
 def version_at(commit: str, project_dir: Path = PROJECT_DIR) -> str:
     """the package version in pyproject.toml at the given commit (fetched in a shallow clone)"""
+    fetch_error = ""
     if _git(project_dir, "cat-file", "-e", f"{commit}^{{commit}}").returncode != 0:
-        _git(project_dir, "fetch", "--quiet", "--depth=1", "origin", commit)
+        fetch = _git(project_dir, "fetch", "--quiet", "--depth=1", "origin", commit)
+        fetch_error = fetch.stderr.strip()
     show = _git(project_dir, "show", f"{commit}:pyproject.toml")
     if show.returncode != 0:
-        raise ValueError(
-            f"cannot read pyproject.toml at {commit}: {show.stderr.strip()}"
-        )
-    return tomllib.loads(show.stdout)["project"]["version"]
+        error = "; ".join(e for e in (fetch_error, show.stderr.strip()) if e)
+        raise ValueError(f"cannot read pyproject.toml at {commit}: {error}")
+    try:
+        return tomllib.loads(show.stdout)["project"]["version"]
+    except (tomllib.TOMLDecodeError, KeyError) as error:
+        raise ValueError(f"no package version in pyproject.toml at {commit}") from error
+
+
+def check_release_benchmarks(
+    base: str | None = None, project_dir: Path = PROJECT_DIR
+) -> str:
+    """checks the benchmark results, with a base commit only if the package version changed since
+
+    :return: what was checked
+    """
+    if base is not None:
+        version = read_version(project_dir)
+        if version_at(base, project_dir) == version:
+            return f"version {version} unchanged since {base}: benchmark results not checked"
+    check_benchmarks(project_dir)
+    return f"{BENCHMARK_RESULTS}: up to date"
 
 
 def check_benchmarks(project_dir: Path = PROJECT_DIR) -> None:
@@ -270,15 +289,7 @@ def main() -> None:
             date = release_date(changelog, version)
             print(f"CHANGELOG.rst: {version} ({date.isoformat()})")
         elif args.command == "benchmarks":
-            base = args.if_version_changed_since
-            version = read_version()
-            if base is not None and version_at(base) == version:
-                print(
-                    f"version {version} unchanged since {base}: benchmark results not checked"
-                )
-            else:
-                check_benchmarks()
-                print(f"{BENCHMARK_RESULTS}: up to date")
+            print(check_release_benchmarks(args.if_version_changed_since))
         else:
             print(prepare(args.target, args.date))
     except ValueError as error:

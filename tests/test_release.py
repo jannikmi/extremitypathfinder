@@ -11,6 +11,7 @@ from scripts.release import (
     CHANGELOG_NAME,
     PROJECT_DIR,
     check_new_version,
+    check_release_benchmarks,
     outdated_benchmarks,
     prepare,
     read_version,
@@ -340,3 +341,23 @@ def test_version_at(project_dir):
 def test_version_at_unknown_commit(benchmarked_dir):
     with pytest.raises(ValueError, match="cannot read pyproject.toml"):
         version_at("0" * 40, benchmarked_dir)
+
+
+def test_check_release_benchmarks_only_for_a_new_version(project_dir):
+    git(project_dir, "add", PYPROJECT_NAME, CHANGELOG_NAME)
+    git(project_dir, "commit", "--quiet", "-m", "pyproject")
+    # outdated results
+    (project_dir / "extremitypathfinder" / "__init__.py").write_text(
+        "x = 1\n", encoding="utf-8"
+    )
+    git(project_dir, "commit", "--quiet", "-am", "change")
+    base = git(project_dir, "rev-parse", "HEAD")
+    assert "not checked" in check_release_benchmarks(base, project_dir)
+
+    # e.g. a version changed by hand
+    pyproject = PYPROJECT_EXAMPLE.replace('version = "2.8.0"', 'version = "2.8.1"', 1)
+    (project_dir / PYPROJECT_NAME).write_text(pyproject, encoding="utf-8")
+    with pytest.raises(ValueError, match="benchmark results are outdated"):
+        check_release_benchmarks(base, project_dir)
+    with pytest.raises(ValueError, match="benchmark results are outdated"):
+        check_release_benchmarks(None, project_dir)
