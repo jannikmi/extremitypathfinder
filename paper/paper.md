@@ -54,9 +54,11 @@ No API documentation in the paper: refer to the documentation instead.
   [@cui2017polyanya]; grid planners.
 - pyvisgraph [@pyvisgraph]: the closest Python alternative. Build vs. contribute: unmaintained since 2020,
   full visibility graph (no extremity reduction), Dijkstra instead of A\*, no boundary polygon, returns invalid paths
-  on some inputs. The reduction changes the core data structure, so it cannot be added as a patch.
+  on some inputs. The reduced graph and the input model (boundary polygon, touching polygons) would require
+  a rewrite of pyvisgraph's core; justify this in the prose.
 - Polyanya: state of the art, but no Python package, and it needs a triangulation of the free space.
-- VisiLibity, CGAL based packages: visibility computation, no maintained Python package for shortest paths.
+- VisiLibity1 (C++): visibility and shortest paths, its Python binding is not on PyPI and has to be built.
+  CGAL based packages (e.g. pyvispoly): visibility polygons only, no shortest paths.
 - Measured comparison with pyvisgraph (docs/7_performance.rst, #111). Polyanya not measured yet (#170).
 
 # Software design
@@ -66,9 +68,11 @@ No API documentation in the paper: refer to the documentation instead.
 - Preprocessing vs. query time: the visibility graph is computed once, a query only connects start and goal.
 - Graph size vs. generality: only extremities, and only edges that can be part of a shortest path
   ("Property One" in @vinther2015pathfinding). Smaller graph, faster queries, more preprocessing logic.
-- Visibility algorithm: angle range checks of candidate extremities instead of Lee's sweep
-  [@lee1978proximity] (docs/8_design.rst).
-- Numerics: floating point with an explicit tolerance policy (docs/contributing/invariants.md, #3).
+- Visibility algorithm: Angle Range Elimination (AREA), which checks only candidate extremities and the edges
+  whose angle range contains them, instead of Lee's rotational sweep with an edge tree [@lee1978proximity]
+  (docs/8_design.rst).
+- Numerics: `float64` with exact contacts (polygons touch only at exactly equal coordinates or a vertex exactly
+  on an edge), no tolerance parameter (docs/contributing/invariants.md). Audit against exact arithmetic: #3.
 - Acceleration: Numba is optional, results must be identical with and without it (tested in CI).
 - Dependencies: NumPy [@harris2020numpy] and NetworkX [@hagberg2008networkx] only; flat arrays referenced by index.
 - Queries never modify the prepared environment: safe for repeated queries and caching with pickle.
