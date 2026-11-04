@@ -61,6 +61,16 @@ repos:
     hooks:
       - id: pyupgrade
 
+  - repo: local
+    hooks:
+      # word limits and references of the contributing guide (cf. docs/contributing/documentation.md)
+      - id: contributing-guide
+        name: contributing guide
+        entry: python scripts/check_contributing_guide.py
+        language: python
+        pass_filenames: false
+        files: ^(CONTRIBUTING\.md|pyproject\.toml|docs/contributing/|scripts/check_contributing_guide\.py)
+
 # TODO enable for very detailed linting:
 #    -   repo: https://github.com/pycqa/pylint
 #        rev: pylint-2.6.0

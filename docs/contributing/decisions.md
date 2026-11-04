@@ -30,6 +30,16 @@ Earlier decisions are described in the {ref}`Design Decisions <design_decisions>
   the measured dependency versions are compared instead).
 - **Details:** [Releasing](releasing.md#benchmark-results)
 
+## Contributing pages have a configurable word limit and are reachable from `CONTRIBUTING.md`
+
+- **Decided by:** a maintainer (the limit, justified exceptions, amending, condensing before splitting,
+  reachability); an agent (counting like `wc -w`, `CONTRIBUTING.md` as the only entry point,
+  the configuration in `pyproject.toml`)
+- **Rejected:** counting lines or characters (depend on line wrapping and language); excluding code blocks
+  (they cost reading time and agent context too); requiring only one reference from any file
+  (pages linking to each other, the toctree or a skill would pass without being findable from the guide).
+- **Details:** [Size and structure of this guide](documentation.md#size-and-structure-of-this-guide)
+
 ## Blocked issues are unblocked and re-ranked by a guide page and the `/unblock` skill (#188)
 
 - **Decided by:** a maintainer

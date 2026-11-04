@@ -74,6 +74,9 @@ internal:
   and with the locked dependency versions. ``scripts/release.py prepare``, the CI of pull requests changing
   the package version and the "tag release" workflow refuse outdated results.
   ``python scripts/release.py benchmarks`` checks them.
+- contributing guide: pages have a word limit (``max-words`` in ``pyproject.toml``, exceptions need a reason)
+  and every page must be reachable from ``CONTRIBUTING.md``, checked by ``scripts/check_contributing_guide.py``
+  in pre-commit and the tests.
 
 
 3.0.0 (2026-10-29)
