@@ -6,7 +6,7 @@ Usage
 
 .. note::
 
-   Also check out the :ref:`API documentation <api>` or the `code <https://github.com/MrMinimal64/extremitypathfinder>`__.
+   Also check out the :ref:`API documentation <api>` or the `code <https://github.com/jannikmi/extremitypathfinder>`__.
 
 
 .. _init:
