@@ -14,6 +14,7 @@ Measure before and after optimising, and include the numbers in the pull request
     (`benchmarks/results/benchmark.json`) together with the tables and figures. Check the machine first with `--preflight`,
     continue an interrupted run with `--resume`
     (cf. {ref}`running-benchmarks`).
+    A release requires up-to-date results (cf. [Releasing](releasing.md#benchmark-results)).
 - `scripts/speed_benchmarks.py` measures environment preparation and queries on the small test environments
   with the same harness (`uv run --all-extras --group benchmark python scripts/speed_benchmarks.py`).
 - `prototypes/large_env_query_profile.py` profiles queries on a large, configurable environment
