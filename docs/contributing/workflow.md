@@ -27,7 +27,8 @@ into one label. Within a label, stability issues come first, then the ones with 
   unless they block a higher-priority issue.
 
 Maintainers record the dependencies on GitHub, not in a file: "blocked by" for an issue that must be done first,
-sub-issues for the parts of a larger issue. They update the labels when an issue changes its scope or what it blocks.
+sub-issues for the parts of a larger issue. They update the labels when an issue changes its scope or what it blocks
+(cf. [Unblock and re-rank](unblock-and-rerank.md)).
 
 ## Trade-offs and decisions
 
@@ -45,6 +46,8 @@ the [invariants](invariants.md). Before implementing one:
    the relevant page of this guide (working on the code) or a comment next to the code (a single function,
    no log entry needed).
 5. **Summarise** the trade-off in the pull request, so that the reviewer checks the decision, not only the code.
+
+To clear the decisions and the information that issues wait for, follow [Unblock and re-rank](unblock-and-rerank.md).
 
 ## Branch and commits
 
