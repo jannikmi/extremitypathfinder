@@ -41,3 +41,7 @@ The Markdown files are read on GitHub and in the HTML documentation, so links mu
   ```
 
   The exports are deterministic: regenerating them without changes yields identical files.
+- The benchmark documentation has three pages for three kinds of readers: the results (users),
+  the method (reviewers of the numbers) and running them (contributors, in this guide).
+  Speed and memory stay on one page, because they are read side by side,
+  and the pyvisgraph defects stay next to the validation that found them (#165).
