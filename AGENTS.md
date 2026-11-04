@@ -59,11 +59,11 @@ make release-check                 # build and validate the release artifacts
 | style and linting | `docs/contributing/code-style.md` |
 | prioritising issues, branches, commits, pull requests | `docs/contributing/workflow.md` |
 | unblocking issues and re-ranking their priorities | `docs/contributing/unblock-and-rerank.md` |
-| documentation and figures | `docs/contributing/documentation.md` |
+| documentation, figures and this contributing guide | `docs/contributing/documentation.md` |
 | changelog entries | `docs/contributing/changelog.md` |
 | optimising | `docs/contributing/performance.md` |
 | releases (only when asked) | `docs/contributing/releasing.md` |
 | rules for AI-assisted work | `docs/contributing/ai-assisted-contributions.md` |
 | algorithms and design decisions | `docs/8_design.rst` |
 
-When a correction repeats, add it to the relevant guide page (or here, if it applies to almost every change).
+When a correction repeats, amend the relevant guide page (or this file, if it applies to almost every change).
