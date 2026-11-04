@@ -1,6 +1,6 @@
 ---
 name: unblock
-description: Unblock and re-rank the issues of extremitypathfinder, one at a time, until the maintainer stops. Picks the most important blocked issue, compiles or measures the missing information, prepares options with trade-offs and a recommendation if a decision is needed, asks the maintainer, updates the issue and re-ranks the priorities. Use when asked for blocked issues, open or pending decisions, re-prioritising, before starting work that waits for a blocked issue, or via /unblock.
+description: Unblock and re-rank the issues of extremitypathfinder, one at a time, until the maintainer stops. Picks the most important blocked issue, compiles, measures or audits the missing information, prepares options with trade-offs and a recommendation if a decision is needed, asks the maintainer, amends the issue and the affected repository files, and re-ranks the priorities. Use when asked for blocked issues, open or pending decisions, re-prioritising, before starting work that waits for a blocked issue, or via /unblock.
 argument-hint: "[#<issue> to start with]"
 ---
 
@@ -28,10 +28,17 @@ Use the GitHub MCP tools (`mcp__github__*`, load them with ToolSearch):
 
 Show the ranking as a short Markdown table in the chat.
 
-## Compile or measure (step 3)
+## Compile, measure or audit (step 3)
 
 Use the repository commands of `AGENTS.md` (`uv run pytest`, `uv run python -m cProfile`, the benchmark commands of
 `docs/contributing/performance.md`). A cloud session runs on a virtual machine: label its numbers as indicative.
+Run `make install` first if Numba is missing, and run audits and measurements with and without Numba where they
+differ.
+
+Perform the audit an issue needs now, not as a future task. E.g. call the function on integer, decimal grid and
+near-degenerate inputs and compare it with a `fractions.Fraction` reference, or transform the test environments
+(`tests/test_cases.py`) and compare the results. Check a surprising result (e.g. a reported bug) against an
+independent reference before presenting it: the input generator can be wrong too.
 Write scripts and outputs to the scratchpad directory, never into the repository.
 Delegate wide searches to a subagent if that keeps the conversation short.
 
@@ -49,10 +56,21 @@ Put the compiled information and the full comparison in the chat message before 
 
 ## Update and re-rank (steps 6 and 7)
 
-Make the changes without asking, with `add_issue_comment`, `issue_write` (labels, body) and `sub_issue_write`,
-and show each one in the chat: the comment as posted with its link, labels and links as "old → new".
-Comments end with the attribution footer of the session.
+Make the changes without asking. Do not post comments (`add_issue_comment`) for them.
+
+- **Issue:** `issue_write` (method `update`) with the amended `title`, `body` and `labels`, `sub_issue_write` for
+  sub-issues. Read the current body right before writing it, and keep the sections that are still valid
+  (e.g. an "Interested in this feature?" banner). Write the decision into the body as a section
+  "Decision (<date>)": what was decided, by whom, the rejected options with the main reason; put the audit or
+  measurement in its own section with the method and the machine. Rewrite superseded parts instead of striking them out.
+  Show in the chat the changed sections (old → new), labels and links as "old → new".
+- **Repository files:** one branch per run from `origin/master` (e.g. `unblock-<date>`), one commit per issue
+  (`docs: record the decision of #<number>`), edited with the file tools. Run `uv run tox -e docs` and `make check`,
+  push, and open one draft pull request for the run after the first decision (the template's **Trade-off** section
+  lists the decisions); later decisions add commits to it. Show each changed file in the chat.
+  Follow the pull request rules of `AGENTS.md`, including the independent review.
 
 ## Report (step 8)
 
-End with a table: issue, what blocked it, answer, changes made, still open. Do not start implementing.
+End with a table: issue, what blocked it, answer, changes made (description, labels, links, files), still open,
+and the link to the pull request. Do not start implementing.
