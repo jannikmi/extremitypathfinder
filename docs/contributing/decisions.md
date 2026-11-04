@@ -20,6 +20,14 @@ A maintainer confirms an agent decision by changing **Decided by**.
 A decision revised by a later pull request gets a new entry that marks the old one **superseded**.
 Earlier decisions are described in the {ref}`Design Decisions <design_decisions>` and the issues linked there.
 
+## Unblock runs perform the audits and amend the issues and files instead of commenting (#194)
+
+- **Decided by:** a maintainer
+- **Rejected:** appending a comment per decision (the previous rule of #188: the current scope has to be
+  reconstructed from the thread, and decisions reach the repository only with their implementation);
+  rescoping an issue into a later audit (defers the information the decision needs, the issue stays blocked).
+- **Details:** [Unblock and re-rank](unblock-and-rerank.md), steps 3 and 6
+
 ## Blocked issues are unblocked and re-ranked by a guide page and the `/unblock` skill (#188)
 
 - **Decided by:** a maintainer
@@ -30,6 +38,7 @@ Earlier decisions are described in the {ref}`Design Decisions <design_decisions>
   handling blocking decisions before all others (they inherit the priority of the work they block instead);
   approving each comment and label change separately (slows down every issue; showing the changes is enough to check
   and revert them); changes without showing them (the maintainer could not check them).
+- **Partly superseded** by #194: issues and files are amended instead of commented, and audits run in the procedure.
 - **Details:** [Unblock and re-rank](unblock-and-rerank.md)
 
 ## The 2×2 system in `_lies_behind_inner()` is solved in closed form, SciPy is dropped from the numba extra (#185)
