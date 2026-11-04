@@ -20,14 +20,27 @@ A maintainer confirms an agent decision by changing **Decided by**.
 A decision revised by a later pull request gets a new entry that marks the old one **superseded**.
 Earlier decisions are described in the {ref}`Design Decisions <design_decisions>` and the issues linked there.
 
-## A release requires up-to-date benchmark results, checked when the release is prepared
+## A release requires up-to-date benchmark results, checked when it is prepared, on its pull request and when it is tagged (#191)
 
-- **Decided by:** a maintainer (the rule); an agent (where and how it is checked)
+- **Decided by:** a maintainer (the rule and closing the gap of manual version changes); an agent (how it is checked)
 - **Rejected:** running the benchmarks in CI (cf. the entry of #165 below; shared runners also give noisy timings
   on changing hardware); checking every pull request (changing the code without a rerun of hours is fine
-  until the release); comparing `pyproject.toml` and `uv.lock` as files (they change with every release,
+  until the release); only checking when the release is prepared (misses manual version changes and code merged
+  into `master` afterwards); comparing `pyproject.toml` and `uv.lock` as files (they change with every release,
   the measured dependency versions are compared instead).
 - **Details:** [Releasing](releasing.md#benchmark-results)
+
+## Blocked issues are unblocked and re-ranked by a guide page and the `/unblock` skill (#188)
+
+- **Decided by:** a maintainer
+- **Rejected:** leaving it as it is (blocked issues and open decisions stay spread over issues and pull requests);
+  the procedure only in the Claude Code skill (other tools and humans would not find it);
+  a `decision needed` label (needs triage by a maintainer and finds no missing information);
+  asking in batches or up to a limit (the maintainer decides when to stop);
+  handling blocking decisions before all others (they inherit the priority of the work they block instead);
+  approving each comment and label change separately (slows down every issue; showing the changes is enough to check
+  and revert them); changes without showing them (the maintainer could not check them).
+- **Details:** [Unblock and re-rank](unblock-and-rerank.md)
 
 ## The 2×2 system in `_lies_behind_inner()` is solved in closed form, SciPy is dropped from the numba extra (#185)
 
