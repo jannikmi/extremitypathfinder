@@ -15,7 +15,8 @@ Whether fixing bugs or implementing features, start with the issues labelled "pr
   the steps to reproduce the bug (ideally a minimal environment) and the full error message.
 - **Fix bugs**: issues labelled "bug" are open to whoever wants to fix them.
 - **Implement features**: issues labelled "help wanted" and not assigned to anyone are open.
-  Comment on the issue that you have started, and open a (draft) pull request early, so that CI runs.
+  Claim the issue with a comment (cf. [Claims](docs/contributing/implement-next.md#claims)),
+  and open a (draft) pull request early, so that CI runs.
   Issues without "help wanted" may already have code in the background. You can still help by describing
   how the feature would be useful to you or by linking to prior art.
 - **Write documentation**: fix unclear or missing parts of the documentation.
@@ -37,6 +38,7 @@ Whether fixing bugs or implementing features, start with the issues labelled "pr
 | [Setup](docs/contributing/setup.md) | set up the development environment |
 | [Workflow](docs/contributing/workflow.md) | choose and work on an issue, open a pull request or review one |
 | [Unblock and re-rank](docs/contributing/unblock-and-rerank.md) | unblock the most important issues and update their priorities |
+| [Implement the next issue](docs/contributing/implement-next.md) | pick, claim and implement the most important ready issues |
 | [Testing](docs/contributing/testing.md) | run or write tests |
 | [Code style](docs/contributing/code-style.md) | write code |
 | [Codebase map](docs/contributing/codebase-map.md) | look for the place to make a change |

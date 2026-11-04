@@ -59,6 +59,7 @@ make release-check                 # build and validate the release artifacts
 | style and linting | `docs/contributing/code-style.md` |
 | prioritising issues, branches, commits, pull requests | `docs/contributing/workflow.md` |
 | unblocking issues and re-ranking their priorities | `docs/contributing/unblock-and-rerank.md` |
+| picking, claiming and implementing the next issue | `docs/contributing/implement-next.md` |
 | documentation, figures and this contributing guide | `docs/contributing/documentation.md` |
 | changelog entries | `docs/contributing/changelog.md` |
 | optimising | `docs/contributing/performance.md` |

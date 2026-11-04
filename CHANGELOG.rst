@@ -73,6 +73,8 @@ internal:
 - contributing guide: pages have a word limit (``max-words`` in ``pyproject.toml``, exceptions need a reason)
   and every page must be reachable from ``CONTRIBUTING.md``, checked by ``scripts/check_contributing_guide.py``
   in pre-commit and the tests.
+- contributing guide: implementing the next ready issue (bundling related issues, claiming issues so that several
+  contributors and agents can work at the same time), automated by the ``/implement-next`` Claude Code skill.
 
 
 3.0.0 (2026-10-29)

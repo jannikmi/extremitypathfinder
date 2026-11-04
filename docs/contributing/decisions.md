@@ -20,6 +20,18 @@ A maintainer confirms an agent decision by changing **Decided by**.
 A decision revised by a later pull request gets a new entry that marks the old one **superseded**.
 Earlier decisions are described in the {ref}`Design Decisions <design_decisions>` and the issues linked there.
 
+## The next issue is implemented by a guide page and the `/implement-next` skill, claimed by a comment
+
+- **Decided by:** a maintainer (bundling related issues into one pull request, splitting only unrelated changes that
+  would interfere, claims for concurrent work); an agent (claims as comments with the oldest active claim winning,
+  the `in progress` label as a hint, the stale-claim limits, one bundle per run)
+- **Rejected:** one concern per pull request (more pull requests, reviews and merge conflicts for related changes);
+  claiming by assignment (agents of one maintainer share a GitHub account); claiming by the label alone
+  or by editing the issue (the last writer wins, two sessions can both believe they hold the claim);
+  claiming by pushing a lock branch (atomic, but invisible in the issue and needs cleanup);
+  a `ready` label (needs triage, goes stale; readiness follows from the issue and its links).
+- **Details:** [Implement the next issue](implement-next.md)
+
 ## Contributing pages have a configurable word limit and are reachable from `CONTRIBUTING.md`
 
 - **Decided by:** a maintainer (the limit, justified exceptions, amending, condensing before splitting,
