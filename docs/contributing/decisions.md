@@ -9,7 +9,6 @@ Decided trade-offs, newest first, including the rejected options
 - **Decided by:** a maintainer (link) | the contributor | an agent
 - **Rejected:** <options, each with the main reason>
 - **Details:** <link to the full reasoning, if any>
-- **Superseded by:** <#n, what changed> (only once a later decision revises it, fully or partly)
 ```
 
 Record only decisions that outlive their pull request and whose rejected options are likely to be proposed again.
@@ -18,16 +17,9 @@ Leave out details that are fully explained on the page they affect.
 
 Keep the entries correct: update links and wording when the referenced content moves or changes.
 A maintainer confirms an agent decision by changing **Decided by**.
-A decision revised by a later pull request gets a new entry that marks the old one **superseded**.
+A decision revised later is amended in its entry (title, issue numbers, rejected options, details), not superseded
+by a new one: the log states the current decisions, not their history (git keeps it).
 Earlier decisions are described in the {ref}`Design Decisions <design_decisions>` and the issues linked there.
-
-## Unblock runs perform the audits and amend the issues and files instead of commenting (#194)
-
-- **Decided by:** a maintainer
-- **Rejected:** appending a comment per decision (the previous rule of #188: the current scope has to be
-  reconstructed from the thread, and decisions reach the repository only with their implementation);
-  rescoping an issue into a later audit (defers the information the decision needs, the issue stays blocked).
-- **Details:** [Unblock and re-rank](unblock-and-rerank.md), steps 3 and 6
 
 ## A release requires up-to-date benchmark results, checked when it is prepared, on its pull request and when it is tagged (#191)
 
@@ -49,7 +41,7 @@ Earlier decisions are described in the {ref}`Design Decisions <design_decisions>
   (pages linking to each other, the toctree or a skill would pass without being findable from the guide).
 - **Details:** [Size and structure of this guide](documentation.md#size-and-structure-of-this-guide)
 
-## Blocked issues are unblocked and re-ranked by a guide page and the `/unblock` skill (#188)
+## Blocked issues are unblocked and re-ranked by a guide page and the `/unblock` skill, which performs the audits and amends the issues and files (#188, #194)
 
 - **Decided by:** a maintainer
 - **Rejected:** leaving it as it is (blocked issues and open decisions stay spread over issues and pull requests);
@@ -57,10 +49,12 @@ Earlier decisions are described in the {ref}`Design Decisions <design_decisions>
   a `decision needed` label (needs triage by a maintainer and finds no missing information);
   asking in batches or up to a limit (the maintainer decides when to stop);
   handling blocking decisions before all others (they inherit the priority of the work they block instead);
-  approving each comment and label change separately (slows down every issue; showing the changes is enough to check
-  and revert them); changes without showing them (the maintainer could not check them).
+  approving each change separately (slows down every issue; showing the changes is enough to check and revert them);
+  changes without showing them (the maintainer could not check them);
+  a comment per decision (the current scope has to be reconstructed from the thread, and decisions reach the
+  repository only with their implementation); rescoping an issue into a later audit (defers the information the
+  decision needs); asking before longer audits (stalls the run, a heads-up lets the maintainer intervene).
 - **Details:** [Unblock and re-rank](unblock-and-rerank.md)
-- **Superseded by:** #194, partly: issues and files are amended instead of commented, and audits run in the procedure.
 
 ## The 2×2 system in `_lies_behind_inner()` is solved in closed form, SciPy is dropped from the numba extra (#185)
 

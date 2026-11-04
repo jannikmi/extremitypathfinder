@@ -51,8 +51,8 @@ or before work that depends on a blocked issue, starting with that issue.
      Pages that describe the behaviour of the package (the [invariants](invariants.md), the
      {ref}`Design Decisions <design_decisions>`, the user documentation) change in the pull request that implements
      the decision, because they must match the code (cf. [Documentation](documentation.md)). Implementing (code,
-     tests, documentation, changelog entry) stays a separate task. If it changes the decision, it adds a new
-     decision log entry that marks the old one superseded. A decision that affects no file needs no pull request.
+     tests, documentation, changelog entry) stays a separate task. If it changes the decision, it amends the
+     decision log entry. A decision that affects no file needs no pull request.
    - **Comments only to ask someone else** (e.g. the reporter): editing a description notifies no one.
 7. **Re-rank:** the decision or the new information can change the effort, the risk, the demand or what an issue blocks.
    Update the priority labels of this issue and of the issues it blocks or that block it, each with the reason

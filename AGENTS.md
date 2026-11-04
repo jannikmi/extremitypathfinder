@@ -49,6 +49,9 @@ make release-check                 # build and validate the release artifacts
 12. After opening a pull request, run an independent review of the diff (fresh context) and fix clear findings.
 13. CI must not fail because of errors in pyvisgraph or other external packages and services,
     only because of extremitypathfinder (`docs/contributing/testing.md`).
+14. Amend, don't append: update issue descriptions, decision log entries, documentation and guide rules in place,
+    so that they state the current state. No follow-up comments, "superseded" markers or histories: git and GitHub
+    keep the history. Exceptions: `CHANGELOG.rst`, and comments that ask someone a question.
 
 ## Read next
 
