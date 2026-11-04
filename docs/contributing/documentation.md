@@ -45,3 +45,26 @@ The Markdown files are read on GitHub and in the HTML documentation, so links mu
   the method (reviewers of the numbers) and running them (contributors, in this guide).
   Speed and memory stay on one page, because they are read side by side,
   and the pyvisgraph defects stay next to the validation that found them (#165).
+
+## Size and structure of this guide
+
+Each page of the contributing guide is read in full by humans and loaded into the context of coding agents,
+so it stays short. `scripts/check_contributing_guide.py` (pre-commit and tests) enforces two rules,
+configured in the `[tool.contributing-guide]` table of `pyproject.toml`:
+
+- **Word limit:** a page in `docs/contributing/` has at most `max-words` words (1000), counted like `wc -w`.
+  A page may exceed it only with an exception in that table that states the reason, e.g. a table or procedure
+  that is clearer in one piece. The check rejects exceptions without a reason
+  and exceptions for pages back within the default limit.
+- **References:** every file in `docs/contributing/` is referenced by at least one other file: `CONTRIBUTING.md`,
+  `AGENTS.md`, another page of the documentation or a skill in `.claude/`. The hidden toctree in
+  `docs/5_contributing.md` does not count, a page must be findable from the text.
+
+When editing the guide:
+
+- **Amend instead of append.** Update the rule, sentence or section that covers the topic, merge duplicates and
+  delete what stopped mattering. Add a new section only for a new topic.
+- **Split at the limit.** When a page reaches the limit, condense it first. If it is still too long,
+  split it along its topics or readers into pages that can be read on their own (e.g. a procedure and its reference),
+  not into numbered parts. Link the new pages from `CONTRIBUTING.md` (and `AGENTS.md` if agents need them), add them
+  to the toctree in `docs/5_contributing.md` and update the links to moved sections.

@@ -42,7 +42,7 @@ Whether fixing bugs or implementing features, start with the issues labelled "pr
 | [Codebase map](docs/contributing/codebase-map.md) | look for the place to make a change |
 | [Invariants](docs/contributing/invariants.md) | change anything in the package (read this first) |
 | [Performance](docs/contributing/performance.md) | optimise or measure the speed |
-| [Documentation](docs/contributing/documentation.md) | change the documentation or its figures |
+| [Documentation](docs/contributing/documentation.md) | change the documentation, its figures or this guide |
 | [Changelog](docs/contributing/changelog.md) | describe your change for users |
 | [Releasing](docs/contributing/releasing.md) | validate or publish a release (maintainers) |
 | [AI-assisted contributions](docs/contributing/ai-assisted-contributions.md) | use a coding agent or AI assistant |

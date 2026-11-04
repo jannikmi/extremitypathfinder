@@ -70,6 +70,8 @@ internal:
   ``docs/contributing/`` (rendered with MyST), ``AGENTS.md`` and ``CLAUDE.md`` for coding agents,
   pull request and issue templates, ``make check`` for a quick check before committing,
   trade-off rules, a decision log and rules for prioritising issues.
+- contributing guide: pages have a word limit (``max-words`` in ``pyproject.toml``, exceptions need a reason)
+  and every page must be referenced, checked by ``scripts/check_contributing_guide.py`` in pre-commit and the tests.
 
 
 3.0.0 (2026-10-29)
