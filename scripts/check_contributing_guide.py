@@ -6,12 +6,15 @@ usage:
 
 Rules (cf. ``docs/contributing/documentation.md``):
 
-- every Markdown page under the guide's root has at most ``max-words`` words,
+- every page (Markdown or reStructuredText) under the guide's root has at most ``max-words`` words,
   unless an exception with a higher limit and a reason is configured for it.
   An exception is only allowed while the page exceeds the default limit.
 - every file under the guide's root is referenced by at least one other file of ``referrers``
   (a relative or project-relative path, or a ``:doc:`` / ``{doc}`` role).
-  The hidden toctree in ``docs/5_contributing.md`` does not count: it only makes the page part of the build.
+  The hidden toctree in ``docs/5_contributing.md`` does not count: its entries have no file extension
+  and are no ``doc`` roles, it only makes the page part of the build.
+
+Hidden files (e.g. ``.DS_Store``) and files in hidden or build directories of the guide are skipped.
 
 The configuration is the ``[tool.contributing-guide]`` table in ``pyproject.toml``.
 Words are counted like ``wc -w``: sequences of non-whitespace characters, including code and link targets.
@@ -28,6 +31,7 @@ from pathlib import Path
 PROJECT_DIR = Path(__file__).parent.parent
 CONFIG_TABLE = "contributing-guide"
 IGNORED_DIR_NAMES = {"_build", "__pycache__"}
+PAGE_SUFFIXES = (".md", ".rst")
 
 PATH_TOKEN = re.compile(r"[\w./-]+")
 DOC_ROLE = re.compile(r"[:{]doc[:}]`(?:[^`<]*<)?([^`<>]+)>?`")
@@ -35,8 +39,9 @@ DOC_ROLE = re.compile(r"[:{]doc[:}]`(?:[^`<]*<)?([^`<>]+)>?`")
 
 @dataclass
 class PageException:
-    max_words: int
-    reason: str
+    # as configured, validated by check_sizes()
+    max_words: object
+    reason: object
 
 
 @dataclass
@@ -52,7 +57,7 @@ def load_config(project_dir: Path) -> Config:
         table = tomllib.load(file)["tool"][CONFIG_TABLE]
     exceptions = {
         name: PageException(
-            max_words=entry.get("max-words", 0), reason=entry.get("reason", "").strip()
+            max_words=entry.get("max-words"), reason=entry.get("reason")
         )
         for name, entry in table.get("exceptions", {}).items()
     }
@@ -68,16 +73,17 @@ def count_words(text: str) -> int:
     return len(text.split())
 
 
-def _is_ignored(path: Path, base: Path) -> bool:
-    return any(
-        part in IGNORED_DIR_NAMES or part.startswith(".")
-        for part in path.relative_to(base).parts[:-1]
-    )
+def _in_ignored_dir(path: Path, base: Path) -> bool:
+    return any(part in IGNORED_DIR_NAMES for part in path.relative_to(base).parts[:-1])
 
 
 def guide_files(root: Path) -> list[Path]:
     return sorted(
-        p for p in root.rglob("*") if p.is_file() and not _is_ignored(p, root)
+        p
+        for p in root.rglob("*")
+        if p.is_file()
+        and not _in_ignored_dir(p, root)
+        and not any(part.startswith(".") for part in p.relative_to(root).parts)
     )
 
 
@@ -87,7 +93,7 @@ def referrer_files(project_dir: Path, patterns: list[str]) -> list[Path]:
         files.update(
             p
             for p in project_dir.glob(pattern)
-            if p.is_file() and not _is_ignored(p, project_dir)
+            if p.is_file() and not _in_ignored_dir(p, project_dir)
         )
     return sorted(files)
 
@@ -99,7 +105,7 @@ def referenced_paths(referrer: Path, project_dir: Path) -> set[Path]:
     for token in PATH_TOKEN.findall(text):
         token = token.rstrip(".")
         if "." in Path(token).name:
-            candidates += [referrer.parent / token, project_dir / token]
+            candidates += [referrer.parent / token, project_dir / token.lstrip("/")]
     for target in DOC_ROLE.findall(text):
         target = target.strip()
         base = (
@@ -115,28 +121,32 @@ def check_sizes(config: Config, files: list[Path]) -> tuple[list[str], dict[Path
     errors = []
     counts = {}
     pages = {
-        p.relative_to(config.root).as_posix(): p for p in files if p.suffix == ".md"
+        p.relative_to(config.root).as_posix(): p
+        for p in files
+        if p.suffix in PAGE_SUFFIXES
     }
+    valid = {}
     for name, exception in config.exceptions.items():
         if name not in pages:
             errors.append(
                 f"exception for {name}: no such page under {config.root.name}/"
             )
-        elif not exception.reason:
-            errors.append(f"exception for {name}: a reason is required")
-        elif exception.max_words <= config.max_words:
+        elif not isinstance(exception.reason, str) or not exception.reason.strip():
+            errors.append(f"exception for {name}: a reason (text) is required")
+        elif (
+            not isinstance(exception.max_words, int)
+            or exception.max_words <= config.max_words
+        ):
             errors.append(
-                f"exception for {name}: max-words must be higher than the default {config.max_words}"
+                f"exception for {name}: max-words must be a number higher than the default {config.max_words}"
             )
+        else:
+            valid[name] = exception
     for name, page in pages.items():
         words = count_words(page.read_text(encoding="utf-8"))
         counts[page] = words
-        exception = config.exceptions.get(name)
-        limit = (
-            config.max_words
-            if exception is None
-            else max(exception.max_words, config.max_words)
-        )
+        exception = valid.get(name)
+        limit = config.max_words if exception is None else exception.max_words
         if words > limit:
             errors.append(
                 f"{name}: {words} words, limit {limit}. Condense it or split it by topic "
@@ -157,7 +167,8 @@ def check_references(config: Config, files: list[Path], project_dir: Path) -> li
             referrer.absolute(), project_dir.absolute()
         ) - {own}
     return [
-        f"{p.relative_to(config.root.absolute()).as_posix()}: not referenced by any other page of the guide"
+        f"{p.relative_to(config.root.absolute()).as_posix()}: not referenced by any other file "
+        "(CONTRIBUTING.md, AGENTS.md, a page of the documentation or a skill)"
         for p in sorted(unreferenced)
     ]
 
