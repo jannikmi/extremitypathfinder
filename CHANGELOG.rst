@@ -70,6 +70,9 @@ internal:
   ``docs/contributing/`` (rendered with MyST), ``AGENTS.md`` and ``CLAUDE.md`` for coding agents,
   pull request and issue templates, ``make check`` for a quick check before committing,
   trade-off rules, a decision log and rules for prioritising issues.
+- a release is only prepared when the published benchmark results are up to date (``scripts/release.py prepare``):
+  measured with the current code of the package and the benchmark and with the locked dependency versions.
+  ``python scripts/release.py benchmarks`` checks it.
 
 
 3.0.0 (2026-10-29)

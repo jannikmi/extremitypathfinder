@@ -20,6 +20,22 @@ immediately before publishing.
 The release tooling (`scripts/release.py`) is tested in a separate tox environment, which also runs in CI:
 `uv run tox -e release`.
 
+## Benchmark results
+
+A release publishes the documentation with the benchmark results, so they must be up to date.
+`scripts/release.py prepare` (step 1 below) refuses to prepare a release while they are outdated:
+
+- `benchmarks/results/benchmark.json` must come from a complete full run of a commit without uncommitted changes,
+- the code of the package (`extremitypathfinder/`) and of the benchmark (`benchmarks/*.py`)
+  must be unchanged since that commit,
+- the measured versions of the dependencies must be the versions locked in `uv.lock`
+  (the version of the package itself is ignored, it changes with the release).
+
+Check it with `uv run python scripts/release.py benchmarks`. If the results are outdated, rerun the full benchmark
+on the machine of the published results and commit them in a pull request before the release
+(cf. [Running the benchmarks](performance.md#running-the-benchmarks)).
+The check does not run on pull requests: changing the code without new results is fine until the next release.
+
 ## Releasing
 
 Releases are automated with GitHub Actions:
@@ -28,6 +44,7 @@ Releases are automated with GitHub Actions:
    or an explicit version. It sets the new version with `uv version`, turns the `Unreleased`
    changelog section into the section of the new version dated today, and pushes the branch
    `release/<version>`. The job summary links to the pull request to open.
+   It fails when the benchmark results are outdated (cf. [Benchmark results](#benchmark-results)).
    Locally the same is done by `make release-prepare BUMP=patch`.
 2. Open the pull request, let CI pass and merge it.
 3. The "tag release" workflow notices the new version on `master`: it checks the changelog,

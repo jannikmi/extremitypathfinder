@@ -20,6 +20,15 @@ A maintainer confirms an agent decision by changing **Decided by**.
 A decision revised by a later pull request gets a new entry that marks the old one **superseded**.
 Earlier decisions are described in the {ref}`Design Decisions <design_decisions>` and the issues linked there.
 
+## A release requires up-to-date benchmark results, checked when the release is prepared
+
+- **Decided by:** a maintainer (the rule); an agent (where and how it is checked)
+- **Rejected:** running the benchmarks in CI (cf. the entry of #165 below; shared runners also give noisy timings
+  on changing hardware); checking every pull request (changing the code without a rerun of hours is fine
+  until the release); comparing `pyproject.toml` and `uv.lock` as files (they change with every release,
+  the measured dependency versions are compared instead).
+- **Details:** [Releasing](releasing.md#benchmark-results)
+
 ## The 2×2 system in `_lies_behind_inner()` is solved in closed form, SciPy is dropped from the numba extra (#185)
 
 - **Decided by:** a maintainer ([#185](https://github.com/jannikmi/extremitypathfinder/issues/185))

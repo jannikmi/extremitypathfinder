@@ -3,21 +3,33 @@
 usage:
     python scripts/release.py version            # print the package version
     python scripts/release.py check              # the changelog has a dated section for the package version
+    python scripts/release.py benchmarks         # the published benchmark results are up to date
     python scripts/release.py prepare patch      # or: minor, major, an explicit version like 2.9.0
 
 ``prepare`` sets the new package version and turns the ``Unreleased`` changelog section
 into the section of the new version, dated today.
-The version is read and set with ``uv version``, so all commands require uv.
+It refuses to prepare a release while the published benchmark results are outdated.
+The version is read and set with ``uv version``, so all commands require uv (and git for the benchmark check).
 """
 
 import argparse
 import datetime
+import json
 import re
 import subprocess
+import tomllib
 from pathlib import Path
 
 PROJECT_DIR = Path(__file__).parent.parent
 CHANGELOG_NAME = "CHANGELOG.rst"
+BENCHMARK_RESULTS = "benchmarks/results/benchmark.json"
+# the code which determines the benchmark results (cf. MEASURED_CODE in benchmarks/run.py).
+# The dependencies are compared by their versions instead: pyproject.toml and uv.lock change with every release.
+BENCHMARKED_CODE = ("extremitypathfinder", "benchmarks/*.py")
+RERUN_HINT = (
+    "rerun the full benchmark and commit its results "
+    "(docs/contributing/performance.md, 'Running the benchmarks')"
+)
 
 UNRELEASED_TITLE = "Unreleased"
 BUMP_RULES = ("major", "minor", "patch")
@@ -91,6 +103,82 @@ def release_changelog(changelog: str, version: str, date: datetime.date) -> str:
     )
 
 
+def _git(project_dir: Path, *args: str) -> subprocess.CompletedProcess:
+    return subprocess.run(
+        ["git", *args], cwd=project_dir, check=False, capture_output=True, text=True
+    )
+
+
+def _locked_versions(project_dir: Path) -> dict[str, set[str]]:
+    path = project_dir / "uv.lock"
+    if not path.exists():
+        return {}
+    with open(path, "rb") as f:
+        lock = tomllib.load(f)
+    versions = {}
+    for package in lock.get("package", []):
+        versions.setdefault(package["name"], set()).add(package.get("version"))
+    return versions
+
+
+def outdated_benchmarks(project_dir: Path = PROJECT_DIR) -> list[str]:
+    """the reasons why the published benchmark results are outdated, empty if they are up to date
+
+    The results are up to date when they come from a complete full run of committed code,
+    the code of the package and the benchmark is unchanged since (also uncommitted changes count)
+    and the measured dependency versions are the locked ones.
+    """
+    path = project_dir / BENCHMARK_RESULTS
+    if not path.exists():
+        return [f"{BENCHMARK_RESULTS} does not exist"]
+    with open(path, encoding="utf-8") as f:
+        meta = json.load(f)["meta"]
+    reasons = []
+    if meta.get("quick") or not meta.get("completed"):
+        reasons.append("the results are not from a complete full run")
+    git = meta.get("git") or {}
+    sha = git.get("sha")
+    if git.get("dirty"):
+        reasons.append(
+            f"the results were measured with uncommitted changes (commit {sha})"
+        )
+    if sha is None:
+        reasons.append("the results do not name the measured commit")
+    else:
+        if _git(project_dir, "cat-file", "-e", f"{sha}^{{commit}}").returncode != 0:
+            # e.g. a shallow clone in CI
+            _git(project_dir, "fetch", "--quiet", "--depth=1", "origin", sha)
+        diff = _git(project_dir, "diff", "--name-only", sha, "--", *BENCHMARKED_CODE)
+        if diff.returncode != 0:
+            reasons.append(
+                f"cannot compare with the measured commit {sha[:10]}: {diff.stderr.strip()}"
+            )
+        elif diff.stdout.strip():
+            changed = ", ".join(diff.stdout.split())
+            reasons.append(f"changed since the measured commit {sha[:10]}: {changed}")
+    locked = _locked_versions(project_dir)
+    for name, measured in sorted((meta.get("versions") or {}).items()):
+        if name == "extremitypathfinder":
+            # the version of the package itself changes with the release
+            continue
+        versions = locked.get(name, set())
+        if (measured is None and versions) or (
+            measured is not None and measured not in versions
+        ):
+            now = ", ".join(sorted(versions)) or "not in uv.lock"
+            reasons.append(
+                f"{name}: measured {measured or 'not installed'}, locked {now}"
+            )
+    return reasons
+
+
+def check_benchmarks(project_dir: Path = PROJECT_DIR) -> None:
+    reasons = outdated_benchmarks(project_dir)
+    if reasons:
+        details = "".join(f"\n  - {reason}" for reason in reasons)
+        raise ValueError(f"the benchmark results are outdated:{details}\n{RERUN_HINT}")
+
+
 def prepare(target: str, date: datetime.date, project_dir: Path = PROJECT_DIR) -> str:
     changelog_path = project_dir / CHANGELOG_NAME
     current = read_version(project_dir)
@@ -101,10 +189,11 @@ def prepare(target: str, date: datetime.date, project_dir: Path = PROJECT_DIR) -
         version_args = (target,)
     version = uv_version(project_dir, *version_args, "--dry-run")
     check_new_version(current, version)
-    # validate the changelog before changing any file
+    # validate the changelog and the benchmark results before changing any file
     new_changelog = release_changelog(
         changelog_path.read_text(encoding="utf-8"), version, date
     )
+    check_benchmarks(project_dir)
     # Note: also updates the version of the project in the lock file
     uv_version(project_dir, version, "--no-sync")
     changelog_path.write_text(new_changelog, encoding="utf-8")
@@ -118,6 +207,9 @@ def main() -> None:
     commands.add_parser(
         "check",
         help="check that the changelog has a dated section for the package version",
+    )
+    commands.add_parser(
+        "benchmarks", help="check that the published benchmark results are up to date"
     )
     prepare_parser = commands.add_parser(
         "prepare",
@@ -142,6 +234,9 @@ def main() -> None:
             changelog = (PROJECT_DIR / CHANGELOG_NAME).read_text(encoding="utf-8")
             date = release_date(changelog, version)
             print(f"CHANGELOG.rst: {version} ({date.isoformat()})")
+        elif args.command == "benchmarks":
+            check_benchmarks()
+            print(f"{BENCHMARK_RESULTS}: up to date")
         else:
             print(prepare(args.target, args.date))
     except ValueError as error:
@@ -149,7 +244,7 @@ def main() -> None:
     except subprocess.CalledProcessError as error:
         parser.exit(1, f"error: uv version failed:\n{error.stderr}")
     except FileNotFoundError:
-        parser.exit(1, "error: uv is required\n")
+        parser.exit(1, "error: uv and git are required\n")
 
 
 if __name__ == "__main__":

@@ -273,7 +273,8 @@ def run_map(
     return entry
 
 
-# the code which determines the measurements: a change forbids resuming a run
+# the code which determines the measurements: a change forbids resuming a run.
+# Keep BENCHMARKED_CODE in scripts/release.py consistent (a change outdates the published results)
 MEASURED_CODE = ("extremitypathfinder", "benchmarks/*.py", "pyproject.toml", "uv.lock")
 
 
