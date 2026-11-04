@@ -41,17 +41,22 @@ or before work that depends on a blocked issue, starting with that issue.
 6. **Update** by amending, not by appending comments:
    - **The issue:** rewrite its title and description so that they state the current state: the compiled
      information (the audit or measurement with its method), the decision with its date and the rejected options,
-     each with the main reason, and the new scope and acceptance criteria. Keep the original text only where it
-     is still valid, and remove what the decision superseded (the issue history keeps it).
-     Change its sub-issues or "blocked by" links if the decision changes them.
+     each with the main reason, and the new scope and acceptance criteria. Keep the original report and its
+     reproduction (quote them if the description is rewritten); remove only superseded plans and options
+     (the issue history keeps them). Change its sub-issues or "blocked by" links if the decision changes them.
+     A deferred decision gets a section "Deferred (<date>)" with the reason and what would reopen it.
    - **The repository files** the answer affects, in one pull request per run: the [Decision log](decisions.md)
-     (if the decision meets the criteria there), the {ref}`Design Decisions <design_decisions>`,
-     the [invariants](invariants.md) (only if the decision changes them), the pages of this guide and the
-     documentation that describe the affected behaviour or plans. Implementing the decision (code, tests,
-     changelog entry) stays a separate task, and that pull request updates these entries if it changes the decision.
+     (if the decision meets the criteria there) and the pages of this guide that describe the process or the plans.
+     Pages that describe the behaviour of the package (the [invariants](invariants.md), the
+     {ref}`Design Decisions <design_decisions>`, the user documentation) change in the pull request that implements
+     the decision, because they must match the code (cf. [Documentation](documentation.md)). Implementing (code,
+     tests, documentation, changelog entry) stays a separate task. If it changes the decision, it adds a new
+     decision log entry that marks the old one superseded. A decision that affects no file needs no pull request.
+   - **Comments only to ask someone else** (e.g. the reporter for a reproduction): editing a description notifies
+     no one.
 7. **Re-rank:** the decision or the new information can change the effort, the risk, the demand or what an issue blocks.
-   Update the priority labels of this issue and of the issues it blocks or that block it, each with the reason.
-   Show the updated ranking.
+   Update the priority labels of this issue and of the issues it blocks or that block it, each with the reason
+   (in a "Priority" line of the description). Show the updated ranking.
 8. **Repeat** from step 2 with the new ranking, until no blocked issue is left or the maintainer stops.
    Then report each issue handled: what blocked it, the answer, what changed (description, links, labels, files)
    and what is still open, with the link to the pull request. Implementing a decision is a separate task.
@@ -61,4 +66,4 @@ The updates of steps 6 and 7 follow from the answer and need no further approval
 (the changed parts of the description, old and new; the old and new labels and links; the changed files),
 so that the maintainer can check and revert them. The pull request is merged by the maintainer as usual.
 If the person you work with is not a maintainer, stop after step 4 for each issue and hand over the result;
-post it as a suggestion on the issue only if they ask (cf. [Prioritising issues](workflow.md#prioritising-issues)).
+post it as a suggestion (a comment) on the issue only if they ask (cf. [Prioritising issues](workflow.md#prioritising-issues)).

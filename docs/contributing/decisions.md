@@ -9,6 +9,7 @@ Decided trade-offs, newest first, including the rejected options
 - **Decided by:** a maintainer (link) | the contributor | an agent
 - **Rejected:** <options, each with the main reason>
 - **Details:** <link to the full reasoning, if any>
+- **Superseded by:** <#n, what changed> (only once a later decision revises it, fully or partly)
 ```
 
 Record only decisions that outlive their pull request and whose rejected options are likely to be proposed again.
@@ -38,8 +39,8 @@ Earlier decisions are described in the {ref}`Design Decisions <design_decisions>
   handling blocking decisions before all others (they inherit the priority of the work they block instead);
   approving each comment and label change separately (slows down every issue; showing the changes is enough to check
   and revert them); changes without showing them (the maintainer could not check them).
-- **Partly superseded** by #194: issues and files are amended instead of commented, and audits run in the procedure.
 - **Details:** [Unblock and re-rank](unblock-and-rerank.md)
+- **Superseded by:** #194, partly: issues and files are amended instead of commented, and audits run in the procedure.
 
 ## The 2×2 system in `_lies_behind_inner()` is solved in closed form, SciPy is dropped from the numba extra (#185)
 
