@@ -36,6 +36,7 @@ Whether fixing bugs or implementing features, start with the issues labelled "pr
 | --- | --- |
 | [Setup](docs/contributing/setup.md) | set up the development environment |
 | [Workflow](docs/contributing/workflow.md) | choose and work on an issue, open a pull request or review one |
+| [Open decisions](docs/contributing/open-decisions.md) | collect and clear the decisions that wait for a maintainer |
 | [Testing](docs/contributing/testing.md) | run or write tests |
 | [Code style](docs/contributing/code-style.md) | write code |
 | [Codebase map](docs/contributing/codebase-map.md) | look for the place to make a change |

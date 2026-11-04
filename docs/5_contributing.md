@@ -9,6 +9,7 @@
 
 contributing/setup
 contributing/workflow
+contributing/open-decisions
 contributing/testing
 contributing/code-style
 contributing/codebase-map
