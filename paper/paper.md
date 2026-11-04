@@ -95,8 +95,9 @@ No API documentation in the paper: refer to the documentation instead.
     the follow-up thesis @persson2026docking names it in its text.
   - @gaba2022uav (MIT, UAV last-mile delivery routing): "This thesis leverages the extremitypathfinder
     Python package" for shortest paths around obstacles.
-- To check: TMLR 2026 (Zapata Rodriguez et al.), IV 2020 (Guido), found by Google Scholar,
-  full text not reachable from the cloud session.
+- Journal paper: @zapatarodriguez2026hierarchical (TMLR) uses the package for its oracle planner,
+  "the exact shortest Euclidean path through the free space of a 2D polygonal environment".
+- To check: IV 2020 (Guido), found by Google Scholar, behind the IEEE paywall.
 - Releases on PyPI since 2018, download numbers, GitHub dependents (29 repositories, 1 package in November 2026).
 - Reproducible benchmark against pyvisgraph with one command (`benchmarks/`).
 
