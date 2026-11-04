@@ -54,6 +54,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          # the base of the tested merge commit of a pull request (its first parent)
+          fetch-depth: 2
 
       - name: Set up Python
         uses: actions/setup-python@v7
@@ -70,6 +73,12 @@ jobs:
 
       - name: Check the changelog section of the package version
         run: python scripts/release.py check
+
+      # only pull requests changing the package version (releases): other changes need no new benchmark run.
+      # Note: compared with the base of the tested merge commit, the base sha of the event may be older
+      - name: Check that the benchmark results of a release are up to date
+        if: github.event_name == 'pull_request'
+        run: python scripts/release.py benchmarks --if-version-changed-since HEAD^1
 
   deploy:
     runs-on: ubuntu-latest

@@ -20,6 +20,16 @@ A maintainer confirms an agent decision by changing **Decided by**.
 A decision revised by a later pull request gets a new entry that marks the old one **superseded**.
 Earlier decisions are described in the {ref}`Design Decisions <design_decisions>` and the issues linked there.
 
+## A release requires up-to-date benchmark results, checked when it is prepared, on its pull request and when it is tagged (#191)
+
+- **Decided by:** a maintainer (the rule and closing the gap of manual version changes); an agent (how it is checked)
+- **Rejected:** running the benchmarks in CI (cf. the entry of #165 below; shared runners also give noisy timings
+  on changing hardware); checking every pull request (changing the code without a rerun of hours is fine
+  until the release); only checking when the release is prepared (misses manual version changes and code merged
+  into `master` afterwards); comparing `pyproject.toml` and `uv.lock` as files (they change with every release,
+  the measured dependency versions are compared instead).
+- **Details:** [Releasing](releasing.md#benchmark-results)
+
 ## Contributing pages have a configurable word limit and are reachable from `CONTRIBUTING.md`
 
 - **Decided by:** a maintainer (the limit, justified exceptions, amending, condensing before splitting,

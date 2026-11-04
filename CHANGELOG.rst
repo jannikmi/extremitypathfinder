@@ -70,6 +70,10 @@ internal:
   ``docs/contributing/`` (rendered with MyST), ``AGENTS.md`` and ``CLAUDE.md`` for coding agents,
   pull request and issue templates, ``make check`` for a quick check before committing,
   trade-off rules, a decision log and rules for prioritising issues.
+- a release requires up-to-date benchmark results: measured with the current code of the package and the benchmark
+  and with the locked dependency versions. ``scripts/release.py prepare``, the CI of pull requests changing
+  the package version and the "tag release" workflow refuse outdated results.
+  ``python scripts/release.py benchmarks`` checks them.
 - contributing guide: pages have a word limit (``max-words`` in ``pyproject.toml``, exceptions need a reason)
   and every page must be reachable from ``CONTRIBUTING.md``, checked by ``scripts/check_contributing_guide.py``
   in pre-commit and the tests.
