@@ -90,6 +90,10 @@ No API documentation in the paper: refer to the documentation instead.
     declares the package as a dependency; `ros_sgp_tools` (SGP-Tools, informative path planning) uses it.
 - The papers link their code repository, but none names the package in its text
   (checked: IROS 2024 and the arXiv versions of the others): ask these groups to cite the JOSS paper.
+- Direct citation: the master thesis @laitala2024docking (Chalmers, marine vessel docking) cites the package
+  and uses it as its path planner; the follow-up thesis @persson2026docking names it in its text.
+- To check: TMLR 2026 (Zapata Rodriguez et al.), MIT master thesis (Gaba 2022), IV 2020 (Guido),
+  found by Google Scholar, full text not reachable from the cloud session.
 - Releases on PyPI since 2018, download numbers, GitHub dependents (29 repositories, 1 package in November 2026).
 - Reproducible benchmark against pyvisgraph with one command (`benchmarks/`).
 
