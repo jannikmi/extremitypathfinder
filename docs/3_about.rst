@@ -205,9 +205,12 @@ References
 Further Reading
 ----------------
 
-Paper about Lee's algorithm: http://www.dav.ee/papers/Visibility_Graph_Algorithm.pdf
+Lee's visibility graph algorithm, for comparison. This package does not use it:
+it computes the visibility with its own Angle Range Elimination Algorithm (AREA),
+cf. the comparison in the :ref:`engineering design <design>`.
 
-C implementation of Lee's algorithm: https://github.com/davetcoleman/visibility_graph
+- paper about Lee's algorithm: http://www.dav.ee/papers/Visibility_Graph_Algorithm.pdf
+- C implementation of Lee's algorithm: https://github.com/davetcoleman/visibility_graph
 
 
 Acknowledgements
