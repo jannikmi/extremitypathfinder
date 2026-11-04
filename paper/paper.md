@@ -97,7 +97,9 @@ No API documentation in the paper: refer to the documentation instead.
     Python package" for shortest paths around obstacles.
 - Journal paper: @zapatarodriguez2026hierarchical (TMLR) uses the package for its oracle planner,
   "the exact shortest Euclidean path through the free space of a 2D polygonal environment".
-- To check: IV 2020 (Guido), found by Google Scholar, behind the IEEE paywall.
+- Earliest citation: @cankiri2020guido (IV 2020, augmented reality indoor navigation) builds its visibility
+  graphs with the package. It wrongly states that the package uses Lee's algorithm: say clearly in the
+  Software design section that it does not (AREA instead, cf. docs/8_design.rst).
 - Former author name: citations before the name change use Jannik Michelfeit ("Michelfeit et al., 2021")
   or the former GitHub username MrMinimal64. Mention this once, so that editors can match the citations.
 - Releases on PyPI since 2018, download numbers, GitHub dependents (29 repositories, 1 package in November 2026).
