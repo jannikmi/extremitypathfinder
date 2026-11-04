@@ -27,7 +27,8 @@ into one label. Within a label, stability issues come first, then the ones with 
   unless they block a higher-priority issue.
 
 Maintainers record the dependencies on GitHub, not in a file: "blocked by" for an issue that must be done first,
-sub-issues for the parts of a larger issue. They update the labels when an issue changes its scope or what it blocks.
+sub-issues for the parts of a larger issue. They update the labels when an issue changes its scope or what it blocks
+(cf. [Unblock and re-rank](unblock-and-rerank.md)).
 
 ## Trade-offs and decisions
 
@@ -39,13 +40,14 @@ the [invariants](invariants.md). Before implementing one:
 2. **Recommend one** and justify it in the issue.
 3. **Decide.** If one option is clearly better on all criteria that matter, the contributor decides.
    Otherwise, and always for the invariants, a maintainer decides before anything is implemented.
-4. **Record** the decision in the [Decision log](decisions.md), in the pull request that implements it.
+4. **Record** the decision in the [Decision log](decisions.md) (if it meets the criteria stated there),
+   in the pull request that implements it.
    The full reasoning goes where it is read: the {ref}`Design Decisions <design_decisions>` (package design),
    the relevant page of this guide (working on the code) or a comment next to the code (a single function,
    no log entry needed).
 5. **Summarise** the trade-off in the pull request, so that the reviewer checks the decision, not only the code.
 
-To collect and clear the decisions that wait for a maintainer, follow [Open decisions](open-decisions.md).
+To clear the decisions and the information that issues wait for, follow [Unblock and re-rank](unblock-and-rerank.md).
 
 ## Branch and commits
 
