@@ -50,6 +50,12 @@ jobs:
         if: steps.version.outputs.exists == 'false'
         run: python scripts/release.py check
 
+      # also catches versions changed without the "prepare release" workflow
+      # and code merged after the release was prepared
+      - name: Check that the benchmark results are up to date
+        if: steps.version.outputs.exists == 'false'
+        run: python scripts/release.py benchmarks
+
       - name: Create and push the tag
         if: steps.version.outputs.exists == 'false'
         env:

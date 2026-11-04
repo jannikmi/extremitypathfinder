@@ -4,6 +4,7 @@ usage:
     python scripts/release.py version            # print the package version
     python scripts/release.py check              # the changelog has a dated section for the package version
     python scripts/release.py benchmarks         # the published benchmark results are up to date
+    python scripts/release.py benchmarks --if-version-changed-since <commit>   # only for a new version
     python scripts/release.py prepare patch      # or: minor, major, an explicit version like 2.9.0
 
 ``prepare`` sets the new package version and turns the ``Unreleased`` changelog section
@@ -188,6 +189,18 @@ def outdated_benchmarks(project_dir: Path = PROJECT_DIR) -> list[str]:
     return reasons
 
 
+def version_at(commit: str, project_dir: Path = PROJECT_DIR) -> str:
+    """the package version in pyproject.toml at the given commit (fetched in a shallow clone)"""
+    if _git(project_dir, "cat-file", "-e", f"{commit}^{{commit}}").returncode != 0:
+        _git(project_dir, "fetch", "--quiet", "--depth=1", "origin", commit)
+    show = _git(project_dir, "show", f"{commit}:pyproject.toml")
+    if show.returncode != 0:
+        raise ValueError(
+            f"cannot read pyproject.toml at {commit}: {show.stderr.strip()}"
+        )
+    return tomllib.loads(show.stdout)["project"]["version"]
+
+
 def check_benchmarks(project_dir: Path = PROJECT_DIR) -> None:
     reasons = outdated_benchmarks(project_dir)
     if reasons:
@@ -224,8 +237,14 @@ def main() -> None:
         "check",
         help="check that the changelog has a dated section for the package version",
     )
-    commands.add_parser(
+    benchmarks_parser = commands.add_parser(
         "benchmarks", help="check that the published benchmark results are up to date"
+    )
+    benchmarks_parser.add_argument(
+        "--if-version-changed-since",
+        metavar="COMMIT",
+        help="check only if the package version differs from the version at this commit "
+        "(e.g. the base of a pull request)",
     )
     prepare_parser = commands.add_parser(
         "prepare",
@@ -251,8 +270,15 @@ def main() -> None:
             date = release_date(changelog, version)
             print(f"CHANGELOG.rst: {version} ({date.isoformat()})")
         elif args.command == "benchmarks":
-            check_benchmarks()
-            print(f"{BENCHMARK_RESULTS}: up to date")
+            base = args.if_version_changed_since
+            version = read_version()
+            if base is not None and version_at(base) == version:
+                print(
+                    f"version {version} unchanged since {base}: benchmark results not checked"
+                )
+            else:
+                check_benchmarks()
+                print(f"{BENCHMARK_RESULTS}: up to date")
         else:
             print(prepare(args.target, args.date))
     except ValueError as error:

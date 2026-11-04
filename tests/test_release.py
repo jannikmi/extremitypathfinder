@@ -16,6 +16,7 @@ from scripts.release import (
     read_version,
     release_changelog,
     release_date,
+    version_at,
 )
 
 PYPROJECT_EXAMPLE = """[project]
@@ -325,3 +326,17 @@ def test_benchmarks_outdated_by_uncommitted_measurement(benchmarked_dir):
 
 def test_benchmarks_missing(tmp_path):
     assert outdated_benchmarks(tmp_path) == [f"{BENCHMARK_RESULTS} does not exist"]
+
+
+def test_version_at(project_dir):
+    git(project_dir, "add", PYPROJECT_NAME)
+    git(project_dir, "commit", "--quiet", "-m", "pyproject")
+    commit = git(project_dir, "rev-parse", "HEAD")
+    prepare("minor", RELEASE_DATE, project_dir)
+    assert version_at(commit, project_dir) == "2.8.0"
+    assert read_version(project_dir) == "2.9.0"
+
+
+def test_version_at_unknown_commit(benchmarked_dir):
+    with pytest.raises(ValueError, match="cannot read pyproject.toml"):
+        version_at("0" * 40, benchmarked_dir)
