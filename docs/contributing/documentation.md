@@ -45,3 +45,31 @@ The Markdown files are read on GitHub and in the HTML documentation, so links mu
   the method (reviewers of the numbers) and running them (contributors, in this guide).
   Speed and memory stay on one page, because they are read side by side,
   and the pyvisgraph defects stay next to the validation that found them (#165).
+
+## Size and structure of this guide
+
+Each page of the contributing guide is read in full by humans and loaded into the context of coding agents,
+so it stays short. `scripts/check_contributing_guide.py` (pre-commit and tests) enforces two rules,
+configured in the `[tool.contributing-guide]` table of `pyproject.toml`:
+
+- **Word limit:** a page in `docs/contributing/` has at most `max-words` words (1000), counted like `wc -w`.
+  A page may exceed it only with an exception in that table that states the reason, e.g. a table or procedure
+  that is clearer in one piece. The check rejects exceptions without a reason
+  and exceptions for pages back within the default limit.
+- **Reachability:** every file in `docs/contributing/` can be reached from `CONTRIBUTING.md` (`entry-points`)
+  by following links through the pages of the guide. Pages linking only to each other are not enough,
+  and references from elsewhere (the hidden toctree in `docs/5_contributing.md`, other documentation pages, skills)
+  do not count: a reader starting at `CONTRIBUTING.md` must find every page.
+
+When editing the guide:
+
+- **Amend instead of append.** Update the rule, sentence or section that covers the topic, merge duplicates and
+  delete what stopped mattering. Add a new section only for a new topic.
+- **Condense before splitting.** When a page reaches the limit, first review whether it can be condensed without
+  losing significant information: merge duplicates, drop outdated or obvious rules, tighten the wording.
+  Information covered elsewhere (another page, `AGENTS.md`, docstrings, the code, an issue) can be dropped,
+  with a link to it where readers need it.
+- **Split what remains.** If the page is still too long, split it along its topics or readers into pages that can
+  be read on their own (e.g. a procedure and its reference), not into numbered parts. Link the new pages from
+  `CONTRIBUTING.md` or a page reachable from it (and from `AGENTS.md` if agents need them), add them to the toctree
+  in `docs/5_contributing.md` and update the links to moved sections.

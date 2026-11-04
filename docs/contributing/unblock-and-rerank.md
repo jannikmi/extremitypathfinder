@@ -22,9 +22,9 @@ or before work that depends on a blocked issue, starting with that issue.
    issues blocked only by work in progress and issues with a deferred decision that nothing changed since.
 3. **Compile, measure or audit** what is missing: read the issue, its links, the code and the documentation;
    reproduce the problem; profile or benchmark it (cf. [Performance](performance.md)).
-   **Perform the audits the issue needs in this run** instead of deferring them to a rescoped issue: e.g. compare a
+   **Perform the audits the issue needs in this run**, not in a rescoped issue: e.g. compare a
    function with an exact reference (`fractions.Fraction`), check which inputs a validation accepts, test an
-   assumption on the test environments and on random or transformed inputs. Report the method, the inputs and the
+   assumption on random or transformed inputs. Report the method, the inputs and the
    result (e.g. a misdecision rate per function). A bug found by an audit becomes its own issue with the reproduction.
    Numbers for a decision compare `master` with the change on the same machine, with the commands and the machine
    stated. Numbers from a shared, cloud or virtual machine are only indicative, and the quick benchmark is a smoke
@@ -52,8 +52,7 @@ or before work that depends on a blocked issue, starting with that issue.
      the decision, because they must match the code (cf. [Documentation](documentation.md)). Implementing (code,
      tests, documentation, changelog entry) stays a separate task. If it changes the decision, it adds a new
      decision log entry that marks the old one superseded. A decision that affects no file needs no pull request.
-   - **Comments only to ask someone else** (e.g. the reporter for a reproduction): editing a description notifies
-     no one.
+   - **Comments only to ask someone else** (e.g. the reporter): editing a description notifies no one.
 7. **Re-rank:** the decision or the new information can change the effort, the risk, the demand or what an issue blocks.
    Update the priority labels of this issue and of the issues it blocks or that block it, each with the reason
    (in a "Priority" line of the description). Show the updated ranking.

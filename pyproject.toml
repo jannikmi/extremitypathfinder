@@ -92,6 +92,18 @@ source-include = [
     "example.json",
 ]
 
+[tool.contributing-guide]
+# checked by scripts/check_contributing_guide.py (pre-commit and tests), cf. docs/contributing/documentation.md
+root = "docs/contributing"
+max-words = 1000
+# every file of the guide must be reachable from these files (relative to the project directory)
+entry-points = ["CONTRIBUTING.md"]
+
+# a page may exceed max-words only with a justified exception (path relative to root), e.g.:
+# [tool.contributing-guide.exceptions."performance.md"]
+# max-words = 1200
+# reason = "why splitting or condensing it would make it worse"
+
 [tool.pytest.ini_options]
 # a bare `pytest` runs the test suite only (not scripts/ or prototypes/)
 testpaths = ["tests"]
