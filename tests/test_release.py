@@ -1,17 +1,23 @@
 import datetime
+import json
 import os
 import shutil
+import subprocess
 
 import pytest
 
 from scripts.release import (
+    BENCHMARK_RESULTS,
     CHANGELOG_NAME,
     PROJECT_DIR,
     check_new_version,
+    check_release_benchmarks,
+    outdated_benchmarks,
     prepare,
     read_version,
     release_changelog,
     release_date,
+    version_at,
 )
 
 PYPROJECT_EXAMPLE = """[project]
@@ -91,11 +97,76 @@ def uv():
     pytest.skip("requires uv")
 
 
+# independent of the git configuration of the machine (e.g. commit signing, hooks)
+GIT_ENV = {
+    **os.environ,
+    "GIT_CONFIG_GLOBAL": os.devnull,
+    "GIT_CONFIG_NOSYSTEM": "1",
+    "GIT_AUTHOR_NAME": "test",
+    "GIT_AUTHOR_EMAIL": "test@example.com",
+    "GIT_COMMITTER_NAME": "test",
+    "GIT_COMMITTER_EMAIL": "test@example.com",
+}
+
+
+def git(project_dir, *args) -> str:
+    result = subprocess.run(
+        ["git", *args],
+        cwd=project_dir,
+        env=GIT_ENV,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return result.stdout.strip()
+
+
+def write_benchmark_results(project_dir, **meta):
+    """benchmark results of a complete full run of the current commit"""
+    meta = {
+        "quick": False,
+        "completed": "2026-09-17T12:00:00+00:00",
+        "git": {"sha": git(project_dir, "rev-parse", "HEAD"), "dirty": False},
+        "versions": {"extremitypathfinder": "2.8.0"},
+        **meta,
+    }
+    path = project_dir / BENCHMARK_RESULTS
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps({"meta": meta}), encoding="utf-8")
+
+
+def write_lock(project_dir, packages: dict[str, str]):
+    entries = "".join(
+        f'[[package]]\nname = "{name}"\nversion = "{version}"\n\n'
+        for name, version in packages.items()
+    )
+    (project_dir / "uv.lock").write_text(f"version = 1\n\n{entries}", encoding="utf-8")
+
+
 @pytest.fixture
-def project_dir(uv, tmp_path):
-    (tmp_path / PYPROJECT_NAME).write_text(PYPROJECT_EXAMPLE, encoding="utf-8")
-    (tmp_path / CHANGELOG_NAME).write_text(CHANGELOG_EXAMPLE, encoding="utf-8")
+def benchmarked_dir(tmp_path):
+    """a git repository with up to date benchmark results"""
+    if shutil.which("git") is None:
+        pytest.skip("requires git")
+    git(tmp_path, "init", "--quiet", "--template=")
+    package = tmp_path / "extremitypathfinder"
+    package.mkdir()
+    (package / "__init__.py").write_text("", encoding="utf-8")
+    (tmp_path / "benchmarks").mkdir()
+    (tmp_path / "benchmarks" / "run.py").write_text("", encoding="utf-8")
+    git(tmp_path, "add", ".")
+    git(tmp_path, "commit", "--quiet", "-m", "package")
+    write_benchmark_results(tmp_path)
+    git(tmp_path, "add", ".")
+    git(tmp_path, "commit", "--quiet", "-m", "benchmark results")
     return tmp_path
+
+
+@pytest.fixture
+def project_dir(uv, benchmarked_dir):
+    (benchmarked_dir / PYPROJECT_NAME).write_text(PYPROJECT_EXAMPLE, encoding="utf-8")
+    (benchmarked_dir / CHANGELOG_NAME).write_text(CHANGELOG_EXAMPLE, encoding="utf-8")
+    return benchmarked_dir
 
 
 def test_read_version_reads_the_package_version(project_dir):
@@ -150,3 +221,143 @@ def test_prepare_requires_unreleased_entries_without_changes(project_dir):
     assert (project_dir / PYPROJECT_NAME).read_text(
         encoding="utf-8"
     ) == PYPROJECT_EXAMPLE
+
+
+def test_prepare_requires_current_benchmarks_without_changes(project_dir):
+    (project_dir / "extremitypathfinder" / "__init__.py").write_text(
+        "x = 1\n", encoding="utf-8"
+    )
+
+    with pytest.raises(ValueError, match="benchmark results are outdated"):
+        prepare("patch", RELEASE_DATE, project_dir)
+
+    assert (project_dir / PYPROJECT_NAME).read_text(
+        encoding="utf-8"
+    ) == PYPROJECT_EXAMPLE
+    assert (project_dir / CHANGELOG_NAME).read_text(
+        encoding="utf-8"
+    ) == CHANGELOG_EXAMPLE
+
+
+def test_benchmarks_up_to_date(benchmarked_dir):
+    write_benchmark_results(
+        benchmarked_dir, versions={"extremitypathfinder": "2.8.0", "numpy": "2.5.4"}
+    )
+    write_lock(benchmarked_dir, {"extremitypathfinder": "2.9.0", "numpy": "2.5.4"})
+    # other files, the version of the package and a later commit do not matter
+    (benchmarked_dir / "README.rst").write_text("changed", encoding="utf-8")
+    git(benchmarked_dir, "add", ".")
+    git(benchmarked_dir, "commit", "--quiet", "-m", "docs")
+    assert outdated_benchmarks(benchmarked_dir) == []
+
+
+@pytest.mark.parametrize("committed", [False, True])
+@pytest.mark.parametrize(
+    "path", ["extremitypathfinder/__init__.py", "benchmarks/run.py"]
+)
+def test_benchmarks_outdated_by_changed_code(benchmarked_dir, path, committed):
+    (benchmarked_dir / path).write_text("x = 1\n", encoding="utf-8")
+    if committed:
+        git(benchmarked_dir, "commit", "--quiet", "-am", "change")
+    reasons = outdated_benchmarks(benchmarked_dir)
+    assert len(reasons) == 1
+    assert path in reasons[0]
+
+
+def test_benchmarks_outdated_by_new_file(benchmarked_dir):
+    # git diff ignores untracked files
+    (benchmarked_dir / "benchmarks" / "new.py").write_text("x = 1\n", encoding="utf-8")
+    reasons = outdated_benchmarks(benchmarked_dir)
+    assert len(reasons) == 1
+    assert "benchmarks/new.py" in reasons[0]
+
+
+def test_benchmarks_ignore_locked_packages_without_version(benchmarked_dir):
+    (benchmarked_dir / "uv.lock").write_text(
+        '[[package]]\nname = "numpy"\nsource = { editable = "." }\n', encoding="utf-8"
+    )
+    write_benchmark_results(
+        benchmarked_dir, versions={"extremitypathfinder": "2.8.0", "numpy": None}
+    )
+    assert outdated_benchmarks(benchmarked_dir) == []
+
+
+@pytest.mark.parametrize(
+    ("locked", "measured", "expected"),
+    [
+        ({"numpy": "2.5.5"}, "2.5.4", "numpy: measured 2.5.4, locked 2.5.5"),
+        # e.g. a dependency dropped from the extra (#185)
+        ({}, "2.5.4", "numpy: measured 2.5.4, locked not in uv.lock"),
+        ({"numpy": "2.5.4"}, None, "numpy: measured not installed, locked 2.5.4"),
+    ],
+)
+def test_benchmarks_outdated_by_dependency_versions(
+    benchmarked_dir, locked, measured, expected
+):
+    write_benchmark_results(
+        benchmarked_dir, versions={"extremitypathfinder": "2.8.0", "numpy": measured}
+    )
+    write_lock(benchmarked_dir, locked)
+    assert outdated_benchmarks(benchmarked_dir) == [expected]
+
+
+@pytest.mark.parametrize(
+    ("meta", "expected"),
+    [
+        ({"quick": True}, "not from a complete full run"),
+        ({"completed": None}, "not from a complete full run"),
+        ({"git": {"sha": None, "dirty": False}}, "do not name the measured commit"),
+        ({"git": {"sha": "0" * 40, "dirty": False}}, "cannot compare"),
+    ],
+)
+def test_benchmarks_outdated_by_run(benchmarked_dir, meta, expected):
+    write_benchmark_results(benchmarked_dir, **meta)
+    reasons = outdated_benchmarks(benchmarked_dir)
+    assert len(reasons) == 1
+    assert expected in reasons[0]
+
+
+def test_benchmarks_outdated_by_uncommitted_measurement(benchmarked_dir):
+    sha = git(benchmarked_dir, "rev-parse", "HEAD")
+    write_benchmark_results(benchmarked_dir, git={"sha": sha, "dirty": True})
+    assert outdated_benchmarks(benchmarked_dir) == [
+        f"the results were measured with uncommitted changes (commit {sha})"
+    ]
+
+
+def test_benchmarks_missing(tmp_path):
+    assert outdated_benchmarks(tmp_path) == [f"{BENCHMARK_RESULTS} does not exist"]
+
+
+def test_version_at(project_dir):
+    git(project_dir, "add", PYPROJECT_NAME)
+    git(project_dir, "commit", "--quiet", "-m", "pyproject")
+    commit = git(project_dir, "rev-parse", "HEAD")
+    prepare("minor", RELEASE_DATE, project_dir)
+    assert version_at(commit, project_dir) == "2.8.0"
+    assert read_version(project_dir) == "2.9.0"
+
+
+def test_version_at_unknown_commit(benchmarked_dir):
+    with pytest.raises(ValueError, match="cannot read pyproject.toml"):
+        version_at("0" * 40, benchmarked_dir)
+
+
+def test_check_release_benchmarks_only_for_a_new_version(project_dir):
+    git(project_dir, "add", PYPROJECT_NAME, CHANGELOG_NAME)
+    git(project_dir, "commit", "--quiet", "-m", "pyproject")
+    # outdated results
+    (project_dir / "extremitypathfinder" / "__init__.py").write_text(
+        "x = 1\n", encoding="utf-8"
+    )
+    git(project_dir, "commit", "--quiet", "-am", "change")
+    base = git(project_dir, "rev-parse", "HEAD")
+    assert "not checked" in check_release_benchmarks(base, project_dir)
+
+    # e.g. a version changed by hand
+    pyproject = PYPROJECT_EXAMPLE.replace('version = "2.8.0"', 'version = "2.8.1"', 1)
+    (project_dir / PYPROJECT_NAME).write_text(pyproject, encoding="utf-8")
+    with pytest.raises(ValueError, match="benchmark results are outdated"):
+        check_release_benchmarks(base, project_dir)
+    with pytest.raises(ValueError, match="benchmark results are outdated"):
+        check_release_benchmarks(None, project_dir)
