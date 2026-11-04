@@ -20,13 +20,14 @@ A maintainer confirms an agent decision by changing **Decided by**.
 A decision revised by a later pull request gets a new entry that marks the old one **superseded**.
 Earlier decisions are described in the {ref}`Design Decisions <design_decisions>` and the issues linked there.
 
-## Contributing pages have a configurable word limit and must be referenced
+## Contributing pages have a configurable word limit and are reachable from `CONTRIBUTING.md`
 
-- **Decided by:** a maintainer (the limit, justified exceptions, amending, splitting, references);
-  an agent (counting like `wc -w`, the toctree not counting as a reference, the configuration in `pyproject.toml`)
+- **Decided by:** a maintainer (the limit, justified exceptions, amending, condensing before splitting,
+  reachability); an agent (counting like `wc -w`, `CONTRIBUTING.md` as the only entry point,
+  the configuration in `pyproject.toml`)
 - **Rejected:** counting lines or characters (depend on line wrapping and language); excluding code blocks
-  (they cost reading time and agent context too); counting the hidden toctree as a reference
-  (every page is in it, the check would never fail).
+  (they cost reading time and agent context too); requiring only one reference from any file
+  (pages linking to each other, the toctree or a skill would pass without being findable from the guide).
 - **Details:** [Size and structure of this guide](documentation.md#size-and-structure-of-this-guide)
 
 ## Blocked issues are unblocked and re-ranked by a guide page and the `/unblock` skill (#188)

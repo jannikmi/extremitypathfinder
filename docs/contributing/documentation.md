@@ -56,15 +56,19 @@ configured in the `[tool.contributing-guide]` table of `pyproject.toml`:
   A page may exceed it only with an exception in that table that states the reason, e.g. a table or procedure
   that is clearer in one piece. The check rejects exceptions without a reason
   and exceptions for pages back within the default limit.
-- **References:** every file in `docs/contributing/` is referenced by at least one other file: `CONTRIBUTING.md`,
-  `AGENTS.md`, another page of the documentation or a skill in `.claude/`. The hidden toctree in
-  `docs/5_contributing.md` does not count, a page must be findable from the text.
+- **Reachability:** every file in `docs/contributing/` can be reached from `CONTRIBUTING.md` (`entry-points`)
+  by following links through the pages of the guide. Pages linking only to each other are not enough,
+  and references from elsewhere (the hidden toctree in `docs/5_contributing.md`, other documentation pages, skills)
+  do not count: a reader starting at `CONTRIBUTING.md` must find every page.
 
 When editing the guide:
 
 - **Amend instead of append.** Update the rule, sentence or section that covers the topic, merge duplicates and
   delete what stopped mattering. Add a new section only for a new topic.
-- **Split at the limit.** When a page reaches the limit, condense it first. If it is still too long,
-  split it along its topics or readers into pages that can be read on their own (e.g. a procedure and its reference),
-  not into numbered parts. Link the new pages from `CONTRIBUTING.md` (and `AGENTS.md` if agents need them), add them
-  to the toctree in `docs/5_contributing.md` and update the links to moved sections.
+- **Condense before splitting.** When a page reaches the limit, first review whether it can be condensed without
+  losing significant information: merge duplicates, drop outdated or obvious rules, tighten the wording,
+  link to the page that already explains a detail instead of repeating it.
+- **Split what remains.** If the page is still too long, split it along its topics or readers into pages that can
+  be read on their own (e.g. a procedure and its reference), not into numbered parts. Link the new pages from
+  `CONTRIBUTING.md` or a page reachable from it (and from `AGENTS.md` if agents need them), add them to the toctree
+  in `docs/5_contributing.md` and update the links to moved sections.

@@ -96,8 +96,8 @@ source-include = [
 # checked by scripts/check_contributing_guide.py (pre-commit and tests), cf. docs/contributing/documentation.md
 root = "docs/contributing"
 max-words = 1000
-# files whose references to the guide's files count, relative to the project directory
-referrers = ["AGENTS.md", "CONTRIBUTING.md", "docs/**/*.md", "docs/**/*.rst", ".claude/**/*.md"]
+# every file of the guide must be reachable from these files (relative to the project directory)
+entry-points = ["CONTRIBUTING.md"]
 
 # a page may exceed max-words only with a justified exception (path relative to root), e.g.:
 # [tool.contributing-guide.exceptions."performance.md"]

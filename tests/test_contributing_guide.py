@@ -7,9 +7,11 @@ from scripts.check_contributing_guide import check, count_words
 CONFIG = """[tool.contributing-guide]
 root = "docs/contributing"
 max-words = 10
-referrers = ["CONTRIBUTING.md", "docs/**/*.md", "docs/**/*.rst", ".claude/**/*.md"]
+entry-points = ["CONTRIBUTING.md"]
 """
-UNREFERENCED = ": not referenced by any other file (CONTRIBUTING.md, AGENTS.md, a page of the documentation or a skill)"
+UNREACHABLE = (
+    ": not reachable from CONTRIBUTING.md. Link it from there or from a reachable page"
+)
 
 
 def make_project(
@@ -106,44 +108,77 @@ def test_exception_for_a_missing_page(tmp_path):
     ]
 
 
-def test_unreferenced_files(tmp_path):
+def test_unreachable_files(tmp_path):
     project = make_project(
         tmp_path, {"a.md": "see [a](a.md)", "sub/b.md": "", "fig.svg": ""}
     )
     assert errors_of(project) == [
-        f"a.md{UNREFERENCED}",
-        f"fig.svg{UNREFERENCED}",
-        f"sub/b.md{UNREFERENCED}",
+        f"a.md{UNREACHABLE}",
+        f"fig.svg{UNREACHABLE}",
+        f"sub/b.md{UNREACHABLE}",
     ]
 
 
-def test_toctree_entries_do_not_count_but_doc_roles_do(tmp_path):
+def test_pages_reached_through_other_pages(tmp_path):
+    project = make_project(
+        tmp_path,
+        {
+            "a.md": "see [b](b.md) and ![figure](fig.svg)",
+            "b.md": "see [c](sub/c.md)",
+            "sub/c.md": "back to [a](../a.md)",
+            "fig.svg": "",
+        },
+        contributing="[a](docs/contributing/a.md)",
+    )
+    assert errors_of(project) == []
+
+
+def test_pages_referencing_only_each_other_are_unreachable(tmp_path):
+    project = make_project(
+        tmp_path,
+        {"a.md": "[b](b.md)", "b.md": "[a](a.md)", "c.md": ""},
+        contributing="[c](docs/contributing/c.md)",
+    )
+    assert errors_of(project) == [f"a.md{UNREACHABLE}", f"b.md{UNREACHABLE}"]
+
+
+def test_references_from_outside_the_guide_do_not_count(tmp_path):
     project = make_project(tmp_path, {"a.md": "", "b.md": ""})
     (tmp_path / "docs" / "index.md").write_text(
-        "```{toctree}\ncontributing/a\ncontributing/b\n```\n"
+        "```{toctree}\ncontributing/a\ncontributing/b\n```\n[a](contributing/a.md)\n"
     )
     (tmp_path / "docs" / "design.rst").write_text("the :doc:`log <contributing/b>`\n")
-    assert errors_of(project) == [f"a.md{UNREFERENCED}"]
+    skill = tmp_path / ".claude" / "skills" / "x" / "SKILL.md"
+    skill.parent.mkdir(parents=True)
+    skill.write_text("[a](../../../docs/contributing/a.md)")
+    assert errors_of(project) == [f"a.md{UNREACHABLE}", f"b.md{UNREACHABLE}"]
+
+
+def test_doc_roles_are_references(tmp_path):
+    project = make_project(
+        tmp_path,
+        {"a.md": "the {doc}`log <b>`", "b.md": ""},
+        contributing="docs/contributing/a.md",
+    )
+    assert errors_of(project) == []
 
 
 def test_references_must_resolve(tmp_path):
     # the same file name in another directory is not a reference
     project = make_project(tmp_path, {"a.md": ""}, contributing="[a](docs/a.md)")
-    assert errors_of(project) == [f"a.md{UNREFERENCED}"]
+    assert errors_of(project) == [f"a.md{UNREACHABLE}"]
+
+
+def test_missing_entry_point(tmp_path):
+    project = make_project(tmp_path, {"a.md": ""})
+    (tmp_path / "CONTRIBUTING.md").unlink()
+    assert errors_of(project) == ["entry point CONTRIBUTING.md does not exist"]
 
 
 def test_rst_pages_have_the_limit_too(tmp_path):
     project = make_project(tmp_path, {"a.rst": "word " * 11}, "docs/contributing/a.rst")
     (error,) = errors_of(project)
     assert error.startswith("a.rst: 11 words, limit 10")
-
-
-def test_skills_are_referrers(tmp_path):
-    project = make_project(tmp_path, {"a.md": ""})
-    skill = tmp_path / ".claude" / "skills" / "x" / "SKILL.md"
-    skill.parent.mkdir(parents=True)
-    skill.write_text("[a](../../../docs/contributing/a.md)")
-    assert errors_of(project) == []
 
 
 def test_project_absolute_paths_are_references(tmp_path):
@@ -164,14 +199,10 @@ def test_hidden_files_and_build_directories_are_skipped(tmp_path):
         },
         contributing="docs/contributing/a.md",
     )
-    # a built copy does not count as a reference
-    (tmp_path / "docs" / "_build").mkdir()
-    (tmp_path / "docs" / "_build" / "d.md").write_text("contributing/e.md")
-    (tmp_path / "docs" / "contributing" / "e.md").write_text("")
-    assert errors_of(project) == [f"e.md{UNREFERENCED}"]
+    assert errors_of(project) == []
 
 
 def test_urls_are_no_references(tmp_path):
     url = "https://github.com/owner/repo/blob/master/docs/contributing/a.md"
     project = make_project(tmp_path, {"a.md": ""}, contributing=f"[a]({url})")
-    assert errors_of(project) == [f"a.md{UNREFERENCED}"]
+    assert errors_of(project) == [f"a.md{UNREACHABLE}"]

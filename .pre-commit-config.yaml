@@ -69,7 +69,7 @@ repos:
         entry: python scripts/check_contributing_guide.py
         language: python
         pass_filenames: false
-        files: ^(AGENTS\.md|CONTRIBUTING\.md|pyproject\.toml|docs/|\.claude/|scripts/check_contributing_guide\.py)
+        files: ^(CONTRIBUTING\.md|pyproject\.toml|docs/contributing/|scripts/check_contributing_guide\.py)
 
 # TODO enable for very detailed linting:
 #    -   repo: https://github.com/pycqa/pylint
