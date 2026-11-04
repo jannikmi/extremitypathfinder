@@ -39,6 +39,9 @@ Perform the audit an issue needs now, not as a future task. E.g. call the functi
 near-degenerate inputs and compare it with a `fractions.Fraction` reference, or transform the test environments
 (`tests/test_cases.py`) and compare the results. Check a surprising result (e.g. a reported bug) against an
 independent reference before presenting it: the input generator can be wrong too.
+Before an audit or measurement that takes more than a few minutes, say in the chat what it does and how long it
+takes, then start it without waiting for an answer: in the background (`run_in_background`), so that the
+maintainer can stop it, and continue preparing while it runs.
 Write scripts and outputs to the scratchpad directory, never into the repository.
 Delegate wide searches to a subagent if that keeps the conversation short.
 
