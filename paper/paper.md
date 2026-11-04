@@ -98,6 +98,8 @@ No API documentation in the paper: refer to the documentation instead.
 - Journal paper: @zapatarodriguez2026hierarchical (TMLR) uses the package for its oracle planner,
   "the exact shortest Euclidean path through the free space of a 2D polygonal environment".
 - To check: IV 2020 (Guido), found by Google Scholar, behind the IEEE paywall.
+- Former author name: citations before the name change use Jannik Michelfeit ("Michelfeit et al., 2021")
+  or the former GitHub username MrMinimal64. Mention this once, so that editors can match the citations.
 - Releases on PyPI since 2018, download numbers, GitHub dependents (29 repositories, 1 package in November 2026).
 - Reproducible benchmark against pyvisgraph with one command (`benchmarks/`).
 
