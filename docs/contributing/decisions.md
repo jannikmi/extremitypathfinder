@@ -28,7 +28,8 @@ Earlier decisions are described in the {ref}`Design Decisions <design_decisions>
   a `decision needed` label (needs triage by a maintainer and finds no missing information);
   asking in batches or up to a limit (the maintainer decides when to stop);
   handling blocking decisions before all others (they inherit the priority of the work they block instead);
-  agents posting results or changing labels without showing them first (comments notify people and cannot be taken back).
+  approving each comment and label change separately (slows down every issue; showing the changes is enough to check
+  and revert them); changes without showing them (the maintainer could not check them).
 - **Details:** [Unblock and re-rank](unblock-and-rerank.md)
 
 ## Benchmarks against pyvisgraph on Natural Earth world maps of increasing size (#165)

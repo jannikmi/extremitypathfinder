@@ -35,21 +35,22 @@ Use the repository commands of `AGENTS.md` (`uv run pytest`, `uv run python -m c
 Write scripts and outputs to the scratchpad directory, never into the repository.
 Delegate wide searches to a subagent if that keeps the conversation short.
 
-## Ask (steps 5 to 7)
+## Ask (step 5)
 
-Per issue, two `AskUserQuestion` calls (load it with ToolSearch if needed), each with one question:
-one for the decision (step 5), one for the update and the new labels (steps 6 and 7).
-Put the compiled information, the full comparison and the drafts in the chat message before each call,
-not in the dialog.
+Per issue, one `AskUserQuestion` call (load it with ToolSearch if needed) with one question.
+Put the compiled information and the full comparison in the chat message before the call, not in the dialog.
 
 - The question stands alone: `#<number>`, the decision or what is missing in one sentence, what it unblocks.
 - 2 to 4 options: the recommended one first, labelled "(Recommended)", each with its main advantage and disadvantage.
-  Add "Defer" (step 5) or "Change nothing" (steps 6 and 7) while there is room.
+  Add "Defer" while there is room.
   "Need more information" and "stop" come as free text with the built-in "Other".
 - Never group issues into one call, and do not stop after a fixed number: continue until the maintainer stops
   (dismisses the dialog or says so) or no blocked issue is left.
 
-Make the approved changes with `add_issue_comment`, `issue_write` (labels, body) and `sub_issue_write`.
+## Update and re-rank (steps 6 and 7)
+
+Make the changes without asking, with `add_issue_comment`, `issue_write` (labels, body) and `sub_issue_write`,
+and show each one in the chat: the comment as posted with its link, labels and links as "old → new".
 Comments end with the attribution footer of the session.
 
 ## Report (step 8)

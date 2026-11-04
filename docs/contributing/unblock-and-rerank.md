@@ -37,13 +37,14 @@ or before work that depends on a blocked issue, starting with that issue.
    Change its scope, sub-issues or "blocked by" links if the decision changes them. Record the decision in the
    [Decision log](decisions.md) only in the pull request that implements it, and only if it meets the criteria there.
 7. **Re-rank:** the decision or the new information can change the effort, the risk, the demand or what an issue blocks.
-   Propose the new priority labels for this issue and for the issues it blocks or that block it, each with the reason.
+   Update the priority labels of this issue and of the issues it blocks or that block it, each with the reason.
    Show the updated ranking.
 8. **Repeat** from step 2 with the new ranking, until no blocked issue is left or the maintainer stops.
    Then report each issue handled: what blocked it, the answer, what changed (comments, links, labels)
    and what is still open. Implementing a decision is a separate task.
 
-Only a maintainer decides, changes priorities or approves the changes of steps 6 and 7. Show each comment and
-each change of labels or links before making it. An earlier, general approval does not approve a specific change.
+Only a maintainer decides (step 5); an earlier, general approval does not decide a specific issue.
+The updates of steps 6 and 7 follow from the answer and need no further approval: make them and show each one
+(the text of the comment, the old and new labels and links), so that the maintainer can check and revert them.
 If the person you work with is not a maintainer, stop after step 4 for each issue and hand over the result;
 post it as a suggestion on the issue only if they ask (cf. [Prioritising issues](workflow.md#prioritising-issues)).
