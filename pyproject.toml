@@ -34,8 +34,6 @@ dependencies = [
 [project.optional-dependencies]
 numba = [
     "numba>=0.63,<1",
-    # Required for Numba's np.linalg.solve implementation.
-    "scipy>=1.16.1,<2",
 ]
 
 [project.scripts]
@@ -118,11 +116,9 @@ deps =
     # the declared minimum versions
     py{312,313,314}-minimum: numpy==2.3.3
     py{312,313,314}-minimum-numba: numba==0.63.0
-    py{312,313,314}-minimum-numba: scipy==1.16.1
     # the oldest versions providing Python 3.15 wheels
     py315-minimum: numpy==2.5.2
     py315-minimum-numba: numba==0.68.0
-    py315-minimum-numba: scipy==1.18.1
 setenv =
     MPLBACKEND = Agg
     !numba: EXPECT_NUMBA = 0

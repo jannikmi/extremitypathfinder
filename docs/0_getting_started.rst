@@ -39,15 +39,14 @@ narrower than CPython's security support lifetime. Review the floors for future
 releases; SPEC 0 recommends dropping Python 3.12 in October 2026.
 The declared dependency minimums are the same for all Python versions.
 On Python 3.15 they provide no wheels, so CI tests the oldest releases that do instead:
-NumPy 2.5.2, SciPy 1.18.1 and Numba 0.68.0.
+NumPy 2.5.2 and Numba 0.68.0.
 These recommendations do not promise upstream bug fixes for every included
 NumPy release.
 CI runs the full suite with minimum and latest compatible dependencies,
 both with and without the ``numba`` extra, on every supported Python version.
 
-The optional ``numba`` extra installs Numba >=0.63,<1 and SciPy >=1.16.1,<2.
-SciPy supplies the compiled
-linear algebra routines. Pip selects compatible versions; Numba may constrain
+The optional ``numba`` extra installs Numba >=0.63,<1 (SciPy is not needed).
+Pip selects compatible versions; Numba may constrain
 NumPy more tightly than the ordinary installation.
 Acceleration depends on Numba/llvmlite platform support and adds installation
 size and initial compilation time. Standard, GIL-enabled CPython is tested;

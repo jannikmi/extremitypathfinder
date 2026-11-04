@@ -32,6 +32,14 @@ Earlier decisions are described in the {ref}`Design Decisions <design_decisions>
   and revert them); changes without showing them (the maintainer could not check them).
 - **Details:** [Unblock and re-rank](unblock-and-rerank.md)
 
+## The 2×2 system in `_lies_behind_inner()` is solved in closed form, SciPy is dropped from the numba extra (#185)
+
+- **Decided by:** a maintainer ([#185](https://github.com/jannikmi/extremitypathfinder/issues/185))
+- **Rejected:** leaving `numpy.linalg.solve` (LAPACK) and SciPy: Numba compiles it only with SciPy installed
+  (about 110 MB, more memory in every process with Numba), two different LAPACK builds with and without Numba,
+  slower without Numba, and not exact on integer coordinates.
+- **Details:** the measurements in #185 and its pull request, the comment in `utils_numba._lies_behind_inner()`
+
 ## Benchmarks against pyvisgraph on Natural Earth world maps of increasing size (#165)
 
 - **Decided by:** a maintainer
