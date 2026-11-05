@@ -63,6 +63,15 @@ repos:
 
   - repo: local
     hooks:
+      # citation metadata (cf. docs/contributing/releasing.md)
+      # Note: the hook of cffconvert is not part of a release yet
+      - id: validate-cff
+        name: validate CITATION.cff
+        entry: cffconvert --validate
+        language: python
+        additional_dependencies: [ "cffconvert==2.0.0" ]
+        pass_filenames: false
+        files: ^CITATION\.cff$
       # word limits and references of the contributing guide (cf. docs/contributing/documentation.md)
       - id: contributing-guide
         name: contributing guide

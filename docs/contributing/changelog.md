@@ -9,6 +9,7 @@
 - Smaller documentation improvements and cosmetic changes get no entry.
 - List bugfixes under a `bugfixes:` sub-list and purely internal changes (tests, tooling, documentation of the
   development) under an `internal:` sub-list.
-- CI checks that the changelog has a dated section for the version in `pyproject.toml`.
+- CI checks that the changelog has a dated section for the version in `pyproject.toml`
+  and that `CITATION.cff` names this version and date (`scripts/release.py check`).
 - Ideas, TODOs and planned changes do not belong in the changelog: track them as
   [GitHub Issues](https://github.com/jannikmi/extremitypathfinder/issues).
