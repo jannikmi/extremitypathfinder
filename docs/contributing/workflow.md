@@ -79,7 +79,7 @@ CI (`.github/workflows/build.yml`) runs the pre-commit hooks, the tests on all s
 with minimum and latest dependencies, with and without Numba, the strict documentation build,
 the release tooling tests and the release artifact validation.
 Branch protection of `master` requires the job `ci-passed`, which succeeds only if all these jobs succeeded.
-Keep it in `needs` of new jobs that must pass before a merge, and keep its name.
+Add new jobs that must pass before a merge to the `needs` of `ci-passed`, and keep its name.
 
 ## Reviews
 
