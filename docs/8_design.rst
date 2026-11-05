@@ -235,13 +235,14 @@ quadrant                              offset       added value
 ====================================  ===========  ================================
 
 Within each quadrant the added value (the "diamond angle") grows monotonically from 0 to 1
-with the angle measured from the start of the quadrant. Its slope is at least :math:`1/2` per radian everywhere,
-so directions close to the axes are resolved as finely as all others. The sine of the angle (division by the length),
-used before, is flat at the axes: directions up to about 1e-8 rad apart got the same representation there,
-which let lines of sight cut obstacle corners and hid visible vertices on float32 maps. The representation is therefore strictly monotonic in the angle
+with the angle measured from the start of the quadrant. The representation is therefore strictly monotonic in the angle
 (counter clockwise from the direction ``(1, 0)``): comparing representations is comparing angles,
 and a difference of exactly ``2.0`` means opposite directions. Angle ranges are handled modulo ``4.0``.
 The zero vector has no direction (``NaN``), callers exclude it.
+The slope of the diamond angle is at least :math:`1/2` per radian everywhere,
+so directions close to the axes are resolved as finely as all others. The sine of the angle (division by the length),
+used before, is flat at the axes: directions up to about 1e-8 rad apart got the same representation there,
+which let lines of sight cut obstacle corners and hid visible vertices on float32 maps (#3).
 ``reps_n_distances()`` is the vectorised variant for all vertices at once, with the same floating point operations.
 
 Free wedges

@@ -351,7 +351,8 @@ def test_vertices_close_to_an_axis_are_not_hidden(reverse):
 
 def test_spikes_too_narrow_for_floating_point_are_rejected():
     """a spike (here a slit) about 1e-17 wide, produced by a Shapely union at the map border:
-    its free side cannot be decided, without validation lines of sight crossed the polygon"""
+    its free side cannot be decided (without validation lines of sight crossed the polygon).
+    The sine representation rejected it only because both rays got the same value ("overlapping edges")."""
     polygon = [
         (0.0, 0.6528825163841248),
         (1.3877787807814457e-17, 0.6812687516212463),
@@ -361,7 +362,7 @@ def test_spikes_too_narrow_for_floating_point_are_rejected():
         (-0.1, 0.78),
     ]
     for hole in (polygon, polygon[::-1]):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="almost the same direction"):
             PolygonEnvironment(
                 [(-1, -1), (1, -1), (1, 2), (-1, 2)], [hole], validate=True
             )
