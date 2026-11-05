@@ -12,7 +12,7 @@ Kept in one file because each entry has little information.
 | [systut/mobile_robot_packages](https://github.com/systut/mobile_robot_packages) | "Python packages for mobile robot development", account "System Engineering Laboratory" | `extremitypathfinder` (`requirements.txt`) |
 | [hjcwuhuqifei/rl_demo](https://github.com/hjcwuhuqifei/rl_demo) | reinforcement learning demo | `extremitypathfinder=2.1.0` (`requirements.txt`) |
 | [kasperg3/RosTrajAlloc](https://github.com/kasperg3/RosTrajAlloc) | ROS wrapper of `trajallocpy` (SDU) | `extremitypathfinder[numba]` (`requirements.txt`) |
-| [kasperg3/DroneComms](https://github.com/kasperg3/DroneComms) | predecessor of SwarmTalk (SDU), see `grontved2025communication.md` | installed in `planning/README.md` and `planning/Dockerfile` |
+| [kasperg3/DroneComms](https://github.com/kasperg3/DroneComms) | predecessor of SwarmTalk (SDU), see `../direct-use/grontved2025communication.md` | installed in `planning/README.md` and `planning/Dockerfile` |
 
 ## Maintenance notes
 

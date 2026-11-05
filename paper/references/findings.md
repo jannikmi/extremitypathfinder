@@ -50,23 +50,28 @@ paths, is what these users rely on.
 
 ## 3. Feature requests confirmed by use
 
-| Need | Seen in | Issue |
-| --- | --- | --- |
-| Keep a minimum distance to obstacles (robot size) | obstacles inflated by hand in two projects; requested in a thesis on vessel docking | #167 |
-| Shapely geometries as input, with validation and repair | four users convert from Shapely, one repairs geometries | #166 |
-| Distances between many points | a distance matrix for drone routing, task costs for UAV task allocation | #175 |
-| Fast preparation of many small environments | one environment per training episode in reinforcement learning | — |
-| Visibility queries in the public API | field of view in the GoldenEye maps, via internal functions | — |
-| Non-convex boundaries | a geofence modelled as convex hull minus holes | documentation |
+| Need | Seen in | Issue | Status (2026-11-06) |
+| --- | --- | --- | --- |
+| Keep a minimum distance to obstacles (robot size) | obstacles inflated by hand in three projects; requested in a thesis on vessel docking | #167 | decided: a documentation recipe built on `from_shapely()`, blocked by #166; priority high |
+| Shapely geometries as input, with validation and repair | four users convert from Shapely, one repairs geometries | #166 | decided: convert only, own validation; priority high |
+| Distances between many points | a distance matrix for drone routing, task costs for UAV task allocation | #175 | decided: `distance_matrix()`, visibility once per point; priority medium |
+| Fast preparation of many small environments | one environment per training episode in reinforcement learning | #80 | 1 to 8 ms per environment of 12 to 52 vertices (with Numba), fast enough; evidence added to #80, priority low |
+| Visibility queries in the public API | field of view in the GoldenEye maps, via internal functions | #205 | new issue; priority low |
+| Non-convex boundaries | a geofence modelled as convex hull minus holes | #206 | documented on the usage page |
+
+The evidence is in the issue descriptions, with links to the code of the projects.
 
 ## 4. Documentation
 
-- Geographic data: one user passes longitude and latitude as planar coordinates. A note on projected coordinates
-  would prevent wrong distances.
-- Input rules: a thesis lists the polygon orientation among the rules it had to satisfy. The next release accepts both orientations (#161);
-  the documentation should say so clearly.
+All three points are documented on `master`:
+
+- Geographic data: one user passes longitude and latitude as planar coordinates. The usage page says that coordinates
+  are planar and that geographic data must be projected first (#206).
+- Input rules: a thesis lists the polygon orientation among the rules it had to satisfy. Both orientations are accepted
+  from the next release on (#161), as the usage page states.
 - Visibility algorithm: one paper states that the package uses Lee's algorithm. It uses Angle Range Elimination
-  (AREA) instead ([design document](https://extremitypathfinder.readthedocs.io/en/latest/8_design.html)).
+  (AREA) instead, as the About page and the
+  [design document](https://extremitypathfinder.readthedocs.io/en/latest/8_design.html) state.
 
 ## 5. Citations and community
 
