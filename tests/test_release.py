@@ -6,6 +6,7 @@ import subprocess
 
 import pytest
 
+from scripts import release
 from scripts.release import (
     BENCHMARK_RESULTS,
     CHANGELOG_NAME,
@@ -459,3 +460,17 @@ def test_check_release_benchmarks_only_for_a_new_version(project_dir):
         check_release_benchmarks(base, project_dir)
     with pytest.raises(ValueError, match="benchmark results are outdated"):
         check_release_benchmarks(None, project_dir)
+
+
+def test_main_names_a_missing_file(monkeypatch, capsys, tmp_path):
+    missing = tmp_path / CITATION_NAME
+
+    def check_release():
+        missing.read_text(encoding="utf-8")
+
+    monkeypatch.setattr(release, "check_release", check_release)
+    monkeypatch.setattr("sys.argv", ["release.py", "check"])
+    with pytest.raises(SystemExit) as exit_info:
+        release.main()
+    assert exit_info.value.code == 1
+    assert f"error: {missing} does not exist" in capsys.readouterr().err

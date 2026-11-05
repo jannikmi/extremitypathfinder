@@ -357,8 +357,11 @@ def main() -> None:
         parser.exit(1, f"error: {error}\n")
     except subprocess.CalledProcessError as error:
         parser.exit(1, f"error: uv version failed:\n{error.stderr}")
-    except FileNotFoundError:
-        parser.exit(1, "error: uv and git are required\n")
+    except FileNotFoundError as error:
+        # Note: a missing executable is named by subprocess, a missing file by its path
+        if error.filename in ("uv", "git"):
+            parser.exit(1, "error: uv and git are required\n")
+        parser.exit(1, f"error: {error.filename} does not exist\n")
 
 
 if __name__ == "__main__":
