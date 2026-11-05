@@ -57,18 +57,21 @@ paths, is what these users rely on.
 | Distances between many points | a distance matrix for drone routing, task costs for UAV task allocation | #175 | decided: `distance_matrix()`, visibility once per point; priority medium |
 | Fast preparation of many small environments | one environment per training episode in reinforcement learning | #80 | 1 to 8 ms per environment of 12 to 52 vertices (with Numba), fast enough; evidence added to #80, priority low |
 | Visibility queries in the public API | field of view in the GoldenEye maps, via internal functions | #205 | new issue; priority low |
-| Non-convex boundaries | a geofence modelled as convex hull minus holes | #206 | documentation note |
+| Non-convex boundaries | a geofence modelled as convex hull minus holes | #206 | documented on the usage page |
 
 The evidence is in the issue descriptions, with links to the code of the projects.
 
 ## 4. Documentation
 
-- Geographic data: one user passes longitude and latitude as planar coordinates. A note on projected coordinates
-  prevents wrong distances (#206).
-- Input rules: a thesis lists the polygon orientation among the rules it had to satisfy. The next release accepts both orientations (#161);
-  the documentation should say so clearly.
+All three points are documented on `master`:
+
+- Geographic data: one user passes longitude and latitude as planar coordinates. The usage page says that coordinates
+  are planar and that geographic data must be projected first (#206).
+- Input rules: a thesis lists the polygon orientation among the rules it had to satisfy. Both orientations are accepted
+  from the next release on (#161), as the usage page states.
 - Visibility algorithm: one paper states that the package uses Lee's algorithm. It uses Angle Range Elimination
-  (AREA) instead ([design document](https://extremitypathfinder.readthedocs.io/en/latest/8_design.html)).
+  (AREA) instead, as the About page and the
+  [design document](https://extremitypathfinder.readthedocs.io/en/latest/8_design.html) state.
 
 ## 5. Citations and community
 
