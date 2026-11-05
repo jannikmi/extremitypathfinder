@@ -10,6 +10,7 @@
 contributing/setup
 contributing/workflow
 contributing/unblock-and-rerank
+contributing/implement-next
 contributing/testing
 contributing/code-style
 contributing/codebase-map
