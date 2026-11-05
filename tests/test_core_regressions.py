@@ -1,6 +1,8 @@
 """Regressions found by reviewing the core algorithms (visibility, free wedges, graph, query)"""
 
+import itertools
 import pickle
+from fractions import Fraction
 from math import hypot
 
 import numpy as np
@@ -44,10 +46,13 @@ def test_query_points_on_a_slanted_edge_see_directly():
 
 def test_passing_a_contact_is_detected_despite_rounding():
     """rule 3 also applies when the angle representations of collinear points differ in the last bit"""
-    contact = (29.0, 29.0)
+    # exactly collinear with the origin: the candidate is 3 * contact (exact in floating point),
+    # but |dx| + |dy| rounds differently for both vectors
+    contact = (24.189145995204086, 1.9504636963259347)
+    cx, cy = contact
     holes = [
-        [(26.0, 29.0), (26.0, 32.0), (29.0, 32.0), contact],
-        [contact, (32.0, 29.0), (32.0, 26.0), (29.0, 26.0)],
+        [(cx - 1.0, cy), (cx - 1.0, cy + 1.0), (cx, cy + 1.0), contact],
+        [contact, (cx + 1.0, cy), (cx + 1.0, cy - 1.0), (cx, cy - 1.0)],
     ]
     environment = PolygonEnvironment(
         [(-10.0, -10.0), (250.0, -10.0), (250.0, 250.0), (-10.0, 250.0)],
@@ -55,10 +60,11 @@ def test_passing_a_contact_is_detected_despite_rounding():
         validate=True,
     )
     origin, candidate = environment.idx_start, environment.idx_goal
-    coords = np.append(environment.coords, [(0.0, 0.0), (145.0, 145.0)], axis=0)
+    coords = np.append(environment.coords, [(0.0, 0.0), (3.0 * cx, 3.0 * cy)], axis=0)
     representations, distances = utils.cmp_reps_n_distances(origin, coords)
     contact_idx = int(np.flatnonzero(np.all(coords == contact, axis=1))[0])
     # precondition: the line of sight passes through the contact, but the representations differ
+    assert coords[candidate][0] / 3.0 == cx and coords[candidate][1] / 3.0 == cy
     assert representations[contact_idx] != representations[candidate]
 
     visible = environment.points.filter_visible(
@@ -240,3 +246,122 @@ def test_edges_through_points_independent_of_the_chunks(monkeypatch):
             wedges._find_edges_through_points(positions, coords, edge_vertex_idxs)
             == expected
         )
+
+
+# float32 triangles of a triangulated hexagon map (prototypes/real_world_geometry.py),
+# shifted by a few float32 units in the last place: they overlap or leave gaps of about 1e-8
+CORNER_TRIANGLES = [
+    [
+        (0.062222279608249664, 0.251468300819397),
+        (0.06222224980592728, 0.3951645493507385),
+        (0.12444452941417694, 0.28739243745803833),
+    ],
+    [
+        (0.06222224980592728, 0.3951644003391266),
+        (0.12444455921649933, 0.35924032330513),
+        (0.12444451451301575, 0.2873923182487488),
+    ],
+    [
+        (0.12444455921649933, 0.35924050211906433),
+        (0.1866668462753296, 0.251468300819397),
+        (0.12444454431533813, 0.28739237785339355),
+    ],
+]
+UNIT_SQUARE = [(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)]
+
+
+def _orientation(a, b, c) -> int:
+    """the exact sign of the cross product (b - a) x (c - a)"""
+    a, b, c = ([Fraction(x) for x in p] for p in (a, b, c))
+    cross = (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])
+    return (cross > 0) - (cross < 0)
+
+
+def test_lines_of_sight_close_to_an_axis_do_not_cut_obstacle_corners():
+    """directions about 1e-12 rad apart close to the vertical axis are told apart
+
+    The angle representation used to be the sine of the angle within its quadrant, flat at the axes:
+    seen from the lower vertex B of the right triangle, its upper vertex A and the corner V of the middle
+    triangle got the same representation. The line of sight A-B "touched V only" and cut the middle triangle.
+    """
+    a, b = CORNER_TRIANGLES[2][0], CORNER_TRIANGLES[0][2]
+    v, w = CORNER_TRIANGLES[1][1], CORNER_TRIANGLES[1][2]
+    # exactly: A and B lie on opposite sides of the edge V-W of the middle triangle, the line A-B crosses it
+    assert _orientation(v, w, a) != _orientation(v, w, b)
+    assert _orientation(a, b, v) != _orientation(a, b, w)
+    # V lies inside the right triangle: no gap between the middle and the right triangle
+    right = CORNER_TRIANGLES[2]
+    assert all(_orientation(right[k], right[(k + 1) % 3], v) == -1 for k in range(3))
+
+    environment = PolygonEnvironment(UNIT_SQUARE, CORNER_TRIANGLES, validate=True)
+    start, goal = (0.125, 0.5), (0.125, 0.1)
+    corner = (0.1866668462753296, 0.251468300819397)
+    path, length = environment.find_shortest_path(start, goal)
+    # around the outer corner of the right triangle
+    # (shorter than around the two left corners of the left triangles)
+    assert [tuple(map(float, p)) for p in path] == [start, corner, goal]
+    expected = hypot(corner[0] - start[0], corner[1] - start[1]) + hypot(
+        goal[0] - corner[0], goal[1] - corner[1]
+    )
+    assert length == pytest.approx(expected)
+
+
+# two float32 triangles separated by a crack of about 3e-13 (near-contacts do not block)
+CRACK_TRIANGLES = [
+    [
+        (0.19627825915813446, 0.5795714259147644),
+        (0.2500000596046448, 0.4999999403953552),
+        (0.19627830386161804, 0.5000000596046448),
+    ],
+    [
+        (0.19627822935581207, 0.5000000596046448),
+        (0.24999991059303284, 0.4999999403953552),
+        (0.2499999701976776, 0.2500000596046448),
+    ],
+]
+
+
+@pytest.mark.parametrize("reverse", [False, True])
+def test_vertices_close_to_an_axis_are_not_hidden(reverse):
+    """of candidates with the same angle representation only the closest is visible:
+    with the sine representation, directions about 3e-12 rad apart close to the horizontal axis
+    collapsed and hid the far end of the crack. The path went around the upper triangle (48 % longer)."""
+    upper, lower = CRACK_TRIANGLES
+    # exactly: the lower edge of the upper triangle lies above the upper edge of the lower triangle
+    # (both end vertices of each edge lie strictly on the free side of the other edge): a free crack
+    assert _orientation(upper[1], upper[2], lower[0]) == 1
+    assert _orientation(upper[1], upper[2], lower[1]) == 1
+    assert _orientation(lower[0], lower[1], upper[1]) == 1
+    assert _orientation(lower[0], lower[1], upper[2]) == 1
+
+    environment = PolygonEnvironment(UNIT_SQUARE, CRACK_TRIANGLES, validate=True)
+    start, goal = (0.3, 0.5), (0.15, 0.5)
+    # through the crack: from its right end on the upper triangle to its left end on the lower one
+    expected_path = [start, upper[1], lower[0], goal]
+    if reverse:
+        start, goal = goal, start
+        expected_path = expected_path[::-1]
+    path, length = environment.find_shortest_path(start, goal)
+    assert [tuple(map(float, p)) for p in path] == expected_path
+    expected = sum(
+        hypot(q[0] - p[0], q[1] - p[1]) for p, q in itertools.pairwise(expected_path)
+    )
+    assert length == pytest.approx(expected)
+
+
+def test_spikes_too_narrow_for_floating_point_are_rejected():
+    """a spike (here a slit) about 1e-17 wide, produced by a Shapely union at the map border:
+    its free side cannot be decided, without validation lines of sight crossed the polygon"""
+    polygon = [
+        (0.0, 0.6528825163841248),
+        (1.3877787807814457e-17, 0.6812687516212463),
+        (0.03801143914461136, 0.7032146453857422),
+        (0.0, 0.6812687516212463),
+        (0.0, 0.9083582758903503),
+        (-0.1, 0.78),
+    ]
+    for hole in (polygon, polygon[::-1]):
+        with pytest.raises(ValueError):
+            PolygonEnvironment(
+                [(-1, -1), (1, -1), (1, 2), (-1, 2)], [hole], validate=True
+            )

@@ -17,7 +17,8 @@ def _compute_repr_n_dist(np_vector: np.ndarray) -> tuple[float, float]:
     """computing representation for the angle from the origin to a given vector
 
     value in [0.0 : 4.0[
-    every quadrant contains angle measures from 0.0 to 1.0
+    every quadrant contains angle measures from 0.0 to 1.0:
+    the "diamond angle" |dy| / (|dx| + |dy|) measured from the start of the quadrant (e.g. dy / (dx + dy))
     there are 4 quadrants (counterclockwise numbering)
     0 / 360 degree -> 0.0
     90 degree -> 1.0
@@ -60,8 +61,12 @@ def _compute_repr_n_dist(np_vector: np.ndarray) -> tuple[float, float]:
             quadrant = 3.0
             angle_measure = dx
 
-        # normalise angle measure to [0; 1]
-        angle_measure /= distance
+        # normalise angle measure to [0; 1]: the diamond angle.
+        # Its derivative with respect to the angle is bounded away from 0,
+        # so it resolves directions close to the axes as finely as all others.
+        # The sine (measure / distance) is flat at the axes and maps directions up to about 1e-8 rad apart
+        # to the same value (wrong visibility decisions, cf. tests/test_core_regressions.py)
+        angle_measure /= abs(dx) + abs(dy)
         angle_measure += quadrant
 
     return angle_measure, distance
@@ -85,7 +90,7 @@ def reps_n_distances(vectors: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     quadrant = np.select(quadrants, [0.0, 1.0, 2.0], 3.0)
     angle_measure = np.select(quadrants, [dy, -dx, -dy], dx)
     with np.errstate(invalid="ignore", divide="ignore"):
-        representations = angle_measure / distances + quadrant
+        representations = angle_measure / (np.abs(dx) + np.abs(dy)) + quadrant
     representations[distances == 0.0] = np.nan
     return representations, distances
 

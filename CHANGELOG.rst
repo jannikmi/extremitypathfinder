@@ -65,6 +65,15 @@ other changes:
 - documentation: engineering design document (goals, architecture, data model, pipelines, algorithms and design decisions).
   The implementation details moved there from the about page.
 
+bugfixes:
+
+- wrong paths on maps with float32 coordinates (e.g. triangulated maps merged with Shapely, #3):
+  the angle representation could not tell directions close to the horizontal and vertical axes apart
+  (up to about 1e-8 rad). Paths cut corners of obstacles, or missed passages through tiny gaps and were too long.
+  Directions are now represented with the "diamond angle" (``|dy| / (|dx| + |dy|)`` per quadrant),
+  which resolves all directions equally well. Validation rejects spikes and slits too narrow for floating point
+  precision (e.g. 1e-17 wide, from Shapely unions): their free side cannot be decided.
+
 internal:
 
 - documentation: the API documentation lists the plotting functions

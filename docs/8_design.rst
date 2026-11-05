@@ -223,19 +223,22 @@ mutually visible. Searching the visibility graph of the extremities (extended by
 Angle representation
 --------------------
 
-``_compute_repr_n_dist()`` maps a vector :math:`(dx, dy)` with length :math:`d` to a value in :math:`[0, 4)`:
+``_compute_repr_n_dist()`` maps a vector :math:`(dx, dy)` to a value in :math:`[0, 4)`, with :math:`s = |dx| + |dy|`:
 
 ====================================  ===========  ================================
 quadrant                              offset       added value
 ====================================  ===========  ================================
-:math:`dx \geq 0, dy \geq 0`          0            :math:`dy / d`
-:math:`dx < 0, dy \geq 0`             1            :math:`-dx / d`
-:math:`dx < 0, dy < 0`                2            :math:`-dy / d`
-:math:`dx \geq 0, dy < 0`             3            :math:`dx / d`
+:math:`dx \geq 0, dy \geq 0`          0            :math:`dy / s`
+:math:`dx < 0, dy \geq 0`             1            :math:`-dx / s`
+:math:`dx < 0, dy < 0`                2            :math:`-dy / s`
+:math:`dx \geq 0, dy < 0`             3            :math:`dx / s`
 ====================================  ===========  ================================
 
-Within each quadrant the added value is the sine of the angle measured from the start of the quadrant,
-which grows monotonically from 0 to 1. The representation is therefore strictly monotonic in the angle
+Within each quadrant the added value (the "diamond angle") grows monotonically from 0 to 1
+with the angle measured from the start of the quadrant. Its slope is at least :math:`1/2` per radian everywhere,
+so directions close to the axes are resolved as finely as all others. The sine of the angle (division by the length),
+used before, is flat at the axes: directions up to about 1e-8 rad apart got the same representation there,
+which let lines of sight cut obstacle corners and hid visible vertices on float32 maps. The representation is therefore strictly monotonic in the angle
 (counter clockwise from the direction ``(1, 0)``): comparing representations is comparing angles,
 and a difference of exactly ``2.0`` means opposite directions. Angle ranges are handled modulo ``4.0``.
 The zero vector has no direction (``NaN``), callers exclude it.
@@ -531,7 +534,7 @@ Angle representations instead of angles
 ---------------------------------------
 
 Directions are compared with a monotone representation in ``[0, 4)`` (one unit per quadrant,
-``_compute_repr_n_dist()``) instead of ``atan2``. It needs one square root and one division, keeps the
+``_compute_repr_n_dist()``) instead of ``atan2``. It needs one division, keeps the
 ordering of the angles and is computed without trigonometric functions.
 Everything that sorts or compares directions uses it: the AREA sweep, the free wedges and the "in front" test.
 
