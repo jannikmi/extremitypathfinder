@@ -2,6 +2,7 @@
 
 - **Status:** Experimented: the code contains a module that calls the package, but the default planner does not use it
 - **Bib key:** `zhang2025future` in `paper.bib` (title, authors, venue, year, DOI or URL), marked there as experimented: do not cite as evidence of use
+- **Full text:** <https://research.chalmers.se/publication/547361>
 - **Institution:** Chalmers University of Technology
 - **Topic:** dynamic obstacle avoidance for mobile robots in warehouses and hospitals with energy-based multimodal motion
   prediction and MPC
@@ -9,8 +10,9 @@
 - **Package version:** `extremitypathfinder==2.7.2` (`requirements.txt`)
 - **API used:** 2.x: `PolygonEnvironment()`, `store()`, `find_shortest_path()` in
   `src/pkg_motion_plan/path_plan_cspace/visibility_extremitypathfinder.py`
-- **Names the package:** paper text not checked
-- **Last checked:** 2026-11-05 (Crossref, code, default branch)
+- **Names the package:** no (full text checked). The text does not say how the reference path is computed, so it does
+  not settle which visibility module the experiments used; footnote 1 links the code
+- **Last checked:** 2026-11-06 (Crossref, full text, code, default branch)
 
 ## Use of the package
 

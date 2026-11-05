@@ -2,6 +2,7 @@
 
 - **Status:** Direct use (official code calls the package)
 - **Bib key:** `zhang2023prescient` in `paper.bib` (title, authors, venue, year, DOI or URL)
+- **Full text:** <https://research.chalmers.se/publication/536777>
 - **Institution:** Chalmers University of Technology
 - **Topic:** navigation of mobile robots in warehouses among humans: iterative multimodal motion prediction (WTA) plus MPC
 - **Code:** [Woodenonez/DyObAv-MPCnWTA-Warehouse](https://github.com/Woodenonez/DyObAv-MPCnWTA-Warehouse)
@@ -9,8 +10,9 @@
 - **Package version:** `extremitypathfinder==2.1.0`
 - **API used:** 2.x: `PolygonEnvironment()`, `store()`, `prepare()`, `find_shortest_path()`
   (`src/pkg_path_plan/path_plan_cspace/visibility.py`, imported by `local_path_plan.py`)
-- **Names the package:** paper text not checked
-- **Last checked:** 2026-11-05 (Crossref, code)
+- **Names the package:** no (full text checked). "A pre-determined reference path is provided without considering
+  dynamic obstacles"; footnote 1 links the code, which computes it with the package
+- **Last checked:** 2026-11-06 (Crossref, full text, code)
 
 ## Use of the package
 
