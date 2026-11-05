@@ -81,15 +81,23 @@ No API documentation in the paper: refer to the documentation instead.
 
 <!-- ~200 words. Only verified evidence: publications, external use, integrations. No aspirational statements. -->
 
-- Use by other research groups, shown by the official code of their papers (`PolygonEnvironment` imported):
-  - Chalmers (Åkesson group), multi-robot planning and navigation: @ceder2024bev (states that reference paths
-    come from visibility graphs and A\*), @zhang2025future, @roselli2026scheduling, @xue2026proactive;
-    also master theses and courses since 2020.
-  - University of Southern Denmark, UAV search and rescue: @grontved2023decentralized (`trajallocpy`).
+- Use by other research groups, shown by the official code of their papers (the planner calls `PolygonEnvironment`):
+  - Chalmers (Åkesson group), robot trajectory planning, 2021–2024: @berlin2021trajectory (the README of its code
+    names the package; co-author Georg Hess also contributed to the package, so say so or leave it out),
+    @zhang2021motion, @zhang2023prescient, @zhang2023collision, @ceder2024bev (the last two state that reference
+    paths come from visibility graphs and A\*). @berlin2021trajectory started as a project in the Chalmers course SSY226 (2020).
+  - University of Southern Denmark, UAV search and rescue: @grontved2023decentralized (`trajallocpy`),
+    @grontved2025communication (through `trajallocpy`).
   - Integrations: SiTT, the traffic simulation of the ERC project STRADA (University of Trier),
-    declares the package as a dependency; `ros_sgp_tools` (SGP-Tools, informative path planning) uses it.
-- The papers link their code repository, but none names the package in its text
-  (checked: IROS 2024 and the arXiv versions of the others): ask these groups to cite the JOSS paper.
+    declares the package as a dependency and uses it in an example for lake routes;
+    `ros_sgp_tools` (SGP-Tools, informative path planning) uses it in `path_follower.py`.
+- Experimented, do NOT claim use: @zhang2025future, @roselli2026scheduling, @xue2026proactive, @zhang2025gradient,
+  @wang2025collaboration (their code contains a module that calls the package, but nothing imports it; the planner
+  uses a separate networkx and shapely implementation), @mathiesen2025drone (dependency only).
+  Only claim them if the authors confirm use. @zhang2025phd is indirect evidence only.
+  Details of every reference: `paper/references/`.
+- The papers link their code repository, but none whose text was checked names the package
+  (cf. the comments in `paper.bib`): ask these groups to cite the JOSS paper.
 - Direct citations in master theses:
   - @laitala2024docking (Chalmers, marine vessel docking) cites the package and uses it as its path planner;
     the follow-up thesis @persson2026docking names it in its text.
@@ -102,7 +110,14 @@ No API documentation in the paper: refer to the documentation instead.
   Software design section that it does not (AREA instead, cf. docs/8_design.rst).
 - Former author name: citations before the name change use Jannik Michelfeit ("Michelfeit et al., 2021")
   or the former GitHub username MrMinimal64. Mention this once, so that editors can match the citations.
-- Releases on PyPI since 2018, download numbers, GitHub dependents (29 repositories, 1 package in November 2026).
+- Use outside research papers (repositories checked in November 2026, optional for the paper):
+  a Red Hat AI demo and workshop (`rh-aiservices-bu/intelligent-agriculture-demo`, path finding service),
+  the decision code of the Jilin University team in the RoboMaster AI Challenge at ICRA 2020 (archived part of the code),
+  maps for the GoldenEye 007 speedrunning wiki (`whiteted-strats/GE_Wiki_Maps`),
+  student projects at McGill University (honours project) and Texas A&M University (course project).
+- Releases on PyPI since 2018, GitHub dependents (29 repositories, 1 package in November 2026),
+  downloads (November 2026): 853 in the last month (pypistats.org), about 114,000 in total (pepy.tech),
+  both include mirrors and automated installs.
 - Reproducible benchmark against pyvisgraph with one command (`benchmarks/`).
 
 # AI usage disclosure

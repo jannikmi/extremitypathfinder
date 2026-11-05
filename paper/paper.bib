@@ -86,8 +86,52 @@
   url = {https://github.com/TaipanRex/pyvisgraph}
 }
 
-% Research use (Research impact statement): papers whose official code uses extremitypathfinder.
-% Metadata checked against Crossref. The papers link their code repository but do not name the package.
+% Research use (Research impact statement). One note per entry with all details: paper/references/<key>.md.
+% DIRECT USE: papers whose official code calls extremitypathfinder.
+% Metadata checked against Crossref. The call was traced through the code in November 2026 (default branch).
+% The papers do not name the package, as far as their text was checked (berlin2021trajectory: TechRxiv version in the
+% repository, zhang2021motion, zhang2023collision and ceder2024bev: full text; the others: not checked).
+% berlin2021trajectory: the repository README names the package as its A* path planner. Georg Hess, a co-author,
+% contributed to the package (support for intersecting polygons), so this one is not fully independent.
+% zhang2021motion: TrajGenAvo-NMPC-OpEn, restructured from the code of berlin2021trajectory, names this paper as related.
+
+@inproceedings{berlin2021trajectory,
+  author = {Berlin, Jonas and Hess, Georg and Karlsson, Anton and Ljungbergh, William and Zhang, Ze and G{\"o}tvall, Per-Lage and {\AA}kesson, Knut},
+  title = {Trajectory Generation for Mobile Robots in a Dynamic Environment using Nonlinear Model Predictive Control},
+  booktitle = {2021 IEEE 17th International Conference on Automation Science and Engineering (CASE)},
+  pages = {942--947},
+  year = {2021},
+  doi = {10.1109/CASE49439.2021.9551644}
+}
+
+@inproceedings{zhang2021motion,
+  author = {Zhang, Ze and Dean, Emmanuel and Karayiannidis, Yiannis and {\AA}kesson, Knut},
+  title = {Motion Prediction Based on Multiple Futures for Dynamic Obstacle Avoidance of Mobile Robots},
+  booktitle = {2021 IEEE 17th International Conference on Automation Science and Engineering (CASE)},
+  pages = {475--481},
+  year = {2021},
+  doi = {10.1109/CASE49439.2021.9551463}
+}
+
+@article{zhang2023prescient,
+  author = {Zhang, Ze and Hajieghrary, Hadi and Dean, Emmanuel and {\AA}kesson, Knut},
+  title = {Prescient Collision-Free Navigation of Mobile Robots With Iterative Multimodal Motion Prediction of Dynamic Obstacles},
+  journal = {IEEE Robotics and Automation Letters},
+  volume = {8},
+  number = {9},
+  pages = {5488--5495},
+  year = {2023},
+  doi = {10.1109/LRA.2023.3296333}
+}
+
+@inproceedings{zhang2023collision,
+  author = {Zhang, Ze and Cai, Yao and Ceder, Kristian and Enliden, Arvid and Eriksson, Ossian and Kylander, Soleil and Sridhara, Rajath and {\AA}kesson, Knut},
+  title = {Collision-Free Trajectory Planning of Mobile Robots by Integrating Deep Reinforcement Learning and Model Predictive Control},
+  booktitle = {2023 IEEE 19th International Conference on Automation Science and Engineering (CASE)},
+  pages = {1--7},
+  year = {2023},
+  doi = {10.1109/CASE56687.2023.10260515}
+}
 
 @inproceedings{ceder2024bev,
   author = {Ceder, Kristian and Zhang, Ze and Burman, Adam and Kuangaliyev, Ilya and Mattsson, Krister and Nyman, Gabriel and Peters{\'e}n, Arvid and Wisell, Lukas and {\AA}kesson, Knut},
@@ -97,6 +141,34 @@
   year = {2024},
   doi = {10.1109/IROS58592.2024.10801434}
 }
+
+@inproceedings{grontved2023decentralized,
+  author = {Gr{\o}ntved, Kasper A. R. and Lundquist, Ulrik P. S. and Christensen, Anders Lyhne},
+  title = {Decentralized Multi-UAV Trajectory Task Allocation in Search and Rescue Applications},
+  booktitle = {2023 21st International Conference on Advanced Robotics (ICAR)},
+  pages = {35--41},
+  year = {2023},
+  doi = {10.1109/ICAR58858.2023.10406912}
+}
+
+% SwarmTalk: the planner uses CoverageProblem of trajallocpy (grontved2023decentralized), which calls the package.
+% The README installs the package explicitly. Crossref spells the second author "Ladigl", the authors' BibTeX "Ladig".
+
+@inproceedings{grontved2025communication,
+  author = {Gr{\o}ntved, Kasper A. R. and Ladig, Robert and Christensen, Anders Lyhne},
+  title = {Communication for {UAV} Swarms: An Open-source, Low-cost Solution Based on {ESP-NOW}},
+  booktitle = {2025 International Conference on Unmanned Aircraft Systems (ICUAS)},
+  pages = {489--495},
+  year = {2025},
+  doi = {10.1109/ICUAS65942.2025.11007928}
+}
+
+% EXPERIMENTED, NOT evidence of use: do not cite as use in the paper. The authors tried the package, but the default
+% code path does not call it. Details in paper/references/<key>.md.
+% zhang2025future, roselli2026scheduling, xue2026proactive, zhang2025gradient, wang2025collaboration: the official code
+% contains a module that calls PolygonEnvironment (visibility_extremitypathfinder.py), but nothing imports it. The planner
+% uses visibility.py, a separate implementation with networkx and shapely (checked in November 2026, default branch;
+% both modules are in the first commit). mathiesen2025drone: the package is pinned and installed, no code calls it.
 
 @article{zhang2025future,
   author = {Zhang, Ze and Hess, Georg and Hu, Junjie and Dean, Emmanuel and Svensson, Lennart and {\AA}kesson, Knut},
@@ -129,13 +201,30 @@
   doi = {10.1109/LRA.2026.3668447}
 }
 
-@inproceedings{grontved2023decentralized,
-  author = {Gr{\o}ntved, Kasper A. R. and Lundquist, Ulrik P. S. and Christensen, Anders Lyhne},
-  title = {Decentralized Multi-UAV Trajectory Task Allocation in Search and Rescue Applications},
-  booktitle = {2023 21st International Conference on Advanced Robotics (ICAR)},
-  pages = {35--41},
-  year = {2023},
-  doi = {10.1109/ICAR58858.2023.10406912}
+@inproceedings{zhang2025gradient,
+  author = {Zhang, Ze and Xue, Yifan and Figueroa, Nadia and {\AA}kesson, Knut},
+  title = {Gradient Field-Based Dynamic Window Approach for Collision Avoidance in Complex Environments},
+  booktitle = {2025 IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS)},
+  pages = {19669--19674},
+  year = {2025},
+  doi = {10.1109/IROS60139.2025.11246091}
+}
+
+@mastersthesis{wang2025collaboration,
+  author = {Wang, Yinsong and Lu, Zihao},
+  title = {Toward Efficient Collaboration in Autonomous Mobile Robot Fleets: Addressing Latency and Distributed {MPC}},
+  school = {Chalmers University of Technology, Department of Electrical Engineering},
+  year = {2025},
+  url = {https://hdl.handle.net/20.500.12380/309565}
+}
+
+@thesis{mathiesen2025drone,
+  author = {Mathiesen, Kasper B. and V{\ae}de, S{\o}ren V.},
+  title = {Drone Swarm Control},
+  school = {University of Southern Denmark},
+  type = {Bachelor's thesis},
+  year = {2025},
+  url = {https://github.com/TheJoboReal/Bachelor/blob/main/Thesis.pdf}
 }
 
 % Theses that name the package in their text. laitala2024docking and persson2026docking: full text checked in the
@@ -165,6 +254,18 @@
   type = {S.M. thesis},
   year = {2022},
   url = {https://hdl.handle.net/1721.1/145019}
+}
+
+% INDIRECT evidence only: do not cite as use in the paper. Doctoral thesis. It does not name the package. Its text refers to "a visibility graph with
+% A*" via berlin2021trajectory, and it builds on zhang2023prescient. Full text checked (November 2026).
+
+@phdthesis{zhang2025phd,
+  author = {Zhang, Ze},
+  title = {Future-Oriented Navigation for Autonomous Mobile Robots},
+  school = {Chalmers University of Technology},
+  year = {2025},
+  isbn = {978-91-8103-193-5},
+  url = {https://research.chalmers.se/publication/545958}
 }
 
 % Journal paper that names the package and links its repository (footnote 11), as the planner of its oracle.
