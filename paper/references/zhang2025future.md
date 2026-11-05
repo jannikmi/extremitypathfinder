@@ -22,8 +22,8 @@ commit (2024-09), so the history does not show which one the experiments used.
 
 ## Maintenance notes
 
-- The Chalmers group switched from the package to its own implementation around 2024. Worth asking Ze Zhang
-  (GitHub `Woodenonez`) why: missing features, licence, dependencies or performance? Useful input for the roadmap.
+- The Chalmers group switched from the package to its own implementation around 2024. Their reasons (features,
+  dependencies, performance) would be useful feedback for the roadmap.
 - Co-author Georg Hess contributed to the package.
 - The same module layout (unused `visibility_extremitypathfinder.py`) is in `roselli2026scheduling`, `xue2026proactive`,
   `zhang2025gradient`, `wang2025collaboration` and student projects (`chalmers-ssy226-2025.md`).

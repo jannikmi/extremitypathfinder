@@ -1,6 +1,7 @@
 # Known uses of extremitypathfinder
 
-One file per reference (title, authors, venue, year and DOI of the publications are in `../paper.bib`): publications, theses, software and projects that use, name or experimented with the package.
+One file per reference: publications, theses, software and projects that use, name or experimented with the package.
+Title, authors, venue, year and DOI of the publications are in `../paper.bib`.
 Collected for the JOSS paper (#190, research impact statement) and for maintenance: who uses which API and version,
 which application domains and feature requests come from real users, and whom to contact.
 
@@ -57,22 +58,10 @@ Only entries with the status "Direct use" are evidence of use in the paper.
 | [declared-dependency-only](declared-dependency-only.md) | five repositories | Experimented | dependency declared only |
 | [pyvisigraph](pyvisigraph.md) | alternative package | Not confirmed (mention) | criticises approximate values |
 
-## Findings for maintenance
+## Findings
 
-- **API:** every user found calls the 2.x API (`PolygonEnvironment()`, `store()`, mostly `prepare()`,
-  `find_shortest_path()`). Nobody uses grids (`store_grid_world`) or pickling.
-  The upgrade guide for 3.0 matters for all of them.
-- **Broken by 3.0 (unpinned):** `trajallocpy` (also uses `free_space_after`) and `ros_sgp_tools`
-  (falls back silently to straight lines that ignore the geofence) on Python ≥ 3.12; `zhang2021motion` code
-  (`>=2.1.0`, removed plotting functions). Python < 3.12 still resolves to 2.7.2. Candidates for issues upstream.
-- **Pinned and safe:** most research code pins 2.1.0 to 2.7.2.
-- **Feature requests from real use:** clearance / robot size (#167): inflated obstacles in the RoboMaster and McGill code,
-  complaint in `laitala2024docking`. Shapely input (#166): SiTT, TMLR code, McGill, ros_sgp_tools convert from Shapely.
-  Many queries (#175): UAV routing and task allocation. Public visibility queries: GE wiki maps.
-- **Chalmers:** used the package 2021–2024, then switched to an own networkx/Shapely implementation (2024 onwards).
-  Ask Ze Zhang (GitHub `Woodenonez`) why.
-- **Name spellings:** "extremitypathfinder", "Extremity Pathfinder", "ExtremityPathfinder"; former username MrMinimal64,
-  former author name Jannik Michelfeit.
+What the maintainers take from these references (compatibility, robustness, feature requests, documentation,
+citations): [findings.md](findings.md).
 
 ## Sources checked (November 2026)
 
