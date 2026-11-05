@@ -28,6 +28,8 @@ recreate them. Loading them raises a ``ValueError`` explaining this.
 
 other changes:
 
+- citation metadata (#169): ``CITATION.cff`` (GitHub shows "Cite this repository"), how to cite is explained
+  in the README and on the About page. The release tooling keeps its version and date up to date.
 - reproducible benchmarks against pyvisgraph (#111): ``python -m benchmarks.run`` (``benchmarks/``,
   ``make benchmark``: quick smoke test, not run in CI) runs a size sweep
   on cleaned Natural Earth world maps with a build time budget, validates every path independently with Shapely

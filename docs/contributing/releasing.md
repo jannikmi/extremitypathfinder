@@ -51,13 +51,15 @@ Releases are automated with GitHub Actions:
 
 1. Run the "prepare release" workflow from the Actions tab and enter `patch`, `minor`, `major`
    or an explicit version. It sets the new version with `uv version`, turns the `Unreleased`
-   changelog section into the section of the new version dated today, and pushes the branch
+   changelog section into the section of the new version dated today, sets `version` and `date-released`
+   in `CITATION.cff`, and pushes the branch
    `release/<version>`. The job summary links to the pull request to open.
    It fails when the benchmark results are outdated (cf. [Benchmark results](#benchmark-results)),
    like the CI of the pull request and the tagging.
    Locally the same is done by `make release-prepare BUMP=patch`.
 2. Open the pull request, let CI pass and merge it.
-3. The "tag release" workflow notices the new version on `master`: it checks the changelog and the benchmark results,
+3. The "tag release" workflow notices the new version on `master`: it checks the changelog, `CITATION.cff`
+   and the benchmark results,
    pushes a tag exactly matching the version, and starts the build workflow on that tag.
 4. The build workflow tests the tag and validates the release artifacts again. Its deploy job verifies
    that the version is not already on PyPI, uploads the validated artifacts to a draft GitHub release,

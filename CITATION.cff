@@ -1,0 +1,27 @@
+# citation metadata (https://citation-file-format.github.io/), GitHub shows a "Cite this repository" button.
+# version and date-released are set by scripts/release.py prepare (cf. docs/contributing/releasing.md)
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+type: software
+title: extremitypathfinder
+abstract: >-
+  Python package for fast geometric shortest path computation in 2D multi-polygon or grid environments
+  based on visibility graphs.
+authors:
+  - given-names: Jannik
+    family-names: Kissinger
+version: 3.0.0
+date-released: 2026-10-29
+license:
+  - MIT
+  - BSD-3-Clause
+repository-code: https://github.com/jannikmi/extremitypathfinder
+url: https://extremitypathfinder.readthedocs.io/en/latest/
+keywords:
+  - path-planning
+  - shortest-path
+  - visibility graph
+  - polygon
+  - grid
+  - robotics
+  - navigation

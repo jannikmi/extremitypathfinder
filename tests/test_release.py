@@ -9,13 +9,17 @@ import pytest
 from scripts.release import (
     BENCHMARK_RESULTS,
     CHANGELOG_NAME,
-    PROJECT_DIR,
+    CITATION_NAME,
+    check_citation,
     check_new_version,
+    check_release,
     check_release_benchmarks,
+    citation_release,
     outdated_benchmarks,
     prepare,
     read_version,
     release_changelog,
+    release_citation,
     release_date,
     version_at,
 )
@@ -46,6 +50,21 @@ bugfixes:
 -------------------
 
 - added something
+"""
+
+CITATION_EXAMPLE = """# version and date-released: set by scripts/release.py
+cff-version: 1.2.0
+title: extremitypathfinder
+authors:
+  - given-names: Jannik
+    family-names: Kissinger
+version: 2.8.0
+date-released: "2026-09-18"
+references:
+  - type: software
+    title: other
+    version: 1.0.0
+    date-released: 2020-01-01
 """
 
 RELEASE_DATE = datetime.date(2026, 10, 26)
@@ -80,6 +99,51 @@ def test_release_changelog_requires_unreleased_entries():
     empty_section = CHANGELOG_EXAMPLE.replace("bugfixes:\n\n- fixed something\n", "")
     with pytest.raises(ValueError, match="section of CHANGELOG.rst is empty"):
         release_changelog(empty_section, "2.8.1", RELEASE_DATE)
+
+
+def test_citation_release_reads_the_top_level_keys():
+    assert citation_release(CITATION_EXAMPLE) == ("2.8.0", datetime.date(2026, 9, 18))
+
+
+def test_release_citation_sets_version_and_date():
+    released = release_citation(CITATION_EXAMPLE, "2.8.1", RELEASE_DATE)
+
+    assert citation_release(released) == ("2.8.1", RELEASE_DATE)
+    # nested keys and comments stay
+    assert "    version: 1.0.0\n    date-released: 2020-01-01\n" in released
+    assert released.startswith("# version and date-released: set by")
+    assert released == CITATION_EXAMPLE.replace(
+        'version: 2.8.0\ndate-released: "2026-09-18"',
+        "version: 2.8.1\ndate-released: 2026-10-26",
+    )
+
+
+@pytest.mark.parametrize(
+    ("citation", "match"),
+    [
+        (CITATION_EXAMPLE.replace("\nversion: 2.8.0", ""), "one top level 'version'"),
+        (CITATION_EXAMPLE + "version: 2.8.1\n", "one top level 'version'"),
+        (
+            CITATION_EXAMPLE.replace('date-released: "2026-09-18"', "title: x"),
+            "one top level 'date-released'",
+        ),
+        (
+            CITATION_EXAMPLE.replace('"2026-09-18"', "2026-9-18"),
+            "invalid date-released",
+        ),
+    ],
+)
+def test_release_citation_rejects_invalid_metadata(citation, match):
+    with pytest.raises(ValueError, match=match):
+        release_citation(citation, "2.8.1", RELEASE_DATE)
+
+
+def test_check_citation():
+    check_citation(CITATION_EXAMPLE, "2.8.0", datetime.date(2026, 9, 18))
+    with pytest.raises(ValueError, match="names version 2.8.0 .2026-09-18., expected"):
+        check_citation(CITATION_EXAMPLE, "2.8.1", datetime.date(2026, 9, 18))
+    with pytest.raises(ValueError, match="expected 2.8.0 .2026-10-26."):
+        check_citation(CITATION_EXAMPLE, "2.8.0", RELEASE_DATE)
 
 
 def test_release_date_requires_a_section_for_the_version():
@@ -166,6 +230,7 @@ def benchmarked_dir(tmp_path):
 def project_dir(uv, benchmarked_dir):
     (benchmarked_dir / PYPROJECT_NAME).write_text(PYPROJECT_EXAMPLE, encoding="utf-8")
     (benchmarked_dir / CHANGELOG_NAME).write_text(CHANGELOG_EXAMPLE, encoding="utf-8")
+    (benchmarked_dir / CITATION_NAME).write_text(CITATION_EXAMPLE, encoding="utf-8")
     return benchmarked_dir
 
 
@@ -173,11 +238,26 @@ def test_read_version_reads_the_package_version(project_dir):
     assert read_version(project_dir) == "2.8.0"
 
 
-def test_repository_changelog_matches_package_version(uv):
+def test_repository_changelog_and_citation_match_package_version(uv):
     # the same check guards the release tagging in CI
-    release_date(
-        (PROJECT_DIR / CHANGELOG_NAME).read_text(encoding="utf-8"), read_version()
+    check_release()
+
+
+def test_check_release(project_dir):
+    assert check_release(project_dir) == (
+        "CHANGELOG.rst, CITATION.cff: 2.8.0 (2026-09-18)"
     )
+    prepare("patch", RELEASE_DATE, project_dir)
+    assert check_release(project_dir) == (
+        "CHANGELOG.rst, CITATION.cff: 2.8.1 (2026-10-26)"
+    )
+
+    # e.g. a version changed by hand
+    pyproject = PYPROJECT_EXAMPLE.replace('version = "2.8.0"', 'version = "2.8.1"', 1)
+    (project_dir / PYPROJECT_NAME).write_text(pyproject, encoding="utf-8")
+    (project_dir / CITATION_NAME).write_text(CITATION_EXAMPLE, encoding="utf-8")
+    with pytest.raises(ValueError, match="CITATION.cff names version 2.8.0"):
+        check_release(project_dir)
 
 
 @pytest.mark.parametrize(
@@ -192,6 +272,8 @@ def test_prepare_sets_version_and_dates_changelog(project_dir, target, expected)
     assert read_version(project_dir) == expected
     assert 'version = "1.0.0"' in pyproject
     assert release_date(changelog, expected) == RELEASE_DATE
+    citation = (project_dir / CITATION_NAME).read_text(encoding="utf-8")
+    assert citation_release(citation) == (expected, RELEASE_DATE)
     # the lock file records the version of the project as well
     lock = (project_dir / "uv.lock").read_text(encoding="utf-8")
     assert f'name = "extremitypathfinder"\nversion = "{expected}"' in lock
@@ -208,7 +290,23 @@ def test_prepare_rejects_invalid_targets_without_changes(project_dir, target):
     assert (project_dir / CHANGELOG_NAME).read_text(
         encoding="utf-8"
     ) == CHANGELOG_EXAMPLE
+    assert (project_dir / CITATION_NAME).read_text(encoding="utf-8") == CITATION_EXAMPLE
     assert not (project_dir / "uv.lock").exists()
+
+
+def test_prepare_requires_valid_citation_without_changes(project_dir):
+    citation = CITATION_EXAMPLE.replace("\nversion: 2.8.0", "")
+    (project_dir / CITATION_NAME).write_text(citation, encoding="utf-8")
+
+    with pytest.raises(ValueError, match="one top level 'version'"):
+        prepare("patch", RELEASE_DATE, project_dir)
+
+    assert (project_dir / PYPROJECT_NAME).read_text(
+        encoding="utf-8"
+    ) == PYPROJECT_EXAMPLE
+    assert (project_dir / CHANGELOG_NAME).read_text(
+        encoding="utf-8"
+    ) == CHANGELOG_EXAMPLE
 
 
 def test_prepare_requires_unreleased_entries_without_changes(project_dir):
