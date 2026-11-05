@@ -30,4 +30,6 @@ episodes. Obstacles come from triangulated maps, merged and simplified with Shap
   Worth reproducing with their maps: input for #3 (floating point audit), #138 (random query tests) and #166
   (Shapely input, validation and repair). Some of it may be fixed since 3.0 (exact contact tests, touching obstacles).
 - Relies on the claim "exact shortest paths", so the paper's results depend on it.
+- Inflates the merged obstacles with `buffer(inflate, join_style=2)` (mitred joins): a workaround for agent clearance (#167).
+  One environment per evaluation episode: evidence for the preparation time of small environments (#80).
 - Pinned to 2.7.2, unaffected by 3.0.
