@@ -29,7 +29,7 @@ Only entries with the status "Direct use" are evidence of use in the paper.
 | [laitala2024docking](laitala2024docking.md) | Direct use (text) | Chalmers, CPAC Systems | autonomous docking of vessels |
 | [ceder2024bev](ceder2024bev.md) | Direct use (code) | Chalmers | multi-robot DRL + MPC |
 | [grontved2025communication](grontved2025communication.md) | Direct use (code, via trajallocpy) | SDU | UAV swarm communication |
-| [zapatarodriguez2026hierarchical](zapatarodriguez2026hierarchical.md) | Direct use (text and code) | not checked | RL spatial planning, oracle planner |
+| [zapatarodriguez2026hierarchical](zapatarodriguez2026hierarchical.md) | Direct use (text and code) | TU Munich | RL spatial planning, oracle planner |
 | [persson2026docking](persson2026docking.md) | Names the package | Chalmers, CPAC Systems | autonomous docking of vessels |
 | [zhang2025future](zhang2025future.md) | Experimented | Chalmers | energy-based motion prediction + MPC |
 | [zhang2025gradient](zhang2025gradient.md) | Experimented | Chalmers | gradient field DWA |
