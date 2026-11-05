@@ -80,6 +80,24 @@ jobs:
         if: github.event_name == 'pull_request'
         run: python scripts/release.py benchmarks --if-version-changed-since HEAD^1
 
+  # the single check that branch protection requires: its name does not change with the test matrix
+  ci-passed:
+    runs-on: ubuntu-latest
+    needs: [test, release-validation]
+    # also run when a needed job failed or was cancelled: a skipped required check would count as passed
+    if: always()
+    steps:
+      - name: Check that all needed jobs succeeded
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "Results of the needed jobs: ${RESULTS}"
+          for result in ${RESULTS}; do
+            if [ "${result}" != "success" ]; then
+              exit 1
+            fi
+          done
+
   deploy:
     runs-on: ubuntu-latest
     needs: [test, release-validation]
