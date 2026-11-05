@@ -33,6 +33,16 @@ Ensure that all the following conditions on the polygons are fulfilled:
 - the vertex numbering may be clockwise or counter clockwise, also mixed between the polygons.
   Internally the boundary polygon is numbered counter clockwise and the holes clockwise (for easier computations):
   polygons with the opposite numbering are reversed (also in ``environment.boundary_polygon`` and ``environment.holes``)
+- the boundary polygon need not be convex: pass a non-convex area (e.g. a geofence) directly as the boundary,
+  instead of its convex hull with the difference as holes
+
+.. note::
+
+    Coordinates are planar (Cartesian): path lengths are Euclidean distances in the units of the coordinates.
+    Longitude and latitude are angles, so using them directly gives wrong distances and paths
+    (one degree of longitude is shorter than one degree of latitude, except at the equator).
+    Project geographic data into a projected coordinate system first, e.g. UTM or another local
+    projection with `pyproj <https://pyproj4.github.io/pyproj/>`__, and transform the path back afterwards.
 
 .. note::
 
