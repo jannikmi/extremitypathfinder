@@ -2,7 +2,9 @@
 
 ## Before you start
 
-- Work on an issue. For a larger change (cf. [Trade-offs and decisions](#trade-offs-and-decisions)),
+- Work on an issue, and claim it before you write code (cf. [Claims](implement-next.md#claims)).
+  To pick the next issue and implement it, follow [Implement the next issue](implement-next.md).
+- For a larger change (cf. [Trade-offs and decisions](#trade-offs-and-decisions)),
   open or comment on an issue first, so that the approach can be agreed on before you write the code.
 - Changes of the [invariants](invariants.md) (e.g. the numerical policy or the orientation convention)
   need an issue that decides them.
@@ -56,7 +58,9 @@ To clear the decisions and the information that issues wait for, follow [Unblock
 git checkout -b name-of-your-bugfix-or-feature
 ```
 
-- One concern per pull request. Do not mix a fix with refactoring, reformatting or unrelated "improvements".
+- A pull request may implement several issues when that saves work (cf. [bundling](implement-next.md#procedure)).
+  Split only unrelated changes that would interfere with each other. Do not mix in refactoring, reformatting or
+  "improvements" outside the issues it implements.
 - Write commit messages that say what changed and why. Prefixes like `docs:`, `fix:` or `tests:` are welcome.
 - Run `make check` before you push.
 

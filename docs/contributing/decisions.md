@@ -21,6 +21,16 @@ A decision revised later is amended in its entry (title, issue numbers, rejected
 by a new one: the log states the current decisions, not their history (git keeps it).
 Earlier decisions are described in the {ref}`Design Decisions <design_decisions>` and the issues linked there.
 
+## The next issue is implemented by a guide page and the `/implement-next` skill, claimed by a comment (#195)
+
+- **Decided by:** a maintainer (bundling related issues, claims for concurrent work); an agent (comment claims
+  where the oldest active one wins, a new branch per run as the claim id, the stale-claim limit)
+- **Rejected:** one concern per pull request (more pull requests, reviews and conflicts for related changes);
+  claiming by assignment (agents share the maintainer's account); by a label or an issue edit (the last writer wins;
+  a label goes stale when a session dies); by pushing a lock branch (invisible in the issue, needs cleanup);
+  a `ready` label (needs triage; readiness follows from the issue and its links).
+- **Details:** [Implement the next issue](implement-next.md)
+
 ## A release requires up-to-date benchmark results, checked when it is prepared, on its pull request and when it is tagged (#191)
 
 - **Decided by:** a maintainer (the rule and closing the gap of manual version changes); an agent (how it is checked)
