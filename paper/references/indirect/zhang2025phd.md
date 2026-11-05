@@ -11,4 +11,4 @@
 ## Maintenance notes
 
 - Includes `zhang2023prescient` and `zhang2023collision` (direct use) and `zhang2025future` (experimented).
-- Ze Zhang is the main contact for the Chalmers use (see `zhang2025future.md`).
+- Ze Zhang is the main contact for the Chalmers use (see `../experimented/zhang2025future.md`).
