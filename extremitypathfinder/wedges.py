@@ -512,12 +512,28 @@ class Points:
         return visible - blocked
 
 
+def _resolvable(reps: list[float]) -> bool:
+    """whether ``free_wedges()`` can tell the angle ranges between these rays apart
+
+    the middle of every range must lie strictly inside it. A range of one or two units in the last place
+    (e.g. a spike of width 1e-17) has no such middle: its free side cannot be decided.
+    """
+    ray_reps = sorted(set(reps))
+    for k, start in enumerate(ray_reps):
+        end = ray_reps[(k + 1) % len(ray_reps)]
+        middle = (start + wedge_size((start, end)) / 2.0) % 4.0
+        if middle in (start, end):
+            return False
+    return True
+
+
 def check_polygon_contacts(coords: np.ndarray):
     """ensures that a polygon touching itself does not cross itself and has no overlapping edges
 
     * crossing at a vertex: a vertex lying on another edge with its neighbours on opposite sides
       or identical vertices whose corners interleave by angle
     * collinear overlapping edges (zero-width spikes or slits)
+    * edges with almost the same direction: spikes or slits too narrow to decide their free side
 
     https://github.com/jannikmi/extremitypathfinder/issues/135
     Note: proper intersections of two edges are detected by _no_self_intersection()
@@ -538,6 +554,11 @@ def check_polygon_contacts(coords: np.ndarray):
         reps = [rep for _, rep_a, rep_b in incidences for rep in (rep_a, rep_b)]
         if len(set(reps)) < len(reps):
             raise ValueError("The given polygon has overlapping edges")
+        if not _resolvable(reps):
+            raise ValueError(
+                "The given polygon has edges with almost the same direction "
+                "(a spike or slit too narrow for floating point precision)"
+            )
         for k, (_, rep_a1, rep_b1) in enumerate(incidences):
             corner = (rep_a1, rep_b1)
             for _, rep_a2, rep_b2 in incidences[k + 1 :]:

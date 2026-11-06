@@ -22,7 +22,7 @@ repos:
       - id: detect-private-key
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.17.2
+    rev: v0.17.3
     hooks:
       # linter.
       - id: ruff-check
@@ -36,7 +36,7 @@ repos:
         additional_dependencies: [ black ]
 
   - repo: https://github.com/pycqa/flake8
-    rev: 7.4.1
+    rev: 7.5.0
     hooks:
       - id: flake8
         exclude: ^(docs|scripts|tests)/
@@ -54,7 +54,7 @@ repos:
     hooks:
       - id: check-manifest
         args: [ "--no-build-isolation", "--ignore",  "*.png,*.svg,docs/*,docs/contributing/*,paper/*,paper/references/*,paper/references/*/*,AGENTS.md,CLAUDE.md,.claude/*,.claude/skills/*/*,publish.py,readthedocs.yml,uv.lock,pyproject.toml.orig,setup.py,scripts/*,prototypes/*,benchmarks/*,benchmarks/results/*" ]
-        additional_dependencies: [ numpy, "uv_build>=0.13.5,<0.14" ]
+        additional_dependencies: [ numpy, "uv_build>=0.13.6,<0.14" ]
 
   - repo: https://github.com/asottile/pyupgrade
     rev: v3.22.0
@@ -63,6 +63,15 @@ repos:
 
   - repo: local
     hooks:
+      # citation metadata (cf. docs/contributing/releasing.md)
+      # Note: the hook of cffconvert is not part of a release yet
+      - id: validate-cff
+        name: validate CITATION.cff
+        entry: cffconvert --validate
+        language: python
+        additional_dependencies: [ "cffconvert==2.0.0" ]
+        pass_filenames: false
+        files: ^CITATION\.cff$
       # word limits and references of the contributing guide (cf. docs/contributing/documentation.md)
       - id: contributing-guide
         name: contributing guide

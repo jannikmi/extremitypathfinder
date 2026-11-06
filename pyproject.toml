@@ -82,6 +82,7 @@ source-include = [
     ".editorconfig",
     ".pre-commit-config.yaml",
     "CHANGELOG.rst",
+    "CITATION.cff",
     "CONTRIBUTING.md",
     "Makefile",
     "tests/*.py",

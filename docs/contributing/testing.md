@@ -24,6 +24,17 @@ uv run tox -e docs        # strict documentation build
 uv run tox -e release     # tests of the release tooling (scripts/release.py)
 ```
 
+## Real-world-like geometry
+
+`prototypes/real_world_geometry.py` generates triangulated obstacle maps like those of users who merge triangles
+with Shapely (touching triangles, float32 seams, near-degenerate vertices), queries random paths and checks them
+independently, failures exactly with rational arithmetic. It also runs with older releases.
+Run it (Shapely needed, not in CI) when you change decisions on vertices, contacts or angles:
+
+```sh
+uv run python prototypes/real_world_geometry.py --seeds 40 --queries 15
+```
+
 ## CI and external packages
 
 CI must not fail because of errors in pyvisgraph or other external packages and services,

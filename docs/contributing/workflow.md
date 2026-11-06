@@ -2,7 +2,9 @@
 
 ## Before you start
 
-- Work on an issue. For a larger change (cf. [Trade-offs and decisions](#trade-offs-and-decisions)),
+- Work on an issue, and claim it before you write code (cf. [Claims](implement-next.md#claims)).
+  To pick the next issue and implement it, follow [Implement the next issue](implement-next.md).
+- For a larger change (cf. [Trade-offs and decisions](#trade-offs-and-decisions)),
   open or comment on an issue first, so that the approach can be agreed on before you write the code.
 - Changes of the [invariants](invariants.md) (e.g. the numerical policy or the orientation convention)
   need an issue that decides them.
@@ -41,7 +43,8 @@ the [invariants](invariants.md). Before implementing one:
 3. **Decide.** If one option is clearly better on all criteria that matter, the contributor decides.
    Otherwise, and always for the invariants, a maintainer decides before anything is implemented.
 4. **Record** the decision in the [Decision log](decisions.md) (if it meets the criteria stated there),
-   in the pull request that implements it.
+   in the pull request that implements it, or in the pull request of the [unblock run](unblock-and-rerank.md)
+   that decided it. Amend the issue description with the decision instead of adding a comment.
    The full reasoning goes where it is read: the {ref}`Design Decisions <design_decisions>` (package design),
    the relevant page of this guide (working on the code) or a comment next to the code (a single function,
    no log entry needed).
@@ -55,7 +58,9 @@ To clear the decisions and the information that issues wait for, follow [Unblock
 git checkout -b name-of-your-bugfix-or-feature
 ```
 
-- One concern per pull request. Do not mix a fix with refactoring, reformatting or unrelated "improvements".
+- A pull request may implement several issues when that saves work (cf. [bundling](implement-next.md#procedure)).
+  Split only unrelated changes that would interfere with each other. Do not mix in refactoring, reformatting or
+  "improvements" outside the issues it implements.
 - Write commit messages that say what changed and why. Prefixes like `docs:`, `fix:` or `tests:` are welcome.
 - Run `make check` before you push.
 
@@ -73,6 +78,8 @@ Push your branch and open a pull request against `master`. The template asks for
 CI (`.github/workflows/build.yml`) runs the pre-commit hooks, the tests on all supported Python versions
 with minimum and latest dependencies, with and without Numba, the strict documentation build,
 the release tooling tests and the release artifact validation.
+Branch protection of `master` requires the job `ci-passed`, which succeeds only if all these jobs succeeded.
+Add new jobs that must pass before a merge to the `needs` of `ci-passed`, and keep its name.
 
 ## Reviews
 

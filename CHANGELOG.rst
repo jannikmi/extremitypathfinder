@@ -28,6 +28,10 @@ recreate them. Loading them raises a ``ValueError`` explaining this.
 
 other changes:
 
+- citation metadata (#169): ``CITATION.cff`` (GitHub shows "Cite this repository"), how to cite is explained
+  in the README and on the About page. The release tooling keeps its version and date up to date.
+- releases are archived on Zenodo, with a DOI for every version and one for all versions.
+  Once this release has its DOI, it is added to ``CITATION.cff`` and the badges (#199).
 - reproducible benchmarks against pyvisgraph (#111): ``python -m benchmarks.run`` (``benchmarks/``,
   ``make benchmark``: quick smoke test, not run in CI) runs a size sweep
   on cleaned Natural Earth world maps with a build time budget, validates every path independently with Shapely
@@ -61,6 +65,15 @@ other changes:
 - documentation: engineering design document (goals, architecture, data model, pipelines, algorithms and design decisions).
   The implementation details moved there from the about page.
 
+bugfixes:
+
+- wrong paths on maps with float32 coordinates (e.g. triangulated maps merged with Shapely, #3):
+  the angle representation could not tell directions close to the horizontal and vertical axes apart
+  (up to about 1e-8 rad). Paths cut corners of obstacles, or missed passages through tiny gaps and were too long.
+  Directions are now represented with the "diamond angle" (``|dy| / (|dx| + |dy|)`` per quadrant),
+  which resolves all directions equally well. Validation rejects spikes and slits too narrow for floating point
+  precision (e.g. 1e-17 wide, from Shapely unions): their free side cannot be decided.
+
 internal:
 
 - documentation: the API documentation lists the plotting functions
@@ -77,6 +90,8 @@ internal:
 - contributing guide: pages have a word limit (``max-words`` in ``pyproject.toml``, exceptions need a reason)
   and every page must be reachable from ``CONTRIBUTING.md``, checked by ``scripts/check_contributing_guide.py``
   in pre-commit and the tests.
+- contributing guide: implementing the next ready issue (bundling related issues, claiming issues so that several
+  contributors and agents can work at the same time), automated by the ``/implement-next`` Claude Code skill.
 
 
 3.0.0 (2026-10-29)

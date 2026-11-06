@@ -1,14 +1,15 @@
-"""Prepare and check releases: package version and changelog.
+"""Prepare and check releases: package version, changelog and citation metadata.
 
 usage:
     python scripts/release.py version            # print the package version
-    python scripts/release.py check              # the changelog has a dated section for the package version
+    python scripts/release.py check              # the changelog has a dated section for the package version,
+                                                 # CITATION.cff names the version and its date
     python scripts/release.py benchmarks         # the published benchmark results are up to date
     python scripts/release.py benchmarks --if-version-changed-since <commit>   # only for a new version
     python scripts/release.py prepare patch      # or: minor, major, an explicit version like 2.9.0
 
 ``prepare`` sets the new package version and turns the ``Unreleased`` changelog section
-into the section of the new version, dated today.
+into the section of the new version, dated today, and sets the version and the date in ``CITATION.cff``.
 It refuses to prepare a release while the published benchmark results are outdated.
 The version is read and set with ``uv version``, so all commands require uv (and git for the benchmark check).
 """
@@ -23,6 +24,7 @@ from pathlib import Path
 
 PROJECT_DIR = Path(__file__).parent.parent
 CHANGELOG_NAME = "CHANGELOG.rst"
+CITATION_NAME = "CITATION.cff"
 BENCHMARK_RESULTS = "benchmarks/results/benchmark.json"
 # the code which determines the benchmark results (cf. MEASURED_CODE in benchmarks/run.py).
 # The dependencies are compared by their versions instead: pyproject.toml and uv.lock change with every release.
@@ -102,6 +104,61 @@ def release_changelog(changelog: str, version: str, date: datetime.date) -> str:
         + f"{title}\n{'-' * len(title)}\n"
         + changelog[unreleased.end() :]
     )
+
+
+# Note: top level keys of CITATION.cff, edited as text to keep its comments and to need no YAML parser
+CITATION_KEYS = ("version", "date-released")
+
+
+def _citation_key_pattern(key: str) -> re.Pattern:
+    return re.compile(rf"^{re.escape(key)}:[ \t]*(.*?)[ \t]*$", re.MULTILINE)
+
+
+def citation_release(citation: str) -> tuple[str, datetime.date]:
+    """Return the version and the release date named in CITATION.cff."""
+    values = []
+    for key in CITATION_KEYS:
+        matches = _citation_key_pattern(key).findall(citation)
+        if len(matches) != 1:
+            raise ValueError(f"{CITATION_NAME} must have exactly one top level '{key}'")
+        values.append(matches[0].strip("'\""))
+    version, date = values
+    try:
+        return version, datetime.date.fromisoformat(date)
+    except ValueError as error:
+        raise ValueError(
+            f"invalid date-released {date!r} in {CITATION_NAME}, expected YYYY-MM-DD"
+        ) from error
+
+
+def release_citation(citation: str, version: str, date: datetime.date) -> str:
+    """Set the version and the release date in CITATION.cff."""
+    citation_release(citation)
+    for key, value in zip(CITATION_KEYS, (version, date.isoformat()), strict=True):
+        citation = _citation_key_pattern(key).sub(f"{key}: {value}", citation)
+    return citation
+
+
+def check_citation(citation: str, version: str, date: datetime.date) -> None:
+    named = citation_release(citation)
+    if named != (version, date):
+        raise ValueError(
+            f"{CITATION_NAME} names version {named[0]} ({named[1].isoformat()}), "
+            f"expected {version} ({date.isoformat()})"
+        )
+
+
+def check_release(project_dir: Path = PROJECT_DIR) -> str:
+    """checks the changelog section and the citation metadata of the package version
+
+    :return: what was checked
+    """
+    version = read_version(project_dir)
+    changelog = (project_dir / CHANGELOG_NAME).read_text(encoding="utf-8")
+    date = release_date(changelog, version)
+    citation = (project_dir / CITATION_NAME).read_text(encoding="utf-8")
+    check_citation(citation, version, date)
+    return f"{CHANGELOG_NAME}, {CITATION_NAME}: {version} ({date.isoformat()})"
 
 
 def _git(project_dir: Path, *args: str) -> subprocess.CompletedProcess:
@@ -229,6 +286,7 @@ def check_benchmarks(project_dir: Path = PROJECT_DIR) -> None:
 
 def prepare(target: str, date: datetime.date, project_dir: Path = PROJECT_DIR) -> str:
     changelog_path = project_dir / CHANGELOG_NAME
+    citation_path = project_dir / CITATION_NAME
     current = read_version(project_dir)
     if target in BUMP_RULES:
         version_args = ("--bump", target)
@@ -237,14 +295,18 @@ def prepare(target: str, date: datetime.date, project_dir: Path = PROJECT_DIR) -
         version_args = (target,)
     version = uv_version(project_dir, *version_args, "--dry-run")
     check_new_version(current, version)
-    # validate the changelog and the benchmark results before changing any file
+    # validate the changelog, the citation metadata and the benchmark results before changing any file
     new_changelog = release_changelog(
         changelog_path.read_text(encoding="utf-8"), version, date
+    )
+    new_citation = release_citation(
+        citation_path.read_text(encoding="utf-8"), version, date
     )
     check_benchmarks(project_dir)
     # Note: also updates the version of the project in the lock file
     uv_version(project_dir, version, "--no-sync")
     changelog_path.write_text(new_changelog, encoding="utf-8")
+    citation_path.write_text(new_citation, encoding="utf-8")
     return version
 
 
@@ -254,7 +316,8 @@ def main() -> None:
     commands.add_parser("version", help="print the package version")
     commands.add_parser(
         "check",
-        help="check that the changelog has a dated section for the package version",
+        help="check that the changelog has a dated section for the package version "
+        "and that CITATION.cff names the version and its date",
     )
     benchmarks_parser = commands.add_parser(
         "benchmarks", help="check that the published benchmark results are up to date"
@@ -267,7 +330,8 @@ def main() -> None:
     )
     prepare_parser = commands.add_parser(
         "prepare",
-        help="set the new version and date the 'Unreleased' changelog section",
+        help="set the new version, date the 'Unreleased' changelog section "
+        "and update CITATION.cff",
     )
     prepare_parser.add_argument(
         "target", help=f"one of {', '.join(BUMP_RULES)} or an explicit version"
@@ -284,10 +348,7 @@ def main() -> None:
         if args.command == "version":
             print(read_version())
         elif args.command == "check":
-            version = read_version()
-            changelog = (PROJECT_DIR / CHANGELOG_NAME).read_text(encoding="utf-8")
-            date = release_date(changelog, version)
-            print(f"CHANGELOG.rst: {version} ({date.isoformat()})")
+            print(check_release())
         elif args.command == "benchmarks":
             print(check_release_benchmarks(args.if_version_changed_since))
         else:
@@ -296,8 +357,11 @@ def main() -> None:
         parser.exit(1, f"error: {error}\n")
     except subprocess.CalledProcessError as error:
         parser.exit(1, f"error: uv version failed:\n{error.stderr}")
-    except FileNotFoundError:
-        parser.exit(1, "error: uv and git are required\n")
+    except FileNotFoundError as error:
+        # Note: a missing executable is named by subprocess, a missing file by its path
+        if error.filename in ("uv", "git"):
+            parser.exit(1, "error: uv and git are required\n")
+        parser.exit(1, f"error: {error.filename} does not exist\n")
 
 
 if __name__ == "__main__":

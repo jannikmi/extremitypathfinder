@@ -18,6 +18,17 @@ Also see:
 `PyPI <https://pypi.python.org/pypi/extremitypathfinder/>`__
 
 
+Citing
+------
+
+If you use ``extremitypathfinder`` in your research, please cite it.
+The citation metadata is in
+`CITATION.cff <https://github.com/jannikmi/extremitypathfinder/blob/master/CITATION.cff>`__:
+GitHub converts it into APA and BibTeX ("Cite this repository" in the sidebar of the
+`repository <https://github.com/jannikmi/extremitypathfinder>`__).
+Please cite the version you used.
+
+
 License
 -------
 
@@ -205,9 +216,12 @@ References
 Further Reading
 ----------------
 
-Paper about Lee's algorithm: http://www.dav.ee/papers/Visibility_Graph_Algorithm.pdf
+Lee's visibility graph algorithm, for comparison. This package does not use it:
+it computes the visibility with its own Angle Range Elimination Algorithm (AREA),
+cf. the comparison in the :ref:`engineering design <design>`.
 
-C implementation of Lee's algorithm: https://github.com/davetcoleman/visibility_graph
+- paper about Lee's algorithm: http://www.dav.ee/papers/Visibility_Graph_Algorithm.pdf
+- C implementation of Lee's algorithm: https://github.com/davetcoleman/visibility_graph
 
 
 Acknowledgements

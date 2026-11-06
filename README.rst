@@ -152,6 +152,16 @@ The `documentation <https://extremitypathfinder.readthedocs.io/en/latest/>`__ co
 - `API reference <https://extremitypathfinder.readthedocs.io/en/latest/4_api.html>`__
 
 
+Citing
+------
+
+If you use ``extremitypathfinder`` in your research, please cite it.
+The citation metadata is in
+`CITATION.cff <https://github.com/jannikmi/extremitypathfinder/blob/master/CITATION.cff>`__:
+GitHub converts it into APA and BibTeX ("Cite this repository" in the sidebar of the repository).
+Please cite the version you used.
+
+
 Contributing and License
 ------------------------
 
