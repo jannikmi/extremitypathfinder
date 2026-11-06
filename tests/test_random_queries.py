@@ -107,8 +107,11 @@ def query_points(env_id):
 
 
 def test_find_visible_from_random_points(environment, query_points):
-    candidates = set(environment.extremity_indices.tolist())
+    # all vertices as candidates: also the environments without extremities see something
+    candidates = set(range(environment.nr_vertices))
     edges = set(range(environment.nr_edges))
+    extremities = set(environment.extremity_indices.tolist())
+    nr_visible = 0
     for point in query_points:
         coords = np.append(environment.coords, [point], axis=0)
         origin = len(coords) - 1
@@ -123,12 +126,16 @@ def test_find_visible_from_random_points(environment, query_points):
             environment.edge_vertex_idxs,
         )
         expected = find_visible_reference(*args)
+        nr_visible += len(expected)
         assert utils.find_visible(*args) == expected, f"from {point}"
         # no polygon passes a random query point: the same visibility through the environment
+        # (its candidates are the graph nodes, i.e. extremities)
+        expected = find_visible_reference(origin, extremities, *args[2:])
         found = environment.get_visible_idxs(
-            origin, candidates, coords, representations, distances
+            origin, extremities, coords, representations, distances
         )
         assert found == expected, f"from {point}"
+    assert nr_visible > 0
 
 
 def _on_border(point, polygon) -> bool:
@@ -164,7 +171,11 @@ def _assert_path_in_free_space(path, length, env_params):
 
 
 def _unpruned_graph(environment) -> nx.Graph:
-    """the visibility graph of the extremities without the elimination of the extremities "in front" """
+    """the visibility graph of the extremities without the elimination of the extremities "in front"
+
+    Not a supergraph of ``environment.graph``: of collinear extremities, the graph construction may also connect
+    an extremity to a farther one (it checks only the later extremities), with the same path lengths.
+    """
     coords = environment.coords
     extremities = environment.extremity_indices
     graph = nx.Graph()
@@ -222,6 +233,7 @@ def test_paths_between_random_points(env_id, environment, query_points):
             assert (path, length) == ([], None)
             assert (reverse_path, reverse_length) == ([], None)
             continue
+        assert length is not None and reverse_length is not None, f"{start} - {goal}"
         assert path[0] == start and path[-1] == goal
         assert reverse_path[0] == goal and reverse_path[-1] == start
         assert length == pytest.approx(expected, rel=1e-12)
