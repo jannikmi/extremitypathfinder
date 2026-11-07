@@ -57,6 +57,24 @@ def test_lies_behind_vertex_on_edge(p1, p2, v):
     )
 
 
+# the determinant rounds to 0, although the exact one is not 0: (p1 - p2) and v are parallel as decimals
+# (19.8, -4.4) and (-17.1, 3.8), but not as floats
+DETERMINANT_ROUNDS_TO_ZERO = ((18.8, 3.5), (-1.0, 7.9), (-17.1, 3.8000000000000003))
+
+
+@pytest.mark.filterwarnings("error")
+def test_lies_behind_determinant_rounds_to_zero():
+    # a direction parallel to the edge (in floating point) is not behind it, in both modes (#3).
+    # Previously Numba raised a ZeroDivisionError and plain Python decided by the sign of ±inf.
+    p1, p2, v = (np.array(p, dtype=float) for p in DETERMINANT_ROUNDS_TO_ZERO)
+    a = p1[0] - p2[0]
+    b = p1[1] - p2[1]
+    assert a * v[1] - v[0] * b == 0.0
+    for edge in ((p1, p2), (p2, p1)):
+        for vertex in (v, -v):
+            assert not utils_numba._lies_behind_inner(*edge, vertex)
+
+
 def test_lies_behind_exact_on_integer_coordinates():
     # integer coordinates (e.g. grids): the decision is exact (#185).
     # The vertex lies within or near the angle range of the edge (as when called),

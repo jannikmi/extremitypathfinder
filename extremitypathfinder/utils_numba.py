@@ -237,7 +237,12 @@ def _lies_behind_inner(p1: np.ndarray, p2: np.ndarray, v: np.ndarray) -> bool:
     a = p1[0] - p2[0]
     b = p1[1] - p2[1]
     det = a * v[1] - v[0] * b
-    # Note: parallel lines are not possible here (singular matrix)
+    if det == 0.0:
+        # the direction is parallel to the edge (in floating point): it never crosses the edge.
+        # Exactly parallel is not possible when called (the vertex lies within the angle range of the edge),
+        # but the determinant of nearly parallel directions can round to 0 (#3).
+        # Without this check, Numba raises a ZeroDivisionError and plain Python returns ±inf < 1.
+        return False
     mu = (a * p1[1] - b * p1[0]) / det
     # vertices on the edge are possibly visible! ( < not <=)
     return mu < 1.0
