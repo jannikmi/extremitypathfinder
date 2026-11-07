@@ -168,6 +168,7 @@ Contributing and License
 Contributions are welcome: see the
 `contribution guidelines <https://extremitypathfinder.readthedocs.io/en/latest/5_contributing.html>`__
 and the `issue tracker <https://github.com/jannikmi/extremitypathfinder/issues>`__.
+Questions and requests for help go to the issue tracker as well.
 
 ``extremitypathfinder`` is distributed under the terms of the MIT license
 (`LICENSE <https://github.com/jannikmi/extremitypathfinder/blob/master/LICENSE>`__).

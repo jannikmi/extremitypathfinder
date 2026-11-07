@@ -10,6 +10,9 @@ which links back to the topics below.
 Whether fixing bugs or implementing features, start with the issues labelled "priority: high"
 (cf. [Prioritising issues](docs/contributing/workflow.md#prioritising-issues)).
 
+- **Ask for help** via [GitHub Issues](https://github.com/jannikmi/extremitypathfinder/issues)
+  (a blank issue) if the [documentation](https://extremitypathfinder.readthedocs.io/en/latest/) does not answer
+  your question. Include a minimal example of what you tried.
 - **Report bugs** via [GitHub Issues](https://github.com/jannikmi/extremitypathfinder/issues).
   Include your versions of the package, Python and Numba (if installed), your operating system,
   the steps to reproduce the bug (ideally a minimal environment) and the full error message.
