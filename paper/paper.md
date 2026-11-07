@@ -18,130 +18,146 @@ bibliography: paper.bib
 ---
 
 <!--
-Skeleton of the JOSS paper (issue #190). The plan and the open tasks are in the pull request that added this file.
+JOSS paper (issue #190). The plan and the open tasks are in the pull request that added this file.
 Sections and order as required by JOSS (https://joss.readthedocs.io/en/latest/paper.html).
-Length of the whole paper: 750-1750 words. Each bullet below is a content note, to be replaced by prose.
-No API documentation in the paper: refer to the documentation instead.
+Length of the whole paper: 750-1750 words. No API documentation in the paper: refer to the documentation instead.
+Initial prose version, drafted by an AI tool from the earlier content notes and the documentation:
+the maintainer edits it, and checks every statement, before submission.
 -->
 
 # Summary
 
-<!-- ~150 words, for non-specialists. -->
-
-- The problem: the shortest path between two points in a plane with polygonal obstacles
-  (robots, ships, game characters, pedestrians in a building plan).
-- What the package does: prepare an environment once (boundary polygon with holes, or a grid),
-  then answer many shortest path queries quickly. Exact Euclidean paths, not approximations on a grid or mesh.
-- How, in one sentence: only the protruding corners ("extremities") become nodes of a reduced
-  visibility graph [@vinther2015pathfinding], searched with A\* [@hart1968astar].
+Many applications need the shortest route between two points in a plane with obstacles:
+a mobile robot in a factory hall, a vessel approaching a dock, a drone avoiding no-fly zones
+or a character in a game. When the obstacles are polygons, the shortest path is a sequence of straight segments
+that bends only at protruding obstacle corners.
+`extremitypathfinder` is a Python package that computes such paths exactly.
+The user describes the environment once, as a boundary polygon with polygonal holes or as a grid with blocked cells.
+The package then precomputes a visibility graph that contains only the protruding corners, the *extremities*,
+and only the edges that can be part of a shortest path [@vinther2015pathfinding].
+Each query connects its start and goal to this graph and searches it with A\* [@hart1968astar].
+The returned paths are Euclidean shortest paths in the free space, not approximations on a grid or a mesh.
 
 # Statement of need
 
-<!-- ~250 words. Problem, target audience, relation to other work. -->
+The package is meant for researchers and engineers in robotics, simulation, geographic information systems and
+game development who need exact shortest paths in Python. It is installed with `pip`, requires only
+NumPy [@harris2020numpy] and NetworkX [@hagberg2008networkx], and uses Numba [@lam2015numba] as an optional
+accelerator. The results are identical with and without Numba, which is checked by the test suite in continuous
+integration.
 
-- Target audience: researchers and engineers in robotics, simulation, GIS and routing (e.g. maritime),
-  and game AI, who need exact shortest paths in Python with `pip install` and few dependencies.
-- Use cases with many queries in a static environment: distance matrices, simulations, route planning.
-- Inputs as they come from practice: touching and overlapping polygons, grids with blocked cells,
-  no triangulation or navigation mesh to build first.
-- Reproducibility: results are identical with and without the optional Numba accelerator [@lam2015numba].
+Typical use cases ask many queries in one static environment: reference paths for trajectory planners,
+distance matrices for task allocation, oracle planners in reinforcement learning, simulations that move many agents
+through the same map. The package therefore separates the preparation of an environment from the queries,
+and a prepared environment can be stored with `pickle` and reused.
+
+The input is accepted as it comes from practice. Obstacles may touch and overlap, vertices may lie on edges of other
+polygons, polygons may be numbered clockwise or counter clockwise, and grids are converted into polygons that follow
+the borders of the blocked cells. Touching obstacles block paths, so a path never squeezes through a gap of
+zero width. No triangulation or navigation mesh has to be built first.
+The documentation describes the input model, the algorithms and the limits of the package.
 
 # State of the field
 
-<!-- ~300 words. Source: docs/9_alternatives.rst. Must contain a "build vs. contribute" justification. -->
+Visibility graphs are the classical exact method for Euclidean shortest paths among polygonal obstacles
+[@lozanoperez1979]. Lee's rotational sweep computes the visibility graph of $n$ vertices
+in $O(n^2 \log n)$ time [@lee1978proximity]. Polyanya [@cui2017polyanya] computes exact any-angle paths on a
+navigation mesh without a visibility graph and is the state of the art for this problem, but it needs a triangulation
+of the free space and is not available as a Python package. Grid planners such as A\* or Theta\* are simpler,
+but their paths are in general longer than Euclidean shortest paths.
 
-- Visibility graphs [@lozanoperez1979; @lee1978proximity]; any-angle search on navigation meshes, Polyanya
-  [@cui2017polyanya]; grid planners.
-- pyvisgraph [@pyvisgraph]: the closest Python alternative. Build vs. contribute: unmaintained since 2020,
-  full visibility graph (no extremity reduction), Dijkstra instead of A\*, no boundary polygon, returns invalid paths
-  on some inputs. The reduced graph and the input model (boundary polygon, touching polygons) would require
-  a rewrite of pyvisgraph's core; justify this in the prose.
-- Polyanya: state of the art, but no Python package, and it needs a triangulation of the free space.
-- VisiLibity1 (C++): visibility and shortest paths, its Python binding is not on PyPI and has to be built.
-  CGAL based packages (e.g. pyvispoly): visibility polygons only, no shortest paths.
-- Measured comparison with pyvisgraph (docs/7_performance.rst, #111). Polyanya not measured yet (#170).
+In Python, the closest alternative is pyvisgraph [@pyvisgraph]. It builds the complete visibility graph of all
+obstacle vertices with Lee's algorithm and searches it with Dijkstra's algorithm. Its obstacles are polygons in the
+unbounded plane; it has no boundary polygon. VisiLibity1 (C++) computes visibility and shortest paths, but its Python
+binding is not on PyPI. CGAL-based packages such as pyvispoly compute visibility polygons, not shortest paths.
+
+Building a new package instead of contributing to pyvisgraph was justified by the differences in its core:
+the reduction to extremities, the pruning of graph edges, the boundary polygon and the handling of touching polygons
+change the data model, the visibility computation and the search, so a contribution would have been a rewrite.
+pyvisgraph has not been maintained since 2020.
+A reproducible benchmark on world maps of up to 9,952 vertices, in which every returned path is validated
+independently with Shapely, measured `extremitypathfinder` (with Numba) as 4.6 to 7.2 times faster than pyvisgraph
+in building the environment. Its visibility graphs had several times fewer edges, and its queries were faster.
+On the map with 4,954 vertices, 59 of 200 pyvisgraph paths crossed land; the cause, mixed exact and tolerant
+comparisons in a point-in-polygon test, is described in the documentation. A comparison with Polyanya
+has not been measured yet.
 
 # Software design
 
-<!-- ~350 words. Source: docs/8_design.rst and docs/contributing/decisions.md. Trade-offs, not code structure. -->
+The design trades preprocessing time for query time. The visibility between extremities depends only on the
+environment and is computed once, when the environment is created. A query only computes the visibility of its start
+and goal. Environments are therefore immutable: a changed map requires a new environment.
+Precomputing all shortest paths between extremities was rejected, because memory would grow quadratically
+with the number of extremities.
 
-- Preprocessing vs. query time: the visibility graph is computed once, a query only connects start and goal.
-- Graph size vs. generality: only extremities, and only edges that can be part of a shortest path
-  ("Property One" in @vinther2015pathfinding). Smaller graph, faster queries, more preprocessing logic.
-- Visibility algorithm: Angle Range Elimination (AREA), which checks only candidate extremities and the edges
-  whose angle range contains them, instead of Lee's rotational sweep with an edge tree [@lee1978proximity]
-  (docs/8_design.rst).
-- Numerics: `float64` with exact contacts (polygons touch only at exactly equal coordinates or a vertex exactly
-  on an edge), no tolerance parameter (docs/contributing/invariants.md). Audit against exact arithmetic: #3.
-- Acceleration: Numba is optional, results must be identical with and without it (tested in CI).
-- Dependencies: NumPy [@harris2020numpy] and NetworkX [@hagberg2008networkx] only; flat arrays referenced by index.
-- Queries never modify the prepared environment: safe for repeated queries and caching with pickle.
+The graph is kept small without losing optimality. A shortest path bends only at extremities, so other vertices
+are not graph nodes. In addition, an extremity lying "in front of" another one, seen from its obstacle side,
+is never its successor on a shortest path, and the edge between them is omitted
+[Property One in @vinther2015pathfinding]. The reduction makes the preprocessing more complex but speeds up the
+queries.
+
+Visibility is computed with the Angle Range Elimination Algorithm (AREA), developed for this package,
+not with Lee's algorithm. From each origin, AREA sorts the candidate vertices and the edges by angle and removes
+the candidates that lie behind an edge. Cheap tests on the angle range and the distance decide most cases,
+so an intersection is computed only for few candidate-edge pairs, and no trigonometric functions are used.
+Directions are compared with a monotone representation of the angle in $[0, 4)$ instead of `atan2`.
+
+All questions at vertices, such as which vertices are extremities and where a line of sight may start,
+pass through or end, are answered by one concept: the free angle ranges ("wedges") around each vertex
+position, computed with a winding number argument. Touching and overlapping polygons are thus treated as
+their union, without special cases in the visibility code.
+
+The package computes with double precision floating point numbers and has no tolerance parameter. Polygons touch
+only where coordinates are exactly equal or a vertex lies exactly on an edge, which makes the behaviour reproducible
+and exact for integer coordinates such as grids. The numerical kernels are optionally compiled with Numba; without
+it, the same functions run as plain Python or vectorised NumPy code. Queries keep all their data local, so they never
+modify the prepared environment and can be repeated in any order. The A\* search is an adapted copy of the NetworkX
+implementation that additionally follows the temporary edges of start and goal, so the shared graph is neither
+changed nor copied.
 
 # Research impact statement
 
-<!-- ~200 words. Only verified evidence: publications, external use, integrations. No aspirational statements. -->
+The package has been on PyPI since 2018 and has been used in published research since 2020.
+The following works use it, as shown by their text or by the planner in their official code:
 
-- Use by other research groups, shown by the official code of their papers (the planner calls `PolygonEnvironment`):
-  - Chalmers (Åkesson group), robot trajectory planning, 2021–2024: @berlin2021trajectory (the README of its code
-    names the package; co-author Georg Hess also contributed to the package, so say so or leave it out),
-    @zhang2021motion, @zhang2023prescient, @zhang2023collision, @ceder2024bev (the last two state that reference
-    paths come from visibility graphs and A\*). @berlin2021trajectory started as a project in the Chalmers course SSY226 (2020).
-  - University of Southern Denmark, UAV search and rescue: @grontved2023decentralized (`trajallocpy`),
-    @grontved2025communication (through `trajallocpy`).
-  - Integrations: SiTT, the traffic simulation of the ERC project STRADA (University of Trier),
-    declares the package as a dependency and uses it in an example for lake routes;
-    `ros_sgp_tools` (SGP-Tools, informative path planning) uses it in `path_follower.py`.
-- Experimented, do NOT claim use: @zhang2025future, @roselli2026scheduling, @xue2026proactive, @zhang2025gradient,
-  @wang2025collaboration (their code contains a module that calls the package, but nothing imports it; the planner
-  uses a separate networkx and shapely implementation), @mathiesen2025drone (dependency only).
-  Only claim them if the authors confirm use. @zhang2025phd is indirect evidence only.
-  Details of every reference: `paper/references/`.
-- The papers link their code repository, but none whose text was checked names the package
-  (cf. the comments in `paper.bib`): ask these groups to cite the JOSS paper.
-- Direct citations in master theses:
-  - @laitala2024docking (Chalmers, marine vessel docking) cites the package and uses it as its path planner;
-    the follow-up thesis @persson2026docking names it in its text.
-  - @gaba2022uav (MIT, UAV last-mile delivery routing): "This thesis leverages the extremitypathfinder
-    Python package" for shortest paths around obstacles.
-- Journal paper: @zapatarodriguez2026hierarchical (TMLR) uses the package for its oracle planner,
+- Trajectory planning for mobile robots at Chalmers University of Technology, 2021 to 2024: the reference paths of
+  the planners in @berlin2021trajectory, @zhang2021motion, @zhang2023prescient, @zhang2023collision and
+  @ceder2024bev are computed with the package. A co-author of @berlin2021trajectory, Georg Hess, also contributed
+  to the package.
+- Multi-UAV task allocation for search and rescue at the University of Southern Denmark:
+  @grontved2023decentralized, whose library `trajallocpy` calls the package, and @grontved2025communication,
+  which uses `trajallocpy`.
+- @zapatarodriguez2026hierarchical (TMLR) uses it as an oracle planner for
   "the exact shortest Euclidean path through the free space of a 2D polygonal environment".
-- Earliest citation: @cankiri2020guido (IV 2020, augmented reality indoor navigation) builds its visibility
-  graphs with the package. It wrongly states that the package uses Lee's algorithm: say clearly in the
-  Software design section that it does not (AREA instead, cf. docs/8_design.rst).
-- Former author name: citations before the name change use Jannik Michelfeit ("Michelfeit et al., 2021")
-  or the former GitHub username MrMinimal64. Mention this once, so that editors can match the citations.
-- Use outside research papers (repositories checked in November 2026, optional for the paper):
-  a Red Hat AI demo and workshop (`rh-aiservices-bu/intelligent-agriculture-demo`, path finding service),
-  the decision code of the Jilin University team in the RoboMaster AI Challenge at ICRA 2020 (archived part of the code),
-  maps for the GoldenEye 007 speedrunning wiki (`whiteted-strats/GE_Wiki_Maps`),
-  student projects at McGill University (honours project) and Texas A&M University (course project).
-- Releases on PyPI since 2018, GitHub dependents (29 repositories, 1 package in November 2026),
-  downloads (November 2026): 853 in the last month (pypistats.org), about 114,000 in total (pepy.tech),
-  both include mirrors and automated installs.
-- Reproducible benchmark against pyvisgraph with one command (`benchmarks/`).
+- @cankiri2020guido builds the visibility graphs of an augmented reality indoor navigation system with it.
+  This paper states that the package uses Lee's algorithm; as described above, it uses AREA.
+- Master theses: @laitala2024docking (Chalmers, autonomous docking of vessels) uses it as its path planner,
+  and @gaba2022uav (MIT, last-mile delivery with drones) computes shortest paths around obstacles with it.
+
+Research software builds on it as well: SiTT, the transport simulation of the ERC project STRADA at the University of
+Trier, and `ros_sgp_tools`, a ROS 2 package for informative path planning.
+GitHub lists 29 dependent repositories, and the package was downloaded about 114,000 times in total
+(November 2026, including mirrors and automated installations).
+Earlier citations use the author's former name, Jannik Michelfeit, or the former GitHub username MrMinimal64.
+A survey of all known uses is part of the repository.
 
 # AI usage disclosure
 
-<!-- Required. Tools used, for what, how the output was verified; human authors made the core design decisions. -->
-
-- TODO: tools and the parts of the code, tests, documentation and paper they were used for
-  (since 2026, commits with `Co-Authored-By` trailers; pull requests with the AI disclosure checkbox).
-- Verification: review of every change by the maintainer, test suite with and without Numba in CI,
-  regression tests for every bugfix, independent validation of the benchmark paths with Shapely.
-- Design decisions and the invariants were decided by the maintainer (docs/contributing/decisions.md).
+Since September 2026, the author has used Claude Code (Anthropic), an AI coding agent, for a substantial part of the
+development: about 130 of roughly 205 commits from September to November 2026 are co-authored by it, marked with
+`Co-Authored-By` trailers, and the corresponding pull requests carry an AI disclosure. It was used to write code,
+tests and documentation, to build the benchmark, to survey the known uses of the package, and to draft this paper,
+which the author edited. The core approach (extremity graph, AREA, precomputation) predates these tools (2018).
+Trade-offs were decided by the author; smaller decisions taken by the agent are marked as such in the decision log
+of the repository. Every change was reviewed by the author, the test suite runs with and without Numba in
+continuous integration, every bug fix comes with a regression test, and the paths of the benchmark are validated
+independently with Shapely.
 
 # Acknowledgements
 
-<!-- Decided (#190): single author; the earlier code contributors are acknowledged here, not co-authors.
-Same people as the Acknowledgements in docs/3_about.rst. -->
-
-- Code contributors, in order of their contribution:
-  - Andrew Costello (2020): exceptions instead of assertions in the input validation (#17).
-  - Georg Hess (2020): support for overlapping (intersecting) polygons (#21).
-  - Ivan Doria (2021): the command line interface.
-  - GitHub user gpapadok (2022): tests and the plotting documentation (#46).
-- The users who reported issues and requested features in the issue tracker.
-- Origin and funding, in one sentence: the package was started in 2018 during the author's studies at TU Dresden;
-  its development has received no funding. TU Dresden is not the affiliation (the author has left academia).
+The author thanks the contributors of code: Andrew Costello (exceptions instead of assertions in the input validation),
+Georg Hess (support for overlapping polygons), Ivan Doria (the command line interface) and GitHub user gpapadok
+(tests and the plotting documentation), as well as everyone who reported issues and requested features.
+The package was started in 2018 during the author's studies at TU Dresden. Its development has received no funding.
 
 # References
