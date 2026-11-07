@@ -8,7 +8,7 @@ tags:
   - computational geometry
 authors:
   - name: Jannik Kissinger
-    orcid: 0000-0000-0000-0000 # TODO
+    orcid: 0000-0002-1819-6975
     affiliation: 1
 affiliations:
   - name: TODO
