@@ -607,7 +607,18 @@ Numerical Policy
 - **Lines of sight touching edges**: a line of sight touching an edge only in one of its vertices, or running along it,
   is not blocked by the edge. What happens at the vertex is decided by its wedges.
 - Intersections are only computed (a 2x2 linear system, ``_lies_behind_inner()``) when cheaper tests
-  (angle range, distance) cannot decide.
+  (angle range, distance) cannot decide. A determinant rounding to 0 (a direction parallel to the edge in floating
+  point) means "not behind the edge", in both modes.
+- **Audit against exact arithmetic** (#3, ``prototypes/float_audit.py``): every decision above was compared with
+  the exact decision (``fractions.Fraction``) for the same ``float64`` values, on integer, decimal grid, projected
+  (1e6 plus decimals), random and near-degenerate inputs (up to 100,000 cases per function and kind of input),
+  with identical results with and without Numba. There were no misdecisions when all coordinates, query points
+  included, are integers (up to 2^20). All misdecisions concern directions
+  or points within about one unit in the last place of a decision boundary: directions whose exact angle
+  representations differ by less than 1e-16 may compare equal or in the wrong order, and points about one unit in the
+  last place next to an edge may count as on the edge (by the 180 degree rule of ``_lies_on_edge()``) or fall on the
+  wrong side of it in the point in polygon test. Such inputs are within the rounding errors of the coordinates
+  themselves; exact predicates everywhere would be a large and slower change to the core and are not used.
 
 
 Complexity and Memory
