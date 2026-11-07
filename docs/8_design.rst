@@ -609,7 +609,8 @@ Numerical Policy
 - Intersections are only computed (a 2x2 linear system, ``_lies_behind_inner()``) when cheaper tests
   (angle range, distance) cannot decide. A determinant rounding to 0 (a direction parallel to the edge in floating
   point) means "not behind the edge", in both modes.
-- **Audit against exact arithmetic** (#3, ``prototypes/float_audit.py``): every decision above was compared with
+- **Audit against exact arithmetic** (#3, ``prototypes/float_audit.py``, the integer case is tested in
+  ``tests/test_exact_decisions.py``): every decision above was compared with
   the exact decision (``fractions.Fraction``) for the same ``float64`` values, on integer, decimal grid, projected
   (1e6 plus decimals), random and near-degenerate inputs (up to 100,000 cases per function and kind of input),
   with identical results with and without Numba. There were no misdecisions when all coordinates, query points

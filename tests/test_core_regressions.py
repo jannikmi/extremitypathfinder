@@ -2,7 +2,6 @@
 
 import itertools
 import pickle
-from fractions import Fraction
 from math import hypot
 
 import numpy as np
@@ -14,6 +13,7 @@ from extremitypathfinder.utils_numba import (
     _lies_on_edge,
     reps_n_distances,
 )
+from tests import exact
 from tests.test_cases import GRID_ENV_PARAMS, POLYGON_ENVS
 
 # the edge (0, 0) -> B is not axis parallel: points on it are not exactly on its line in floating point
@@ -270,13 +270,6 @@ CORNER_TRIANGLES = [
 UNIT_SQUARE = [(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)]
 
 
-def _orientation(a, b, c) -> int:
-    """the exact sign of the cross product (b - a) x (c - a)"""
-    a, b, c = ([Fraction(x) for x in p] for p in (a, b, c))
-    cross = (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])
-    return (cross > 0) - (cross < 0)
-
-
 def test_lines_of_sight_close_to_an_axis_do_not_cut_obstacle_corners():
     """directions about 1e-12 rad apart close to the vertical axis are told apart
 
@@ -287,11 +280,13 @@ def test_lines_of_sight_close_to_an_axis_do_not_cut_obstacle_corners():
     a, b = CORNER_TRIANGLES[2][0], CORNER_TRIANGLES[0][2]
     v, w = CORNER_TRIANGLES[1][1], CORNER_TRIANGLES[1][2]
     # exactly: A and B lie on opposite sides of the edge V-W of the middle triangle, the line A-B crosses it
-    assert _orientation(v, w, a) != _orientation(v, w, b)
-    assert _orientation(a, b, v) != _orientation(a, b, w)
+    assert exact.orientation(v, w, a) != exact.orientation(v, w, b)
+    assert exact.orientation(a, b, v) != exact.orientation(a, b, w)
     # V lies inside the right triangle: no gap between the middle and the right triangle
     right = CORNER_TRIANGLES[2]
-    assert all(_orientation(right[k], right[(k + 1) % 3], v) == -1 for k in range(3))
+    assert all(
+        exact.orientation(right[k], right[(k + 1) % 3], v) == -1 for k in range(3)
+    )
 
     environment = PolygonEnvironment(UNIT_SQUARE, CORNER_TRIANGLES, validate=True)
     start, goal = (0.125, 0.5), (0.125, 0.1)
@@ -329,10 +324,10 @@ def test_vertices_close_to_an_axis_are_not_hidden(reverse):
     upper, lower = CRACK_TRIANGLES
     # exactly: the lower edge of the upper triangle lies above the upper edge of the lower triangle
     # (both end vertices of each edge lie strictly on the free side of the other edge): a free crack
-    assert _orientation(upper[1], upper[2], lower[0]) == 1
-    assert _orientation(upper[1], upper[2], lower[1]) == 1
-    assert _orientation(lower[0], lower[1], upper[1]) == 1
-    assert _orientation(lower[0], lower[1], upper[2]) == 1
+    assert exact.orientation(upper[1], upper[2], lower[0]) == 1
+    assert exact.orientation(upper[1], upper[2], lower[1]) == 1
+    assert exact.orientation(lower[0], lower[1], upper[1]) == 1
+    assert exact.orientation(lower[0], lower[1], upper[2]) == 1
 
     environment = PolygonEnvironment(UNIT_SQUARE, CRACK_TRIANGLES, validate=True)
     start, goal = (0.3, 0.5), (0.15, 0.5)

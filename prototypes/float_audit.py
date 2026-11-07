@@ -2,7 +2,8 @@
 
 Every decision of the package that depends on floating point rounding is checked on random inputs:
 the float decision of the package against the exact decision for the same float64 values,
-computed with ``fractions.Fraction``. Reports the number of misdecisions per function and kind of input.
+computed with ``fractions.Fraction`` (``tests/exact.py``, shared with ``tests/test_exact_decisions.py``,
+which asserts the result on integer coordinates). Reports the number of misdecisions per function and kind of input.
 
 Decisions:
 
@@ -21,7 +22,7 @@ Misdecisions of the angle representations are reported with the largest exact di
 
 Measured (November 2026, -n 100000, identical with and without Numba): no misdecisions when all coordinates,
 query points included, are integers.
-Not covered: ``Point.in_front()``, ``free_wedges()``, the distance and bounding box shortcuts and the validation.
+Not covered: ``Point.in_front()`` and ``free_wedges()`` (#212), the validation (#193).
 All misdecisions concern directions or points closer than about one unit in the last place (1e-16 relative)
 to a decision boundary, cf. the Numerical Policy in docs/8_design.rst.
 
@@ -34,7 +35,7 @@ import argparse
 import importlib
 import sys
 from collections import Counter
-from fractions import Fraction as F
+from pathlib import Path
 
 import numpy as np
 
@@ -50,7 +51,9 @@ args = parser.parse_args()
 if args.no_numba:
     sys.modules["numba"] = None
 
-# imported after blocking Numba (--no-numba)
+# imported after blocking Numba (--no-numba). The exact references are shared with the tests
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+exact = importlib.import_module("tests.exact")
 utils_numba = importlib.import_module("extremitypathfinder.utils_numba")
 wedges = importlib.import_module("extremitypathfinder.wedges")
 _compute_repr_n_dist = utils_numba._compute_repr_n_dist
@@ -101,81 +104,8 @@ GENERATORS = {
 }
 
 
-def fr(x):
-    return F(float(x))
-
-
 def sign(x):
     return int(x > 0) - int(x < 0)
-
-
-# --- exact references ------------------------------------------------------------------------
-def exact_rep(v):
-    dx, dy = fr(v[0]), fr(v[1])
-    if dx == 0 and dy == 0:
-        return None
-    if dx >= 0 and dy >= 0:
-        q, m = 0, dy
-    elif dx < 0 <= dy:
-        q, m = 1, -dx
-    elif dx < 0 and dy < 0:
-        q, m = 2, -dy
-    else:
-        q, m = 3, dx
-    return q + m / (abs(dx) + abs(dy))
-
-
-def exact_on_edge(p, p1, p2):
-    v1 = (fr(p1[0]) - fr(p[0]), fr(p1[1]) - fr(p[1]))
-    v2 = (fr(p2[0]) - fr(p[0]), fr(p2[1]) - fr(p[1]))
-    return (
-        v1[0] * v2[1] - v1[1] * v2[0] == 0 and v1[0] * v2[0] <= 0 and v1[1] * v2[1] <= 0
-    )
-
-
-def exact_inside(p, coords, border_value):
-    n = len(coords)
-    for i in range(n):
-        if exact_on_edge(p, coords[i - 1], coords[i]):
-            return border_value
-    x, y = fr(p[0]), fr(p[1])
-    inside = False
-    for i in range(n):
-        x1, y1 = fr(coords[i - 1][0]), fr(coords[i - 1][1])
-        x2, y2 = fr(coords[i][0]), fr(coords[i][1])
-        if (y > y1) != (y > y2):
-            x_cross = x1 + (y - y1) * (x2 - x1) / (y2 - y1)
-            if x_cross >= x:
-                inside = not inside
-    return inside
-
-
-def exact_area2(coords):
-    s = F(0)
-    n = len(coords)
-    for i in range(n):
-        x1, y1 = fr(coords[i - 1][0]), fr(coords[i - 1][1])
-        x2, y2 = fr(coords[i][0]), fr(coords[i][1])
-        s += (x2 - x1) * (y2 + y1)
-    return s  # > 0: clockwise
-
-
-def exact_in_closure(d, a, b):
-    """whether the direction d lies counter clockwise from a to b (closure); exact"""
-    ra, rb, rd = exact_rep(a), exact_rep(b), exact_rep(d)
-    if ra == rb:
-        return True
-    return (rd - ra) % 4 <= (rb - ra) % 4
-
-
-def exact_lies_behind(p1, p2, v):
-    a = fr(p1[0]) - fr(p2[0])
-    b = fr(p1[1]) - fr(p2[1])
-    det = a * fr(v[1]) - fr(v[0]) * b
-    if det == 0:
-        return None
-    mu = (a * fr(p1[1]) - b * fr(p1[0])) / det
-    return mu < 1
 
 
 # --- audits ------------------------------------------------------------------------------------
@@ -214,7 +144,7 @@ def audit_reps():
         vec_reps, _ = reps_n_distances(vs.reshape(-1, 2))
         vec_reps = vec_reps.reshape(-1, 2)
         for i, (u, v) in enumerate(vs):
-            eu, ev = exact_rep(u), exact_rep(v)
+            eu, ev = exact.rep(u), exact.rep(v)
             if eu is None or ev is None:
                 continue
             ru = _compute_repr_n_dist(u)[0]
@@ -258,7 +188,7 @@ def audit_lies_on_edge():
         pts = gen(N, 3)
         c = Counter()
         for p, p1, p2 in pts:
-            e = exact_on_edge(p, p1, p2)
+            e = exact.on_edge(p, p1, p2)
             f = _lies_on_edge(p, p1, p2)
             if e != f:
                 c["false positive" if f else "false negative"] += 1
@@ -278,7 +208,7 @@ def random_star_polygon(gen, nr_vertices):
         ang = np.arctan2(pts[:, 1] - c[1], pts[:, 0] - c[0])
         order = np.lexsort((np.hypot(*(pts - c).T), ang))
         poly = pts[order]
-        if exact_area2(poly) != 0:
+        if exact.signed_area2(poly) != 0:
             return np.ascontiguousarray(poly)
 
 
@@ -300,11 +230,11 @@ def audit_inside_polygon():
                 p = np.ascontiguousarray(p, dtype=float)
                 for border in (True, False):
                     n += 1
-                    e = exact_inside(p, poly, border)
+                    e = exact.inside_polygon(p, poly, border)
                     f = _inside_polygon(p, poly, border)
                     if e != f:
                         on_edge_rule = any(
-                            _lies_on_edge(p, *edge) != exact_on_edge(p, *edge)
+                            _lies_on_edge(p, *edge) != exact.on_edge(p, *edge)
                             for edge in zip(np.roll(poly, 1, axis=0), poly)
                         )
                         kind = "via _lies_on_edge()" if on_edge_rule else "ray casting"
@@ -338,7 +268,7 @@ def audit_clockwise():
                 poly = random_star_polygon(gen, int(rng.integers(3, 12)))
                 if rng.integers(0, 2):
                     poly = np.ascontiguousarray(poly[::-1])
-            a = exact_area2(poly)
+            a = exact.signed_area2(poly)
             if a == 0:
                 continue
             n += 1
@@ -378,12 +308,12 @@ def audit_in_wedges():
             n += 1
             point = Point(0, 2, set(), [(ra, rb)], None, [(a, ra), (b, rb)])
             f = point.in_wedges(_rep(d), d, [(ra, rb)])
-            e = exact_in_closure(d, a, b)
+            e = exact.in_closure(d, a, b)
             if e != f:
                 c["false positive" if f else "false negative"] += 1
                 c.setdefault("max |exact diff|", 0.0)
-                er = exact_rep(d)
-                diff = min(abs(er - exact_rep(a)), abs(er - exact_rep(b)))
+                er = exact.rep(d)
+                diff = min(abs(er - exact.rep(a)), abs(er - exact.rep(b)))
                 c["max |exact diff|"] = max(c["max |exact diff|"], float(diff))
         report("Point.in_wedges() (RAY_TOLERANCE)", name, c, n)
 
@@ -393,7 +323,7 @@ def audit_lies_behind():
         c = Counter()
         n = 0
         for p1, p2, v in gen(N, 3):
-            e = exact_lies_behind(p1, p2, v)
+            e = exact.lies_behind(p1, p2, v)
             if e is None:
                 continue
             n += 1

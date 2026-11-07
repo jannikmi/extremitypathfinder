@@ -6,12 +6,12 @@ import os
 import subprocess
 import sys
 import tempfile
-from fractions import Fraction
 
 import numpy as np
 import pytest
 
 from extremitypathfinder import utils_numba
+from tests import exact
 
 
 def test_execution_backend():
@@ -30,14 +30,6 @@ def test_linear_solve_visibility():
     p2 = np.array([1.0, 1.0])
     assert utils_numba._lies_behind_inner(p1, p2, np.array([2.0, 0.0]))
     assert not utils_numba._lies_behind_inner(p1, p2, np.array([0.5, 0.0]))
-
-
-def _lies_behind_exact(p1, p2, v) -> bool:
-    p1, p2, v = ([Fraction(int(c)) for c in p] for p in (p1, p2, v))
-    a = p1[0] - p2[0]
-    b = p1[1] - p2[1]
-    mu = (a * p1[1] - b * p1[0]) / (a * v[1] - v[0] * b)
-    return mu < 1
 
 
 # a vertex exactly on the edge (mu == 1) is not behind it.
@@ -99,7 +91,7 @@ def test_lies_behind_exact_on_integer_coordinates():
             if v[0] * (p1[1] - p2[1]) == v[1] * (p1[0] - p2[0]):
                 # parallel to the edge (not possible when called)
                 continue
-            expected = _lies_behind_exact(p1, p2, v)
+            expected = exact.lies_behind(p1, p2, v)
             result = utils_numba._lies_behind_inner(
                 p1.astype(float), p2.astype(float), v.astype(float)
             )
