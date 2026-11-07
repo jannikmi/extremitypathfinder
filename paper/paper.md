@@ -11,7 +11,7 @@ authors:
     orcid: 0000-0002-1819-6975
     affiliation: 1
 affiliations:
-  - name: TODO
+  - name: Independent Researcher, Germany
     index: 1
 date: TODO
 bibliography: paper.bib
@@ -141,7 +141,7 @@ Same people as the Acknowledgements in docs/3_about.rst. -->
   - Ivan Doria (2021): the command line interface.
   - GitHub user gpapadok (2022): tests and the plotting documentation (#46).
 - The users who reported issues and requested features in the issue tracker.
-- Funding: TODO (none?). The package was started during the author's studies at TU Dresden;
-  state whether the university or anyone else supported its development.
+- Origin and funding, in one sentence: the package was started in 2018 during the author's studies at TU Dresden;
+  its development has received no funding. TU Dresden is not the affiliation (the author has left academia).
 
 # References
