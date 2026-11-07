@@ -287,14 +287,14 @@ def audit_inside_polygon():
         n = 0
         for _ in range(nr_polygons):
             poly = random_star_polygon(gen, int(rng.integers(3, 12)))
-            queries = list(gen(100, 1)[:, 0])
-            # vertices, edge points and points close to the edges
+            # random points, vertices, edge midpoints and points one unit in the last place next to them
+            queries = [(False, q) for q in gen(100, 1)[:, 0]]
             for i in range(len(poly)):
                 p1, p2 = poly[i - 1], poly[i]
-                queries.append(p1.copy())
-                queries.append((p1 + p2) / 2)
-                queries.append(np.nextafter((p1 + p2) / 2, np.inf))
-            for p in queries:
+                queries.append((False, p1.copy()))
+                queries.append((False, (p1 + p2) / 2))
+                queries.append((True, np.nextafter((p1 + p2) / 2, np.inf)))
+            for one_ulp_off, p in queries:
                 p = np.ascontiguousarray(p, dtype=float)
                 for border in (True, False):
                     n += 1
@@ -305,7 +305,10 @@ def audit_inside_polygon():
                             _lies_on_edge(p, *edge) != exact_on_edge(p, *edge)
                             for edge in zip(np.roll(poly, 1, axis=0), poly)
                         )
-                        c["via _lies_on_edge()" if on_edge_rule else "ray casting"] += 1
+                        kind = "via _lies_on_edge()" if on_edge_rule else "ray casting"
+                        if one_ulp_off:
+                            kind += " (1 ulp off an edge)"
+                        c[kind] += 1
         report("_inside_polygon()", name, c, n)
 
 
