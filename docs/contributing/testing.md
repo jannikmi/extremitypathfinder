@@ -65,6 +65,7 @@ when you change `utils_numba.py` or code calling it.
   | `test_core_regressions.py` | regressions in visibility, free wedges, graph and query |
   | `test_geometry_regressions.py` | documented polygon edge cases |
   | `test_find_visible.py` | visibility detection against a reference implementation |
+  | `test_random_queries.py` | random query points: visibility, paths, graph reduction, transforms |
   | `helper_fcts_test.py` | helper functions in `utils.py` |
   | `test_acceleration.py` | the execution backend (Numba or not) |
   | `test_pickle.py`, `test_plotting.py`, `cli_test.py` | pickle export, plotting, command line interface |
