@@ -35,6 +35,18 @@ Run it (Shapely needed, not in CI) when you change decisions on vertices, contac
 uv run python prototypes/real_world_geometry.py --seeds 40 --queries 15
 ```
 
+## Floating point decisions
+
+`prototypes/float_audit.py` compares every floating point decision of the package (angle representations, edge,
+point in polygon and orientation tests, the `RAY_TOLERANCE` selection, `_lies_behind_inner()`) with the exact decision
+for the same values (`fractions.Fraction`) and reports the misdecisions per function and kind of input (#3).
+Run it in both modes when you change one of these functions:
+
+```sh
+uv run python prototypes/float_audit.py -n 100000
+uv run python prototypes/float_audit.py -n 100000 --no-numba
+```
+
 ## CI and external packages
 
 CI must not fail because of errors in pyvisgraph or other external packages and services,
