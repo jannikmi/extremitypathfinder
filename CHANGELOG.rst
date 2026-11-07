@@ -92,6 +92,10 @@ internal:
   in pre-commit and the tests.
 - contributing guide: implementing the next ready issue (bundling related issues, claiming issues so that several
   contributors and agents can work at the same time), automated by the ``/implement-next`` Claude Code skill.
+- tests with random query points (``tests/test_random_queries.py``, #138): visibility against the reference
+  implementation, paths checked against the free space, reversed queries and an unpruned visibility graph
+  (the elimination of extremities "in front"), and transforms of the environments (scaling by powers of two gives
+  identical results, shifts, scaling by 1/3 and rotations the same reachability and lengths within 1e-9).
 
 
 3.0.0 (2026-10-29)
