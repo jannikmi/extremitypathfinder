@@ -19,7 +19,9 @@ Inputs: integers (small and up to 2^20, e.g. grids), a decimal grid (0.1), proje
 (directions closer than the precision of the angle representations, points next to an edge).
 Misdecisions of the angle representations are reported with the largest exact difference of the representations.
 
-Measured (November 2026, 100,000 cases per row, identical with and without Numba): no misdecisions on integer inputs.
+Measured (November 2026, -n 100000, identical with and without Numba): no misdecisions when all coordinates,
+query points included, are integers.
+Not covered: ``Point.in_front()``, ``free_wedges()``, the distance and bounding box shortcuts and the validation.
 All misdecisions concern directions or points closer than about one unit in the last place (1e-16 relative)
 to a decision boundary, cf. the Numerical Policy in docs/8_design.rst.
 
@@ -395,11 +397,11 @@ def audit_lies_behind():
             if e is None:
                 continue
             n += 1
-            try:
-                f = _lies_behind_inner(p1, p2, v)
-            except ZeroDivisionError:
-                c["float determinant 0 (ZeroDivisionError)"] += 1
-                continue
+            a, b = p1[0] - p2[0], p1[1] - p2[1]
+            if a * v[1] - v[0] * b == 0.0:
+                # the exact determinant is not 0: decided as parallel ("not behind")
+                c["float determinant 0, exact not"] += 1
+            f = _lies_behind_inner(p1, p2, v)
             if e != f:
                 c["wrong"] += 1
         report("_lies_behind_inner()", name, c, n)

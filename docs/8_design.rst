@@ -611,8 +611,9 @@ Numerical Policy
   point) means "not behind the edge", in both modes.
 - **Audit against exact arithmetic** (#3, ``prototypes/float_audit.py``): every decision above was compared with
   the exact decision (``fractions.Fraction``) for the same ``float64`` values, on integer, decimal grid, projected
-  (1e6 plus decimals), random and near-degenerate inputs, 100,000 cases each, with identical results with and without
-  Numba. There were no misdecisions on integer inputs (coordinates up to 2^20). All misdecisions concern directions
+  (1e6 plus decimals), random and near-degenerate inputs (up to 100,000 cases per function and kind of input),
+  with identical results with and without Numba. There were no misdecisions when all coordinates, query points
+  included, are integers (up to 2^20). All misdecisions concern directions
   or points within about one unit in the last place of a decision boundary: directions whose exact angle
   representations differ by less than 1e-16 may compare equal or in the wrong order, and points about one unit in the
   last place next to an edge may count as on the edge (by the 180 degree rule of ``_lies_on_edge()``) or fall on the

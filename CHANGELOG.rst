@@ -100,8 +100,9 @@ internal:
   implementation, paths checked against the free space, reversed queries and an unpruned visibility graph
   (the elimination of extremities "in front"), and transforms of the environments (scaling by powers of two gives
   identical results, shifts, scaling by 1/3 and rotations the same reachability and lengths within 1e-9).
-- audit of all floating point decisions against exact rational arithmetic (``prototypes/float_audit.py``, #3):
-  no misdecisions on integer inputs, the remaining ones lie within about one unit in the last place of a decision
+- audit of the core floating point decisions (angle representations, edge, point in polygon and orientation tests,
+  ``RAY_TOLERANCE``, ``_lies_behind_inner()``) against exact rational arithmetic (``prototypes/float_audit.py``, #3):
+  no misdecisions when all coordinates are integers, the remaining ones lie within about one unit in the last place of a decision
   boundary (documented in the Numerical Policy of the design document).
 
 
