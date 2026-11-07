@@ -132,6 +132,16 @@ No API documentation in the paper: refer to the documentation instead.
 
 # Acknowledgements
 
-- TODO: contributors (cf. the GitHub contributors page), funding (if any).
+<!-- Decided (#190): single author; the earlier code contributors are acknowledged here, not co-authors.
+Same people as the Acknowledgements in docs/3_about.rst. -->
+
+- Code contributors, in order of their contribution:
+  - Andrew Costello (2020): exceptions instead of assertions in the input validation (#17).
+  - Georg Hess (2020): support for overlapping (intersecting) polygons (#21).
+  - Ivan Doria (2021): the command line interface.
+  - GitHub user gpapadok (2022): tests and the plotting documentation (#46).
+- The users who reported issues and requested features in the issue tracker.
+- Funding: TODO (none?). The package was started during the author's studies at TU Dresden;
+  state whether the university or anyone else supported its development.
 
 # References
