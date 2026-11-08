@@ -67,8 +67,8 @@ problem, but it needs a triangulation of the free space and is not available as 
 as A\* or Theta\* are simpler, but their paths are in general longer than Euclidean shortest paths.
 
 In Python, the closest alternative is pyvisgraph [@pyvisgraph]. It builds the complete visibility graph of all
-obstacle vertices with Lee's algorithm, keeping the edges in a sorted list ($O(n^3)$ in the worst case),
-and searches it with Dijkstra's algorithm. Its obstacles are polygons in the
+obstacle vertices with Lee's algorithm, in an implementation that takes $O(n^3)$ in the worst case (a sorted list
+instead of a tree, and an interior test per visible vertex), and searches it with Dijkstra's algorithm. Its obstacles are polygons in the
 unbounded plane; it has no boundary polygon. VisiLibity1 (C++) computes visibility and shortest paths, but its Python
 binding is not on PyPI. CGAL-based packages such as pyvispoly compute visibility polygons, not shortest paths.
 
