@@ -236,7 +236,13 @@ def find_visible(
 
     regular_edges = edges[~edges_is_crossing[edges]]
     check(
-        sorted(regular_edges, key=lambda e: edges_min_rep[e]),
+        _edges_with_candidates(
+            regular_edges,
+            edges_min_rep,
+            edges_max_rep,
+            candidates_sorted,
+            representations,
+        ),
         edges_min_rep,
         edges_max_rep,
         representations,
@@ -254,12 +260,40 @@ def find_visible(
         representations,
     )
     check(
-        sorted(crossing_edges, key=lambda e: edges_min_rep[e]),
+        _edges_with_candidates(
+            crossing_edges,
+            edges_min_rep,
+            edges_max_rep,
+            candidates_sorted,
+            representations,
+        ),
         edges_min_rep,
         edges_max_rep,
         representations,
     )
     return set(candidates_sorted)
+
+
+def _edges_with_candidates(
+    edges: np.ndarray,
+    edges_min_rep: np.ndarray,
+    edges_max_rep: np.ndarray,
+    candidates_sorted: list[int],
+    representations: np.ndarray,
+) -> list[int]:
+    """the edges whose closed angle range contains a candidate, sorted by their minimum representation
+
+    The other edges cannot block any candidate: candidates are only removed during the sweep, never added.
+    Skipping them changes neither the result nor the order of the remaining edges (stable sort),
+    but saves the Python loop over most of the edges (#217).
+
+    :param candidates_sorted: the candidates sorted by their (unique) representation
+    """
+    candidate_reps = representations[np.asarray(candidates_sorted, dtype=int)]
+    first = np.searchsorted(candidate_reps, edges_min_rep[edges], side="left")
+    after_last = np.searchsorted(candidate_reps, edges_max_rep[edges], side="right")
+    edges = edges[after_last > first]
+    return edges[np.argsort(edges_min_rep[edges], kind="stable")].tolist()
 
 
 def _eliminate_eq_candidates(
