@@ -22,6 +22,7 @@ from extremitypathfinder.utils_numba import (
     _no_identical_consequent_vertices,
     edge_vertex_mappings,
     is_within_map,
+    polygon_bounds,
     reps_n_distances,
 )
 from extremitypathfinder.wedges import Point, Points, Wedge, check_polygon_contacts
@@ -922,13 +923,16 @@ def compile_polygon_datastructs(
     vertex_polygon_idxs = np.repeat(
         np.arange(len(list_of_polygons)), [len(p) for p in list_of_polygons]
     )
+    hole_bounds = polygon_bounds(list_of_hole_coordinates)
     points = Points(
         coords,
         edge_vertex_idxs,
         vertex_edge_idxs,
         vertex_polygon_idxs,
         None if boundary_coordinates is None else 0,
-        lambda p: is_within_map(p, boundary_coordinates, list_of_hole_coordinates),
+        lambda p: is_within_map(
+            p, boundary_coordinates, list_of_hole_coordinates, hole_bounds
+        ),
     )
     return coords, edge_vertex_idxs, vertex_edge_idxs, points
 

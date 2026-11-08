@@ -11,7 +11,11 @@ from extremitypathfinder.utils import (
     astar_path,
     read_json,
 )
-from extremitypathfinder.utils_numba import _compute_repr_n_dist
+from extremitypathfinder.utils_numba import (
+    _compute_repr_n_dist,
+    is_within_map,
+    polygon_bounds,
+)
 from tests.helpers import proto_test_case
 from tests.test_find_visible import _clean_visibles
 
@@ -72,6 +76,40 @@ def test_inside_polygon():
         ]
 
         proto_test_case(list(zip(p_test_cases, expected_results)), test_fct)
+
+
+@pytest.mark.parametrize("seed", range(5))
+def test_is_within_map_with_hole_bounds(seed):
+    """testing only the holes whose bounding box contains a point gives the same results"""
+    rng = np.random.default_rng(seed)
+    boundary = np.array(
+        [(0.0, 0.0), (20.0, 0.0), (20.0, 20.0), (0.0, 20.0)], dtype=configs.DTYPE_FLOAT
+    )
+    triangle = np.array([(0.0, 0.0), (2.0, 3.0), (3.0, 0.0)], dtype=configs.DTYPE_FLOAT)
+    # integer offsets: holes touching each other in vertices and along edges
+    holes = [
+        triangle + rng.integers(0, 16, size=2).astype(configs.DTYPE_FLOAT)
+        for _ in range(15)
+    ]
+    bounds = polygon_bounds(holes)
+    points = [rng.uniform(-1.0, 21.0, size=2) for _ in range(300)]
+    for hole in holes:
+        # vertices, edge midpoints and the corners of the bounding box
+        points.extend(hole)
+        points.extend((hole + np.roll(hole, 1, axis=0)) / 2.0)
+        lower, upper = hole.min(axis=0), hole.max(axis=0)
+        points.extend([lower, upper, (lower[0], upper[1]), (upper[0], lower[1])])
+    for point in points:
+        point = np.asarray(point, dtype=configs.DTYPE_FLOAT)
+        for map_boundary in (boundary, None):
+            expected = is_within_map(point, map_boundary, holes)
+            assert is_within_map(point, map_boundary, holes, bounds) == expected
+
+
+def test_polygon_bounds_without_polygons():
+    minima, maxima = polygon_bounds([])
+    assert minima.shape == maxima.shape == (0, 2)
+    assert is_within_map(np.array((1.0, 1.0)), None, [], (minima, maxima))
 
 
 def test_read_json():

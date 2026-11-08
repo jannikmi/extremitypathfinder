@@ -1,5 +1,5 @@
 import math
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 
 import numpy as np
 
@@ -243,14 +243,34 @@ def _lies_behind_inner(p1: np.ndarray, p2: np.ndarray, v: np.ndarray) -> bool:
     return mu < 1.0
 
 
+def polygon_bounds(polygons: Iterable[np.ndarray]) -> tuple[np.ndarray, np.ndarray]:
+    """the bounding boxes of polygons: the minimum and the maximum coordinates, one row per polygon"""
+    polygons = list(polygons)
+    if len(polygons) == 0:
+        return np.empty((0, 2)), np.empty((0, 2))
+    minima = np.array([polygon.min(axis=0) for polygon in polygons])
+    maxima = np.array([polygon.max(axis=0) for polygon in polygons])
+    return minima, maxima
+
+
 def is_within_map(
     p: np.ndarray,
     boundary: np.ndarray | None,
-    holes: Iterable[np.ndarray],
+    holes: Sequence[np.ndarray],
+    hole_bounds: tuple[np.ndarray, np.ndarray] | None = None,
 ) -> bool:
-    """whether the point lies within the boundary polygon (or on its border) and not inside any hole"""
+    """whether the point lies within the boundary polygon (or on its border) and not inside any hole
+
+    :param hole_bounds: the bounding boxes of the holes (``polygon_bounds(holes)``).
+        Only the holes whose closed bounding box contains the point are tested:
+        a point outside of it lies neither inside the hole nor on its border. Same result, faster.
+    """
     if boundary is not None and not _inside_polygon(p, boundary, border_value=True):
         return False
+    if hole_bounds is not None:
+        minima, maxima = hole_bounds
+        in_box = np.flatnonzero(np.all((minima <= p) & (p <= maxima), axis=1))
+        holes = [holes[i] for i in in_box]
     return not any(_inside_polygon(p, hole, border_value=False) for hole in holes)
 
 
