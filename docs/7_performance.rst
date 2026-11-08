@@ -4,11 +4,11 @@
 Performance
 ===========
 
-This page compares ``extremitypathfinder`` with `pyvisgraph <https://github.com/TaipanRex/pyvisgraph>`__,
-the closest alternative (see :ref:`alternatives`), on realistic maps of increasing size.
 .. benchmark-derived: what Numba costs. Update this text with every full benchmark run
    (docs/contributing/performance.md, "After a full run").
 
+This page compares ``extremitypathfinder`` with `pyvisgraph <https://github.com/TaipanRex/pyvisgraph>`__,
+the closest alternative (see :ref:`alternatives`), on realistic maps of increasing size.
 ``extremitypathfinder`` is compared with Numba, its best case, and is also measured without Numba:
 Numba is optional, and it costs memory.
 

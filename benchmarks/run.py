@@ -138,8 +138,7 @@ def derived_text_files(root: Path = REPO_ROOT) -> list[Path]:
     return [
         path.relative_to(root)
         for path in candidates
-        if path.is_file()
-        and _DERIVED_DIRECTIVE.search(path.read_text(encoding="utf-8"))
+        if path.is_file() and _DERIVED_DIRECTIVE.search(path.read_text("utf-8"))
     ]
 
 
