@@ -690,6 +690,58 @@ each with and without numba. Release artifacts are additionally installed and sm
 (``make release-check``). Bug fixes should come with a regression test reproducing the bug.
 
 
+Related Work
+============
+
+How the approach of this package relates to the literature on Euclidean shortest paths among polygonal obstacles.
+Packages solving the same problem are compared in :ref:`alternatives`.
+
+Constructing visibility graphs
+    Lee's rotational sweep (1978) computes the visibility graph of :math:`n` vertices in :math:`O(n^2 \log n)` time.
+    Welzl (1985), Asano et al. (1986) and Overmars and Welzl (1988) reduced this to :math:`O(n^2)`,
+    `Ghosh and Mount (1991) <https://www.cs.umd.edu/~mount/Papers/sicomp91-visib.pdf>`__ to the output sensitive
+    :math:`O(n \log n + E)` for :math:`E` visibility edges, and
+    `Chen and Wang (2015) <https://doaj.org/article/83ae71cdf1754c2d838667b17b0f2432>`__ to
+    :math:`O(n + h \log h + E)` for :math:`h` obstacles.
+    AREA does not improve these bounds, its worst case is worse than Lee's
+    (cf. `Angle Range Elimination Algorithm (AREA)`_, which also names the techniques it builds on).
+    It trades the worst case guarantee for fewer and simpler operations on typical maps.
+    We are not aware of a published description of its edge-centric sweep.
+
+Shortest paths without a visibility graph
+    The continuous Dijkstra method computes a single shortest path in :math:`O(n \log n)` time
+    (Hershberger and Suri, 1999; Wang, SODA 2021, with :math:`O(n)` space),
+    and in :math:`O(n + h \log h)` given a triangulation of the free space
+    (`Wang, STOC 2021 <https://digitalcommons.usu.edu/computer_science_facpubs/20>`__).
+    These algorithms are optimal for single queries, but complex to implement. This package instead precomputes a
+    graph for many queries in a static environment.
+
+Reduced visibility graphs
+    Only the convex vertices (extremities) and the bitangent edges between them can be part of shortest paths:
+    the *tangent graph* (Liu and Arimoto, 1992) or *reduced visibility graph*
+    (`LaValle, Planning Algorithms, 6.2.4 <https://lavalle.pl/planning/node271.html>`__).
+    The graph reduction of this package follows Vinther et al. (2015, cf. `Visibility graph reduction`_).
+    `Sparse visibility graphs <https://arxiv.org/abs/1702.01524>`__ (Oh and Leong, 2017) prune edges
+    with the same taut path argument and build a hierarchy of them for any-angle paths on grids.
+
+Queries
+    Connecting start and goal to the precomputed graph and searching it is the baseline "end point search"
+    of `Euclidean hub labelling <https://ojs.aaai.org/index.php/AAAI/article/view/26463>`__ (Du, Shen and Cheema, 2023),
+    which precomputes hub labels on the reduced visibility graph and the visible extremities of grid cells:
+    much faster queries at the cost of a lot of memory (reduced by `EHL* <https://arxiv.org/abs/2408.11341>`__).
+    Polyanya (Cui, Harabor and Grastien, 2017) searches a navigation mesh instead,
+    `RayScan <https://ojs.aaai.org/index.php/ICAPS/article/view/6654>`__ (Hechenberger et al., 2020)
+    needs no preprocessing at all: it computes the visible vertices during the A* search with ray shooting,
+    which suits changing environments.
+
+Visibility from a point
+    The `triangular expansion algorithm <https://arxiv.org/abs/1403.3905>`__ (Bungiu et al., 2014) computes the
+    visibility from a point by expanding the triangles of a triangulation of the free space.
+    `TřiVis <https://arxiv.org/abs/2410.08752>`__ (Mikula, Kulich and Přeučil, 2024) implements it,
+    vertex to vertex visibility graphs included. It is the most relevant alternative to AREA for both construction
+    and queries, but requires a triangulation (not compared yet).
+
+
 Limitations and Possible Extensions
 ===================================
 
