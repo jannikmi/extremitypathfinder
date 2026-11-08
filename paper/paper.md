@@ -61,13 +61,14 @@ The documentation describes the input model, the algorithms and the limits of th
 
 Visibility graphs are the classical exact method for Euclidean shortest paths among polygonal obstacles
 [@lozanoperez1979]. Lee's rotational sweep computes the visibility graph of $n$ vertices
-in $O(n^2 \log n)$ time [@lee1978proximity]. Polyanya [@cui2017polyanya] computes exact any-angle paths on a
-navigation mesh without a visibility graph and is the state of the art for this problem, but it needs a triangulation
+in $O(n^2 \log n)$ time, keeping the edges crossing the sweep ray in a balanced search tree [@lee1978proximity].
+Polyanya [@cui2017polyanya] computes exact any-angle paths on a navigation mesh without a visibility graph and is the state of the art for this problem, but it needs a triangulation
 of the free space and is not available as a Python package. Grid planners such as A\* or Theta\* are simpler,
 but their paths are in general longer than Euclidean shortest paths.
 
 In Python, the closest alternative is pyvisgraph [@pyvisgraph]. It builds the complete visibility graph of all
-obstacle vertices with Lee's algorithm and searches it with Dijkstra's algorithm. Its obstacles are polygons in the
+obstacle vertices with Lee's algorithm, keeping the edges in a sorted list ($O(n^3)$ in the worst case),
+and searches it with Dijkstra's algorithm. Its obstacles are polygons in the
 unbounded plane; it has no boundary polygon. VisiLibity1 (C++) computes visibility and shortest paths, but its Python
 binding is not on PyPI. CGAL-based packages such as pyvispoly compute visibility polygons, not shortest paths.
 
@@ -100,6 +101,9 @@ Visibility is computed with the Angle Range Elimination Algorithm (AREA), develo
 not with Lee's algorithm. From each origin, AREA sorts the candidate vertices and the edges by angle and removes
 the candidates that lie behind an edge. Cheap tests on the angle range and the distance decide most cases,
 so an intersection is computed only for few candidate-edge pairs, and no trigonometric functions are used.
+A candidate is only checked against the edges whose angle range contains it. Usually these are few,
+which gives $O(m\,n \log n)$ time for the visibility graph of $m$ extremities; adversarial maps with $m \sim n$
+reach $O(n^3)$. On the benchmark maps, each candidate was checked against about 1.5 edges, independent of the map size.
 Directions are compared with a monotone representation of the angle in $[0, 4)$ instead of `atan2`.
 
 All questions at vertices, such as which vertices are extremities and where a line of sight may start,
