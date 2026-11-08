@@ -39,8 +39,9 @@ Other packages
     **Unmaintained**: the last release (0.2.1) dates from 2018, the last commit from 2020.
     Builds the complete visibility graph of all obstacle vertices with Lee's algorithm
     (optionally with multiple worker processes) and finds paths with Dijkstra's algorithm.
-    Lee's algorithm takes :math:`O(n^2 \log n)` with a balanced tree of the edges, pyvisgraph keeps them
-    in a sorted list, which takes :math:`O(n^3)` in the worst case (cf. :ref:`engineering design <design>`).
+    Lee's algorithm takes :math:`O(n^2 \log n)` with a balanced tree of the edges. The implementation of pyvisgraph
+    takes :math:`O(n^3)` in the worst case: it keeps the edges in a sorted list and tests every visible vertex
+    of the same polygon against all edges of the polygon (cf. :ref:`engineering design <design>`).
     Obstacles are polygons in the unbounded plane (no boundary polygon).
     Differences to this package:
 

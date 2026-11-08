@@ -396,9 +396,11 @@ instead of a rotating ray keeping the edges in a balanced tree.
 Comparison with `Lee's visibility graph algorithm <https://dav.ee/papers/Visibility_Graph_Algorithm.pdf>`__,
 which `pyvisgraph <https://github.com/TaipanRex/pyvisgraph>`__ uses.
 Lee's algorithm takes :math:`O(n^2 \log n)` in the worst case when it keeps the edges crossing the sweep ray
-in a balanced search tree. pyvisgraph (0.2.1) keeps them in a sorted Python list instead
-(``insort()`` and ``del`` in ``visible_vertices.py``): each insertion and removal costs :math:`O(n)`,
-so its implementation takes :math:`O(n^3)` in the worst case, like AREA for :math:`m \sim n`.
+in a balanced search tree. The implementation of pyvisgraph (0.2.1, ``visible_vertices.py``) takes :math:`O(n^3)`
+in the worst case, like AREA for :math:`m \sim n`, for two reasons: it keeps the edges in a sorted Python list
+(``insort()`` and ``del``, :math:`O(n)` per insertion and removal), and for every visible vertex of the same polygon
+it tests whether the line of sight runs through the polygon with a crossing test over all edges of that polygon
+(``edge_in_polygon()``), :math:`O(n)` per pair.
 The list operations are fast memory moves, and the measured maps keep AREA in its typical case (#215).
 The differences:
 
