@@ -82,7 +82,11 @@ def sorted_list_step(nr_active: int, repetitions: int) -> float:
 
 def bisect_list_step(nr_active: int, repetitions: int) -> float:
     def remove(active, edge):
-        del active[bisect.bisect_left(active, edge)]
+        # the edges compare by distance: skip edges at the same distance (ties) to remove this one
+        i = bisect.bisect_left(active, edge)
+        while active[i] is not edge:
+            i += 1
+        del active[i]
 
     return sweep_step_time(list, bisect.insort, remove, nr_active, repetitions)
 
