@@ -72,7 +72,8 @@ other changes:
 - documentation: engineering design document (goals, architecture, data model, pipelines, algorithms and design decisions).
   The implementation details moved there from the about page.
 - documentation: corrected the worst-case time of the visibility computation (AREA) to ``O(n m²)``
-  for ``n`` vertices and ``m`` extremities (previously stated as ``O(n² log n)``), with its relation to known techniques.
+  for ``n`` vertices and ``m`` extremities (previously stated as ``O(n² log n)``), with its relation to known techniques
+  and the worst case of pyvisgraph's implementation of Lee's algorithm (``O(n³)``, sorted list instead of a tree).
 - documentation: contacts and points on edges do not survive transforms that round the coordinates
   (reprojecting, rotating, shifting by decimals): snap the coordinates after transforming (#3).
 

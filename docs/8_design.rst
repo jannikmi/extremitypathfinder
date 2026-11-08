@@ -393,14 +393,20 @@ a trigonometry-free angle representation (the "diamond angle") and culling by an
 Its own part is the edge-centric sweep: every edge eliminates the candidates behind it,
 instead of a rotating ray keeping the edges in a balanced tree.
 
-Comparison with `Lee's visibility graph algorithm <https://dav.ee/papers/Visibility_Graph_Algorithm.pdf>`__
-(:math:`O(n^2 \log n)` in the worst case), which `pyvisgraph <https://github.com/TaipanRex/pyvisgraph>`__ uses:
+Comparison with `Lee's visibility graph algorithm <https://dav.ee/papers/Visibility_Graph_Algorithm.pdf>`__,
+which `pyvisgraph <https://github.com/TaipanRex/pyvisgraph>`__ uses.
+Lee's algorithm takes :math:`O(n^2 \log n)` in the worst case when it keeps the edges crossing the sweep ray
+in a balanced search tree. pyvisgraph (0.2.1) keeps them in a sorted Python list instead
+(``insort()`` and ``del`` in ``visible_vertices.py``): each insertion and removal costs :math:`O(n)`,
+so its implementation takes :math:`O(n^3)` in the worst case, like AREA for :math:`m \sim n`.
+The list operations are fast memory moves, and the measured maps keep AREA in its typical case (#215).
+The differences:
 
 - Lee checks all edges for intersection initially, AREA only the edges whose angle range contains candidates
 - Lee computes the visibility of all vertices in every run, AREA only of the candidates
 - Lee needs an intersection computation for most vertices (whenever its edge tree is not empty),
   AREA avoids most of them with the angle range and distance tests
-- Lee sorts all vertices by angle on startup and keeps the edges in a binary tree,
+- Lee sorts all vertices by angle on startup and keeps the edges in a binary tree (pyvisgraph: a sorted list),
   AREA sorts edges and candidates
 - both work with line segments, not only polygons
 
