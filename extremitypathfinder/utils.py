@@ -779,14 +779,30 @@ def _to_geometries(geometry) -> list:
         return [geometry]
     mapping = getattr(geometry, "__geo_interface__", geometry)
     if isinstance(mapping, dict):
-        if mapping.get("type") == "FeatureCollection":
+        geojson_type = mapping.get("type")
+        if geojson_type == "FeatureCollection":
             return [
                 g for feature in mapping["features"] for g in _to_geometries(feature)
             ]
-        return [shape(mapping)]
+        if geojson_type == "Feature":
+            # the geometry of a feature may be null (e.g. a missing geometry in GeoPandas)
+            return _to_geometries(mapping.get("geometry"))
+        try:
+            return [shape(mapping)]
+        except (
+            AttributeError,
+            KeyError,
+            TypeError,
+            ValueError,
+            shapely.errors.ShapelyError,
+        ) as e:
+            raise TypeError(f"not a GeoJSON geometry: {mapping!r}") from e
     if isinstance(geometry, Iterable) and not isinstance(geometry, str):
         return [g for item in geometry for g in _to_geometries(item)]
-    raise TypeError(f"not a geometry: {geometry!r}")
+    raise TypeError(
+        f"not a geometry: {geometry!r}. "
+        "Pass coordinate lists to the constructor PolygonEnvironment() instead."
+    )
 
 
 def _to_polygons(geometry) -> list:
@@ -808,8 +824,19 @@ def _to_polygons(geometry) -> list:
 
 
 def _ring_coords(ring) -> np.ndarray:
-    """the x and y coordinates of a ring, without the repeated closing vertex"""
-    return np.asarray(ring.coords, dtype=configs.DTYPE_FLOAT)[:-1, :2]
+    """the x and y coordinates of a ring, without the repeated closing vertex and repeated consecutive vertices
+
+    :raises ValueError: when fewer than 3 distinct consecutive vertices are left
+    """
+    coords = np.asarray(ring.coords, dtype=configs.DTYPE_FLOAT)[:-1, :2]
+    # keep the vertices which differ from their successor (the last one: from the first one)
+    differs_from_next = np.any(coords != np.roll(coords, -1, axis=0), axis=1)
+    coords = coords[differs_from_next]
+    if len(coords) < 3:
+        raise ValueError(
+            f"a polygon ring has fewer than 3 distinct vertices: {ring.wkt}"
+        )
+    return coords
 
 
 def convert_shapely(boundary, obstacles) -> tuple[np.ndarray | None, list[np.ndarray]]:
@@ -823,8 +850,6 @@ def convert_shapely(boundary, obstacles) -> tuple[np.ndarray | None, list[np.nda
         their interior rings are ignored with a warning (unreachable from the outside of the obstacle).
     :return: the boundary coordinates (``None`` without a boundary) and the list of hole coordinates
     """
-    shapely = _import_shapely()
-
     boundary_coordinates = None
     holes = []
     if boundary is not None:
@@ -834,13 +859,12 @@ def convert_shapely(boundary, obstacles) -> tuple[np.ndarray | None, list[np.nda
                 f"the boundary must be a single polygon, got {len(boundary_polygons)} polygons. "
                 "Pass None as the boundary for an environment with obstacles only."
             )
-        polygon = shapely.remove_repeated_points(boundary_polygons[0])
+        polygon = boundary_polygons[0]
         boundary_coordinates = _ring_coords(polygon.exterior)
         holes.extend(_ring_coords(ring) for ring in polygon.interiors)
 
     nr_ignored = 0
     for polygon in _to_polygons(obstacles):
-        polygon = shapely.remove_repeated_points(polygon)
         holes.append(_ring_coords(polygon.exterior))
         nr_ignored += len(polygon.interiors)
     if nr_ignored > 0:

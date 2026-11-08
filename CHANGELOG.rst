@@ -31,7 +31,8 @@ other changes:
 - Shapely and GeoJSON input (#166): ``PolygonEnvironment.from_shapely(boundary, obstacles, validate=False)``
   accepts Shapely polygons, multi-polygons and collections, GeoJSON-like mappings and objects with a
   ``__geo_interface__`` (e.g. GeoPandas), and gives the same environment as the equivalent coordinate lists.
-  Repeated closing and consecutive vertices are removed, interior rings of obstacles are ignored with a warning.
+  Repeated closing and consecutive vertices are removed, interior rings of obstacles are ignored with a warning,
+  features with a null geometry are skipped.
   Shapely is an optional extra: ``pip install "extremitypathfinder[shapely]"``.
 - documentation: when to install with or without Numba (#183): identical results, speed against memory
   (Numba is loaded in every process at import) and the compilation at the first import.

@@ -227,3 +227,58 @@ def test_missing_shapely(monkeypatch):
     monkeypatch.setitem(sys.modules, "shapely", None)
     with pytest.raises(ImportError, match=r"extremitypathfinder\[shapely\]"):
         PolygonEnvironment.from_shapely(None, [OBSTACLE])
+
+
+@pytest.mark.parametrize(
+    "obstacles",
+    [
+        pytest.param(
+            {"type": "Feature", "geometry": None, "properties": {}}, id="feature"
+        ),
+        pytest.param(
+            {
+                "type": "FeatureCollection",
+                "features": [
+                    {"type": "Feature", "geometry": mapping(shapely.Polygon(OBSTACLE))},
+                    {"type": "Feature", "geometry": None, "properties": {}},
+                ],
+            },
+            id="feature-collection",
+        ),
+    ],
+)
+def test_null_geometry_skipped(obstacles):
+    """GeoJSON features may have a null geometry (e.g. missing values in GeoPandas)"""
+    env = PolygonEnvironment.from_shapely(
+        shapely.Polygon(SQUARE), [obstacles, shapely.Polygon(OBSTACLE)]
+    )
+    expected_holes = [OBSTACLE] * (2 if "features" in obstacles else 1)
+    _assert_same_environment(env, PolygonEnvironment(SQUARE, expected_holes))
+
+
+def test_not_geojson_mapping():
+    with pytest.raises(TypeError, match="not a GeoJSON geometry"):
+        PolygonEnvironment.from_shapely(shapely.Polygon(SQUARE), {"a": 1})
+
+
+@pytest.mark.parametrize(
+    "obstacle",
+    [
+        pytest.param([(1.0, 1.0)] * 4, id="single-point"),
+        pytest.param([(1.0, 1.0), (2.0, 1.0), (2.0, 1.0), (1.0, 1.0)], id="two-points"),
+    ],
+)
+@pytest.mark.parametrize("validate", [True, False])
+def test_collapsed_ring(obstacle, validate):
+    """rings with fewer than 3 distinct vertices after removing repeated vertices"""
+    with pytest.raises(ValueError, match="fewer than 3 distinct vertices"):
+        PolygonEnvironment.from_shapely(
+            shapely.Polygon(SQUARE), shapely.Polygon(obstacle), validate=validate
+        )
+
+
+def test_repeated_vertex_before_closing():
+    """a repeated first vertex before the closing vertex keeps the vertex order"""
+    obstacle = shapely.Polygon(OBSTACLE + [OBSTACLE[0]])
+    env = PolygonEnvironment.from_shapely(shapely.Polygon(SQUARE), obstacle)
+    _assert_same_environment(env, PolygonEnvironment(SQUARE, [OBSTACLE]))
