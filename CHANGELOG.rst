@@ -49,6 +49,11 @@ other changes:
 - lower peak memory when preparing some environments with a few thousand vertices: the test which edges pass
   through vertices processes fewer vertex-edge pairs at once (e.g. 9.7 to 7.4 MiB for the 1,985-vertex world map
   of the benchmarks). No change where the visibility graph dominates the peak memory.
+- faster preparation of large environments, identical visibility graphs and paths:
+  the visibility computation skips the edges without candidates in their angle range (#217),
+  and the test whether a vertex lies within the map only checks the holes whose bounding box contains it (#214).
+  E.g. the 5k vertex world map of the benchmarks: 56 to 29 s with Numba, 163 to 50 s without Numba.
+  Queries take as long as before.
 - the ``numba`` extra no longer installs SciPy (#185): a smaller installation (SciPy takes about 110 MB)
   and less memory per process with Numba (about 18 MiB less after import on Linux when SciPy is not installed).
   The test whether a vertex lies behind an edge solves its 2×2 system in closed form instead of with
@@ -89,6 +94,8 @@ internal:
   and with the locked dependency versions. ``scripts/release.py prepare``, the CI of pull requests changing
   the package version and the "tag release" workflow refuse outdated results.
   ``python scripts/release.py benchmarks`` checks them.
+- ``prototypes/complexity_profile.py`` measures the steps of the preparation and how often the visibility
+  computation checks a candidate (#215).
 - contributing guide: pages have a word limit (``max-words`` in ``pyproject.toml``, exceptions need a reason)
   and every page must be reachable from ``CONTRIBUTING.md``, checked by ``scripts/check_contributing_guide.py``
   in pre-commit and the tests.
