@@ -42,6 +42,9 @@ Other packages
     Obstacles are polygons in the unbounded plane (no boundary polygon).
     Differences to this package:
 
+    .. benchmark-derived: the comparison with pyvisgraph. Update this text with every full benchmark run
+       (docs/contributing/performance.md, "After a full run").
+
     - this package only keeps the extremities (convex vertices) and the edges which can be part of a shortest path:
       a much smaller graph and faster queries (cf. :ref:`speed-tests`)
     - A* search with the euclidean distance as heuristic instead of Dijkstra's algorithm
