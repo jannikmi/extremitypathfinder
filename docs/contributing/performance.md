@@ -24,6 +24,10 @@ Measure before and after optimising, and include the numbers in the pull request
   uv run python prototypes/large_env_query_profile.py --holes-per-side 10 --profile
   ```
 
+- `prototypes/complexity_profile.py` reports per environment size the time of the wedges and of the visibility graph
+  and how often AREA checks a candidate against an edge (constant in its typical case):
+  `uv run --all-extras --group benchmark python prototypes/complexity_profile.py world 1k 2k`.
+
 `prototypes/` contains such development scripts. They are not part of the package and not run by the tests.
 
 Compare the numbers on the same machine, measured on `master` and on your branch.

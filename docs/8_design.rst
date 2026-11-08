@@ -327,6 +327,7 @@ A line of sight only touching an edge in one of its vertices, or running along i
     check(crossing edges)
 
     check(edges):
+      keep only the edges with a candidate in [min_rep, max_rep]
       sort the edges by min_rep
       ptr = 0                   # first candidate possibly in a range
       for edge in edges:
@@ -348,6 +349,10 @@ Details:
 - **Sweep**: since the edges are sorted by ``min_rep`` and the candidates by representation,
   candidates before the current edge's range can never be blocked by a following edge.
   The pointer only moves forward, removed candidates shrink the list.
+- **Edges without candidates**: an edge whose angle range contains no candidate cannot block one,
+  candidates are only removed during the sweep. Two vectorised binary searches (``np.searchsorted()``)
+  select the other edges before sorting (``_edges_with_candidates()``), so the Python loop only runs over
+  the few edges that can block a candidate, not over all edges of every origin.
 - **Crossing edges**: an edge spans less than 180 degree, so a representation difference larger than ``2.0``
   means the range wraps around ``0``. Instead of handling the wrap in the sweep, all representations are shifted
   (modulo ``4.0``) so that the smallest upper end of the crossing edges moves to ``0``, which turns the crossing edges
@@ -369,8 +374,9 @@ Properties:
 - intersections (solving a linear system) are only computed for a fraction of the candidates
 - it would also work with line segments instead of polygons (the package however only accepts polygons)
 
-Cost per origin with :math:`k \leq m` candidates: sorting the edges, :math:`O(n \log n)`,
-and the candidates, :math:`O(k \log k)`, plus one check per edge and candidate within its angle range.
+Cost per origin with :math:`k \leq m` candidates: selecting the edges with candidates, :math:`O(n \log k)`
+(vectorised), sorting them, :math:`O(n \log n)`, and the candidates, :math:`O(k \log k)`,
+plus one check per edge and candidate within its angle range.
 
 - **Typical case**: the angle ranges of the edges overlap little, so every candidate is only checked against
   a few edges. This gives :math:`O(n \log n + m)` per origin and :math:`O(m \, n \log n)`
@@ -472,6 +478,8 @@ Point in polygon
 
 ``is_within_map()`` accepts a point when it lies within the boundary polygon (its border included)
 and not strictly inside any hole (hole borders are part of the map).
+Only the holes whose closed bounding box contains the point are tested (``polygon_bounds()``):
+a point outside of it lies neither inside the hole nor on its border.
 ``_inside_polygon()`` first checks for every edge whether the point lies exactly on it (``_lies_on_edge()``)
 and then returns the given border value. Otherwise it counts the crossings of a horizontal ray from the point
 in positive ``x`` direction with the polygon edges (crossing number). Edges with exactly one vertex to the right
@@ -645,6 +653,8 @@ A query uses ``O(n + m)`` additional memory.
 
 Profiling large environments shows that the A* search takes about 5% of the query time,
 most of the time is spent on the visibility of start and goal. Optimisations should target ``find_visible()``.
+``prototypes/complexity_profile.py`` measures the steps of the preparation and how often AREA checks a candidate
+(the measured maps stay in its typical case, #215).
 Benchmarks: :ref:`speed-tests`, ``scripts/speed_benchmarks.py`` and ``prototypes/large_env_query_profile.py``.
 
 
