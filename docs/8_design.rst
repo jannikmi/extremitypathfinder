@@ -690,6 +690,8 @@ each with and without numba. Release artifacts are additionally installed and sm
 (``make release-check``). Bug fixes should come with a regression test reproducing the bug.
 
 
+.. _related_work:
+
 Related Work
 ============
 
