@@ -16,6 +16,9 @@ Installation with pip:
     pip install extremitypathfinder
 
 
+.. benchmark-derived: speed and memory with and without Numba. Update this text with every full benchmark run
+   (docs/contributing/performance.md, "After a full run").
+
 Installation with Numba for a significant speedup, with the tradeoff of a larger installation footprint,
 more memory and an initial compilation time (see :ref:`with-or-without-numba`):
 
@@ -28,9 +31,6 @@ more memory and an initial compilation time (see :ref:`with-or-without-numba`):
 
 With or without Numba
 ~~~~~~~~~~~~~~~~~~~~~
-
-.. benchmark-derived: speed and memory with and without Numba. Update this text with every full benchmark run
-   (docs/contributing/performance.md, "After a full run").
 
 Numba is optional. The choice is mainly speed against memory:
 

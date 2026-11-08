@@ -125,6 +125,9 @@ Found by the validation while preparing the benchmark, reproducible with
 ``python -m benchmarks.pyvisgraph_issues`` and reported upstream
 (`issue #59 <https://github.com/TaipanRex/pyvisgraph/issues/59>`__, `pull request #33 <https://github.com/TaipanRex/pyvisgraph/pull/33>`__):
 
+.. benchmark-derived: the figures of the defects (from ``benchmarks.pyvisgraph_issues`` and the cleaned map). Update this text with every full benchmark run
+   (docs/contributing/performance.md, "After a full run").
+
 **Paths through obstacles.** On the cleaned 110m world map (4,954 vertices),
 the query from the North Sea (3, 56) to the South China Sea (105, 5) returns a path of length 150.26
 with two segments across land: Lisbon to Valencia across Iberia and Algeria to Bab-el-Mandeb across Africa.

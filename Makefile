@@ -50,7 +50,7 @@ release-prepare:
 
 # comparison with pyvisgraph (docs/7_performance.rst): quick smoke test (seconds).
 # Full run (hours, on an idle machine): uv run --all-extras --group benchmark python -m benchmarks.run
-# Afterwards, update the text derived from the results: git grep -n benchmark-derived
+# Afterwards, update the text derived from the results: git grep -n '\.\. benchmark-derived:'
 # (docs/contributing/performance.md#after-a-full-run)
 benchmark:
 	uv run --all-extras --group benchmark python -m benchmarks.run --quick $(ARGS)

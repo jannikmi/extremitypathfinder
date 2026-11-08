@@ -20,6 +20,7 @@ import importlib.util
 import json
 import math
 import os
+import re
 import shlex
 import shutil
 import statistics
@@ -128,6 +129,7 @@ def query_stats(times_ns: list[int]) -> dict | None:
 # marks the text derived from the benchmark results (take-aways, ratios, claims about Numba),
 # cf. docs/contributing/performance.md#after-a-full-run
 DERIVED_MARKER = "benchmark-derived"
+_DERIVED_DIRECTIVE = re.compile(rf"^\s*\.\. {DERIVED_MARKER}:", re.MULTILINE)
 
 
 def derived_text_files(root: Path = REPO_ROOT) -> list[Path]:
@@ -136,7 +138,8 @@ def derived_text_files(root: Path = REPO_ROOT) -> list[Path]:
     return [
         path.relative_to(root)
         for path in candidates
-        if path.is_file() and DERIVED_MARKER in path.read_text(encoding="utf-8")
+        if path.is_file()
+        and _DERIVED_DIRECTIVE.search(path.read_text(encoding="utf-8"))
     ]
 
 
@@ -1120,12 +1123,16 @@ def main(argv: list[str] | None = None) -> int:
         write_tables(results, args.tables_dir)
         plot.write_figures(results, args.figures_dir)
         if not results["meta"]["quick"]:
-            _log(
-                "update the text derived from the results (marked with "
-                f"'{DERIVED_MARKER}', cf. docs/contributing/performance.md):",
-                *derived_text_files(),
-                sep="\n  ",
-            )
+            derived = derived_text_files()
+            if derived:
+                _log(
+                    "update the text derived from the results (marked with "
+                    f"'.. {DERIVED_MARKER}:', cf. docs/contributing/performance.md):",
+                    *derived,
+                    sep="\n  ",
+                )
+            else:
+                _log(f"warning: no text marked with '.. {DERIVED_MARKER}:' found")
     failed = (measure.INVALID, measure.CRASH)
     report_failures = [
         f"{entry['map']['name']}: {result['status']}"

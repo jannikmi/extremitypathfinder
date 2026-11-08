@@ -575,12 +575,16 @@ def test_derived_text_is_marked(tmp_path):
     assert {
         "README.rst",
         "docs/0_getting_started.rst",
+        "docs/7_benchmark_method.rst",
         "docs/7_performance.rst",
         "docs/9_alternatives.rst",
     } <= marked
     (tmp_path / "docs").mkdir()
     (tmp_path / "docs" / "page.rst").write_text(f".. {run.DERIVED_MARKER}: claim\n")
-    (tmp_path / "docs" / "other.rst").write_text("no claim\n")
+    # the word in prose is no marker
+    (tmp_path / "docs" / "other.rst").write_text(
+        f"mentions {run.DERIVED_MARKER}: in prose\n"
+    )
     assert run.derived_text_files(tmp_path) == [Path("docs/page.rst")]
 
 
