@@ -64,6 +64,8 @@ other changes:
 - documentation: improved README and documentation landing page (features, quick start, navigation).
 - documentation: engineering design document (goals, architecture, data model, pipelines, algorithms and design decisions).
   The implementation details moved there from the about page.
+- documentation: contacts and points on edges do not survive transforms that round the coordinates
+  (reprojecting, rotating, shifting by decimals): snap the coordinates after transforming (#3).
 
 bugfixes:
 
@@ -73,6 +75,8 @@ bugfixes:
   Directions are now represented with the "diamond angle" (``|dy| / (|dx| + |dy|)`` per quadrant),
   which resolves all directions equally well. Validation rejects spikes and slits too narrow for floating point
   precision (e.g. 1e-17 wide, from Shapely unions): their free side cannot be decided.
+- a vertex in a direction nearly parallel to an edge, whose determinant rounds to 0, raised a ``ZeroDivisionError``
+  with Numba and was decided by the sign of an infinite value without (#3). It is now not behind the edge in both modes.
 
 internal:
 
@@ -96,6 +100,11 @@ internal:
   implementation, paths checked against the free space, reversed queries and an unpruned visibility graph
   (the elimination of extremities "in front"), and transforms of the environments (scaling by powers of two gives
   identical results, shifts, scaling by 1/3 and rotations the same reachability and lengths within 1e-9).
+- audit of the core floating point decisions (angle representations, edge, point in polygon and orientation tests,
+  ``RAY_TOLERANCE``, ``_lies_behind_inner()``) against exact rational arithmetic (``prototypes/float_audit.py``, #3):
+  no misdecisions when all coordinates are integers (tested in ``tests/test_exact_decisions.py``),
+  the remaining ones lie within about one unit in the last place of a decision boundary
+  (documented in the Numerical Policy of the design document).
 
 
 3.0.0 (2026-10-29)

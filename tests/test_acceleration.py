@@ -6,12 +6,12 @@ import os
 import subprocess
 import sys
 import tempfile
-from fractions import Fraction
 
 import numpy as np
 import pytest
 
 from extremitypathfinder import utils_numba
+from tests import exact
 
 
 def test_execution_backend():
@@ -32,14 +32,6 @@ def test_linear_solve_visibility():
     assert not utils_numba._lies_behind_inner(p1, p2, np.array([0.5, 0.0]))
 
 
-def _lies_behind_exact(p1, p2, v) -> bool:
-    p1, p2, v = ([Fraction(int(c)) for c in p] for p in (p1, p2, v))
-    a = p1[0] - p2[0]
-    b = p1[1] - p2[1]
-    mu = (a * p1[1] - b * p1[0]) / (a * v[1] - v[0] * b)
-    return mu < 1
-
-
 # a vertex exactly on the edge (mu == 1) is not behind it.
 # np.linalg.solve (LAPACK, used before #185) decided these cases wrongly: mu < 1
 VERTICES_ON_EDGE = [
@@ -55,6 +47,24 @@ def test_lies_behind_vertex_on_edge(p1, p2, v):
     assert not utils_numba._lies_behind_inner(
         np.array(p1, dtype=float), np.array(p2, dtype=float), np.array(v, dtype=float)
     )
+
+
+# the determinant rounds to 0, although the exact one is not 0: (p1 - p2) and v are parallel as decimals
+# (19.8, -4.4) and (-17.1, 3.8), but not as floats
+DETERMINANT_ROUNDS_TO_ZERO = ((18.8, 3.5), (-1.0, 7.9), (-17.1, 3.8000000000000003))
+
+
+@pytest.mark.filterwarnings("error")
+def test_lies_behind_determinant_rounds_to_zero():
+    # a direction parallel to the edge (in floating point) is not behind it, in both modes (#3).
+    # Previously Numba raised a ZeroDivisionError and plain Python decided by the sign of ±inf.
+    p1, p2, v = (np.array(p, dtype=float) for p in DETERMINANT_ROUNDS_TO_ZERO)
+    a = p1[0] - p2[0]
+    b = p1[1] - p2[1]
+    assert a * v[1] - v[0] * b == 0.0
+    for edge in ((p1, p2), (p2, p1)):
+        for vertex in (v, -v):
+            assert not utils_numba._lies_behind_inner(*edge, vertex)
 
 
 def test_lies_behind_exact_on_integer_coordinates():
@@ -81,7 +91,7 @@ def test_lies_behind_exact_on_integer_coordinates():
             if v[0] * (p1[1] - p2[1]) == v[1] * (p1[0] - p2[0]):
                 # parallel to the edge (not possible when called)
                 continue
-            expected = _lies_behind_exact(p1, p2, v)
+            expected = exact.lies_behind(p1, p2, v)
             result = utils_numba._lies_behind_inner(
                 p1.astype(float), p2.astype(float), v.astype(float)
             )
