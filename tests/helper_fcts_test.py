@@ -9,13 +9,10 @@ from extremitypathfinder.utils import (
     _has_clockwise_numbering,
     _inside_polygon,
     astar_path,
+    polygon_bounds,
     read_json,
 )
-from extremitypathfinder.utils_numba import (
-    _compute_repr_n_dist,
-    is_within_map,
-    polygon_bounds,
-)
+from extremitypathfinder.utils_numba import _compute_repr_n_dist, is_within_map
 from tests.helpers import proto_test_case
 from tests.test_find_visible import _clean_visibles
 

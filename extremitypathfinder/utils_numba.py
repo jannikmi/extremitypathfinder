@@ -1,5 +1,5 @@
 import math
-from collections.abc import Iterable, Sequence
+from collections.abc import Sequence
 
 import numpy as np
 
@@ -241,16 +241,6 @@ def _lies_behind_inner(p1: np.ndarray, p2: np.ndarray, v: np.ndarray) -> bool:
     mu = (a * p1[1] - b * p1[0]) / det
     # vertices on the edge are possibly visible! ( < not <=)
     return mu < 1.0
-
-
-def polygon_bounds(polygons: Iterable[np.ndarray]) -> tuple[np.ndarray, np.ndarray]:
-    """the bounding boxes of polygons: the minimum and the maximum coordinates, one row per polygon"""
-    polygons = list(polygons)
-    if len(polygons) == 0:
-        return np.empty((0, 2)), np.empty((0, 2))
-    minima = np.array([polygon.min(axis=0) for polygon in polygons])
-    maxima = np.array([polygon.max(axis=0) for polygon in polygons])
-    return minima, maxima
 
 
 def is_within_map(

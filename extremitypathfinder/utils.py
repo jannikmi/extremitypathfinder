@@ -22,7 +22,6 @@ from extremitypathfinder.utils_numba import (
     _no_identical_consequent_vertices,
     edge_vertex_mappings,
     is_within_map,
-    polygon_bounds,
     reps_n_distances,
 )
 from extremitypathfinder.wedges import Point, Points, Wedge, check_polygon_contacts
@@ -287,7 +286,7 @@ def _edges_with_candidates(
     Skipping them changes neither the result nor the order of the remaining edges (stable sort),
     but saves the Python loop over most of the edges (#217).
 
-    :param candidates_sorted: the candidates sorted by their (unique) representation
+    :param candidates_sorted: the candidates sorted by their representation
     """
     candidate_reps = representations[np.asarray(candidates_sorted, dtype=int)]
     first = np.searchsorted(candidate_reps, edges_min_rep[edges], side="left")
@@ -937,6 +936,16 @@ def _cmp_edge_and_vertex_idxs(list_of_polygons):
     edge_vertex_idxs = np.concatenate(edge_vertex_idxs, axis=0)
     vertex_edge_idxs = np.concatenate(vertex_edge_idxs, axis=0)
     return edge_vertex_idxs, vertex_edge_idxs
+
+
+def polygon_bounds(polygons: Iterable[np.ndarray]) -> tuple[np.ndarray, np.ndarray]:
+    """the bounding boxes of polygons: the minimum and the maximum coordinates, one row per polygon"""
+    polygons = list(polygons)
+    if len(polygons) == 0:
+        return np.empty((0, 2)), np.empty((0, 2))
+    minima = np.array([polygon.min(axis=0) for polygon in polygons])
+    maxima = np.array([polygon.max(axis=0) for polygon in polygons])
+    return minima, maxima
 
 
 def compile_polygon_datastructs(
