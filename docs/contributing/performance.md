@@ -7,14 +7,9 @@ Measure before and after optimising, and include the numbers in the pull request
 - `benchmarks/` compares the package with pyvisgraph on world maps of increasing size,
   validates all paths and renders the tables and figures of the [performance section](../7_performance.rst)
   of the documentation. Requires the `benchmark` dependency group (`uv sync --all-extras --group benchmark`).
-  - `make benchmark` runs it with `--quick`: a smoke test of a few seconds (not run in CI).
-    Its outputs go to the gitignored `benchmarks/results/raw/quick/`.
-  - The full run takes hours: `uv run --all-extras --group benchmark python -m benchmarks.run`.
-    Run it on an otherwise idle machine and state the machine. Commit the raw results
-    (`benchmarks/results/benchmark.json`) together with the tables and figures. Check the machine first with `--preflight`,
-    continue an interrupted run with `--resume`
-    (cf. {ref}`running-benchmarks`).
-    A release requires up-to-date results (cf. [Releasing](releasing.md#benchmark-results)).
+  `make benchmark` is a smoke test of a few seconds (not run in CI). The full run takes hours:
+  run it on an otherwise idle machine and state the machine (cf. {ref}`running-benchmarks`).
+  A release requires up-to-date results (cf. [Releasing](releasing.md#benchmark-results)).
 - `scripts/speed_benchmarks.py` measures environment preparation and queries on the small test environments
   with the same harness (`uv run --all-extras --group benchmark python scripts/speed_benchmarks.py`).
 - `prototypes/large_env_query_profile.py` profiles queries on a large, configurable environment
@@ -62,12 +57,11 @@ without repeating the run.
 
 ### After a full run
 
-The tables and figures are rendered from the results, the text derived from them is not:
-the take-aways of the performance page, the comparison in the alternatives and the claims about Numba
-(installation, README). Each such passage is marked with a `.. benchmark-derived:` comment,
-and a full run lists the files with one (or `git grep -n benchmark-derived`).
-Check every marked passage against the new results and update it in the pull request of the results.
-Mark new text derived from the results the same way, and keep it qualitative (cf. [Documentation](documentation.md#content)).
+The tables and figures are rendered from the results, the text derived from them is not
+(the take-aways of the performance page, the comparison with pyvisgraph, the claims about Numba).
+It is marked with `.. benchmark-derived:` comments, and a full run lists the files with one
+(or `git grep -n benchmark-derived`). Update every marked passage in the pull request of the results.
+Mark new derived text the same way, and keep it qualitative (cf. [Documentation](documentation.md#content)).
 
 ### Full run on a laptop
 
@@ -88,9 +82,6 @@ Mark new text derived from the results the same way, and keep it qualitative (cf
 While developing the benchmark, use `--quick`: shared or virtual machines give noisy timings.
 To develop the validation on maps where pyvisgraph builds for minutes, cache its graphs
 (`VisGraph.save`/`load`), but never use a cached graph for the timings.
-
-`scripts/speed_benchmarks.py` measures `extremitypathfinder` alone on the small test environments
-with the same harness.
 
 ## Where optimising pays off
 
