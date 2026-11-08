@@ -36,6 +36,7 @@ Strengths of ``extremitypathfinder``:
 - **Fast without Numba too.** Without Numba, builds take more than twice as long and queries moderately longer.
   It is still faster than pyvisgraph, and it built the same maps within the budget.
   The baseline drops by more than half, the retained memory stays the same.
+  When to install without Numba: see :ref:`with-or-without-numba`.
 
 Weaknesses and limitations:
 

@@ -16,11 +16,36 @@ Installation with pip:
     pip install extremitypathfinder
 
 
-Installation with Numba for a significant speedup, with the tradeoff of a larger installation footprint and slight initial compilation time (until caching kicks in):
+Installation with Numba for a significant speedup, with the tradeoff of a larger installation footprint,
+more memory and an initial compilation time (see :ref:`with-or-without-numba`):
 
 .. code-block:: console
 
     pip install "extremitypathfinder[numba]"
+
+
+.. _with-or-without-numba:
+
+With or without Numba
+~~~~~~~~~~~~~~~~~~~~~
+
+Numba is optional. The choice is only speed against memory:
+
+- **Results:** paths and lengths are identical with and without Numba.
+- **Speed:** without Numba, building an environment takes about two to three times as long,
+  and queries take moderately longer (cf. the speed-up by Numba on the :ref:`performance page <speed-tests>`).
+- **Memory:** Numba and the compiled functions are loaded when the package is imported, in every process using it,
+  even if it only loads a pickled environment. This adds tens of MiB to each process and more than doubles
+  the memory of the process after the imports (more in the resident memory on Linux than in the footprint on macOS).
+  On small maps, it is most of the memory a process needs
+  (cf. the memory composition on the :ref:`performance page <speed-tests>`).
+- **First use:** the first import compiles the functions, which takes a few seconds.
+  Later imports load them from Numba's cache.
+
+Install without Numba when memory matters more than speed, e.g. on small maps, with many worker processes,
+in memory-limited containers or in short-lived processes. Install with Numba for large maps and many queries.
+``extremitypathfinder`` uses Numba whenever it can be imported: to run without it, install the package
+without the ``numba`` extra into an environment without Numba.
 
 
 

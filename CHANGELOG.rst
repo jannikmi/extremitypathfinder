@@ -28,6 +28,8 @@ recreate them. Loading them raises a ``ValueError`` explaining this.
 
 other changes:
 
+- documentation: when to install with or without Numba (#183): identical results, speed against memory
+  (Numba is loaded in every process at import) and the compilation at the first import.
 - citation metadata (#169): ``CITATION.cff`` (GitHub shows "Cite this repository"), how to cite is explained
   in the README and on the About page. The release tooling keeps its version and date up to date.
 - releases are archived on Zenodo, with a DOI for every version and one for all versions.
