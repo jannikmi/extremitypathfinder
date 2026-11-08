@@ -68,9 +68,10 @@ as A\* or Theta\* are simpler, but their paths are in general longer than Euclid
 
 In Python, the closest alternative is pyvisgraph [@pyvisgraph]. It builds the complete visibility graph of all
 obstacle vertices with Lee's algorithm, in an implementation that takes $O(n^3)$ in the worst case (a sorted list
-instead of a tree, and an interior test per visible vertex), and searches it with Dijkstra's algorithm. Its obstacles are polygons in the
-unbounded plane; it has no boundary polygon. VisiLibity1 (C++) computes visibility and shortest paths, but its Python
-binding is not on PyPI. CGAL-based packages such as pyvispoly compute visibility polygons, not shortest paths.
+instead of a tree, and an interior test per visible vertex), and searches it with Dijkstra's algorithm. Its obstacles
+are polygons in the unbounded plane; it has no boundary polygon. VisiLibity1 (C++) computes visibility and shortest
+paths, but its Python binding is not on PyPI. CGAL-based packages such as pyvispoly compute visibility polygons, not
+shortest paths.
 
 Building a new package instead of contributing to pyvisgraph was justified by the differences in its core:
 the reduction to extremities, the pruning of graph edges, the boundary polygon and the handling of touching polygons
