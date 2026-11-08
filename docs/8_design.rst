@@ -725,11 +725,13 @@ Reduced visibility graphs
     with the same taut path argument and build a hierarchy of them for any-angle paths on grids.
 
 Queries
-    Connecting start and goal to the precomputed graph and searching it is the baseline "end point search"
-    of `Euclidean hub labelling <https://ojs.aaai.org/index.php/AAAI/article/view/26463>`__ (Du, Shen and Cheema, 2023),
-    which precomputes hub labels on the reduced visibility graph and the visible extremities of grid cells:
-    much faster queries at the cost of a lot of memory (reduced by `EHL* <https://arxiv.org/abs/2408.11341>`__).
-    Polyanya (Cui, Harabor and Grastien, 2017) searches a navigation mesh instead,
+    Like this package, End Point Search (Shen et al., 2020) and
+    `Euclidean hub labelling <https://ojs.aaai.org/index.php/AAAI/article/view/26463>`__ (Du, Shen and Cheema, 2023)
+    connect start and goal to the extremities visible from them. Instead of searching a graph, they look up
+    distances between the extremities precomputed on the reduced visibility graph (hub labelling also stores the
+    visible extremities of grid cells): much faster queries at the cost of a lot of memory
+    (reduced by `EHL* <https://arxiv.org/abs/2408.11341>`__).
+    Polyanya (Cui, Harabor and Grastien, 2017) searches a navigation mesh instead.
     `RayScan <https://ojs.aaai.org/index.php/ICAPS/article/view/6654>`__ (Hechenberger et al., 2020)
     needs no preprocessing at all: it computes the visible vertices during the A* search with ray shooting,
     which suits changing environments.
