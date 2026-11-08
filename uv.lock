@@ -343,7 +343,7 @@ requires-dist = [
     { name = "networkx", specifier = ">=3,<4" },
     { name = "numba", marker = "extra == 'numba'", specifier = ">=0.63,<1" },
     { name = "numpy", specifier = ">=2.3.3,<3" },
-    { name = "shapely", marker = "extra == 'shapely'", specifier = ">=2.0,<3" },
+    { name = "shapely", marker = "extra == 'shapely'", specifier = ">=2.0.6,<3" },
 ]
 provides-extras = ["numba", "shapely"]
 

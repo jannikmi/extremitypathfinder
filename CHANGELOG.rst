@@ -33,7 +33,7 @@ other changes:
   ``__geo_interface__`` (e.g. GeoPandas), and gives the same environment as the equivalent coordinate lists.
   Repeated closing and consecutive vertices are removed, interior rings of obstacles are ignored with a warning,
   features with a null geometry are skipped.
-  Shapely is an optional extra: ``pip install "extremitypathfinder[shapely]"``.
+  Shapely (2.0.6 or later) is an optional extra: ``pip install "extremitypathfinder[shapely]"``.
 - documentation: when to install with or without Numba (#183): identical results, speed against memory
   (Numba is loaded in every process at import) and the compilation at the first import.
 - citation metadata (#169): ``CITATION.cff`` (GitHub shows "Cite this repository"), how to cite is explained

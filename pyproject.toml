@@ -37,7 +37,7 @@ numba = [
 ]
 # PolygonEnvironment.from_shapely()
 shapely = [
-    "shapely>=2.0,<3",
+    "shapely>=2.0.6,<3",
 ]
 
 [project.scripts]
@@ -125,6 +125,7 @@ envlist =
 [testenv]
 package = wheel
 extras =
+    shapely
     numba: numba
 deps =
     pytest
@@ -133,9 +134,14 @@ deps =
     # the declared minimum versions
     py{312,313,314}-minimum: numpy==2.3.3
     py{312,313,314}-minimum-numba: numba==0.63.0
+    # the oldest Shapely version working with these NumPy versions
+    py{312,313}-minimum: shapely==2.0.6
+    # the oldest Shapely version providing Python 3.14 wheels
+    py314-minimum: shapely==2.1.2
     # the oldest versions providing Python 3.15 wheels
     py315-minimum: numpy==2.5.2
     py315-minimum-numba: numba==0.68.0
+    py315-minimum: shapely==2.2.0
 setenv =
     MPLBACKEND = Agg
     !numba: EXPECT_NUMBA = 0
