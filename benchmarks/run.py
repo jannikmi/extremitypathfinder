@@ -125,6 +125,21 @@ def query_stats(times_ns: list[int]) -> dict | None:
     }
 
 
+# marks the text derived from the benchmark results (take-aways, ratios, claims about Numba),
+# cf. docs/contributing/performance.md#after-a-full-run
+DERIVED_MARKER = "benchmark-derived"
+
+
+def derived_text_files(root: Path = REPO_ROOT) -> list[Path]:
+    """the documentation files with text derived from the benchmark results, to update after a full run"""
+    candidates = [root / "README.rst", *sorted((root / "docs").rglob("*.rst"))]
+    return [
+        path.relative_to(root)
+        for path in candidates
+        if path.is_file() and DERIVED_MARKER in path.read_text(encoding="utf-8")
+    ]
+
+
 def _log(*args, **kwargs):
     print(*args, file=sys.stderr, flush=True, **kwargs)
 
@@ -1104,6 +1119,13 @@ def main(argv: list[str] | None = None) -> int:
 
         write_tables(results, args.tables_dir)
         plot.write_figures(results, args.figures_dir)
+        if not results["meta"]["quick"]:
+            _log(
+                "update the text derived from the results (marked with "
+                f"'{DERIVED_MARKER}', cf. docs/contributing/performance.md):",
+                *derived_text_files(),
+                sep="\n  ",
+            )
     failed = (measure.INVALID, measure.CRASH)
     report_failures = [
         f"{entry['map']['name']}: {result['status']}"

@@ -82,6 +82,8 @@ bugfixes:
 
 internal:
 
+- text derived from the benchmark results is marked (``benchmark-derived`` comments), and a full benchmark run
+  lists the files to update with the new results (#183).
 - documentation: the API documentation lists the plotting functions
   (matplotlib was missing from the documentation dependencies, their import failed).
 - the documentation build in CI (``tox -e docs``) fails on warnings.

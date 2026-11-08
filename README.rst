@@ -66,6 +66,9 @@ Installation
 
     pip install extremitypathfinder
 
+.. benchmark-derived: the speed-up by Numba. Update this text with every full benchmark run
+   (docs/contributing/performance.md, "After a full run").
+
 With the optional Numba extra for a significant speedup
 (larger installation, initial compilation time):
 

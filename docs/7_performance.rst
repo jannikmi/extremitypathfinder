@@ -20,6 +20,9 @@ Strengths, weaknesses and limitations
 
 Written from the measured data of this run.
 
+.. benchmark-derived: the take-aways of the results. Update this text with every full benchmark run
+   (docs/contributing/performance.md, "After a full run").
+
 Strengths of ``extremitypathfinder``:
 
 - **Faster preprocessing and queries.** It builds the environment several times faster on all maps both packages

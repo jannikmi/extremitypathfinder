@@ -56,6 +56,15 @@ The tables are written to `benchmarks/results/` and the figures to `docs/_static
 (cf. {ref}`benchmark-measurements`) and adds them to the raw results of a run on the same machine,
 without repeating the run.
 
+### After a full run
+
+The tables and figures are rendered from the results, the text derived from them is not:
+the take-aways of the performance page, the comparison in the alternatives and the claims about Numba
+(installation, README). Each such passage is marked with a `.. benchmark-derived:` comment,
+and a full run lists the files with one (or `git grep -n benchmark-derived`).
+Check every marked passage against the new results and update it in the pull request of the results.
+Mark new text derived from the results the same way, and keep it qualitative (cf. [Documentation](documentation.md#content)).
+
 ### Full run on a laptop
 
 1. Connect the power adapter, close other applications and keep the lid open
