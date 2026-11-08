@@ -1,5 +1,5 @@
 version = 1
-revision = 5
+revision = 3
 requires-python = ">=3.12, <4"
 resolution-markers = [
     "python_full_version >= '3.13'",
@@ -311,6 +311,9 @@ dependencies = [
 numba = [
     { name = "numba" },
 ]
+shapely = [
+    { name = "shapely" },
+]
 
 [package.dev-dependencies]
 benchmark = [
@@ -340,8 +343,9 @@ requires-dist = [
     { name = "networkx", specifier = ">=3,<4" },
     { name = "numba", marker = "extra == 'numba'", specifier = ">=0.63,<1" },
     { name = "numpy", specifier = ">=2.3.3,<3" },
+    { name = "shapely", marker = "extra == 'shapely'", specifier = ">=2.0,<3" },
 ]
-provides-extras = ["numba"]
+provides-extras = ["numba", "shapely"]
 
 [package.metadata.requires-dev]
 benchmark = [

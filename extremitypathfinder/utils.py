@@ -1,5 +1,6 @@
 import json
 import pickle
+import warnings
 from collections.abc import Callable, Iterable
 from heapq import heappop, heappush
 from itertools import combinations, count
@@ -752,6 +753,104 @@ def read_json(path2json_file):
     boundary_coordinates = _convert2polygon(boundary_data)
     list_of_holes = [_convert2polygon(hole_data) for hole_data in holes_data]
     return boundary_coordinates, list_of_holes
+
+
+def _import_shapely():
+    try:
+        import shapely
+    except ImportError as e:
+        raise ImportError(
+            "Shapely is required for this function: "
+            'pip install "extremitypathfinder[shapely]"'
+        ) from e
+    return shapely
+
+
+def _to_geometries(geometry) -> list:
+    """converts Shapely geometries, GeoJSON-like mappings and objects with ``__geo_interface__``
+    (also features and feature collections) and iterables of these into a flat list of Shapely geometries
+    """
+    shapely = _import_shapely()
+    from shapely.geometry import shape
+
+    if geometry is None:
+        return []
+    if isinstance(geometry, shapely.Geometry):
+        return [geometry]
+    mapping = getattr(geometry, "__geo_interface__", geometry)
+    if isinstance(mapping, dict):
+        if mapping.get("type") == "FeatureCollection":
+            return [
+                g for feature in mapping["features"] for g in _to_geometries(feature)
+            ]
+        return [shape(mapping)]
+    if isinstance(geometry, Iterable) and not isinstance(geometry, str):
+        return [g for item in geometry for g in _to_geometries(item)]
+    raise TypeError(f"not a geometry: {geometry!r}")
+
+
+def _to_polygons(geometry) -> list:
+    """the non-empty polygons of the given geometries (multi-part geometries and collections are split)"""
+    shapely = _import_shapely()
+    polygons = []
+    for geom in _to_geometries(geometry):
+        if geom.is_empty:
+            continue
+        if isinstance(geom, shapely.Polygon):
+            polygons.append(geom)
+        elif isinstance(geom, shapely.MultiPolygon | shapely.GeometryCollection):
+            polygons.extend(_to_polygons(list(geom.geoms)))
+        else:
+            raise TypeError(
+                f"only polygons are supported, got a {geom.geom_type} geometry"
+            )
+    return polygons
+
+
+def _ring_coords(ring) -> np.ndarray:
+    """the x and y coordinates of a ring, without the repeated closing vertex"""
+    return np.asarray(ring.coords, dtype=configs.DTYPE_FLOAT)[:-1, :2]
+
+
+def convert_shapely(boundary, obstacles) -> tuple[np.ndarray | None, list[np.ndarray]]:
+    """converts Shapely or GeoJSON-like geometries into the coordinate input of the environment
+
+    Repeated consecutive vertices (also the closing vertex of the rings) are removed,
+    a third (z) coordinate is ignored.
+
+    :param boundary: a single polygon or ``None``. Its interior rings become holes.
+    :param obstacles: polygons, multi-polygons, collections of them or ``None``. Their exterior rings become holes,
+        their interior rings are ignored with a warning (unreachable from the outside of the obstacle).
+    :return: the boundary coordinates (``None`` without a boundary) and the list of hole coordinates
+    """
+    shapely = _import_shapely()
+
+    boundary_coordinates = None
+    holes = []
+    if boundary is not None:
+        boundary_polygons = _to_polygons(boundary)
+        if len(boundary_polygons) != 1:
+            raise ValueError(
+                f"the boundary must be a single polygon, got {len(boundary_polygons)} polygons. "
+                "Pass None as the boundary for an environment with obstacles only."
+            )
+        polygon = shapely.remove_repeated_points(boundary_polygons[0])
+        boundary_coordinates = _ring_coords(polygon.exterior)
+        holes.extend(_ring_coords(ring) for ring in polygon.interiors)
+
+    nr_ignored = 0
+    for polygon in _to_polygons(obstacles):
+        polygon = shapely.remove_repeated_points(polygon)
+        holes.append(_ring_coords(polygon.exterior))
+        nr_ignored += len(polygon.interiors)
+    if nr_ignored > 0:
+        warnings.warn(
+            f"ignored {nr_ignored} interior ring(s) of obstacle polygons: "
+            "the free space inside an obstacle cannot be reached and is treated as part of the obstacle.",
+            UserWarning,
+            stacklevel=3,
+        )
+    return boundary_coordinates, holes
 
 
 def convert_grid(size_x: int, size_y: int, obstacle_iter: iter) -> (list, list):

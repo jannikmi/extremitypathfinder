@@ -35,6 +35,10 @@ dependencies = [
 numba = [
     "numba>=0.63,<1",
 ]
+# PolygonEnvironment.from_shapely()
+shapely = [
+    "shapely>=2.0,<3",
+]
 
 [project.scripts]
 extremitypathfinder = "extremitypathfinder.command_line:main"
