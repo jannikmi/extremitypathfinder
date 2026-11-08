@@ -369,14 +369,25 @@ Properties:
 - intersections (solving a linear system) are only computed for a fraction of the candidates
 - it would also work with line segments instead of polygons (the package however only accepts polygons)
 
-Cost per origin: sorting the edges, :math:`O(n \log n)`, and the candidates, :math:`O(k \log k)`.
-Every edge is visited at most once, and on average only the fraction of candidates within an edge's angle range
-is checked against it, :math:`O(n \cdot k / n) = O(k)`.
-With :math:`k \leq m` this gives :math:`O(n \log n + m)` per origin and :math:`O(m \, n \log n)` for all
-extremities, i.e. :math:`O(n^2 \log n)` in the worst case (:math:`m \sim n`).
+Cost per origin with :math:`k \leq m` candidates: sorting the edges, :math:`O(n \log n)`,
+and the candidates, :math:`O(k \log k)`, plus one check per edge and candidate within its angle range.
+
+- **Typical case**: the angle ranges of the edges overlap little, an edge is only checked against
+  a small number of candidates. This gives :math:`O(n \log n + m)` per origin and :math:`O(m \, n \log n)`
+  for all extremities.
+- **Worst case**: a candidate in front of an edge is kept and checked again by every following edge
+  whose angle range contains it, e.g. many long edges behind many candidates, all spanning the same angle range.
+  This gives :math:`O(n \cdot k)` per origin and :math:`O(m \, n^2)` for all extremities,
+  i.e. :math:`O(n^3)` for :math:`m \sim n`. Doubling both the number of such edges and of candidates
+  quadruples the time of ``find_visible()`` (250 each: 0.19 s, 2,000 each: 12.2 s, without Numba).
+
+AREA builds on known techniques: sorting by angle around the origin (as Lee's algorithm),
+a trigonometry-free angle representation (the "diamond angle") and culling by angle range and distance.
+Its own part is the edge-centric sweep: every edge eliminates the candidates behind it,
+instead of a rotating ray keeping the edges in a balanced tree.
 
 Comparison with `Lee's visibility graph algorithm <https://dav.ee/papers/Visibility_Graph_Algorithm.pdf>`__
-(also :math:`O(n^2 \log n)`), which `pyvisgraph <https://github.com/TaipanRex/pyvisgraph>`__ uses:
+(:math:`O(n^2 \log n)` in the worst case), which `pyvisgraph <https://github.com/TaipanRex/pyvisgraph>`__ uses:
 
 - Lee checks all edges for intersection initially, AREA only the edges whose angle range contains candidates
 - Lee computes the visibility of all vertices in every run, AREA only of the candidates
@@ -619,8 +630,9 @@ With ``n`` vertices and ``m`` extremities (usually ``m << n``):
 Step                               Time                        Notes
 =================================  ==========================  =====================================================
 points and wedges                  ``O(n²)``                   vectorised bounding box test: edges through vertices
-visibility graph                   ``O(m n log n)``            AREA for every extremity, cf. `Algorithms`_
-query: visibility of start, goal   ``O(n log n + m)``          dominates the query time
+visibility graph                   ``O(m n log n)``            AREA for every extremity, typical case,
+                                                               worst case ``O(m n²)``, cf. `Algorithms`_
+query: visibility of start, goal   ``O(n log n + m)``          dominates the query time, worst case ``O(n m)``
 query: A*                          ``O(E log E)``              ``E``: graph and temporary edges
 =================================  ==========================  =====================================================
 

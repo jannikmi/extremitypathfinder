@@ -64,6 +64,8 @@ other changes:
 - documentation: improved README and documentation landing page (features, quick start, navigation).
 - documentation: engineering design document (goals, architecture, data model, pipelines, algorithms and design decisions).
   The implementation details moved there from the about page.
+- documentation: corrected the worst-case time of the visibility computation (AREA) to ``O(m n²)``
+  for ``n`` vertices and ``m`` extremities (previously stated as ``O(n² log n)``), with its relation to known techniques.
 
 bugfixes:
 
