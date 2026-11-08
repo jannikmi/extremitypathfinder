@@ -23,8 +23,8 @@ This package fits best when:
 Consider an alternative when:
 
 - the environment is very large (many protruding corners): the visibility graph can have up to quadratically many
-  edges in the number of extremities :math:`m`, and computing it takes :math:`O(m \, n \log n)` time for :math:`n`
-  vertices, :math:`O(n^2 \log n)` in the worst case (cf. :ref:`engineering design <design>`).
+  edges in the number of extremities :math:`m`, and computing it typically takes :math:`O(m \, n \log n)` time
+  for :math:`n` vertices, :math:`O(n \, m^2)` in the worst case (cf. :ref:`engineering design <design>`).
   Polyanya needs no visibility graph, but a navigation mesh of the free space, which is likely cheaper to build.
 - the environment changes often: every change requires computing the visibility graph again
 - the input is a grid and approximate (grid or any-angle) paths are good enough: grid planners are simpler
