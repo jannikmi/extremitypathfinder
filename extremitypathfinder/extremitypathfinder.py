@@ -236,7 +236,7 @@ class PolygonEnvironment:
         :raises ImportError: when Shapely is not installed
         :raises TypeError: when a geometry is not a polygon (or a collection of polygons)
         :raises ValueError: when the boundary is not a single polygon,
-            and the errors of the constructor
+            when a ring has fewer than 3 distinct vertices, and the errors of the constructor
         """
         boundary_coordinates, list_of_hole_coordinates = utils.convert_shapely(
             boundary, obstacles
