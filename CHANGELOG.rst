@@ -28,6 +28,13 @@ recreate them. Loading them raises a ``ValueError`` explaining this.
 
 other changes:
 
+- much faster input validation of large polygons (``validate=True``, #193): only edge pairs with overlapping
+  bounding boxes are tested for crossings, vectorised. E.g. the 5k vertex world map of the benchmarks:
+  10.5 s to 0.08 s, a 2,180 vertex polygon: 14.6 s to 0.06 s. The errors name the polygon (``boundary polygon``
+  or ``hole <index>``) and the location of the violation (the crossing edges with their vertex indices,
+  the crossing point). The crossing test solves its 2×2 system in closed form instead of with ``numpy.linalg.solve``
+  and is exact for integer coordinates: valid polygons touching themselves with a vertex on an edge were rejected
+  for one of the two vertex numberings.
 - documentation: the engineering design relates the algorithms to the literature (new section "Related Work"),
   what sets the package apart (README and the alternatives page, which now also lists TřiVis)
 - documentation: when to install with or without Numba (#183): identical results, speed against memory

@@ -318,6 +318,69 @@ def test_polygons_touching_themselves_are_valid(boundary, holes):
     PolygonEnvironment(boundary, holes, validate=True)
 
 
+# the vertex (3, 2) touches the edge (1, 4) -> (4, 1), its neighbours lie on the same side.
+# np.linalg.solve (used before #193) found a crossing of the edges (2, 0) -> (3, 2) and (1, 4) -> (4, 1)
+# inside the edges for one of the two vertex orders: the hole was rejected, the boundary accepted.
+TOUCHING_AT_EDGE = [(3.0, 2.0), (2.0, 1.0), (1.0, 4.0), (4.0, 1.0), (2.0, 0.0)]
+
+
+@pytest.mark.parametrize("coords", [TOUCHING_AT_EDGE, TOUCHING_AT_EDGE[::-1]])
+def test_vertex_touching_an_edge_is_valid_in_both_numberings(coords):
+    PolygonEnvironment(coords, [], validate=True)
+    PolygonEnvironment(
+        [(-10.0, -10.0), (10.0, -10.0), (10.0, 10.0), (-10.0, 10.0)],
+        [coords],
+        validate=True,
+    )
+
+
+BOWTIE = [(0.0, 0.0), (2.0, 2.0), (0.0, 2.0), (2.0, 0.0)]
+
+
+@pytest.mark.parametrize(
+    ("boundary", "holes", "message"),
+    [
+        # the vertex indices of the input, also for polygons stored reversed
+        (
+            BOWTIE,
+            [],
+            r"^boundary polygon: .* the edges from vertex 0 to 1 and from vertex 2 to 3 cross at \(1\.0, 1\.0\)$",
+        ),
+        (
+            BOWTIE[::-1],
+            [],
+            r"^boundary polygon: .* the edges from vertex 0 to 1 and from vertex 2 to 3 cross at \(1\.0, 1\.0\)$",
+        ),
+        (
+            None,
+            [RECTANGULAR_HOLE, [(5.0, 5.0), (7.0, 7.0), (5.0, 7.0), (7.0, 5.0)]],
+            r"^hole 1: .* the edges from vertex 0 to 1 and from vertex 2 to 3 cross at \(6\.0, 6\.0\)$",
+        ),
+        (
+            BOUNDARY,
+            [
+                RECTANGULAR_HOLE,
+                [(2.0, 2.0), (5.0, 5.0), (9.0, 9.0), (8.0, 2.0), (2.0, 8.0)],
+            ],
+            r"^hole 1: .* crosses itself at \(5\.0, 5\.0\)$",
+        ),
+        (
+            BOUNDARY,
+            [[(3.0, 3.0), (3.0, 6.0), (6.0, 6.0), (6.0, 3.0), (8.0, 3.0), (5.0, 3.0)]],
+            r"^hole 0: .*overlapping edges at \(6\.0, 3\.0\)$",
+        ),
+        (
+            [(0.0, 0.0), (1.0, 0.0), (1.0, 0.0), (0.0, 1.0)],
+            [],
+            "^boundary polygon: ",
+        ),
+    ],
+)
+def test_validation_errors_name_the_polygon_and_the_location(boundary, holes, message):
+    with pytest.raises(ValueError, match=message):
+        PolygonEnvironment(boundary, holes, validate=True)
+
+
 def test_repeated_queries_do_not_mutate_precomputed_graph():
     environment = PolygonEnvironment(BOUNDARY, [RECTANGULAR_HOLE], validate=True)
     nodes_before = set(environment.graph.nodes)
