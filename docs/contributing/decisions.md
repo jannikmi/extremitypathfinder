@@ -20,6 +20,12 @@ Amend the entry of a revised decision instead of adding a new one:
 the log states the current decisions (git keeps the history).
 Earlier decisions are described in the {ref}`Design Decisions <design_decisions>` and the issues linked there.
 
+## AREA stays the visibility algorithm, others are added next to it (#224)
+
+- **Decided by:** a maintainer
+- **Rejected:** a rotational sweep (#216), triangular expansion, Polyanya or continuous Dijkstra instead.
+- **Details:** {ref}`Design Decisions <design_decisions>`
+
 ## The next issue is implemented by a guide page and the `/implement-next` skill, claimed by a comment (#195)
 
 - **Decided by:** a maintainer (bundling related issues, claims for concurrent work); an agent (comment claims
@@ -34,8 +40,8 @@ Earlier decisions are described in the {ref}`Design Decisions <design_decisions>
 
 - **Decided by:** a maintainer (the rule and closing the gap of manual version changes); an agent (how it is checked)
 - **Rejected:** running the benchmarks in CI (cf. #165 below; shared runners also give noisy timings
-  on changing hardware); checking every pull request (code may change without a rerun of hours until the release);
-  only checking when the release is prepared (misses manual version changes and later merges into `master`);
+  on changing hardware); checking every pull request (code still changes until the release);
+  only checking when the release is prepared (misses manual version changes and later merges);
   comparing `pyproject.toml` and `uv.lock` as files (they change with every release, the measured dependency
   versions are compared instead).
 - **Details:** [Releasing](releasing.md#benchmark-results)
@@ -53,16 +59,16 @@ Earlier decisions are described in the {ref}`Design Decisions <design_decisions>
 ## Blocked issues are unblocked and re-ranked by a guide page and the `/unblock` skill, which performs the audits and amends the issues and files (#188, #194)
 
 - **Decided by:** a maintainer
-- **Rejected:** leaving it as it is (blocked issues and open decisions stay spread over issues and pull requests);
+- **Rejected:** leaving it as it is (open decisions stay spread out);
   the procedure only in the Claude Code skill (other tools and humans would not find it);
   a `decision needed` label (needs triage, finds no missing information);
   asking in batches or up to a limit (the maintainer decides when to stop);
   blocking decisions before all others (they inherit the priority of the work they block instead);
-  approving each change separately (slow; showing the changes suffices to check and revert them);
-  changes without showing them (cannot be checked);
-  a comment per decision (the scope must be reconstructed from the thread, decisions reach the
-  repository only with their implementation); rescoping an issue into a later audit (defers the information the
-  decision needs); asking before longer audits (stalls the run, a heads-up lets the maintainer intervene).
+  approving each change separately (slow, showing them suffices);
+  changes without showing them;
+  a comment per decision (scope hidden in the thread, reaches the repository only with the
+  implementation); rescoping into a later audit (defers the needed information);
+  asking before longer audits (stalls the run, a heads-up suffices).
 - **Details:** [Unblock and re-rank](unblock-and-rerank.md)
 
 ## The 2×2 system in `_lies_behind_inner()` is solved in closed form, SciPy is dropped from the numba extra (#185)

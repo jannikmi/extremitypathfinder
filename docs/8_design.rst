@@ -551,6 +551,23 @@ A query only has to compute the visibility of two points. This favours use cases
 Precomputing all shortest paths between extremities was rejected: memory grows quadratically with the number of
 extremities, and a fully connected graph would slow down A* (it would visit every node).
 
+AREA instead of a different algorithm
+-------------------------------------
+
+The visibility stays computed with AREA, other algorithms are not used as a replacement (cf. `Related Work`_).
+The cost of the package is the visibility from many points, one at a time: from every extremity during the
+construction, from start and goal per query. Any algorithm of this kind costs at least linear time per point,
+so replacing AREA would mainly change constant factors. A rotational sweep with a tree of edges (Lee) is slower
+in Python on the measured maps (#216). Triangular expansion, a navigation mesh (Polyanya) or continuous Dijkstra
+need a triangulation of the free space: the polygons would have to be merged first (they may touch and overlap),
+the exact contact semantics re-established, and either a dependency added or a lot of code written.
+AREA carries the tested behaviour at the edge cases, the audit against exact arithmetic
+and the identical results with and without Numba.
+
+Changes of the scaling are added next to AREA, not instead of it: precomputed data for faster queries (#223)
+or an optional engine for very large or changing environments (#177). AREA then serves as the reference
+for their results.
+
 Angle representations instead of angles
 ---------------------------------------
 
