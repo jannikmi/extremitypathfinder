@@ -387,6 +387,8 @@ plus one check per edge and candidate within its angle range.
   (the number of candidates decreases from :math:`m` with every origin), i.e. :math:`O(n^3)` for :math:`m \sim n`.
   In such an environment, doubling both the number of edges and of candidates quadruples
   the time of ``find_visible()``.
+  An angular sweep would avoid this worst case, but is slower on the measured maps
+  (`#216 <https://github.com/jannikmi/extremitypathfinder/issues/216>`__).
 
 AREA builds on known techniques: sorting by angle around the origin (as Lee's algorithm),
 a trigonometry-free angle representation (the "diamond angle") and culling by angle range and distance.
