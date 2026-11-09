@@ -536,7 +536,7 @@ def check_polygon_contacts(coords: np.ndarray):
     * edges with almost the same direction: spikes or slits too narrow to decide their free side
 
     https://github.com/jannikmi/extremitypathfinder/issues/135
-    Note: proper intersections of two edges are detected by _no_self_intersection()
+    Note: proper intersections of two edges are detected by utils._find_crossing()
     """
     edge_vertex_idxs, vertex_edge_idxs = edge_vertex_mappings(len(coords))
     vertex_polygon_idxs = np.zeros(len(coords), dtype=int)
@@ -552,11 +552,12 @@ def check_polygon_contacts(coords: np.ndarray):
             [],
         )
         reps = [rep for _, rep_a, rep_b in incidences for rep in (rep_a, rep_b)]
+        at = f"at ({float(position[0])!r}, {float(position[1])!r})"
         if len(set(reps)) < len(reps):
-            raise ValueError("The given polygon has overlapping edges")
+            raise ValueError(f"The given polygon has overlapping edges {at}")
         if not _resolvable(reps):
             raise ValueError(
-                "The given polygon has edges with almost the same direction "
+                f"The given polygon has edges with almost the same direction {at} "
                 "(a spike or slit too narrow for floating point precision)"
             )
         for k, (_, rep_a1, rep_b1) in enumerate(incidences):
@@ -564,4 +565,6 @@ def check_polygon_contacts(coords: np.ndarray):
             for _, rep_a2, rep_b2 in incidences[k + 1 :]:
                 # Note: all rays are distinct
                 if in_closure(rep_a2, corner) != in_closure(rep_b2, corner):
-                    raise ValueError("The given polygon has self intersections")
+                    raise ValueError(
+                        f"The given polygon has self intersections: it crosses itself {at}"
+                    )

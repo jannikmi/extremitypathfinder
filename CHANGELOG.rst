@@ -34,6 +34,13 @@ other changes:
   Repeated closing and consecutive vertices are removed, interior rings of obstacles are ignored with a warning,
   features with a null geometry are skipped.
   Shapely (2.0.6 or later) is an optional extra: ``pip install "extremitypathfinder[shapely]"``.
+- much faster input validation of large polygons (``validate=True``, #193): only edge pairs with overlapping
+  bounding boxes are tested for crossings, vectorised. E.g. the 5k vertex world map of the benchmarks:
+  10.5 s to 0.08 s, a 2,180 vertex polygon: 14.6 s to 0.06 s. The errors name the polygon (``boundary polygon``
+  or ``hole <index>``) and the location of the violation (the crossing edges with their vertex indices,
+  the crossing point). The crossing test solves its 2×2 system in closed form instead of with ``numpy.linalg.solve``
+  and is exact for integer coordinates: valid polygons touching themselves with a vertex on an edge were rejected
+  for one of the two vertex numberings.
 - documentation: agent clearance (#167), a recipe for agents that keep a minimum distance to the obstacles:
   shrink the boundary and inflate the obstacles with Shapely, then pass them to ``from_shapely()``.
   Compares the join styles (vertex count, kept clearance, path length).

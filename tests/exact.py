@@ -85,3 +85,27 @@ def lies_behind(p1, p2, v) -> bool | None:
     if det == 0:
         return None
     return (a * p1[1] - b * p1[0]) / det < 1
+
+
+def cross(u, v) -> Fraction:
+    """the cross product u x v"""
+    u, v = _fractions(u, v)
+    return u[0] * v[1] - u[1] * v[0]
+
+
+def crossing_parameters(p1, p2, q1, q2) -> tuple[Fraction, Fraction] | None:
+    """lambda and mu of the intersection p1 + (p2-p1) lambda = q1 + (q2-q1) mu, ``None`` for parallel edges"""
+    p1, p2, q1, q2 = _fractions(p1, p2, q1, q2)
+    r = (p2[0] - p1[0], p2[1] - p1[1])
+    s = (q2[0] - q1[0], q2[1] - q1[1])
+    b = (q1[0] - p1[0], q1[1] - p1[1])
+    d = r[0] * s[1] - r[1] * s[0]
+    if d == 0:
+        return None
+    return (b[0] * s[1] - b[1] * s[0]) / d, (b[0] * r[1] - b[1] * r[0]) / d
+
+
+def crossing(p1, p2, q1, q2) -> bool:
+    """whether the edges p1-p2 and q1-q2 cross in their interiors (not in a vertex, parallel edges never cross)"""
+    parameters = crossing_parameters(p1, p2, q1, q2)
+    return parameters is not None and all(0 < x < 1 for x in parameters)

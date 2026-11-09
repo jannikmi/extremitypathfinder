@@ -14,6 +14,10 @@ Decisions:
 * ``_has_clockwise_numbering()``: the orientation of the input polygons
 * ``Point.in_wedges()``: directions near a bounding ray, compared exactly within ``RAY_TOLERANCE``
 * ``_lies_behind_inner()``: whether a vertex lies behind an edge (Cramer's rule, #185)
+* the validation (#193): ``utils._crossing_parameters()``, whether two edges cross in their interiors
+  (Cramer's rule without division). Its bounding box prefilter compares coordinates only (exact).
+  The contact checks (``check_polygon_contacts()``) decide with ``_lies_on_edge()`` and the angle representations,
+  audited above
 
 Inputs: integers (small and up to 2^20, e.g. grids), a decimal grid (0.1), projected coordinates
 (1e6 plus a 0.01 grid), random floats of several magnitudes, and near-degenerate cases
@@ -22,7 +26,7 @@ Misdecisions of the angle representations are reported with the largest exact di
 
 Measured (November 2026, -n 100000, identical with and without Numba): no misdecisions when all coordinates,
 query points included, are integers.
-Not covered: ``Point.in_front()`` and ``free_wedges()`` (#212), the validation (#193).
+Not covered: ``Point.in_front()`` and ``free_wedges()`` (#212).
 All misdecisions concern directions or points closer than about one unit in the last place (1e-16 relative)
 to a decision boundary, cf. the Numerical Policy in docs/8_design.rst.
 
@@ -54,6 +58,7 @@ if args.no_numba:
 # imported after blocking Numba (--no-numba). The exact references are shared with the tests
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 exact = importlib.import_module("tests.exact")
+utils = importlib.import_module("extremitypathfinder.utils")
 utils_numba = importlib.import_module("extremitypathfinder.utils_numba")
 wedges = importlib.import_module("extremitypathfinder.wedges")
 _compute_repr_n_dist = utils_numba._compute_repr_n_dist
@@ -337,6 +342,52 @@ def audit_lies_behind():
         report("_lies_behind_inner()", name, c, n)
 
 
+def audit_crossing():
+    """the crossing test of the validation, on random edge pairs and on edges through a vertex of the other edge"""
+    gens = dict(GENERATORS)
+
+    def through_vertex(scale):
+        def generator(n, k):
+            # q1 lies on p1-p2 (exactly for integers, rounded for the decimals), q2 off the edge:
+            # crossings close to a vertex, decided by lambda or mu close to 0 or 1
+            p1 = ints(n, 1, 1000)[:, 0]
+            d = ints(n, 1, 50)[:, 0]
+            p2 = p1 + 3 * d
+            q1 = p1 + rng.integers(0, 4, size=(n, 1)) * d
+            q2 = q1 + ints(n, 1, 50)[:, 0]
+            return np.stack([p1, p2, q1, q2], axis=1) * scale
+
+        return generator
+
+    gens["through a vertex (integers)"] = through_vertex(1.0)
+    gens["through a vertex (0.1 grid)"] = through_vertex(0.1)
+    for name, gen in gens.items():
+        edges = gen(N, 4)
+        crossing, _, _ = utils._crossing_parameters(
+            edges[:, 0], edges[:, 1], edges[:, 2], edges[:, 3]
+        )
+        c = Counter()
+        for (p1, p2, q1, q2), f in zip(edges, crossing):
+            e = exact.crossing(p1, p2, q1, q2)
+            if e != f:
+                c["false positive" if f else "false negative"] += 1
+                # every decision is the side of a vertex of one edge relative to the line of the other edge
+                # (d, t, d - t, u, d - u in utils._crossing_parameters()):
+                # the smallest exact relative distance (sine of the angle) of a vertex to the other line
+                distances = []
+                for (a, b), others in (((p1, p2), (q1, q2)), ((q1, q2), (p1, p2))):
+                    for v in others:
+                        if np.any(v != a):
+                            lengths = float(np.hypot(*(b - a)) * np.hypot(*(v - a)))
+                            distances.append(abs(exact.cross(b - a, v - a)) / lengths)
+                distance = min(distances)
+                c.setdefault("max |exact diff|", 0.0)
+                c["max |exact diff|"] = max(c["max |exact diff|"], float(distance))
+            elif e:
+                c["(crossing)"] += 1
+        report("_crossing_parameters()", name, c, N)
+
+
 for audit in (
     audit_reps,
     audit_lies_on_edge,
@@ -344,6 +395,7 @@ for audit in (
     audit_clockwise,
     audit_in_wedges,
     audit_lies_behind,
+    audit_crossing,
 ):
     audit()
 

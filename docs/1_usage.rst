@@ -84,6 +84,9 @@ hole must be supplied.
 
     Pass ``validate=True`` in order to check the condition on the data.
     Raises ``TypeError`` if the input has the wrong type and ``ValueError`` if the input is invalid.
+    The message names the polygon (``boundary polygon`` or ``hole <index>``) and the location of the violation,
+    e.g. ``hole 1: The given polygon has self intersections: the edges from vertex 0 to 1 and from vertex 2 to 3
+    cross at (6.0, 6.0)``.
 
 
 .. note::
