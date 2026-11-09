@@ -3,6 +3,13 @@
 Decided trade-offs about how we work on the project (contributing guide, issues, pull requests), newest first.
 Entry format and rules: [Decision log](decisions.md).
 
+## The type checker is mypy `--strict`, run as a pre-commit hook (#226)
+
+- **Decided by:** a maintainer
+- **Rejected:** pyright (needs Node in the pre-commit hook, less common in scientific Python packages);
+  checking with both (double maintenance for little gain).
+- **Details:** [Code style](code-style.md)
+
 ## The next issue is implemented by a guide page and the `/implement-next` skill, claimed by a comment (#195)
 
 - **Decided by:** a maintainer (bundling related issues, claims for concurrent work); an agent (comment claims
