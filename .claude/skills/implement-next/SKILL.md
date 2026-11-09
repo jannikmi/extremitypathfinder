@@ -29,6 +29,26 @@ In addition, for each candidate from the top down:
 Show the top of the ranking as a short Markdown table (issue, priority, ready or what blocks it, claimed by)
 and the bundle with one sentence per issue on why it belongs in it.
 
+## Fresh session or this one (before step 4)
+
+If the conversation already holds earlier work (not at the start of a new session), check whether
+a fresh session is better for implementing the pick. Do this before claiming, because a claim names the branch of
+the session that implements it.
+
+- **Fresh** is better if most of the context is unrelated to the bundle (other issues, earlier runs, long
+  explorations): it would be compacted or carried along, costs on every turn and can bring stale assumptions
+  into the work. The same holds if this session still watches open pull requests of earlier runs,
+  whose events would interleave with the implementation.
+- **This session** is better if its context is about the bundle: e.g. the issue was just unblocked here,
+  a maintainer decided something in the chat, or the investigation is already done.
+
+If a person is in the chat and fresh is better, recommend it with one sentence why and ask with `AskUserQuestion`
+(fresh session or continue here). In a run without a person, decide by yourself.
+For a fresh session, start it with `create_session` (load it with ToolSearch) and the prompt
+`/implement-next #<picked issue>` plus what it needs from this conversation (decisions with who made them, findings,
+links), report the session and end this run without claiming anything. Without `create_session` (e.g. a local CLI),
+recommend `/clear` or a new session to the person; without a person, continue here.
+
 ## Claim (step 4)
 
 - Branch: a new branch for each run, `implement-<issue numbers>-<short slug>` from the latest `origin/master`,
