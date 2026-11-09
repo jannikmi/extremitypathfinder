@@ -46,7 +46,8 @@ better: yes if most of the context is unrelated (in a loop, from the second run 
 holds a maintainer decision not yet written into the issue. To hand off, keep the claims, start `create_session`
 with `outcome_branch` set to the claimed branch and a prompt with `/implement-next`, the bundle, the branch and the
 findings and decisions it needs, and end this run. The fresh session checks its claims and continues with step 5.
-Without `create_session`, continue here.
+Without `create_session`: with a person in the chat, show that prompt in a code block to paste into a new session
+and end this run; otherwise continue here.
 
 ## Plan and decide (step 5)
 
