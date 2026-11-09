@@ -12,8 +12,6 @@ first. This file only adds how to run it in Claude Code.
 
 Arguments: an issue number is the issue to implement (still checked and claimed).
 `--dry-run` stops after step 3 and shows the ranking, the pick and the bundle, without claiming anything.
-A prompt handed off by another session names the bundle and its claimed branch: check that its claims are still
-the oldest active ones and continue with step 5 on that branch.
 One run implements one bundle and ends when its pull request is ready for review; for continuous work, run it in
 a loop (`/loop /implement-next`). PR events of earlier runs wake the session in between.
 
@@ -41,25 +39,14 @@ and the bundle with one sentence per issue on why it belongs in it.
   Post the release on every issue dropped. Comments end with the attribution footer of the session.
 - Do not change labels or assignees for a claim.
 
-## Fresh session or this one (after step 4)
+## Fresh session (after step 4)
 
-If the conversation already holds earlier work, check whether a fresh session suits the implementation better.
-Skip this with `--dry-run`.
-
-- **Fresh** if most of the context is unrelated to the bundle (other issues, earlier runs, long explorations):
-  it costs on every turn, gets compacted and can bring stale assumptions into the work.
-  In a loop, this holds from the second run on: the looping session then only picks, claims and hands off,
-  and each fresh session watches its own pull request.
-- **This session** if its context is about the bundle, e.g. the issue was just unblocked or investigated here.
-  A decision a maintainer made only in this chat is a reason to stay, unless it is written into the issue first:
-  a fresh session gets its prompt from a peer, not from the maintainer.
-
-Decide by yourself, also with a person in the chat, and state the decision with a sentence why.
-To hand off, keep the claims of step 4 and start the session with `create_session` (load it with ToolSearch),
-`outcome_branch` set to the claimed branch and a prompt with `/implement-next`, the bundle, the claimed branch
-and what it needs from here (findings, links, decisions with who made them and where they are recorded).
-Report the session and end this run. Without `create_session` (e.g. a local CLI), give the person that prompt
-to paste into a new session and end the run; without a person, continue here.
+If this session holds earlier work, decide by yourself (not with `--dry-run`) whether a fresh session suits the bundle
+better: yes if most of the context is unrelated (in a loop, from the second run on), no if it is about the bundle or
+holds a maintainer decision not yet written into the issue. To hand off, keep the claims, start `create_session`
+with `outcome_branch` set to the claimed branch and a prompt with `/implement-next`, the bundle, the branch and the
+findings and decisions it needs, and end this run. The fresh session checks its claims and continues with step 5.
+Without `create_session`, continue here.
 
 ## Plan and decide (step 5)
 
