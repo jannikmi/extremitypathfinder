@@ -515,13 +515,24 @@ Input validation
 With ``validate=True`` every polygon is checked (``_check_polygon()``):
 
 - shape, at least 3 vertices, finite coordinates, no identical consecutive vertices
-- **proper self intersections**: every pair of non-neighbouring edges is tested by solving a 2x2 linear system
-  (``_get_intersection_status()``), intersections strictly inside both edges are rejected, :math:`O(n^2)` per polygon
+- **proper self intersections** (``_find_crossing()``): only pairs of non-neighbouring edges whose bounding boxes
+  overlap are tested. A sweep along x over the edges sorted by their smallest x coordinate selects the pairs
+  overlapping in x, a vectorised comparison those overlapping in y (in chunks, to bound the memory).
+  For these pairs the 2x2 linear system is solved with Cramer's rule and compared without division
+  (``_crossing_parameters()``, exact for integer coordinates), intersections strictly inside both edges are rejected.
+  :math:`O(n \log n + k)` vectorised operations for :math:`k` pairs of edges overlapping in x,
+  :math:`O(n^2)` in the worst case (e.g. a zigzag of edges all overlapping in x). Coordinate differences
+  beyond about :math:`10^{154}` overflow in the cross products and go undetected (the package does not work at
+  such magnitudes anyway, e.g. the area check overflows too)
 - **non-zero area**: shoelace formula on coordinates translated to the first vertex (avoids cancellation)
 - **crossings at self contacts** (``check_polygon_contacts()``): at every position where the polygon touches itself,
   two rays with the same direction mean overlapping edges (zero-width spikes or slits), and two corners
   whose rays interleave (exactly one ray of the second corner lies within the first corner) mean the polygon
   crosses itself
+
+The errors name the polygon (``boundary polygon`` or ``hole <index>``) and the location: the crossing edges
+(with the vertex indices of the input, also for polygons stored reversed) and their crossing,
+or the position of a crossing or an overlap at a self contact.
 
 The orientation is not validated: ``orient_polygon()`` reverses polygons with the opposite numbering,
 using the sign of :math:`\sum (x_2 - x_1)(y_2 + y_1)` over all edges (``_has_clockwise_numbering()``, positive: clockwise).

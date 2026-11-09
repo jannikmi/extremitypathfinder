@@ -147,15 +147,26 @@ class PolygonEnvironment:
                 "At least one hole is required when boundary_coordinates is None."
             )
         # accept both vertex numberings: reverse polygons with the opposite numbering
+        input_boundary, input_holes = boundary_coordinates, list_of_hole_coordinates
         boundary_coordinates, list_of_hole_coordinates = utils.orient_polygons(
             boundary_coordinates, list_of_hole_coordinates
         )
         if validate:
+            # the error messages give the vertex indices of the input
+            holes_reversed = [
+                hole is not input_hole
+                for hole, input_hole in zip(list_of_hole_coordinates, input_holes)
+            ]
             if boundary_coordinates is None:
-                utils.check_hole_data_requirements(list_of_hole_coordinates)
+                utils.check_hole_data_requirements(
+                    list_of_hole_coordinates, holes_reversed
+                )
             else:
                 utils.check_data_requirements(
-                    boundary_coordinates, list_of_hole_coordinates
+                    boundary_coordinates,
+                    list_of_hole_coordinates,
+                    boundary_coordinates is not input_boundary,
+                    holes_reversed,
                 )
 
         # Note: independent copy!
