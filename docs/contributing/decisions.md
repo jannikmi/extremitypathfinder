@@ -21,6 +21,14 @@ the log states the current decisions (git keeps the history).
 Decisions about how we work on the project are in the [process decision log](decisions-process.md).
 Earlier decisions are described in the {ref}`Design Decisions <design_decisions>` and the issues linked there.
 
+## Agent clearance is a documented Shapely recipe, not a parameter (#167)
+
+- **Decided by:** a maintainer
+- **Rejected:** a built-in `clearance` parameter (no demand yet, its own issue waits for it);
+  own polygon offsetting without Shapely (high effort, new floating point code);
+  leaving it undocumented (several projects inflate the obstacles by hand, some with round joins).
+- **Details:** {ref}`Agent clearance <clearance>` (the recommended mitred joins)
+
 ## AREA stays the visibility algorithm, others are added next to it (#224)
 
 - **Decided by:** a maintainer

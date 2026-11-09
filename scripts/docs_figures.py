@@ -253,6 +253,17 @@ TOUCHING = {
 }
 
 
+# the agent clearance example of the usage documentation:
+# the passage between the obstacles is narrower than twice the clearance
+CLEARANCE_BOUNDARY = [(0.0, 0.0), (12.0, 0.0), (12.0, 8.0), (0.0, 8.0)]
+CLEARANCE_HOLES = [
+    [(3.0, 1.5), (6.0, 1.5), (6.0, 4.0), (3.0, 4.0)],
+    [(6.0, 4.8), (9.0, 6.5), (5.0, 6.5)],
+]
+CLEARANCE = 0.5
+CLEARANCE_QUERY = ((1.0, 3.0), (11.0, 4.0))
+
+
 # inch per coordinate unit: the same scale for all figures
 SCALE = 0.42
 
@@ -335,11 +346,63 @@ def touching_figures(output_dir: Path):
         export_to_scale(fig, ax, output_dir / f"{name}.svg")
 
 
+def clearance_environment(join_style: str = "mitre") -> PolygonEnvironment:
+    """the clearance example: the boundary shrunk and the obstacles inflated with Shapely"""
+    from shapely import Polygon, union_all
+
+    boundary = Polygon(CLEARANCE_BOUNDARY).buffer(-CLEARANCE, join_style=join_style)
+    obstacles = union_all(
+        [
+            Polygon(hole).buffer(CLEARANCE, join_style=join_style)
+            for hole in CLEARANCE_HOLES
+        ]
+    )
+    return PolygonEnvironment.from_shapely(boundary, obstacles, validate=True)
+
+
+def clearance_figure(output_dir: Path):
+    """the path with clearance (configuration space) against the path without clearance"""
+    environment = clearance_environment()
+    path, _ = environment.find_shortest_path(*CLEARANCE_QUERY)
+    original = PolygonEnvironment(CLEARANCE_BOUNDARY, CLEARANCE_HOLES, validate=True)
+    path_without, _ = original.find_shortest_path(*CLEARANCE_QUERY)
+    fig, ax = new_axes()
+    draw(environment, path, ax=ax, graph=False)
+    rings = [CLEARANCE_BOUNDARY, *CLEARANCE_HOLES]
+    ax.add_collection(
+        LineCollection(
+            [[*ring, ring[0]] for ring in rings],
+            colors=PlotStyle.vertex_color,
+            linewidths=PlotStyle.line_width,
+            # above the inflated obstacles, below the path
+            zorder=3.5,
+            gid="original-polygons",
+        )
+    )
+    x, y = np.array(path_without).T
+    ax.plot(
+        x,
+        y,
+        color=PlotStyle.path_color,
+        linewidth=PlotStyle.line_width * 1.5,
+        linestyle="--",
+        zorder=3.8,
+        gid="path-without-clearance",
+    )
+    export_to_scale(fig, ax, output_dir / "clearance.svg")
+
+
 def main(output_dir: Path = OUTPUT_DIR):
     output_dir.mkdir(parents=True, exist_ok=True)
     demo(output_dir)
     usage_figures(output_dir)
     touching_figures(output_dir)
+    try:
+        import shapely  # noqa: F401
+    except ImportError:
+        print("skipped: clearance.svg (requires Shapely)")
+    else:
+        clearance_figure(output_dir)
     for file in sorted(output_dir.glob("*.svg")):
         print(f"written: {file} ({file.stat().st_size / 1000:.0f} kB)")
 

@@ -277,3 +277,83 @@ def test_repeated_vertex_before_closing():
     obstacle = shapely.Polygon(OBSTACLE + [OBSTACLE[0]])
     env = PolygonEnvironment.from_shapely(shapely.Polygon(BOUNDARY), obstacle)
     _assert_same_environment(env, PolygonEnvironment(BOUNDARY, [OBSTACLE]))
+
+
+# the agent clearance recipe of the usage documentation (#167)
+CLEARANCE_BOUNDARY = [(0.0, 0.0), (12.0, 0.0), (12.0, 8.0), (0.0, 8.0)]
+CLEARANCE_HOLES = [
+    [(3.0, 1.5), (6.0, 1.5), (6.0, 4.0), (3.0, 4.0)],
+    [(6.0, 4.8), (9.0, 6.5), (5.0, 6.5)],
+]
+CLEARANCE = 0.5
+CLEARANCE_QUERY = ((1.0, 3.0), (11.0, 4.0))
+
+
+def _clearance_environment(join_style):
+    boundary = shapely.Polygon(CLEARANCE_BOUNDARY).buffer(
+        -CLEARANCE, join_style=join_style
+    )
+    obstacles = shapely.union_all(
+        [
+            shapely.Polygon(hole).buffer(CLEARANCE, join_style=join_style)
+            for hole in CLEARANCE_HOLES
+        ]
+    )
+    return PolygonEnvironment.from_shapely(boundary, obstacles, validate=True)
+
+
+def _distance_to_obstacles(path):
+    """the smallest distance of the path to the original obstacles and the outside of the boundary"""
+    line = shapely.LineString(path)
+    obstacles = shapely.union_all([shapely.Polygon(h) for h in CLEARANCE_HOLES])
+    outside = shapely.Polygon(CLEARANCE_BOUNDARY).exterior
+    return min(line.distance(obstacles), line.distance(outside))
+
+
+@pytest.mark.parametrize(
+    "join_style, min_distance",
+    [
+        # mitred joins keep the clearance exactly
+        ("mitre", CLEARANCE),
+        # bevelled joins cut right-angled corners: clearance * sin(45 degree)
+        ("bevel", CLEARANCE * np.sin(np.pi / 4)),
+        # round joins approximate the arcs from inside: slightly closer than the clearance
+        ("round", 0.499),
+    ],
+)
+def test_clearance_recipe(join_style, min_distance):
+    environment = _clearance_environment(join_style)
+    path, length = environment.find_shortest_path(*CLEARANCE_QUERY)
+    distance = _distance_to_obstacles(path)
+    assert distance == pytest.approx(min_distance, abs=1e-3)
+    assert distance <= CLEARANCE + 1e-12
+    if join_style == "mitre":
+        # the documented example: the passage closes, the path goes around the obstacle
+        assert length == pytest.approx(11.908326913195985)
+        assert distance == pytest.approx(CLEARANCE, abs=1e-12)
+        assert len(environment.extremity_indices) == 6
+    if join_style == "round":
+        # many extremities: one per arc vertex
+        assert len(environment.extremity_indices) > 100
+
+
+def test_clearance_path_without_clearance_is_shorter():
+    original = PolygonEnvironment(CLEARANCE_BOUNDARY, CLEARANCE_HOLES, validate=True)
+    path, length = original.find_shortest_path(*CLEARANCE_QUERY)
+    assert length == pytest.approx(10.23606797749979)
+    # it passes between the obstacles, too close to them
+    assert _distance_to_obstacles(path) == 0.0
+
+
+@pytest.mark.parametrize(
+    "start",
+    [
+        pytest.param((3.0, 1.2), id="inside-inflated-obstacle"),
+        pytest.param((0.3, 3.0), id="outside-shrunk-boundary"),
+    ],
+)
+def test_clearance_start_where_the_agent_does_not_fit(start):
+    environment = _clearance_environment("mitre")
+    assert not environment.within_map(np.array(start))
+    with pytest.raises(ValueError, match="start point does not lie within the map"):
+        environment.find_shortest_path(start, CLEARANCE_QUERY[1])

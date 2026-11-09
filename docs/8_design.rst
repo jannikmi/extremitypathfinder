@@ -38,7 +38,8 @@ Non-goals
 - **Robust geometric predicates**: computations use double precision floating point numbers.
   Contacts are only detected for exactly equal coordinates or vertices exactly on an edge (cf. `Numerical Policy`_).
 - **Other distance metrics, 3D, agents with a size**: the package computes Euclidean shortest paths for a point
-  in the plane. Agents with a size can be supported by buffering the obstacles beforehand.
+  in the plane. Agents with a size are supported by inflating the obstacles beforehand
+  (cf. :ref:`agent clearance <clearance>`).
 - **Parallel computation**: the visibility graph is computed in a single thread.
 
 

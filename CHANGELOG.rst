@@ -34,6 +34,9 @@ other changes:
   Repeated closing and consecutive vertices are removed, interior rings of obstacles are ignored with a warning,
   features with a null geometry are skipped.
   Shapely (2.0.6 or later) is an optional extra: ``pip install "extremitypathfinder[shapely]"``.
+- documentation: agent clearance (#167), a recipe for agents that keep a minimum distance to the obstacles:
+  shrink the boundary and inflate the obstacles with Shapely, then pass them to ``from_shapely()``.
+  Compares the join styles (vertex count, kept clearance, path length).
 - documentation: the engineering design relates the algorithms to the literature (new section "Related Work"),
   what sets the package apart (README and the alternatives page, which now also lists TřiVis)
 - documentation: when to install with or without Numba (#183): identical results, speed against memory
