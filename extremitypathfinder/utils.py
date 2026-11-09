@@ -1,9 +1,10 @@
 import json
 import pickle
 import warnings
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Mapping
 from heapq import heappop, heappush
 from itertools import combinations, count
+from typing import TYPE_CHECKING
 
 import networkx as nx
 import numpy as np
@@ -26,6 +27,11 @@ from extremitypathfinder.utils_numba import (
     reps_n_distances,
 )
 from extremitypathfinder.wedges import Point, Points, Wedge, check_polygon_contacts
+
+if TYPE_CHECKING:
+    # optional dependency (extra "shapely"), only imported when used
+    import shapely
+    from shapely.geometry.base import BaseGeometry
 
 
 def cmp_reps_n_distances(
@@ -755,30 +761,31 @@ def read_json(path2json_file):
     return boundary_coordinates, list_of_holes
 
 
-def _import_shapely():
+def _require_shapely() -> None:
+    """raises an ``ImportError`` explaining how to install Shapely, when it is not installed"""
     try:
-        import shapely
+        import shapely  # noqa: F401
     except ImportError as e:
         raise ImportError(
             "Shapely is required for this function: "
             'pip install "extremitypathfinder[shapely]"'
         ) from e
-    return shapely
 
 
-def _to_geometries(geometry) -> list:
+def _to_geometries(geometry: t.GeometryInput) -> list["BaseGeometry"]:
     """converts Shapely geometries, GeoJSON-like mappings and objects with ``__geo_interface__``
     (also features and feature collections) and iterables of these into a flat list of Shapely geometries
     """
-    shapely = _import_shapely()
+    import shapely
     from shapely.geometry import shape
+    from shapely.geometry.base import BaseGeometry
 
     if geometry is None:
         return []
-    if isinstance(geometry, shapely.Geometry):
+    if isinstance(geometry, BaseGeometry):
         return [geometry]
     mapping = getattr(geometry, "__geo_interface__", geometry)
-    if isinstance(mapping, dict):
+    if isinstance(mapping, Mapping):
         geojson_type = mapping.get("type")
         if geojson_type == "FeatureCollection":
             return [
@@ -788,7 +795,7 @@ def _to_geometries(geometry) -> list:
             # the geometry of a feature may be null (e.g. a missing geometry in GeoPandas)
             return _to_geometries(mapping.get("geometry"))
         try:
-            return [shape(mapping)]
+            return [shape(dict(mapping))]
         except (
             AttributeError,
             KeyError,
@@ -805,10 +812,11 @@ def _to_geometries(geometry) -> list:
     )
 
 
-def _to_polygons(geometry) -> list:
+def _to_polygons(geometry: t.GeometryInput) -> list["shapely.Polygon"]:
     """the non-empty polygons of the given geometries (multi-part geometries and collections are split)"""
-    shapely = _import_shapely()
-    polygons = []
+    import shapely
+
+    polygons: list[shapely.Polygon] = []
     for geom in _to_geometries(geometry):
         if geom.is_empty:
             continue
@@ -823,7 +831,7 @@ def _to_polygons(geometry) -> list:
     return polygons
 
 
-def _ring_coords(ring) -> np.ndarray:
+def _ring_coords(ring: "shapely.LinearRing") -> t.FloatArray:
     """the x and y coordinates of a ring, without the repeated closing vertex and repeated consecutive vertices
 
     :raises ValueError: when fewer than 3 distinct consecutive vertices are left
@@ -839,7 +847,9 @@ def _ring_coords(ring) -> np.ndarray:
     return coords
 
 
-def convert_shapely(boundary, obstacles) -> tuple[np.ndarray | None, list[np.ndarray]]:
+def convert_shapely(
+    boundary: t.GeometryInput, obstacles: t.GeometryInput
+) -> tuple[t.FloatArray | None, list[t.FloatArray]]:
     """converts Shapely or GeoJSON-like geometries into the coordinate input of the environment
 
     Repeated consecutive vertices (also the closing vertex of the rings) are removed,
@@ -849,9 +859,11 @@ def convert_shapely(boundary, obstacles) -> tuple[np.ndarray | None, list[np.nda
     :param obstacles: polygons, multi-polygons, collections of them or ``None``. Their exterior rings become holes,
         their interior rings are ignored with a warning (unreachable from the outside of the obstacle).
     :return: the boundary coordinates (``None`` without a boundary) and the list of hole coordinates
+    :raises ImportError: when Shapely is not installed
     """
-    boundary_coordinates = None
-    holes = []
+    _require_shapely()
+    boundary_coordinates: t.FloatArray | None = None
+    holes: list[t.FloatArray] = []
     if boundary is not None:
         boundary_polygons = _to_polygons(boundary)
         if len(boundary_polygons) != 1:

@@ -3,6 +3,7 @@ import pickle
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from functools import cached_property
+from typing import Self
 
 import numpy as np
 
@@ -102,7 +103,7 @@ class PolygonEnvironment:
     def __init__(
         self,
         boundary_coordinates: OptionalInputCoordList,
-        list_of_hole_coordinates: InputCoordList,
+        list_of_hole_coordinates: Iterable[InputCoordList],
         validate: bool = False,
     ):
         """stores the passed input polygons in the environment and computes the visibility graph
@@ -207,10 +208,10 @@ class PolygonEnvironment:
     @classmethod
     def from_shapely(
         cls,
-        boundary,
-        obstacles=None,
+        boundary: t.GeometryInput,
+        obstacles: t.GeometryInput = None,
         validate: bool = False,
-    ) -> "PolygonEnvironment":
+    ) -> Self:
         """Create an environment from `Shapely <https://shapely.readthedocs.io/>`__ or GeoJSON-like geometries
 
         Requires Shapely (``pip install "extremitypathfinder[shapely]"``).
