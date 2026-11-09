@@ -54,8 +54,7 @@ Skip this with `--dry-run`.
   A decision a maintainer made only in this chat is a reason to stay, unless it is written into the issue first:
   a fresh session gets its prompt from a peer, not from the maintainer.
 
-With a person in the chat, recommend one with a sentence why and ask with `AskUserQuestion`
-(load it with ToolSearch if needed); without a person, decide by yourself.
+Decide by yourself, also with a person in the chat, and state the decision with a sentence why.
 To hand off, keep the claims of step 4 and start the session with `create_session` (load it with ToolSearch),
 `outcome_branch` set to the claimed branch and a prompt with `/implement-next`, the bundle, the claimed branch
 and what it needs from here (findings, links, decisions with who made them and where they are recorded).
