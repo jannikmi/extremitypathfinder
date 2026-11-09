@@ -4,6 +4,7 @@ import warnings
 from collections.abc import Callable, Iterable, Mapping
 from heapq import heappop, heappush
 from itertools import count
+from math import inf
 from typing import TYPE_CHECKING
 
 import networkx as nx
@@ -704,11 +705,6 @@ def edge_weight(
         return graph[n1][n2]["weight"]
 
 
-# adapted from networkx.astar_path() (networkx 3.7), 3-clause BSD license:
-#   Copyright (c) 2004-2026, NetworkX Developers
-#   Aric Hagberg, Dan Schult, Pieter Swart
-#   All rights reserved.
-# the conditions and the disclaimer of the license: LICENSES/networkx.txt
 def astar_path(
     graph: t.Graph,
     query_edges: dict[int, dict[int, float]],
@@ -719,56 +715,52 @@ def astar_path(
     """the shortest path from source to target with A*, ``None`` if there is no path
 
     Searches the graph extended by the query edges without modifying (or copying) the graph.
-    Same algorithm as ``networkx.astar_path()``.
+
+    A node is expanded again when a shorter path to it is found after its expansion.
+    With a consistent heuristic (such as the Euclidean distance in a visibility graph with Euclidean edge weights)
+    this never happens, but the search also stays exact with a heuristic that is only admissible.
 
     :param graph: the weighted graph (edge attribute ``weight``)
     :param query_edges: additional (temporary) edges: node -> neighbour -> weight, in both directions
-    :param heuristic: an admissible estimate of the distance between two nodes
+    :param heuristic: an admissible estimate of the distance between two nodes (never larger than the true distance)
     """
-    adjacency = graph._adj  # for speed-up (cf. networkx.astar_path())
-    no_neighbours: dict = {}
-
-    def neighbours(node: int) -> Iterable[tuple[int, float]]:
-        for neighbour, attributes in adjacency.get(node, no_neighbours).items():
-            yield neighbour, attributes["weight"]
-        yield from query_edges.get(node, no_neighbours).items()
-
-    # the counter breaks ties in the priority (the nodes are never compared)
-    c = count()
-    queue = [(0.0, next(c), source, 0.0, None)]
-    # enqueued node -> (cost to reach, heuristic), explored node -> parent closest to the source
-    enqueued: dict[int, tuple[float, float]] = {}
-    explored: dict[int, int | None] = {}
+    # the dict of dicts of the networkx graph: node -> neighbour -> edge attributes
+    adjacency = graph._adj
+    empty: dict = {}
+    # the shortest distance from the source found so far and the predecessor on that path
+    distances: dict[int, float] = {source: 0.0}
+    predecessors: dict[int, int] = {}
+    # priority queue of (estimated path length, insertion number, node, distance from the source)
+    # the insertion number breaks ties in the order of insertion (nodes are never compared).
+    # a node whose distance improves is inserted again, the outdated entry is skipped when it is taken.
+    insertions = count()
+    queue = [(heuristic(source, target), next(insertions), source, 0.0)]
     while queue:
-        _, _, node, dist, parent = heappop(queue)
+        _, _, node, distance = heappop(queue)
+        if distance > distances[node]:
+            continue
         if node == target:
             path = [node]
-            node = parent
-            while node is not None:
+            while node != source:
+                node = predecessors[node]
                 path.append(node)
-                node = explored[node]
             path.reverse()
             return path
-
-        if node in explored:
-            # do not override the parent of the source
-            if explored[node] is None:
-                continue
-            # skip paths that were enqueued before a better one was found
-            if enqueued[node][0] < dist:
-                continue
-
-        explored[node] = parent
-        for neighbour, weight in neighbours(node):
-            cost = dist + weight
-            if neighbour in enqueued:
-                enqueued_cost, h = enqueued[neighbour]
-                if enqueued_cost <= cost:
+        # the neighbours in the graph, then those connected by query edges
+        for neighbours, in_graph in (
+            (adjacency.get(node, empty), True),
+            (query_edges.get(node, empty), False),
+        ):
+            for neighbour, weight in neighbours.items():
+                if in_graph:
+                    weight = weight["weight"]
+                new_distance = distance + weight
+                if new_distance >= distances.get(neighbour, inf):
                     continue
-            else:
-                h = heuristic(neighbour, target)
-            enqueued[neighbour] = cost, h
-            heappush(queue, (cost + h, next(c), neighbour, cost, node))
+                distances[neighbour] = new_distance
+                predecessors[neighbour] = node
+                estimate = new_distance + heuristic(neighbour, target)
+                heappush(queue, (estimate, next(insertions), neighbour, new_distance))
     return None
 
 

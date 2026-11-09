@@ -28,6 +28,9 @@ recreate them. Loading them raises a ``ValueError`` explaining this.
 
 other changes:
 
+- license: the package is licensed under MIT only again (#157). The A* search (``utils.astar_path()``) is an own
+  implementation instead of a port of ``networkx.astar_path()``, so the 3-clause BSD license of networkx
+  (``LICENSES/networkx.txt``) no longer applies. Same paths and lengths, same speed.
 - Shapely and GeoJSON input (#166): ``PolygonEnvironment.from_shapely(boundary, obstacles, validate=False)``
   accepts Shapely polygons, multi-polygons and collections, GeoJSON-like mappings and objects with a
   ``__geo_interface__`` (e.g. GeoPandas), and gives the same environment as the equivalent coordinate lists.

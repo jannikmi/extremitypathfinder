@@ -182,8 +182,6 @@ and the `issue tracker <https://github.com/jannikmi/extremitypathfinder/issues>`
 
 ``extremitypathfinder`` is distributed under the terms of the MIT license
 (`LICENSE <https://github.com/jannikmi/extremitypathfinder/blob/master/LICENSE>`__).
-The A* search (``utils.astar_path()``) is adapted from NetworkX and distributed under its 3-clause BSD license
-(`LICENSES/networkx.txt <https://github.com/jannikmi/extremitypathfinder/blob/master/LICENSES/networkx.txt>`__).
 
 Also see:
 `GitHub <https://github.com/jannikmi/extremitypathfinder>`__,

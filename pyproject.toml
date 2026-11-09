@@ -3,9 +3,8 @@ name = "extremitypathfinder"
 version = "3.0.0"
 description = "python package for fast shortest path computation on 2D polygon or grid maps"
 readme = "README.rst"
-# utils.astar_path() is adapted from networkx (BSD-3-Clause)
-license = "MIT AND BSD-3-Clause"
-license-files = ["LICENSE", "LICENSES/*.txt"]
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [{ name = "Jannik Kissinger", email = "github@michelfe.it" }]
 requires-python = ">=3.12,<4"
 keywords = ["path-planning", "path-finding", "shortest-path", "visibility", "graph", "polygon", "grid", "map", "robotics", "navigation", "offline"]
