@@ -34,6 +34,8 @@ other changes:
   Repeated closing and consecutive vertices are removed, interior rings of obstacles are ignored with a warning,
   features with a null geometry are skipped.
   Shapely (2.0.6 or later) is an optional extra: ``pip install "extremitypathfinder[shapely]"``.
+- documentation: the engineering design relates the algorithms to the literature (new section "Related Work"),
+  what sets the package apart (README and the alternatives page, which now also lists TřiVis)
 - documentation: when to install with or without Numba (#183): identical results, speed against memory
   (Numba is loaded in every process at import) and the compilation at the first import.
 - citation metadata (#169): ``CITATION.cff`` (GitHub shows "Cite this repository"), how to cite is explained
@@ -78,7 +80,9 @@ other changes:
 - documentation: engineering design document (goals, architecture, data model, pipelines, algorithms and design decisions).
   The implementation details moved there from the about page.
 - documentation: corrected the worst-case time of the visibility computation (AREA) to ``O(n m²)``
-  for ``n`` vertices and ``m`` extremities (previously stated as ``O(n² log n)``), with its relation to known techniques.
+  for ``n`` vertices and ``m`` extremities (previously stated as ``O(n² log n)``), with its relation to known techniques
+  and the worst case of pyvisgraph's implementation of Lee's algorithm (``O(n³)``: a sorted list instead of a tree,
+  and a test against all edges of the polygon per visible vertex).
 - documentation: contacts and points on edges do not survive transforms that round the coordinates
   (reprojecting, rotating, shifting by decimals): snap the coordinates after transforming (#3).
 

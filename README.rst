@@ -38,6 +38,10 @@ extremitypathfinder
 Python package for fast geometric shortest path computation in 2D multi-polygon or grid environments
 based on visibility graphs.
 
+Exact Euclidean shortest paths with ``pip install``, on the polygons you already have:
+touching and overlapping polygons and grids are used as they are, with well-defined and tested behaviour
+at contacts and other edge cases (`what sets it apart <https://extremitypathfinder.readthedocs.io/en/latest/9_alternatives.html>`__).
+
 .. image:: https://raw.githubusercontent.com/jannikmi/extremitypathfinder/master/docs/_static/demo.svg
     :alt: shortest path through a polygon environment
 
@@ -55,6 +59,8 @@ Features
   The polygons are used directly: no triangulation or navigation mesh is needed.
 - **Grids**: convert a grid with blocked cells into a polygon environment.
 - **Shapely and GeoJSON input** (optional): pass Shapely geometries, GeoJSON or GeoPandas geometries directly.
+- **Well-defined edge cases**: touching obstacles, points on edges and collinear vertices follow one set of rules.
+  The floating point decisions are audited against exact arithmetic, the results are identical with and without Numba.
 - **Few dependencies**: NumPy and NetworkX. Optional `Numba <https://numba.pydata.org/>`__ acceleration.
 - **Extras**: input validation, plotting (Matplotlib), caching environments with pickle,
   and a command line interface.
