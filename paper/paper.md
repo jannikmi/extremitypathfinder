@@ -124,12 +124,12 @@ changed nor copied.
 
 <!--
 Stability (decided in #196): submit a few months after the next release, and name that release here.
-Replace the TODOs, and only keep "its API is unchanged since then" if it holds at submission.
+Replace the TODOs at submission.
 -->
 The package has been developed iteratively since 2018: 21 releases up to 2024 (versions 0.0.1 to 2.7.2),
 with code from four further contributors. Versions 2.8 to TODO (2026) modernised it: touching obstacles now
 block paths, queries are faster, memory use is lower, and benchmarks are reproducible.
-This paper describes version TODO (released TODO); its API is unchanged since then.
+This paper describes version TODO (released TODO).
 The package has been used in published research since 2020.
 The following works use it, as shown by their text or by the planner in their official code:
 
