@@ -24,7 +24,7 @@ Earlier decisions are described in the {ref}`Design Decisions <design_decisions>
 ## Agent clearance is a documented Shapely recipe, not a parameter (#167)
 
 - **Decided by:** a maintainer
-- **Rejected:** a built-in `clearance` parameter (no demand yet, its own issue waits for it);
+- **Rejected:** a built-in `clearance` parameter (no demand yet, #229 waits for it);
   own polygon offsetting without Shapely (high effort, new floating point code);
   leaving it undocumented (several projects inflate the obstacles by hand, some with round joins).
 - **Details:** {ref}`Agent clearance <clearance>` (the recommended mitred joins)

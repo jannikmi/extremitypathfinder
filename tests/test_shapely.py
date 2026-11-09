@@ -289,13 +289,13 @@ CLEARANCE = 0.5
 CLEARANCE_QUERY = ((1.0, 3.0), (11.0, 4.0))
 
 
-def _clearance_environment(join_style):
+def _clearance_environment(join_style, **kwargs):
     boundary = shapely.Polygon(CLEARANCE_BOUNDARY).buffer(
-        -CLEARANCE, join_style=join_style
+        -CLEARANCE, join_style=join_style, **kwargs
     )
     obstacles = shapely.union_all(
         [
-            shapely.Polygon(hole).buffer(CLEARANCE, join_style=join_style)
+            shapely.Polygon(hole).buffer(CLEARANCE, join_style=join_style, **kwargs)
             for hole in CLEARANCE_HOLES
         ]
     )
@@ -325,16 +325,32 @@ def test_clearance_recipe(join_style, min_distance):
     environment = _clearance_environment(join_style)
     path, length = environment.find_shortest_path(*CLEARANCE_QUERY)
     distance = _distance_to_obstacles(path)
-    assert distance == pytest.approx(min_distance, abs=1e-3)
-    assert distance <= CLEARANCE + 1e-12
     if join_style == "mitre":
         # the documented example: the passage closes, the path goes around the obstacle
-        assert length == pytest.approx(11.908326913195985)
         assert distance == pytest.approx(CLEARANCE, abs=1e-12)
+        assert length == pytest.approx(11.908326913195985)
         assert len(environment.extremity_indices) == 6
+    else:
+        assert distance == pytest.approx(min_distance, abs=1e-3)
+        assert distance < CLEARANCE
     if join_style == "round":
         # many extremities: one per arc vertex
         assert len(environment.extremity_indices) > 100
+
+
+@pytest.mark.parametrize(
+    "mitre_limit, keeps_clearance",
+    [(1.0, True), (1.1, True), (0.8, False), (0.5, False)],
+)
+def test_clearance_recipe_mitre_limit(mitre_limit, keeps_clearance):
+    """a mitre limit of at least 1 keeps the clearance"""
+    environment = _clearance_environment("mitre", mitre_limit=mitre_limit)
+    path, _ = environment.find_shortest_path(*CLEARANCE_QUERY)
+    distance = _distance_to_obstacles(path)
+    if keeps_clearance:
+        assert distance == pytest.approx(CLEARANCE, abs=1e-12)
+    else:
+        assert distance < CLEARANCE - 1e-3
 
 
 def test_clearance_path_without_clearance_is_shorter():

@@ -204,6 +204,8 @@ An agent with an extent (a robot, a vehicle, a ship, a game character) has to ke
 Plan in the configuration space: shrink the boundary and inflate the obstacles by the clearance (e.g. the agent radius)
 with Shapely, then find the shortest path for a point, which keeps the clearance to the original obstacles:
 
+.. the example is tested in tests/test_shapely.py and drawn by scripts/docs_figures.py
+
 .. code-block:: python
 
     from shapely import Polygon, union_all
@@ -238,10 +240,11 @@ The join style decides how the corners are inflated:
 
 - **mitre** (recommended): the edges are moved outwards and the corners stay sharp.
   An inflated corner is one vertex, so the environment keeps its size.
-  The clearance is kept exactly, also with a ``mitre_limit`` (which cuts very sharp corners at a distance of
-  ``mitre_limit`` times the clearance, adding one vertex).
+  The clearance is kept exactly, also with a ``mitre_limit`` of at least 1 (which cuts very sharp corners
+  at a distance of ``mitre_limit`` times the clearance, adding one vertex).
   The corners are inflated more than necessary: paths around them are slightly longer than the shortest paths
-  with clearance, and passages narrower than about twice the clearance may close.
+  with clearance, and passages slightly wider than twice the clearance may close at corners
+  (narrower passages close with every join style: the agent does not fit through them).
 - **round** (Shapely's default): close to the exact configuration space, so the paths are nearly the shortest ones.
   But every arc is approximated with many vertices, and all of them become extremities:
   the visibility graph and the preparation time grow considerably (in the example above 113 instead of 6 extremities).
@@ -257,7 +260,7 @@ Further points:
   Overlapping and touching polygons are accepted as input and block paths, so merging is optional.
 - The shrunk boundary may split into several parts (a ``MultiPolygon``), but ``from_shapely()`` accepts only one
   boundary polygon. Paths cannot leave a part, so use the part containing the start,
-  e.g. ``next(part for part in boundary.geoms if part.contains(shapely.Point(start)))``.
+  e.g. ``next(part for part in boundary.geoms if part.covers(Point(start)))`` (``from shapely import Point``).
 - Start and goal must lie outside the inflated obstacles and inside the shrunk boundary:
   otherwise the agent does not fit there, and the search raises a ``ValueError``.
   Check them with ``environment.within_map()``.
