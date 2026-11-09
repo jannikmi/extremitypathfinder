@@ -124,13 +124,12 @@ changed nor copied.
 
 <!--
 Stability (decided in #196): submit a few months after the next release, and name that release here.
-Replace both TODOs, and only keep "its API has not changed since" if it holds at submission.
+Replace the TODOs, and only keep "its API is unchanged since then" if it holds at submission.
 -->
 The package has been developed iteratively since 2018: 21 releases up to 2024 (versions 0.0.1 to 2.7.2),
-with code from four further contributors. Version 3.0 (October 2026) modernised it: a one-step setup,
-touching obstacles that block paths, lower memory use and reproducible benchmarks.
-This paper describes version TODO (released TODO), the release after this modernisation;
-its API has not changed since.
+with code from four further contributors. Versions 2.8 to TODO (2026) modernised it: touching obstacles now
+block paths, queries are faster, memory use is lower, and benchmarks are reproducible.
+This paper describes version TODO (released TODO); its API is unchanged since then.
 The package has been used in published research since 2020.
 The following works use it, as shown by their text or by the planner in their official code:
 
@@ -162,18 +161,18 @@ The maintainer confirms every statement of this section before submission, in pa
 no AI tools before 2026, which parts the agent wrote, and the commit counts (update them on the submission date).
 -->
 The core approach and its original implementation (2018 to 2024) were written by the author without AI tools:
-the extremity graph, AREA, the wedges and the precomputation.
+the extremity graph, its edge reduction, AREA and the precomputation.
 Since September 2026, the author has used Claude Code (Anthropic), an AI coding agent, for a substantial part of the
 modernisation: about 130 of roughly 205 commits from September to November 2026 are co-authored by it, marked with
 `Co-Authored-By` trailers, and the corresponding pull requests carry an AI disclosure. The agent wrote most of the
-new code of versions 2.8 and 3.0 (input validation and normalisation, memory reduction, plotting), tests and
-documentation, built the benchmark, surveyed the known uses of the package and drafted this paper,
-which the author edited. The approach of the algorithms is unchanged.
+new code of versions 2.8 to TODO, such as the wedges for touching obstacles, the input validation, the memory
+reduction and the plotting, as well as tests and documentation. It built the benchmark, surveyed the known uses
+of the package and drafted this paper, which the author edited. The core approach is unchanged.
 Trade-offs were decided by the author; smaller decisions taken by the agent are marked as such in the decision log
-of the repository. The instructions for coding agents in the repository are contributor tooling,
-not part of the package. Every change was reviewed by the author, the test suite runs with and without Numba in
+of the repository. Every change was reviewed by the author, the test suite runs with and without Numba in
 continuous integration, every bug fix comes with a regression test, and the paths of the benchmark are validated
-independently with Shapely.
+independently with Shapely. The instructions for coding agents in the repository are contributor tooling,
+not part of the package.
 
 # Acknowledgements
 
