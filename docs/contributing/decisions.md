@@ -1,6 +1,6 @@
 # Decision log
 
-Decided trade-offs, newest first, including the rejected options
+Decided trade-offs of the package, its benchmarks and releases, newest first, including the rejected options
 (cf. [Trade-offs and decisions](workflow.md#trade-offs-and-decisions)). Entry format:
 
 ```markdown
@@ -18,58 +18,29 @@ Keep the entries correct when the referenced content moves or changes.
 A maintainer confirms an agent decision by changing **Decided by**.
 Amend the entry of a revised decision instead of adding a new one:
 the log states the current decisions (git keeps the history).
+Decisions about how we work on the project are in the [process decision log](decisions-process.md).
 Earlier decisions are described in the {ref}`Design Decisions <design_decisions>` and the issues linked there.
 
-## AREA stays the visibility algorithm, others are added next to it (#224)
+## AREA stays the visibility algorithm, other algorithms are only added next to it (#216, #224)
 
 - **Decided by:** a maintainer
-- **Rejected:** a rotational sweep (#216), triangular expansion, Polyanya or continuous Dijkstra instead.
-- **Details:** {ref}`Design Decisions <design_decisions>`
-
-## The next issue is implemented by a guide page and the `/implement-next` skill, claimed by a comment (#195)
-
-- **Decided by:** a maintainer (bundling related issues, claims for concurrent work); an agent (comment claims
-  where the oldest active one wins, a new branch per run as the claim id, the stale-claim limit)
-- **Rejected:** one concern per pull request (more pull requests, reviews and conflicts for related changes);
-  claiming by assignment (agents share the maintainer's account); by a label or an issue edit (the last writer wins;
-  a label goes stale when a session dies); by pushing a lock branch (invisible in the issue, needs cleanup);
-  a `ready` label (needs triage; readiness follows from the issue and its links).
-- **Details:** [Implement the next issue](implement-next.md)
+- **Rejected:** an angular sweep for the worst case of AREA (slower on the measured maps, no fitting package,
+  none works with Numba); a sweep only above a threshold of checks per candidate (a second code path without
+  a reported need); replacing AREA by triangular expansion, a navigation mesh (Polyanya) or continuous Dijkstra
+  (a triangulation of merged polygons and new contact semantics, mostly for constant factors).
+- **Details:** {ref}`Design Decisions <design_decisions>` ("AREA instead of a different algorithm"),
+  [#216](https://github.com/jannikmi/extremitypathfinder/issues/216), the findings in
+  `prototypes/sweep_tree_overhead.py`, which reproduces the measurements
 
 ## A release requires up-to-date benchmark results, checked when it is prepared, on its pull request and when it is tagged (#191)
 
 - **Decided by:** a maintainer (the rule and closing the gap of manual version changes); an agent (how it is checked)
 - **Rejected:** running the benchmarks in CI (cf. #165 below; shared runners also give noisy timings
-  on changing hardware); checking every pull request (code still changes until the release);
-  only checking when the release is prepared (misses manual version changes and later merges);
+  on changing hardware); checking every pull request (code may change without a rerun of hours until the release);
+  only checking when the release is prepared (misses manual version changes and later merges into `master`);
   comparing `pyproject.toml` and `uv.lock` as files (they change with every release, the measured dependency
   versions are compared instead).
 - **Details:** [Releasing](releasing.md#benchmark-results)
-
-## Contributing pages have a configurable word limit and are reachable from `CONTRIBUTING.md`
-
-- **Decided by:** a maintainer (the limit, justified exceptions, amending, condensing before splitting,
-  reachability); an agent (counting like `wc -w`, `CONTRIBUTING.md` as the only entry point,
-  the configuration in `pyproject.toml`)
-- **Rejected:** counting lines or characters (depend on line wrapping and language); excluding code blocks
-  (they cost reading time and agent context too); requiring only one reference from any file
-  (pages linking to each other, the toctree or a skill would pass without being findable from the guide).
-- **Details:** [Size and structure of this guide](documentation.md#size-and-structure-of-this-guide)
-
-## Blocked issues are unblocked and re-ranked by a guide page and the `/unblock` skill, which performs the audits and amends the issues and files (#188, #194)
-
-- **Decided by:** a maintainer
-- **Rejected:** leaving it as it is (open decisions stay spread out);
-  the procedure only in the Claude Code skill (other tools and humans would not find it);
-  a `decision needed` label (needs triage, finds no missing information);
-  asking in batches or up to a limit (the maintainer decides when to stop);
-  blocking decisions before all others (they inherit the priority of the work they block instead);
-  approving each change separately (slow, showing them suffices);
-  changes without showing them;
-  a comment per decision (scope hidden in the thread, reaches the repository only with the
-  implementation); rescoping into a later audit (defers the needed information);
-  asking before longer audits (stalls the run, a heads-up suffices).
-- **Details:** [Unblock and re-rank](unblock-and-rerank.md)
 
 ## The 2×2 system in `_lies_behind_inner()` is solved in closed form, SciPy is dropped from the numba extra (#185)
 
@@ -101,10 +72,3 @@ Earlier decisions are described in the {ref}`Design Decisions <design_decisions>
   committing only the tables and figures (the numbers cannot be checked or rendered again without a rerun
   of hours on that machine); a release asset (separated from the commit that produced the docs).
 - **Details:** [Running the benchmarks](performance.md#running-the-benchmarks)
-
-## Trade-offs are decided before larger changes and recorded in a short log (#179)
-
-- **Decided by:** a maintainer (the rule); an agent (the form of the log)
-- **Rejected:** no explicit rule (decisions, in particular by agents, stay invisible to reviewers);
-  only the existing pages (no place for development decisions, "who decided" not recorded,
-  past decisions spread out); full records in the log (duplicate the design page).
