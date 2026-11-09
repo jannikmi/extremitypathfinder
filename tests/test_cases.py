@@ -1,6 +1,10 @@
 # size_x, size_y, obstacle_iter
 from math import sqrt
 
+import pytest
+
+from extremitypathfinder import utils
+
 GRID_ENV_PARAMS = (
     19,
     10,
@@ -353,3 +357,12 @@ TEST_DATA_SEPARATE_ENV = [
 
 # ((start,goal),(path,distance))
 POLYGON_ENVS = [SEPARATED_ENV, OVERLAP_POLY_ENV_PARAMS, POLY_ENV_PARAMS]
+
+GRID_POLYGONS = utils.convert_grid(*GRID_ENV_PARAMS)
+# (boundary, holes) and their test cases
+ENVS_N_TEST_DATA = [
+    pytest.param(POLY_ENV_PARAMS, TEST_DATA_POLY_ENV, id="poly"),
+    pytest.param(OVERLAP_POLY_ENV_PARAMS, TEST_DATA_OVERLAP_POLY_ENV, id="overlap"),
+    pytest.param(SEPARATED_ENV, TEST_DATA_SEPARATE_ENV, id="separated"),
+    pytest.param(GRID_POLYGONS, TEST_DATA_GRID_ENV, id="grid"),
+]

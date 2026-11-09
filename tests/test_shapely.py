@@ -9,31 +9,23 @@ import sys
 import numpy as np
 import pytest
 
-from extremitypathfinder import PolygonEnvironment, utils
+from extremitypathfinder import PolygonEnvironment
 from tests.main_test import try_test_cases
-from tests.test_cases import (
-    GRID_ENV_PARAMS,
-    OVERLAP_POLY_ENV_PARAMS,
-    POLY_ENV_PARAMS,
-    SEPARATED_ENV,
-    TEST_DATA_GRID_ENV,
-    TEST_DATA_OVERLAP_POLY_ENV,
-    TEST_DATA_POLY_ENV,
-    TEST_DATA_SEPARATE_ENV,
+from tests.test_cases import ENVS_N_TEST_DATA
+from tests.test_contacts import (
+    BOUNDARY,
+    OVERLAPPING_EDGES_HOLES,
+    SELF_TOUCHING_HOLE,
+    SHARED_VERTEX_HOLES,
+    TOUCHING_TIPS_HOLES,
+    VERTEX_ON_EDGE_HOLES,
 )
+from tests.test_geometry_regressions import INVALID_POLYGON_ENVS
 
 shapely = pytest.importorskip("shapely")
 from shapely.geometry import mapping
 
-ENVS_N_TEST_DATA = [
-    pytest.param(POLY_ENV_PARAMS, TEST_DATA_POLY_ENV, id="poly"),
-    pytest.param(OVERLAP_POLY_ENV_PARAMS, TEST_DATA_OVERLAP_POLY_ENV, id="overlap"),
-    pytest.param(SEPARATED_ENV, TEST_DATA_SEPARATE_ENV, id="separated"),
-    pytest.param(utils.convert_grid(*GRID_ENV_PARAMS), TEST_DATA_GRID_ENV, id="grid"),
-]
-SQUARE = [(0.0, 0.0), (10.0, 0.0), (10.0, 10.0), (0.0, 10.0)]
-OBSTACLE = [(2.0, 2.0), (4.0, 2.0), (4.0, 4.0), (2.0, 4.0)]
-OBSTACLE2 = [(6.0, 6.0), (8.0, 6.0), (8.0, 8.0), (6.0, 8.0)]
+OBSTACLE, OBSTACLE2 = SHARED_VERTEX_HOLES
 
 
 def _assert_same_environment(env, expected):
@@ -97,9 +89,9 @@ def _geometry_inputs():
 @pytest.mark.parametrize("obstacles", _geometry_inputs())
 @pytest.mark.parametrize("bounded", [True, False], ids=["bounded", "unbounded"])
 def test_geometry_types(obstacles, bounded):
-    boundary = SQUARE if bounded else None
+    boundary = BOUNDARY if bounded else None
     expected = PolygonEnvironment(boundary, [OBSTACLE, OBSTACLE2])
-    shapely_boundary = shapely.Polygon(SQUARE) if bounded else None
+    shapely_boundary = shapely.Polygon(BOUNDARY) if bounded else None
     env = PolygonEnvironment.from_shapely(shapely_boundary, obstacles, validate=True)
     _assert_same_environment(env, expected)
 
@@ -113,25 +105,25 @@ def test_geometry_types(obstacles, bounded):
     ],
 )
 def test_boundary_types(boundary):
-    polygon = shapely.Polygon(SQUARE, [OBSTACLE])
+    polygon = shapely.Polygon(BOUNDARY, [OBSTACLE])
     env = PolygonEnvironment.from_shapely(
         boundary(polygon), [shapely.Polygon(OBSTACLE2)]
     )
-    _assert_same_environment(env, PolygonEnvironment(SQUARE, [OBSTACLE, OBSTACLE2]))
+    _assert_same_environment(env, PolygonEnvironment(BOUNDARY, [OBSTACLE, OBSTACLE2]))
 
 
 def test_repeated_vertices_removed():
     """Shapely accepts repeated consecutive vertices, the coordinate input does not"""
-    boundary = shapely.Polygon(SQUARE[:2] + [SQUARE[1]] + SQUARE[2:])
+    boundary = shapely.Polygon(BOUNDARY[:2] + [BOUNDARY[1]] + BOUNDARY[2:])
     obstacle = shapely.Polygon(OBSTACLE + [OBSTACLE[-1]])
     env = PolygonEnvironment.from_shapely(boundary, obstacle, validate=True)
-    _assert_same_environment(env, PolygonEnvironment(SQUARE, [OBSTACLE]))
+    _assert_same_environment(env, PolygonEnvironment(BOUNDARY, [OBSTACLE]))
 
 
 def test_z_coordinate_ignored():
-    boundary = shapely.Polygon([(x, y, 5.0) for x, y in SQUARE])
+    boundary = shapely.Polygon([(x, y, 5.0) for x, y in BOUNDARY])
     env = PolygonEnvironment.from_shapely(boundary, shapely.Polygon(OBSTACLE))
-    _assert_same_environment(env, PolygonEnvironment(SQUARE, [OBSTACLE]))
+    _assert_same_environment(env, PolygonEnvironment(BOUNDARY, [OBSTACLE]))
 
 
 def test_obstacle_interiors_ignored_with_warning():
@@ -139,13 +131,13 @@ def test_obstacle_interiors_ignored_with_warning():
     island = [(4.0, 4.0), (6.0, 4.0), (6.0, 6.0), (4.0, 6.0)]
     with pytest.warns(UserWarning, match="ignored 1 interior ring"):
         env = PolygonEnvironment.from_shapely(
-            shapely.Polygon(SQUARE), shapely.Polygon(lake, [island])
+            shapely.Polygon(BOUNDARY), shapely.Polygon(lake, [island])
         )
-    _assert_same_environment(env, PolygonEnvironment(SQUARE, [lake]))
+    _assert_same_environment(env, PolygonEnvironment(BOUNDARY, [lake]))
 
 
 def test_no_warning_without_obstacle_interiors(recwarn):
-    PolygonEnvironment.from_shapely(shapely.Polygon(SQUARE, [OBSTACLE]))
+    PolygonEnvironment.from_shapely(shapely.Polygon(BOUNDARY, [OBSTACLE]))
     assert not [w for w in recwarn if issubclass(w.category, UserWarning)]
 
 
@@ -153,7 +145,9 @@ def test_no_warning_without_obstacle_interiors(recwarn):
     "boundary, obstacles",
     [
         pytest.param(shapely.Point(0, 0), None, id="point-boundary"),
-        pytest.param(shapely.Polygon(SQUARE), shapely.LineString(OBSTACLE), id="line"),
+        pytest.param(
+            shapely.Polygon(BOUNDARY), shapely.LineString(OBSTACLE), id="line"
+        ),
         pytest.param(None, [shapely.Polygon(OBSTACLE), 5], id="number"),
         pytest.param(None, "POLYGON ((0 0, 1 0, 1 1, 0 0))", id="string"),
     ],
@@ -185,42 +179,43 @@ def test_unbounded_without_obstacles():
         PolygonEnvironment.from_shapely(None, [])
 
 
-INVALID_INPUTS = [
-    pytest.param(
-        [(0.0, 0.0), (4.0, 4.0), (4.0, 0.0), (0.0, 4.0)], ValueError, id="bowtie"
-    ),
-    pytest.param([(0.0, 0.0), (2.0, 0.0), (4.0, 0.0)], ValueError, id="zero-area"),
-    pytest.param(
-        [(0.0, 0.0), (2.0, 0.0), (2.0, 2.0), (1.0, 0.0), (0.0, 2.0)],
-        None,
-        id="self-touching-vertex-on-edge",
-    ),
-]
+def _to_shapely(boundary, holes):
+    return shapely.Polygon(boundary), [shapely.Polygon(hole) for hole in holes]
 
 
-@pytest.mark.parametrize("hole, error", INVALID_INPUTS)
-def test_same_validation_as_coordinates(hole, error):
-    """``validate=True`` accepts and rejects exactly the inputs of the coordinate input"""
-    boundary = [(-10.0, -10.0), (10.0, -10.0), (10.0, 10.0), (-10.0, 10.0)]
+@pytest.mark.parametrize(
+    "holes",
+    [
+        pytest.param(SHARED_VERTEX_HOLES, id="shared-vertex"),
+        pytest.param([SELF_TOUCHING_HOLE], id="self-touching"),
+        pytest.param(VERTEX_ON_EDGE_HOLES, id="vertex-on-edge"),
+        pytest.param(OVERLAPPING_EDGES_HOLES, id="overlapping-edges"),
+        pytest.param(TOUCHING_TIPS_HOLES, id="touching-tips"),
+    ],
+)
+def test_contacts_accepted(holes):
+    """touching polygons are valid input here (Shapely rejects a self-touching polygon)"""
+    env = PolygonEnvironment.from_shapely(*_to_shapely(BOUNDARY, holes), validate=True)
+    _assert_same_environment(env, PolygonEnvironment(BOUNDARY, holes, validate=True))
 
-    def outcome(construct):
-        try:
-            construct()
-        except (TypeError, ValueError) as e:
-            return type(e)
-        return None
 
-    expected = outcome(lambda: PolygonEnvironment(boundary, [hole], validate=True))
-    assert expected is error
-    for construct in (
-        lambda: PolygonEnvironment.from_shapely(
-            shapely.Polygon(boundary), shapely.Polygon(hole), validate=True
-        ),
-        lambda: PolygonEnvironment.from_shapely(
-            shapely.Polygon(boundary, [hole]), validate=True
-        ),
-    ):
-        assert outcome(construct) is expected
+# Shapely warns about NaN coordinates
+@pytest.mark.filterwarnings("ignore:invalid value encountered:RuntimeWarning")
+@pytest.mark.parametrize(
+    ("boundary", "holes", "error", "message"), INVALID_POLYGON_ENVS
+)
+def test_same_validation_as_coordinates(boundary, holes, error, message):
+    """``validate=True`` rejects the invalid coordinate input with the same error"""
+    try:
+        shapely_boundary, obstacles = _to_shapely(boundary, holes)
+    except (TypeError, ValueError):
+        pytest.skip("not representable as a Shapely polygon")
+    if "must not be identical" in message:
+        # Shapely accepts repeated consecutive vertices: from_shapely() removes them
+        PolygonEnvironment.from_shapely(shapely_boundary, obstacles, validate=True)
+        return
+    with pytest.raises(error, match=message):
+        PolygonEnvironment.from_shapely(shapely_boundary, obstacles, validate=True)
 
 
 def test_missing_shapely(monkeypatch):
@@ -250,15 +245,15 @@ def test_missing_shapely(monkeypatch):
 def test_null_geometry_skipped(obstacles):
     """GeoJSON features may have a null geometry (e.g. missing values in GeoPandas)"""
     env = PolygonEnvironment.from_shapely(
-        shapely.Polygon(SQUARE), [obstacles, shapely.Polygon(OBSTACLE)]
+        shapely.Polygon(BOUNDARY), [obstacles, shapely.Polygon(OBSTACLE)]
     )
     expected_holes = [OBSTACLE] * (2 if "features" in obstacles else 1)
-    _assert_same_environment(env, PolygonEnvironment(SQUARE, expected_holes))
+    _assert_same_environment(env, PolygonEnvironment(BOUNDARY, expected_holes))
 
 
 def test_not_geojson_mapping():
     with pytest.raises(TypeError, match="not a GeoJSON geometry"):
-        PolygonEnvironment.from_shapely(shapely.Polygon(SQUARE), {"a": 1})
+        PolygonEnvironment.from_shapely(shapely.Polygon(BOUNDARY), {"a": 1})
 
 
 @pytest.mark.parametrize(
@@ -273,12 +268,12 @@ def test_collapsed_ring(obstacle, validate):
     """rings with fewer than 3 distinct vertices after removing repeated vertices"""
     with pytest.raises(ValueError, match="fewer than 3 distinct vertices"):
         PolygonEnvironment.from_shapely(
-            shapely.Polygon(SQUARE), shapely.Polygon(obstacle), validate=validate
+            shapely.Polygon(BOUNDARY), shapely.Polygon(obstacle), validate=validate
         )
 
 
 def test_repeated_vertex_before_closing():
     """a repeated first vertex before the closing vertex keeps the vertex order"""
     obstacle = shapely.Polygon(OBSTACLE + [OBSTACLE[0]])
-    env = PolygonEnvironment.from_shapely(shapely.Polygon(SQUARE), obstacle)
-    _assert_same_environment(env, PolygonEnvironment(SQUARE, [OBSTACLE]))
+    env = PolygonEnvironment.from_shapely(shapely.Polygon(BOUNDARY), obstacle)
+    _assert_same_environment(env, PolygonEnvironment(BOUNDARY, [OBSTACLE]))
