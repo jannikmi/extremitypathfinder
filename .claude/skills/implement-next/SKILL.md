@@ -39,6 +39,15 @@ and the bundle with one sentence per issue on why it belongs in it.
   Post the release on every issue dropped. Comments end with the attribution footer of the session.
 - Do not change labels or assignees for a claim.
 
+## Fresh session (after step 4)
+
+If this session holds earlier work, decide by yourself (not with `--dry-run`) whether a fresh session suits the bundle
+better: yes if most of the context is unrelated (in a loop, from the second run on), no if it is about the bundle or
+holds a maintainer decision not yet written into the issue. To hand off, keep the claims, start `create_session`
+with `outcome_branch` set to the claimed branch and a prompt with `/implement-next`, the bundle, the branch and the
+findings and decisions it needs, and end this run. The fresh session checks its claims and continues with step 5.
+Without `create_session`, continue here.
+
 ## Plan and decide (step 5)
 
 A maintainer is identified as in the unblock skill. If one is in the chat, ask with `AskUserQuestion`
