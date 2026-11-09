@@ -520,8 +520,10 @@ With ``validate=True`` every polygon is checked (``_check_polygon()``):
   overlapping in x, a vectorised comparison those overlapping in y (in chunks, to bound the memory).
   For these pairs the 2x2 linear system is solved with Cramer's rule and compared without division
   (``_crossing_parameters()``, exact for integer coordinates), intersections strictly inside both edges are rejected.
-  :math:`O(n \log n + k)` vectorised operations for :math:`k` pairs of overlapping bounding boxes,
-  :math:`O(n^2)` in the worst case (e.g. many long edges spanning the polygon)
+  :math:`O(n \log n + k)` vectorised operations for :math:`k` pairs of edges overlapping in x,
+  :math:`O(n^2)` in the worst case (e.g. a zigzag of edges all overlapping in x). Coordinate differences
+  beyond about :math:`10^{154}` overflow in the cross products and go undetected (the package does not work at
+  such magnitudes anyway, e.g. the area check overflows too)
 - **non-zero area**: shoelace formula on coordinates translated to the first vertex (avoids cancellation)
 - **crossings at self contacts** (``check_polygon_contacts()``): at every position where the polygon touches itself,
   two rays with the same direction mean overlapping edges (zero-width spikes or slits), and two corners

@@ -1,12 +1,15 @@
 """Regression coverage for documented polygon geometry edge cases."""
 
 import itertools
+import re
 from math import hypot, sqrt
 
 import networkx as nx
+import numpy as np
 import pytest
 
-from extremitypathfinder import PolygonEnvironment
+from extremitypathfinder import PolygonEnvironment, utils
+from tests import exact
 from tests.test_cases import POLYGON_ENVS
 
 BOUNDARY = [(0.0, 0.0), (10.0, 0.0), (10.0, 10.0), (0.0, 10.0)]
@@ -484,3 +487,39 @@ def test_verify_is_keyword_only(method):
     with pytest.raises(TypeError):
         getattr(environment, method)((1.0, 5.0), (9.0, 5.0), False)
     getattr(environment, method)((1.0, 5.0), (9.0, 5.0), verify=False)
+
+
+# only the edges 0 and 2 cross. Reversed, they become the edges 4 and 2:
+# a wrong mapping of the vertex indices names edges which do not cross
+CROSSING_HEXAGON = [
+    (0.0, 0.0),
+    (2.0, 2.0),
+    (0.0, 2.0),
+    (2.0, 0.0),
+    (1.5, -1.0),
+    (0.5, -1.0),
+]
+
+
+@pytest.mark.parametrize("coords", [CROSSING_HEXAGON, CROSSING_HEXAGON[::-1]])
+@pytest.mark.parametrize("as_hole", [False, True])
+def test_validation_errors_give_the_edges_of_the_input(coords, as_hole):
+    """the reported vertex indices are those of the input, also for polygons stored reversed"""
+    boundary, holes = (None, [coords]) if as_hole else (coords, [])
+    with pytest.raises(ValueError, match="self intersections") as error:
+        PolygonEnvironment(boundary, holes, validate=True)
+    edges = re.findall(r"from vertex (\d+) to (\d+)", str(error.value))
+    (i1, j1), (i2, j2) = ((int(i), int(j)) for i, j in edges)
+    n = len(coords)
+    assert (j1, j2) == ((i1 + 1) % n, (i2 + 1) % n)
+    assert exact.crossing(coords[i1], coords[j1], coords[i2], coords[j2])
+
+
+def test_crossing_hexagon_is_stored_reversed_in_one_numbering():
+    """``test_validation_errors_give_the_edges_of_the_input`` covers the index mapping of reversed polygons"""
+    for clockwise in (False, True):
+        reversed_numberings = [
+            utils.orient_polygon(array, clockwise) is not array
+            for array in (np.array(CROSSING_HEXAGON), np.array(CROSSING_HEXAGON[::-1]))
+        ]
+        assert sorted(reversed_numberings) == [False, True]
