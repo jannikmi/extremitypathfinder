@@ -13,6 +13,8 @@ Decided trade-offs of the package, its benchmarks and releases, newest first, in
 
 Record only decisions that outlive their pull request and whose rejected options are likely to be proposed again,
 in the final state of the pull request. Leave out details fully explained on the page they affect.
+Leave out decisions whose outcome is documented elsewhere and that are not important enough to be remembered,
+e.g. the scope of a feature (a documentation recipe now, a parameter later on demand): the issue records them.
 
 Keep the entries correct when the referenced content moves or changes.
 A maintainer confirms an agent decision by changing **Decided by**.
@@ -24,49 +26,20 @@ Earlier decisions are described in the {ref}`Design Decisions <design_decisions>
 ## AREA stays the visibility algorithm, others are added next to it (#224)
 
 - **Decided by:** a maintainer
-- **Rejected:** a rotational sweep (#216), triangular expansion, Polyanya or continuous Dijkstra instead.
-- **Details:** {ref}`Design Decisions <design_decisions>`
-
-## No angular sweep for the worst case of AREA (#216)
-
-- **Decided by:** a maintainer
-- **Rejected:** an angular sweep (slower on the measured maps, no fitting package, none works with Numba);
-  a sweep only above a threshold of checks per candidate (a second code path without a reported need).
-- **Details:** [#216](https://github.com/jannikmi/extremitypathfinder/issues/216), the findings in
-  `prototypes/sweep_tree_overhead.py`, which reproduces the measurements
+- **Rejected:** triangular expansion, Polyanya or continuous Dijkstra instead; an angular sweep, also only for
+  the worst case of AREA (#216: slower on the measured maps, no fitting package, none works with Numba).
+- **Details:** {ref}`Design Decisions <design_decisions>`, `prototypes/sweep_tree_overhead.py` (#216)
 
 ## A release requires up-to-date benchmark results, checked when it is prepared, on its pull request and when it is tagged (#191)
 
 - **Decided by:** a maintainer (the rule and closing the gap of manual version changes); an agent (how it is checked)
-- **Rejected:** running the benchmarks in CI (cf. #165 below; shared runners also give noisy timings
-  on changing hardware); checking every pull request (code still changes until the release);
+- **Rejected:** running the benchmarks in CI (CI must not fail because of external packages, cf.
+  [Testing](testing.md#ci-and-external-packages); shared runners give noisy timings on changing hardware);
+  checking every pull request (code still changes until the release);
   only checking when the release is prepared (misses manual version changes and later merges);
   comparing `pyproject.toml` and `uv.lock` as files (they change with every release, the measured dependency
   versions are compared instead).
 - **Details:** [Releasing](releasing.md#benchmark-results)
-
-## The 2×2 system in `_lies_behind_inner()` is solved in closed form, SciPy is dropped from the numba extra (#185)
-
-- **Decided by:** a maintainer ([#185](https://github.com/jannikmi/extremitypathfinder/issues/185))
-- **Rejected:** keeping `numpy.linalg.solve` (LAPACK) and SciPy: Numba compiles it only with SciPy
-  (about 110 MB, more memory in every process with Numba), different LAPACK builds with and without Numba,
-  slower without Numba, not exact on integer coordinates.
-- **Details:** the measurements in #185 and its pull request, the comment in `utils_numba._lies_behind_inner()`
-
-## Benchmarks against pyvisgraph on Natural Earth world maps of increasing size (#165)
-
-- **Decided by:** a maintainer
-- **Rejected:** GSHHG data (LGPL and less accessible); a separate query set per size (latencies not comparable
-  across sizes); measuring memory with `tracemalloc` (distorts the timings or needs a second, much slower build);
-  a separate run without Numba (the results would mix two runs).
-- **Details:** [Benchmark method](../7_benchmark_method.rst)
-
-## The benchmarks do not run in CI, and CI never fails because of external packages (#165)
-
-- **Decided by:** a maintainer
-- **Rejected:** a `--quick` smoke test in CI: it fails on errors of pyvisgraph, installations or downloads,
-  not of this package. `make benchmark` runs it locally.
-- **Details:** [Testing](testing.md#ci-and-external-packages)
 
 ## Published benchmark results come from one full run, whose raw results are committed (#165)
 

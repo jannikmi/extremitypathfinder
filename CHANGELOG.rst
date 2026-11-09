@@ -41,6 +41,9 @@ other changes:
   the crossing point). The crossing test solves its 2×2 system in closed form instead of with ``numpy.linalg.solve``
   and is exact for integer coordinates: valid polygons touching themselves with a vertex on an edge were rejected
   for one of the two vertex numberings.
+- documentation: agent clearance (#167), a recipe for agents that keep a minimum distance to the obstacles:
+  shrink the boundary and inflate the obstacles with Shapely, then pass them to ``from_shapely()``.
+  Compares the join styles (vertex count, kept clearance, path length).
 - documentation: the engineering design relates the algorithms to the literature (new section "Related Work"),
   what sets the package apart (README and the alternatives page, which now also lists TřiVis)
 - documentation: when to install with or without Numba (#183): identical results, speed against memory
