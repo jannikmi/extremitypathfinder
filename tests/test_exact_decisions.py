@@ -6,9 +6,12 @@ parallel vectors of different length, directions one unit apart at 2^20 and poin
 The audit of all kinds of inputs (decimals, near-degenerate): ``prototypes/float_audit.py``.
 """
 
+import itertools
+
 import numpy as np
 import pytest
 
+from extremitypathfinder import utils
 from extremitypathfinder.utils_numba import (
     _compute_repr_n_dist,
     _has_clockwise_numbering,
@@ -116,6 +119,46 @@ def test_clockwise_numbering_exactly(rng, scale):
         if rng.integers(2):
             polygon = np.ascontiguousarray(polygon[::-1])
         assert _has_clockwise_numbering(polygon) == (exact.signed_area2(polygon) > 0)
+
+
+def _crossing_edges(polygon) -> list[tuple[int, int]]:
+    """all pairs of non-neighbouring edges crossing in their interiors (exact, all pairs)"""
+    n = len(polygon)
+    return [
+        (i, j)
+        for i, j in itertools.combinations(range(n), 2)
+        if j - i not in (1, n - 1)
+        and exact.crossing(
+            polygon[i], polygon[(i + 1) % n], polygon[j], polygon[(j + 1) % n]
+        )
+    ]
+
+
+@pytest.mark.parametrize("scale", [3, 20, LARGE])
+@pytest.mark.parametrize("max_pairs", [1, 7, utils.MAX_CROSSING_TEST_PAIRS])
+def test_find_crossing_exactly(rng, monkeypatch, scale, max_pairs):
+    """the bounding box sweep and the crossing test of the validation (#193), in chunks of any size
+
+    Small scales give many vertices on edges, collinear and parallel edges.
+    """
+    monkeypatch.setattr(utils, "MAX_CROSSING_TEST_PAIRS", max_pairs)
+    for _ in range(300):
+        nr_vertices = int(rng.integers(3, 16))
+        polygon = rng.integers(-scale, scale + 1, size=(nr_vertices, 2)).astype(float)
+        expected = _crossing_edges(polygon)
+        found = utils._find_crossing(polygon)
+        if not expected:
+            assert found is None, polygon
+            continue
+        assert found is not None, polygon
+        i, j, position = found
+        assert (i, j) in expected, polygon
+        # the crossing lies on both edges (up to rounding)
+        for edge in (i, j):
+            p1, p2 = polygon[edge], polygon[(edge + 1) % nr_vertices]
+            d1, d2 = p2 - p1, position - p1
+            assert abs(d1[0] * d2[1] - d1[1] * d2[0]) <= 1e-9 * np.dot(d1, d1)
+            assert 0.0 < np.dot(d1, d2) < np.dot(d1, d1)
 
 
 def test_in_wedges_exactly_near_the_bounding_rays(rng):
