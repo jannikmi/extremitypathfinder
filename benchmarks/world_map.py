@@ -30,6 +30,7 @@ import json
 import math
 import sys
 import urllib.request
+import warnings
 from pathlib import Path
 
 import shapely
@@ -55,6 +56,9 @@ DEFAULT_GRID = 1e-4
 # relative tolerance of the reached number of vertices when downsampling
 TARGET_RTOL = 0.02
 MAX_BISECTION_STEPS = 60
+# version of the map generation: increase it when the generated maps change (invalidates cached maps)
+# 2: at least the target number of vertices (previously at most)
+MAP_VERSION = 2
 
 Coords = list[tuple[float, float]]
 
@@ -214,7 +218,15 @@ def downsample(
             hi = mid
             continue
         lo = mid
-        best = cleaned, stats
+        if stats["vertices"] < best[1]["vertices"]:
+            # the closest to the target (the number of vertices need not fall monotonically)
+            best = cleaned, stats
+    if best[1]["vertices"] > (1 + TARGET_RTOL) * target_vertices:
+        warnings.warn(
+            f"downsampling reached {best[1]['vertices']} vertices, more than "
+            f"{TARGET_RTOL:.0%} above the target {target_vertices}",
+            stacklevel=2,
+        )
     return best
 
 

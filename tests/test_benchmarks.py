@@ -1,7 +1,9 @@
 """Tests of the benchmark harness (``benchmarks/``), skipped without the benchmark dependencies."""
 
+import json
 import math
 import sys
+from dataclasses import asdict
 from pathlib import Path
 
 import pytest
@@ -128,6 +130,21 @@ def test_downsample_reaches_at_least_the_target():
         assert target <= stats["vertices"] <= (1 + world_map.TARGET_RTOL) * target
     with pytest.raises(ValueError):
         world_map.downsample(polygons, 2001)
+    # unreachable within the tolerance: a larger simplification drops all polygons
+    with pytest.warns(UserWarning, match="above the target"):
+        _, stats = world_map.downsample(polygons, 5)
+    assert stats["vertices"] >= 5
+
+
+def test_load_world_rebuilds_maps_of_another_map_version(monkeypatch, tmp_path):
+    """cached maps of an earlier map generation (e.g. at most the target) are not reused"""
+    spec = workloads.SWEEP_BY_NAME["world_10k"]
+    old = {"spec": asdict(spec), "ne_release": world_map.NE_RELEASE, "vertices": 9952}
+    (tmp_path / f"{spec.name}.json").write_text(json.dumps(old))
+    monkeypatch.setattr(world_map, "build_map", lambda *_a, **_k: {"vertices": 10081})
+    assert workloads.load_world(spec, tmp_path)["vertices"] == 10081
+    monkeypatch.setattr(world_map, "build_map", lambda *_a, **_k: pytest.fail("cached"))
+    assert workloads.load_world(spec, tmp_path)["vertices"] == 10081
 
 
 def test_quick_run_tolerates_download_failure(monkeypatch, tmp_path):
