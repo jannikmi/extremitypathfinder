@@ -142,6 +142,61 @@ This is required if points lie really close to polygon edges and
 
 
 
+Shapely and GeoJSON input
+-------------------------
+
+Obstacles given as `Shapely <https://shapely.readthedocs.io/>`__ geometries or GeoJSON can be passed directly
+to ``PolygonEnvironment.from_shapely()``. It requires Shapely:
+
+.. code-block:: console
+
+    pip install "extremitypathfinder[shapely]"
+
+The geometries are converted into the coordinate input described above,
+which gives the same environment as the equivalent coordinate lists:
+
+- the exterior ring of the boundary polygon becomes the boundary, its interior rings become holes.
+  Pass ``None`` as the boundary for an unbounded environment.
+- the exterior rings of the obstacles become holes. Obstacles may be polygons, multi-polygons,
+  geometry collections of polygons or lists of these.
+- interior rings of obstacles (e.g. islands in a lake) are ignored with a warning:
+  the free space inside an obstacle cannot be reached from the outside.
+- the repeated closing vertex of the rings and repeated consecutive vertices are removed,
+  a third (z) coordinate is ignored.
+- GeoJSON-like mappings (geometries, features, feature collections) and objects with a ``__geo_interface__``
+  (e.g. GeoPandas geometries) are accepted as well.
+
+.. code-block:: python
+
+    import shapely
+    from extremitypathfinder import PolygonEnvironment
+
+    boundary = shapely.Polygon([(0, 0), (10, 0), (10, 10), (0, 10)])
+    obstacles = shapely.MultiPolygon(
+        [
+            shapely.Polygon([(2, 2), (4, 2), (4, 4), (2, 4)]),
+            shapely.Polygon([(6, 6), (8, 6), (8, 8), (6, 8)]),
+        ]
+    )
+    environment = PolygonEnvironment.from_shapely(boundary, obstacles, validate=True)
+    path, length = environment.find_shortest_path((1, 1), (9, 9))
+    line = shapely.LineString(path)  # the path as a Shapely geometry
+
+With ``validate=True``, the converted coordinates are checked with the same validation as the coordinate input.
+Shapely's own validity rules differ (e.g. a polygon touching itself at a vertex is valid here, but not in Shapely).
+Geometries rejected by the validation can often be repaired with Shapely before passing them,
+e.g. with ``shapely.make_valid()``, which splits a self-intersecting polygon into valid parts:
+
+.. code-block:: python
+
+    obstacle = shapely.Polygon([(2, 2), (4, 4), (4, 2), (2, 4)])  # crosses itself
+    obstacles = shapely.make_valid(obstacle)  # two touching triangles
+    environment = PolygonEnvironment.from_shapely(boundary, obstacles, validate=True)
+
+The repaired geometry may contain lines or points (e.g. from a zero-width spike):
+keep only the polygons, e.g. with ``shapely.make_valid(obstacle, method="structure")``, and check the result.
+
+
 Converting a grid
 -----------------
 

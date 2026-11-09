@@ -58,6 +58,7 @@ Features
   Polygons may touch and overlap each other. Touching obstacles form a wall that paths cannot pass.
   The polygons are used directly: no triangulation or navigation mesh is needed.
 - **Grids**: convert a grid with blocked cells into a polygon environment.
+- **Shapely and GeoJSON input** (optional): pass Shapely geometries, GeoJSON or GeoPandas geometries directly.
 - **Well-defined edge cases**: touching obstacles, points on edges and collinear vertices follow one set of rules.
   The floating point decisions are audited against exact arithmetic, the results are identical with and without Numba.
 - **Few dependencies**: NumPy and NetworkX. Optional `Numba <https://numba.pydata.org/>`__ acceleration.

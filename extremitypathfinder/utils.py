@@ -1,11 +1,14 @@
 import json
 import pickle
-from collections.abc import Callable, Iterable
+import warnings
+from collections.abc import Callable, Iterable, Mapping
 from heapq import heappop, heappush
 from itertools import count
+from typing import TYPE_CHECKING
 
 import networkx as nx
 import numpy as np
+import numpy.typing as npt
 
 from extremitypathfinder import configs
 from extremitypathfinder import types as t
@@ -25,6 +28,11 @@ from extremitypathfinder.utils_numba import (
 )
 from extremitypathfinder.wedges import Point, Points, Wedge, check_polygon_contacts
 
+if TYPE_CHECKING:
+    # optional dependency (extra "shapely"), only imported when used
+    import shapely
+    from shapely.geometry.base import BaseGeometry
+
 
 def cmp_reps_n_distances(
     orig_idx: int, coords: np.ndarray
@@ -39,8 +47,8 @@ MAX_CROSSING_TEST_PAIRS = 2**20
 
 
 def _crossing_parameters(
-    p1: np.ndarray, p2: np.ndarray, q1: np.ndarray, q2: np.ndarray
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    p1: t.FloatArray, p2: t.FloatArray, q1: t.FloatArray, q2: t.FloatArray
+) -> tuple[npt.NDArray[np.bool_], t.FloatArray, t.FloatArray]:
     """whether the edges p1-p2 and q1-q2 cross, with the position of the crossing on p1-p2 (vectorised)
 
     Solves (p2-p1) lambda + p1 = (q2-q1) mu + q1 with Cramer's rule: lambda = t / d, mu = u / d.
@@ -66,7 +74,9 @@ def _crossing_parameters(
     return crossing, t, d
 
 
-def _get_intersection_status(p1, p2, q1, q2) -> int:
+def _get_intersection_status(
+    p1: npt.ArrayLike, p2: npt.ArrayLike, q1: npt.ArrayLike, q2: npt.ArrayLike
+) -> int:
     """
     :return: 1 if the edges p1-p2 and q1-q2 cross in their interiors, 0 otherwise
     """
@@ -79,7 +89,7 @@ def _get_intersection_status(p1, p2, q1, q2) -> int:
     return int(crossing)
 
 
-def _find_crossing(coords: np.ndarray) -> tuple[int, int, np.ndarray] | None:
+def _find_crossing(coords: t.FloatArray) -> tuple[int, int, t.FloatArray] | None:
     """the first found pair of edges of the polygon which cross each other in their interiors
 
     Edge i runs from vertex i to vertex i+1. Only the pairs of non-neighbouring edges whose bounding boxes
@@ -140,13 +150,13 @@ def _find_crossing(coords: np.ndarray) -> tuple[int, int, np.ndarray] | None:
     return None
 
 
-def _format_point(point: np.ndarray) -> str:
+def _format_point(point: t.FloatArray) -> str:
     return f"({float(point[0])!r}, {float(point[1])!r})"
 
 
 def _check_polygon(
-    polygon: np.ndarray, name: str = "polygon", is_reversed: bool = False
-):
+    polygon: t.FloatArray, name: str = "polygon", is_reversed: bool = False
+) -> None:
     """ensures that the polygon fulfils the requirements, names the polygon and the location of a violation
 
     :param name: the polygon in the error messages, e.g. "hole 2"
@@ -159,7 +169,7 @@ def _check_polygon(
         raise type(error)(f"{name}: {error}") from None
 
 
-def _check_polygon_inner(polygon: np.ndarray, is_reversed: bool):
+def _check_polygon_inner(polygon: t.FloatArray, is_reversed: bool) -> None:
     """ensures that all the following conditions on the polygons are fulfilled:
     - must at least contain 3 vertices
     - no consequent vertices with identical coordinates in the polygons! In general might have the same coordinates
@@ -183,11 +193,11 @@ def _check_polygon_inner(polygon: np.ndarray, is_reversed: bool):
     if crossing is not None:
         nr_vertices = len(polygon)
         # the edges of the input: from vertex i to i+1
-        edges = sorted(
+        input_edges = sorted(
             (nr_vertices - 2 - edge) % nr_vertices if is_reversed else edge
             for edge in crossing[:2]
         )
-        edges = [f"from vertex {i} to {(i + 1) % nr_vertices}" for i in edges]
+        edges = [f"from vertex {i} to {(i + 1) % nr_vertices}" for i in input_edges]
         raise ValueError(
             f"The given polygon has self intersections: the edges {edges[0]} and {edges[1]} "
             f"cross at {_format_point(crossing[2])}"
@@ -245,7 +255,7 @@ def check_data_requirements(
     list_hole_coords: list[np.ndarray],
     boundary_reversed: bool = False,
     holes_reversed: list[bool] | None = None,
-):
+) -> None:
     """ensures that the basic polygon requirements (s. above) are fulfilled by all polygons
 
     Note: the vertex numbering is not checked, polygons are oriented beforehand (cf. ``orient_polygons()``)
@@ -260,7 +270,7 @@ def check_data_requirements(
 
 def check_hole_data_requirements(
     list_hole_coords: list[np.ndarray], holes_reversed: list[bool] | None = None
-):
+) -> None:
     """Validate the hole polygons (cf. ``check_data_requirements()``)."""
     for hole_idx, hole_coords in enumerate(list_hole_coords):
         is_reversed = holes_reversed[hole_idx] if holes_reversed is not None else False
@@ -845,6 +855,134 @@ def read_json(path2json_file):
     boundary_coordinates = _convert2polygon(boundary_data)
     list_of_holes = [_convert2polygon(hole_data) for hole_data in holes_data]
     return boundary_coordinates, list_of_holes
+
+
+def _require_shapely() -> None:
+    """raises an ``ImportError`` explaining how to install Shapely, when it is not installed"""
+    try:
+        import shapely  # noqa: F401
+    except ImportError as e:
+        raise ImportError(
+            "Shapely is required for this function: "
+            'pip install "extremitypathfinder[shapely]"'
+        ) from e
+
+
+def _to_geometries(geometry: t.GeometryInput) -> list["BaseGeometry"]:
+    """converts Shapely geometries, GeoJSON-like mappings and objects with ``__geo_interface__``
+    (also features and feature collections) and iterables of these into a flat list of Shapely geometries
+    """
+    import shapely
+    from shapely.geometry import shape
+    from shapely.geometry.base import BaseGeometry
+
+    if geometry is None:
+        return []
+    if isinstance(geometry, BaseGeometry):
+        return [geometry]
+    mapping = getattr(geometry, "__geo_interface__", geometry)
+    if isinstance(mapping, Mapping):
+        geojson_type = mapping.get("type")
+        if geojson_type == "FeatureCollection":
+            return [
+                g for feature in mapping["features"] for g in _to_geometries(feature)
+            ]
+        if geojson_type == "Feature":
+            # the geometry of a feature may be null (e.g. a missing geometry in GeoPandas)
+            return _to_geometries(mapping.get("geometry"))
+        try:
+            return [shape(dict(mapping))]
+        except (
+            AttributeError,
+            KeyError,
+            TypeError,
+            ValueError,
+            shapely.errors.ShapelyError,
+        ) as e:
+            raise TypeError(f"not a GeoJSON geometry: {mapping!r}") from e
+    if isinstance(geometry, Iterable) and not isinstance(geometry, str):
+        return [g for item in geometry for g in _to_geometries(item)]
+    raise TypeError(
+        f"not a geometry: {geometry!r}. "
+        "Pass coordinate lists to the constructor PolygonEnvironment() instead."
+    )
+
+
+def _to_polygons(geometry: t.GeometryInput) -> list["shapely.Polygon"]:
+    """the non-empty polygons of the given geometries (multi-part geometries and collections are split)"""
+    import shapely
+
+    polygons: list[shapely.Polygon] = []
+    for geom in _to_geometries(geometry):
+        if geom.is_empty:
+            continue
+        if isinstance(geom, shapely.Polygon):
+            polygons.append(geom)
+        elif isinstance(geom, shapely.MultiPolygon | shapely.GeometryCollection):
+            polygons.extend(_to_polygons(list(geom.geoms)))
+        else:
+            raise TypeError(
+                f"only polygons are supported, got a {geom.geom_type} geometry"
+            )
+    return polygons
+
+
+def _ring_coords(ring: "shapely.LinearRing") -> t.FloatArray:
+    """the x and y coordinates of a ring, without the repeated closing vertex and repeated consecutive vertices
+
+    :raises ValueError: when fewer than 3 distinct consecutive vertices are left
+    """
+    coords = np.asarray(ring.coords, dtype=configs.DTYPE_FLOAT)[:-1, :2]
+    # keep the vertices which differ from their successor (the last one: from the first one)
+    differs_from_next = np.any(coords != np.roll(coords, -1, axis=0), axis=1)
+    coords = coords[differs_from_next]
+    if len(coords) < 3:
+        raise ValueError(
+            f"a polygon ring has fewer than 3 distinct vertices: {ring.wkt}"
+        )
+    return coords
+
+
+def convert_shapely(
+    boundary: t.GeometryInput, obstacles: t.GeometryInput
+) -> tuple[t.FloatArray | None, list[t.FloatArray]]:
+    """converts Shapely or GeoJSON-like geometries into the coordinate input of the environment
+
+    Repeated consecutive vertices (also the closing vertex of the rings) are removed,
+    a third (z) coordinate is ignored.
+
+    :param boundary: a single polygon or ``None``. Its interior rings become holes.
+    :param obstacles: polygons, multi-polygons, collections of them or ``None``. Their exterior rings become holes,
+        their interior rings are ignored with a warning (unreachable from the outside of the obstacle).
+    :return: the boundary coordinates (``None`` without a boundary) and the list of hole coordinates
+    :raises ImportError: when Shapely is not installed
+    """
+    _require_shapely()
+    boundary_coordinates: t.FloatArray | None = None
+    holes: list[t.FloatArray] = []
+    if boundary is not None:
+        boundary_polygons = _to_polygons(boundary)
+        if len(boundary_polygons) != 1:
+            raise ValueError(
+                f"the boundary must be a single polygon, got {len(boundary_polygons)} polygons. "
+                "Pass None as the boundary for an environment with obstacles only."
+            )
+        polygon = boundary_polygons[0]
+        boundary_coordinates = _ring_coords(polygon.exterior)
+        holes.extend(_ring_coords(ring) for ring in polygon.interiors)
+
+    nr_ignored = 0
+    for polygon in _to_polygons(obstacles):
+        holes.append(_ring_coords(polygon.exterior))
+        nr_ignored += len(polygon.interiors)
+    if nr_ignored > 0:
+        warnings.warn(
+            f"ignored {nr_ignored} interior ring(s) of obstacle polygons: "
+            "the free space inside an obstacle cannot be reached and is treated as part of the obstacle.",
+            UserWarning,
+            stacklevel=3,
+        )
+    return boundary_coordinates, holes
 
 
 def convert_grid(size_x: int, size_y: int, obstacle_iter: iter) -> (list, list):

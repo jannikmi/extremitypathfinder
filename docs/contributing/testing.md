@@ -59,6 +59,9 @@ only because of errors in extremitypathfinder:
   with `make benchmark` (`--quick`) when you change them.
 - Tests depending on such packages skip when they are not installed (`pytest.importorskip`)
   and do not run in the tox environments of CI.
+- Exception: the optional extras of the package itself (Shapely for `PolygonEnvironment.from_shapely()`) are
+  part of its features. The tox environments install them, also their declared minimum versions,
+  so their tests run in CI. Their tests still skip when the extra is not installed.
 
 Keep it this way when adding CI jobs or tests that use external packages or services.
 

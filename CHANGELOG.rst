@@ -28,6 +28,12 @@ recreate them. Loading them raises a ``ValueError`` explaining this.
 
 other changes:
 
+- Shapely and GeoJSON input (#166): ``PolygonEnvironment.from_shapely(boundary, obstacles, validate=False)``
+  accepts Shapely polygons, multi-polygons and collections, GeoJSON-like mappings and objects with a
+  ``__geo_interface__`` (e.g. GeoPandas), and gives the same environment as the equivalent coordinate lists.
+  Repeated closing and consecutive vertices are removed, interior rings of obstacles are ignored with a warning,
+  features with a null geometry are skipped.
+  Shapely (2.0.6 or later) is an optional extra: ``pip install "extremitypathfinder[shapely]"``.
 - much faster input validation of large polygons (``validate=True``, #193): only edge pairs with overlapping
   bounding boxes are tested for crossings, vectorised. E.g. the 5k vertex world map of the benchmarks:
   10.5 s to 0.08 s, a 2,180 vertex polygon: 14.6 s to 0.06 s. The errors name the polygon (``boundary polygon``
