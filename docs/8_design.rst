@@ -499,8 +499,8 @@ but computes the visibility of every point only once instead of twice per pair:
   another candidate are therefore checked in separate calls of ``find_visible_from()``,
   so that no query point hides a graph node or another query point.
 - A start visible from a goal gives the straight segment. The other goals are reached through the graph:
-  one Dijkstra search per start point (``dijkstra_distances()``), stopped when all graph nodes visible from these goals
-  are settled. The length to a goal is the minimum over its visible graph nodes of the distance of the node plus
+  one Dijkstra search per start point (``dijkstra_distances()``), stopped when all graph nodes visible from
+  the goals not visible from the start are settled. The length to a goal is the minimum over its visible graph nodes of the distance of the node plus
   the length of the last edge. The sums are added in the same order as in ``search()``.
 - Neither the environment nor its graph is changed: the edges of the start points are passed to the search,
   the edges of the goal points are added afterwards.

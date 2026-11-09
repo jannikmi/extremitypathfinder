@@ -560,7 +560,10 @@ class PolygonEnvironment:
         coords_a = _as_coord_array(points_a)
         coords_b = coords_a if points_b is None else _as_coord_array(points_b)
         if verify:
-            for name, query_coords in (("points_a", coords_a), ("points_b", coords_b)):
+            checked = [("points_a", coords_a)]
+            if points_b is not None:
+                checked.append(("points_b", coords_b))
+            for name, query_coords in checked:
                 for i, point in enumerate(query_coords):
                     if not self.within_map(point):
                         raise ValueError(
