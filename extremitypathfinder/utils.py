@@ -174,22 +174,6 @@ def check_hole_data_requirements(list_hole_coords: list[np.ndarray]):
         _check_polygon(hole_coords)
 
 
-# No angular sweep (visibility polygon) for the worst case of AREA (#216, ``prototypes/sweep_tree_overhead.py``):
-# a sweep with the active edges in a balanced tree would lower the worst case per origin
-# from O(n log n + n k) to O((n + k) log n), but
-# - no package fits: sortedcontainers is the only stable sorted container (pure Python, last release 2021),
-#   bintrees, rbtree, blist and pyskiplist are abandoned, BTrees is meant for fixed keys (3.6 MB),
-#   the visibility polygons of CGAL (bindings without wheels for Python > 3.12), VisiLibity (2018, epsilon based,
-#   no overlapping polygons) and scikit-geometry (not on PyPI) do not keep the exact contacts. None works with Numba.
-# - a sweep in pure Python would be slower on the measured maps: one sweep step (insert, read the closest edge,
-#   remove) takes 3-15 µs up to 10,000 active edges, with SortedList as well as with a plain list and ``bisect``
-#   (O(n) memory moves per step, so SortedList is faster from about 100,000 active edges). A sweep needs about
-#   two steps per origin and edge, the whole visibility graph currently takes 2.5-4 µs per origin and edge
-#   with Numba and 4-6 µs without (build benchmark on the world maps, the script on the hole grid).
-# - AREA only loses on adversarial maps, with more than about 10 checks per candidate (measured: 1.5 to 2.3).
-# Revisit when a user reports a map that hits the worst case: then use a sweep only above a threshold of checks
-# per candidate (option C of #216). ``bisect`` suffices up to about 10,000 active edges, only the O((n + k) log n)
-# bound needs a balanced tree. A sweep compiled with Numba (own sorted arrays) was not measured.
 def find_visible(
     origin: int,
     candidates: set[int],

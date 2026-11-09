@@ -26,8 +26,8 @@ Earlier decisions are described in the {ref}`Design Decisions <design_decisions>
 - **Decided by:** a maintainer
 - **Rejected:** an angular sweep (slower on the measured maps, no fitting package, none works with Numba);
   a sweep only above a threshold of checks per candidate (a second code path without a reported need).
-- **Details:** [#216](https://github.com/jannikmi/extremitypathfinder/issues/216), the comment above
-  `utils.find_visible()`, measured with `prototypes/sweep_tree_overhead.py`
+- **Details:** [#216](https://github.com/jannikmi/extremitypathfinder/issues/216), the findings in
+  `prototypes/sweep_tree_overhead.py`, which reproduces the measurements
 
 ## A release requires up-to-date benchmark results, checked when it is prepared, on its pull request and when it is tagged (#191)
 
