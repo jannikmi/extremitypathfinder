@@ -46,7 +46,7 @@ or before work that depends on a blocked issue, starting with that issue.
      reproduction (quote them if the description is rewritten); remove only superseded plans and options
      (the issue history keeps them). Change its sub-issues or "blocked by" links if the decision changes them.
      A deferred decision gets a section "Deferred (<date>)" with the reason and what would reopen it.
-   - **The repository files** the answer affects, in one pull request per run: the [Decision log](decisions.md)
+   - **The repository files** the answer affects, in one pull request per run: the [Decision log](decisions.md) or [process log](decisions-process.md)
      (if the decision meets the criteria there) and the pages of this guide that describe the process or the plans.
      Pages that describe the behaviour of the package (the [invariants](invariants.md), the
      {ref}`Design Decisions <design_decisions>`, the user documentation) change in the pull request that implements

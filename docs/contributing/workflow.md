@@ -42,7 +42,7 @@ the [invariants](invariants.md). Before implementing one:
 2. **Recommend one** and justify it in the issue.
 3. **Decide.** If one option is clearly better on all criteria that matter, the contributor decides.
    Otherwise, and always for the invariants, a maintainer decides before anything is implemented.
-4. **Record** the decision in the [Decision log](decisions.md) (if it meets the criteria stated there),
+4. **Record** the decision in the [Decision log](decisions.md) or the [process log](decisions-process.md) (if it meets the criteria stated there),
    in the pull request that implements it, or in the pull request of the [unblock run](unblock-and-rerank.md)
    that decided it. Amend the issue description with the decision instead of adding a comment.
    The full reasoning goes where it is read: the {ref}`Design Decisions <design_decisions>` (package design),
