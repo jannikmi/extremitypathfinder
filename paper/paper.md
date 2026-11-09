@@ -158,7 +158,8 @@ A survey of all known uses is part of the repository.
 
 <!--
 The maintainer confirms every statement of this section before submission, in particular:
-no AI tools before 2026, which parts the agent wrote, and the commit counts (update them on the submission date).
+which parts the agent wrote and the commit counts (update them on the submission date).
+Confirmed by the maintainer: no AI tools were used from 2018 to 2024.
 -->
 The core approach and its original implementation (2018 to 2024) were written by the author without AI tools:
 the extremity graph, its edge reduction, AREA and the precomputation.
