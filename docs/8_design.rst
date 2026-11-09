@@ -638,6 +638,7 @@ Ideas specific to visibility graphs were evaluated and not adopted, as they gave
   a node reached directly from the start is reached on a shortest path, which the distance check already respects.
 - **a precomputed adjacency structure** (plain dicts or arrays): costs memory per environment and changes the pickled
   state, the iteration over the networkx dicts is not the bottleneck (cf. #182).
+
 ``networkx`` is kept as graph data structure because it is a familiar, inspectable public attribute
 (``environment.graph``).
 
