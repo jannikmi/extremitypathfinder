@@ -3,6 +3,7 @@ import pickle
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from functools import cached_property
+from typing import Self
 
 import numpy as np
 
@@ -102,7 +103,7 @@ class PolygonEnvironment:
     def __init__(
         self,
         boundary_coordinates: OptionalInputCoordList,
-        list_of_hole_coordinates: InputCoordList,
+        list_of_hole_coordinates: Iterable[InputCoordList],
         validate: bool = False,
     ):
         """stores the passed input polygons in the environment and computes the visibility graph
@@ -201,6 +202,45 @@ class PolygonEnvironment:
         """
         boundary_coordinates, list_of_hole_coordinates = utils.convert_grid(
             size_x, size_y, obstacle_iter
+        )
+        return cls(boundary_coordinates, list_of_hole_coordinates, validate)
+
+    @classmethod
+    def from_shapely(
+        cls,
+        boundary: t.GeometryInput,
+        obstacles: t.GeometryInput = None,
+        validate: bool = False,
+    ) -> Self:
+        """Create an environment from `Shapely <https://shapely.readthedocs.io/>`__ or GeoJSON-like geometries
+
+        Requires Shapely (``pip install "extremitypathfinder[shapely]"``).
+        The geometries are converted into the coordinate input of the constructor:
+        the result is the same environment as from the equivalent coordinate lists.
+
+        * the exterior ring of the boundary polygon becomes the boundary, its interior rings become holes
+        * the exterior rings of the obstacle polygons become holes. Their interior rings (e.g. islands in a lake)
+          are ignored with a warning: the free space inside an obstacle cannot be reached from the outside
+          and is treated as part of the obstacle
+        * the repeated closing vertex of the rings and repeated consecutive vertices are removed,
+          a third (z) coordinate is ignored
+
+        Geometries may be Shapely geometries, GeoJSON-like mappings (geometries, features, feature collections)
+        or objects with a ``__geo_interface__`` (e.g. GeoPandas geometries).
+
+        :param boundary: the boundary as a single polygon. When ``None``, the environment is unbounded
+            and at least one obstacle must be supplied.
+        :param obstacles: the obstacles: a polygon, a multi-polygon, a geometry collection of polygons
+            or an iterable of these. Empty geometries are skipped.
+        :param validate: whether the converted input should be validated,
+            with the same validation as the coordinate input of the constructor
+        :raises ImportError: when Shapely is not installed
+        :raises TypeError: when a geometry is not a polygon (or a collection of polygons)
+        :raises ValueError: when the boundary is not a single polygon,
+            when a ring has fewer than 3 distinct vertices, and the errors of the constructor
+        """
+        boundary_coordinates, list_of_hole_coordinates = utils.convert_shapely(
+            boundary, obstacles
         )
         return cls(boundary_coordinates, list_of_hole_coordinates, validate)
 

@@ -14,7 +14,14 @@ is tracked in [#173](https://github.com/jannikmi/extremitypathfinder/issues/173)
 
 ## Conventions
 
-- Type hints for function signatures. Shared aliases live in `types.py`, constants in `configs.py`.
+- **Strict typing:** annotate every parameter, return value and variable whose type is not inferred, as precisely
+  as possible: e.g. `list[int]` instead of `list`, `npt.NDArray[np.float64]` (`types.FloatArray`) instead of `np.ndarray`,
+  `X | None` for optional values, `Self` for alternative constructors. Use `Any` only for untyped data at the boundaries
+  (JSON, GeoJSON mappings). Optional dependencies (e.g. Shapely) are imported for annotations under `TYPE_CHECKING`.
+  New code must pass `mypy --strict` (until #226 is done, check that the reported lines are not yours:
+  `uv run --with mypy --with types-networkx --with types-shapely mypy --strict extremitypathfinder`).
+  Enforcing it for the whole package is tracked in [#226](https://github.com/jannikmi/extremitypathfinder/issues/226).
+- Shared type aliases live in `types.py`, constants in `configs.py`.
 - Docstrings for public functions and for non-obvious internal ones. Explain *why*, not what the next line does.
 - Keep functions in `utils_numba.py` compilable by Numba: numpy arrays and scalars, explicit signatures,
   no Python objects (cf. [Invariants](invariants.md)).

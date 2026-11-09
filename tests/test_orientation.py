@@ -9,23 +9,12 @@ from extremitypathfinder import PolygonEnvironment, utils
 from extremitypathfinder.utils_numba import _has_clockwise_numbering
 from tests.main_test import try_test_cases
 from tests.test_cases import (
-    GRID_ENV_PARAMS,
-    OVERLAP_POLY_ENV_PARAMS,
+    ENVS_N_TEST_DATA,
+    GRID_POLYGONS,
     POLY_ENV_PARAMS,
-    SEPARATED_ENV,
     TEST_DATA_GRID_ENV,
-    TEST_DATA_OVERLAP_POLY_ENV,
-    TEST_DATA_POLY_ENV,
-    TEST_DATA_SEPARATE_ENV,
 )
 
-GRID_POLYGONS = utils.convert_grid(*GRID_ENV_PARAMS)
-ENVS_N_TEST_DATA = [
-    pytest.param(POLY_ENV_PARAMS, TEST_DATA_POLY_ENV, id="poly"),
-    pytest.param(OVERLAP_POLY_ENV_PARAMS, TEST_DATA_OVERLAP_POLY_ENV, id="overlap"),
-    pytest.param(SEPARATED_ENV, TEST_DATA_SEPARATE_ENV, id="separated"),
-    pytest.param(GRID_POLYGONS, TEST_DATA_GRID_ENV, id="grid"),
-]
 UNBOUNDED_HOLES = [
     [(0.0, 2.0), (2.0, 2.0), (2.0, 0.0), (0.0, 0.0)],
     [(4.0, 3.0), (5.0, 3.0), (5.0, -1.0), (4.0, -1.0)],
