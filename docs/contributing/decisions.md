@@ -13,6 +13,8 @@ Decided trade-offs of the package, its benchmarks and releases, newest first, in
 
 Record only decisions that outlive their pull request and whose rejected options are likely to be proposed again,
 in the final state of the pull request. Leave out details fully explained on the page they affect.
+Leave out decisions whose outcome is documented elsewhere and that are not important enough to be remembered,
+e.g. the scope of a feature (a documentation recipe now, a parameter later on demand): the issue records them.
 
 Keep the entries correct when the referenced content moves or changes.
 A maintainer confirms an agent decision by changing **Decided by**.
@@ -20,14 +22,6 @@ Amend the entry of a revised decision instead of adding a new one:
 the log states the current decisions (git keeps the history).
 Decisions about how we work on the project are in the [process decision log](decisions-process.md).
 Earlier decisions are described in the {ref}`Design Decisions <design_decisions>` and the issues linked there.
-
-## Agent clearance is a documented Shapely recipe, not a parameter (#167)
-
-- **Decided by:** a maintainer
-- **Rejected:** a built-in `clearance` parameter (no demand yet, #229 waits for it);
-  own polygon offsetting without Shapely (high effort, new floating point code);
-  leaving it undocumented (several projects inflate the obstacles by hand, some with round joins).
-- **Details:** {ref}`Agent clearance <clearance>` (the recommended mitred joins)
 
 ## AREA stays the visibility algorithm, others are added next to it (#224)
 
