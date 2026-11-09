@@ -35,6 +35,21 @@ Run it (Shapely needed, not in CI) when you change decisions on vertices, contac
 uv run python prototypes/real_world_geometry.py --seeds 40 --queries 15
 ```
 
+## Floating point decisions
+
+The core floating point decisions (angle representations, edge, point in polygon and orientation tests,
+the `RAY_TOLERANCE` selection, `_lies_behind_inner()`) are exact on integer coordinates (#3).
+`tests/test_exact_decisions.py` asserts this against the exact references of `tests/exact.py` (`fractions.Fraction`).
+Use these references for new exact checks instead of writing new ones.
+`prototypes/float_audit.py` uses them too and reports the misdecisions per function on all kinds of inputs
+(decimals, near-degenerate cases), which lie within about one unit in the last place and are not asserted.
+Run it in both modes when you change one of these functions:
+
+```sh
+uv run python prototypes/float_audit.py -n 100000
+uv run python prototypes/float_audit.py -n 100000 --no-numba
+```
+
 ## CI and external packages
 
 CI must not fail because of errors in pyvisgraph or other external packages and services,
@@ -44,6 +59,9 @@ only because of errors in extremitypathfinder:
   with `make benchmark` (`--quick`) when you change them.
 - Tests depending on such packages skip when they are not installed (`pytest.importorskip`)
   and do not run in the tox environments of CI.
+- Exception: the optional extras of the package itself (Shapely for `PolygonEnvironment.from_shapely()`) are
+  part of its features. The tox environments install them, also their declared minimum versions,
+  so their tests run in CI. Their tests still skip when the extra is not installed.
 
 Keep it this way when adding CI jobs or tests that use external packages or services.
 
@@ -68,6 +86,7 @@ when you change `utils_numba.py` or code calling it.
   | `test_random_queries.py` | random query points: visibility, paths, graph reduction, transforms |
   | `helper_fcts_test.py` | helper functions in `utils.py` |
   | `test_acceleration.py` | the execution backend (Numba or not) |
+  | `test_exact_decisions.py`, `exact.py` | floating point decisions exact on integer coordinates, exact references |
   | `test_pickle.py`, `test_plotting.py`, `cli_test.py` | pickle export, plotting, command line interface |
   | `test_release.py`, `test_validate_release.py` | release tooling (`scripts/`) |
 

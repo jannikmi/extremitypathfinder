@@ -157,7 +157,13 @@ _________________________________
 
 Polygon coordinates may use any finite scale supported by double-precision floating point numbers.
 Nearly collinear vertices are supported, but callers should avoid differences smaller than the
-precision available at their coordinate magnitude. The vertices may be ordered clockwise or
+precision available at their coordinate magnitude.
+Contacts and points on edges must be exact (cf. :ref:`touching obstacles <touching>`), and transforms that round the
+coordinates do not keep them: reprojecting, rotating, shifting by decimals or scaling by factors other than
+powers of two can turn a contact into a tiny gap or overlap. Paths through generic positions stay the same up to
+rounding, but touching obstacles may no longer block, and points on edges may move inside or outside.
+If contacts matter, transform first and then snap the coordinates (e.g. round them to a grid),
+so that touching polygons share identical coordinates again. The vertices may be ordered clockwise or
 counter clockwise (polygons are reversed into the internal convention: boundary counter clockwise,
 holes clockwise). Polygons need at least three vertices, must not
 self-intersect, and must not repeat a vertex immediately (including repeating the first vertex at

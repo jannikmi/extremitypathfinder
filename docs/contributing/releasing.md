@@ -39,8 +39,9 @@ The results are up to date when:
   (the version of the package itself is ignored, it changes with the release).
 
 Check it with `uv run python scripts/release.py benchmarks`. If the results are outdated, rerun the full benchmark
-on the machine of the published results and commit them in a pull request before the release
-(cf. [Running the benchmarks](performance.md#running-the-benchmarks)).
+on the machine of the published results and commit them, with the text derived from them,
+in a pull request before the release
+(cf. [Running the benchmarks](performance.md#running-the-benchmarks), [After a full run](performance.md#after-a-full-run)).
 Other pull requests are not checked: changing the code without new results is fine until the next release.
 If the "tag release" workflow failed because of outdated results, merge the new results
 and run the workflow again (Actions tab: "tag release", "Run workflow").

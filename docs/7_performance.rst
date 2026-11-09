@@ -4,6 +4,9 @@
 Performance
 ===========
 
+.. benchmark-derived: what Numba costs. Update this text with every full benchmark run
+   (docs/contributing/performance.md, "After a full run").
+
 This page compares ``extremitypathfinder`` with `pyvisgraph <https://github.com/TaipanRex/pyvisgraph>`__,
 the closest alternative (see :ref:`alternatives`), on realistic maps of increasing size.
 ``extremitypathfinder`` is compared with Numba, its best case, and is also measured without Numba:
@@ -19,6 +22,9 @@ Strengths, weaknesses and limitations
 -------------------------------------
 
 Written from the measured data of this run.
+
+.. benchmark-derived: the take-aways of the results. Update this text with every full benchmark run
+   (docs/contributing/performance.md, "After a full run").
 
 Strengths of ``extremitypathfinder``:
 
@@ -36,6 +42,7 @@ Strengths of ``extremitypathfinder``:
 - **Fast without Numba too.** Without Numba, builds take more than twice as long and queries moderately longer.
   It is still faster than pyvisgraph, and it built the same maps within the budget.
   The baseline drops by more than half, the retained memory stays the same.
+  When to install without Numba: see :ref:`with-or-without-numba`.
 
 Weaknesses and limitations:
 

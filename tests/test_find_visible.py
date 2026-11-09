@@ -232,3 +232,34 @@ def test_visibility_is_symmetric(boundary_data):
     relation = _visibility_relation(boundary_data)
     asymmetric = {(x, y) for x, y in relation if (y, x) not in relation}
     assert not asymmetric, f"visible only in one direction: {sorted(asymmetric)}"
+
+
+def _overlapping_squares(seed: int):
+    """random squares with integer coordinates: overlapping and touching holes"""
+    rng = np.random.default_rng(seed)
+    boundary = [(0.0, 0.0), (30.0, 0.0), (30.0, 30.0), (0.0, 30.0)]
+    holes = []
+    for _ in range(25):
+        x, y = rng.integers(1, 25, size=2)
+        size = rng.integers(1, 4)
+        holes.append([(x, y), (x, y + size), (x + size, y + size), (x + size, y)])
+    return boundary, holes
+
+
+def _all_edges_sorted(
+    edges, edges_min_rep, edges_max_rep, candidates_sorted, representations
+):
+    """the edges of the sweep without skipping those without candidates (before #217)"""
+    return sorted(edges.tolist(), key=lambda e: edges_min_rep[e])
+
+
+@pytest.mark.parametrize(
+    "env", all_envs + [_overlapping_squares(seed) for seed in range(3)]
+)
+def test_skipping_edges_without_candidates_keeps_the_graph(env, monkeypatch):
+    boundary, holes = env
+    graph = PolygonEnvironment(boundary, holes).graph
+    monkeypatch.setattr(utils, "_edges_with_candidates", _all_edges_sorted)
+    expected = PolygonEnvironment(boundary, holes).graph
+    assert sorted(graph.edges(data="weight")) == sorted(expected.edges(data="weight"))
+    assert sorted(graph.nodes) == sorted(expected.nodes)

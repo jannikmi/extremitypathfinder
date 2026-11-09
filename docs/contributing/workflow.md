@@ -22,6 +22,12 @@ Combine both with the effort and the risk of breaking something (core algorithms
 into one label. Within a label, stability issues come first, then the ones with less effort.
 
 - **Demand counts:** a thumbs-up reaction, a use case in a comment or a report by a user raises the priority.
+  When you open or triage an issue whose priority depends on demand (a feature, a user-facing change, an optimisation
+  for particular workloads), start its description with the demand note of
+  [#171](https://github.com/jannikmi/extremitypathfinder/issues/171): ask for a 👍 and a comment with the use case,
+  with questions specific to the issue (e.g. the number of vertices or queries). For dropping support, ask who still
+  needs it instead ([#145](https://github.com/jannikmi/extremitypathfinder/issues/145)).
+  Remove the note once the priority no longer depends on demand.
 - **An issue inherits the highest priority of the issues it blocks,** e.g. a benchmark that other work waits for.
 - **Decision issues before implementations:** decide the issues that change other issues
   (e.g. replacing a dependency) before implementing those.
@@ -42,7 +48,7 @@ the [invariants](invariants.md). Before implementing one:
 2. **Recommend one** and justify it in the issue.
 3. **Decide.** If one option is clearly better on all criteria that matter, the contributor decides.
    Otherwise, and always for the invariants, a maintainer decides before anything is implemented.
-4. **Record** the decision in the [Decision log](decisions.md) (if it meets the criteria stated there),
+4. **Record** the decision in the [Decision log](decisions.md) or the [process log](decisions-process.md) (if it meets the criteria stated there),
    in the pull request that implements it, or in the pull request of the [unblock run](unblock-and-rerank.md)
    that decided it. Amend the issue description with the decision instead of adding a comment.
    The full reasoning goes where it is read: the {ref}`Design Decisions <design_decisions>` (package design),

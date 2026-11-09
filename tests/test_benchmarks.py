@@ -1,6 +1,7 @@
 """Tests of the benchmark harness (``benchmarks/``), skipped without the benchmark dependencies."""
 
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -566,3 +567,29 @@ def test_memory_composition_needs_matching_baselines(tmp_path):
     # only the baseline with Numba
     results["baselines"] = {"setups": [setup(True, 86)]}
     assert plot.numba_share(results) is None
+
+
+def test_derived_text_is_marked(tmp_path):
+    # the text derived from the results must stay marked, so that a full run lists it for updating
+    marked = {str(path) for path in run.derived_text_files()}
+    assert {
+        "README.rst",
+        "docs/0_getting_started.rst",
+        "docs/7_benchmark_method.rst",
+        "docs/7_performance.rst",
+        "docs/9_alternatives.rst",
+    } <= marked
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "docs" / "page.rst").write_text(f".. {run.DERIVED_MARKER}: claim\n")
+    # the word in prose is no marker
+    (tmp_path / "docs" / "other.rst").write_text(
+        f"mentions {run.DERIVED_MARKER}: in prose\n"
+    )
+    assert run.derived_text_files(tmp_path) == [Path("docs/page.rst")]
+
+
+def test_rendering_a_full_run_lists_the_derived_text(tmp_path, capsys):
+    results = run.REPO_ROOT / "benchmarks" / "results" / "benchmark.json"
+    out = ["--tables-dir", str(tmp_path), "--figures-dir", str(tmp_path)]
+    assert run.main(["--render-only", str(results), *out]) == 0
+    assert "docs/7_performance.rst" in capsys.readouterr().err

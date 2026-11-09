@@ -84,6 +84,9 @@ hole must be supplied.
 
     Pass ``validate=True`` in order to check the condition on the data.
     Raises ``TypeError`` if the input has the wrong type and ``ValueError`` if the input is invalid.
+    The message names the polygon (``boundary polygon`` or ``hole <index>``) and the location of the violation,
+    e.g. ``hole 1: The given polygon has self intersections: the edges from vertex 0 to 1 and from vertex 2 to 3
+    cross at (6.0, 6.0)``.
 
 
 .. note::
@@ -137,6 +140,134 @@ This is required if points lie really close to polygon edges and
 
     the search: the temporary edges connecting start and goal to the visibility graph dashed in green, the shortest path in orange
 
+
+
+Shapely and GeoJSON input
+-------------------------
+
+Obstacles given as `Shapely <https://shapely.readthedocs.io/>`__ geometries or GeoJSON can be passed directly
+to ``PolygonEnvironment.from_shapely()``. It requires Shapely:
+
+.. code-block:: console
+
+    pip install "extremitypathfinder[shapely]"
+
+The geometries are converted into the coordinate input described above,
+which gives the same environment as the equivalent coordinate lists:
+
+- the exterior ring of the boundary polygon becomes the boundary, its interior rings become holes.
+  Pass ``None`` as the boundary for an unbounded environment.
+- the exterior rings of the obstacles become holes. Obstacles may be polygons, multi-polygons,
+  geometry collections of polygons or lists of these.
+- interior rings of obstacles (e.g. islands in a lake) are ignored with a warning:
+  the free space inside an obstacle cannot be reached from the outside.
+- the repeated closing vertex of the rings and repeated consecutive vertices are removed,
+  a third (z) coordinate is ignored.
+- GeoJSON-like mappings (geometries, features, feature collections) and objects with a ``__geo_interface__``
+  (e.g. GeoPandas geometries) are accepted as well.
+
+.. code-block:: python
+
+    import shapely
+    from extremitypathfinder import PolygonEnvironment
+
+    boundary = shapely.Polygon([(0, 0), (10, 0), (10, 10), (0, 10)])
+    obstacles = shapely.MultiPolygon(
+        [
+            shapely.Polygon([(2, 2), (4, 2), (4, 4), (2, 4)]),
+            shapely.Polygon([(6, 6), (8, 6), (8, 8), (6, 8)]),
+        ]
+    )
+    environment = PolygonEnvironment.from_shapely(boundary, obstacles, validate=True)
+    path, length = environment.find_shortest_path((1, 1), (9, 9))
+    line = shapely.LineString(path)  # the path as a Shapely geometry
+
+With ``validate=True``, the converted coordinates are checked with the same validation as the coordinate input.
+Shapely's own validity rules differ (e.g. a polygon touching itself at a vertex is valid here, but not in Shapely).
+Geometries rejected by the validation can often be repaired with Shapely before passing them,
+e.g. with ``shapely.make_valid()``, which splits a self-intersecting polygon into valid parts:
+
+.. code-block:: python
+
+    obstacle = shapely.Polygon([(2, 2), (4, 4), (4, 2), (2, 4)])  # crosses itself
+    obstacles = shapely.make_valid(obstacle)  # two touching triangles
+    environment = PolygonEnvironment.from_shapely(boundary, obstacles, validate=True)
+
+The repaired geometry may contain lines or points (e.g. from a zero-width spike):
+keep only the polygons, e.g. with ``shapely.make_valid(obstacle, method="structure")``, and check the result.
+
+
+.. _clearance:
+
+Agent clearance
+---------------
+
+The shortest paths touch the corners of the obstacles and run along their edges.
+An agent with an extent (a robot, a vehicle, a ship, a game character) has to keep a minimum distance to the obstacles.
+Plan in the configuration space: shrink the boundary and inflate the obstacles by the clearance (e.g. the agent radius)
+with Shapely, then find the shortest path for a point, which keeps the clearance to the original obstacles:
+
+.. the example is tested in tests/test_shapely.py and drawn by scripts/docs_figures.py
+
+.. code-block:: python
+
+    from shapely import Polygon, union_all
+    from extremitypathfinder import PolygonEnvironment
+
+    boundary_coordinates = [(0.0, 0.0), (12.0, 0.0), (12.0, 8.0), (0.0, 8.0)]
+    list_of_hole_coordinates = [
+        [(3.0, 1.5), (6.0, 1.5), (6.0, 4.0), (3.0, 4.0)],
+        [(6.0, 4.8), (9.0, 6.5), (5.0, 6.5)],
+    ]
+    clearance = 0.5
+    boundary = Polygon(boundary_coordinates).buffer(-clearance, join_style="mitre")
+    obstacles = union_all(
+        [
+            Polygon(hole).buffer(clearance, join_style="mitre")
+            for hole in list_of_hole_coordinates
+        ]
+    )
+    environment = PolygonEnvironment.from_shapely(boundary, obstacles, validate=True)
+    path, length = environment.find_shortest_path((1.0, 3.0), (11.0, 4.0))
+    # length: 11.908... (without clearance: 10.236...)
+
+
+.. figure:: _static/clearance.svg
+
+    the inflated obstacles and the shrunk boundary in grey, the original polygons outlined.
+    The passage between the obstacles is narrower than twice the clearance and closes:
+    the path with clearance (orange) goes around the obstacle, the path without clearance (dashed) passes through
+
+
+The join style decides how the corners are inflated:
+
+- **mitre** (recommended): the edges are moved outwards and the corners stay sharp.
+  An inflated corner is one vertex, so the environment keeps its size.
+  The clearance is kept exactly, also with a ``mitre_limit`` of at least 1 (which cuts very sharp corners
+  at a distance of ``mitre_limit`` times the clearance, adding one vertex).
+  The corners are inflated more than necessary: paths around them are slightly longer than the shortest paths
+  with clearance, and passages slightly wider than twice the clearance may close at corners
+  (narrower passages close with every join style: the agent does not fit through them).
+- **round** (Shapely's default): close to the exact configuration space, so the paths are nearly the shortest ones.
+  But every arc is approximated with many vertices, and all of them become extremities:
+  the visibility graph and the preparation time grow considerably (in the example above 113 instead of 6 extremities).
+  The arcs are approximated from inside, so the path comes slightly closer than the clearance.
+  Lower ``quad_segs`` for fewer vertices, and add a small margin to the clearance where it must be kept.
+- **bevel**: cuts the corners with one edge (two vertices per corner).
+  Cutting a corner with the interior angle :math:`\alpha` lets the path come as close as
+  :math:`\text{clearance} \cdot \sin(\alpha / 2)` to it, e.g. :math:`0.71 \cdot \text{clearance}` at right angles.
+
+Further points:
+
+- Inflated obstacles may overlap each other and the shrunk boundary, ``union_all()`` merges them into one geometry.
+  Overlapping and touching polygons are accepted as input and block paths, so merging is optional.
+- The shrunk boundary may split into several parts (a ``MultiPolygon``), but ``from_shapely()`` accepts only one
+  boundary polygon. Paths cannot leave a part, so use the part containing the start,
+  e.g. ``next(part for part in boundary.geoms if part.covers(Point(start)))`` (``from shapely import Point``).
+- Start and goal must lie outside the inflated obstacles and inside the shrunk boundary:
+  otherwise the agent does not fit there, and the search raises a ``ValueError``.
+  Check them with ``environment.within_map()``.
+- For a different clearance, create a new environment.
 
 
 Converting a grid

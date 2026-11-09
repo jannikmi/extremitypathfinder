@@ -1,12 +1,15 @@
 """Regression coverage for documented polygon geometry edge cases."""
 
 import itertools
+import re
 from math import hypot, sqrt
 
 import networkx as nx
+import numpy as np
 import pytest
 
-from extremitypathfinder import PolygonEnvironment
+from extremitypathfinder import PolygonEnvironment, utils
+from tests import exact
 from tests.test_cases import POLYGON_ENVS
 
 BOUNDARY = [(0.0, 0.0), (10.0, 0.0), (10.0, 10.0), (0.0, 10.0)]
@@ -138,123 +141,126 @@ def test_touching_holes_block_at_shared_vertex():
     _assert_valid_path(path, distance, holes)
 
 
+# invalid input: (boundary, holes, error, message), rejected with validate=True
+INVALID_POLYGON_ENVS = [
+    (
+        [(0.0, 0.0), (1.0, 0.0)],
+        [],
+        TypeError,
+        "at least contain 3 vertices",
+    ),
+    (
+        [0.0, 1.0, 2.0],
+        [],
+        TypeError,
+        "must consist of two values",
+    ),
+    (
+        [(0.0, 0.0), (1.0, 0.0), (1.0, 0.0), (0.0, 1.0)],
+        [],
+        ValueError,
+        "must not be identical",
+    ),
+    (
+        [(0.0, 0.0), (2.0, 2.0), (0.0, 2.0), (2.0, 0.0)],
+        [],
+        ValueError,
+        "self intersections",
+    ),
+    (
+        [(0.0, 0.0), (1.0, 0.0), (float("nan"), 1.0)],
+        [],
+        ValueError,
+        "coordinates must be finite",
+    ),
+    (
+        [(0.0, 0.0), (1.0, 0.0), (2.0, 0.0)],
+        [],
+        ValueError,
+        "area must be non-zero",
+    ),
+    # https://github.com/jannikmi/extremitypathfinder/issues/135:
+    # the chain (2,2) -> (5,5) -> (9,9) crosses the edge (8,2) -> (2,8) at the vertex (5,5)
+    (
+        BOUNDARY,
+        [[(2.0, 2.0), (5.0, 5.0), (9.0, 9.0), (8.0, 2.0), (2.0, 8.0)]],
+        ValueError,
+        "self intersections",
+    ),
+    # the two corners at the identical vertices (5, 5) interleave: a figure eight
+    (
+        BOUNDARY,
+        [
+            [
+                (3.0, 5.0),
+                (3.0, 7.0),
+                (5.0, 7.0),
+                (5.0, 5.0),
+                (5.0, 2.0),
+                (8.0, 2.0),
+                (8.0, 5.0),
+                (5.0, 5.0),
+            ]
+        ],
+        ValueError,
+        "self intersections",
+    ),
+    # the vertex (3,4) lies on the diagonal edge (0,0) -> (6,8), its neighbours on opposite sides
+    (
+        BOUNDARY,
+        [
+            [
+                (0.0, 0.0),
+                (6.0, 8.0),
+                (11.0, 0.0),
+                (4.0, 1.0),
+                (3.0, 4.0),
+                (2.0, 7.0),
+                (-5.0, 7.0),
+            ]
+        ],
+        ValueError,
+        "self intersections",
+    ),
+    # zero-width spike along a diagonal: the rays (-3,-3) and (-2,-2) seen from (7,7) are identical
+    (
+        BOUNDARY,
+        [[(0.0, 0.0), (0.0, 4.0), (4.0, 4.0), (7.0, 7.0), (5.0, 5.0), (4.0, 0.0)]],
+        ValueError,
+        "overlapping edges",
+    ),
+    # zero-width spike: the consecutive edges (6,3) -> (8,3) -> (5,3) overlap
+    (
+        BOUNDARY,
+        [[(3.0, 3.0), (3.0, 6.0), (6.0, 6.0), (6.0, 3.0), (8.0, 3.0), (5.0, 3.0)]],
+        ValueError,
+        "overlapping edges",
+    ),
+    # zero-width slit: the edges (2.5,5) -> (2.5,3) and (2.5,3) -> (2.5,5) overlap
+    (
+        BOUNDARY,
+        [
+            [
+                (1.0, 1.0),
+                (1.0, 5.0),
+                (2.5, 5.0),
+                (2.5, 3.0),
+                (2.0, 2.0),
+                (3.0, 2.0),
+                (2.5, 3.0),
+                (2.5, 5.0),
+                (4.0, 5.0),
+                (4.0, 1.0),
+            ]
+        ],
+        ValueError,
+        "overlapping edges",
+    ),
+]
+
+
 @pytest.mark.parametrize(
-    ("boundary", "holes", "error", "message"),
-    [
-        (
-            [(0.0, 0.0), (1.0, 0.0)],
-            [],
-            TypeError,
-            "at least contain 3 vertices",
-        ),
-        (
-            [0.0, 1.0, 2.0],
-            [],
-            TypeError,
-            "must consist of two values",
-        ),
-        (
-            [(0.0, 0.0), (1.0, 0.0), (1.0, 0.0), (0.0, 1.0)],
-            [],
-            ValueError,
-            "must not be identical",
-        ),
-        (
-            [(0.0, 0.0), (2.0, 2.0), (0.0, 2.0), (2.0, 0.0)],
-            [],
-            ValueError,
-            "self intersections",
-        ),
-        (
-            [(0.0, 0.0), (1.0, 0.0), (float("nan"), 1.0)],
-            [],
-            ValueError,
-            "coordinates must be finite",
-        ),
-        (
-            [(0.0, 0.0), (1.0, 0.0), (2.0, 0.0)],
-            [],
-            ValueError,
-            "area must be non-zero",
-        ),
-        # https://github.com/jannikmi/extremitypathfinder/issues/135:
-        # the chain (2,2) -> (5,5) -> (9,9) crosses the edge (8,2) -> (2,8) at the vertex (5,5)
-        (
-            BOUNDARY,
-            [[(2.0, 2.0), (5.0, 5.0), (9.0, 9.0), (8.0, 2.0), (2.0, 8.0)]],
-            ValueError,
-            "self intersections",
-        ),
-        # the two corners at the identical vertices (5, 5) interleave: a figure eight
-        (
-            BOUNDARY,
-            [
-                [
-                    (3.0, 5.0),
-                    (3.0, 7.0),
-                    (5.0, 7.0),
-                    (5.0, 5.0),
-                    (5.0, 2.0),
-                    (8.0, 2.0),
-                    (8.0, 5.0),
-                    (5.0, 5.0),
-                ]
-            ],
-            ValueError,
-            "self intersections",
-        ),
-        # the vertex (3,4) lies on the diagonal edge (0,0) -> (6,8), its neighbours on opposite sides
-        (
-            BOUNDARY,
-            [
-                [
-                    (0.0, 0.0),
-                    (6.0, 8.0),
-                    (11.0, 0.0),
-                    (4.0, 1.0),
-                    (3.0, 4.0),
-                    (2.0, 7.0),
-                    (-5.0, 7.0),
-                ]
-            ],
-            ValueError,
-            "self intersections",
-        ),
-        # zero-width spike along a diagonal: the rays (-3,-3) and (-2,-2) seen from (7,7) are identical
-        (
-            BOUNDARY,
-            [[(0.0, 0.0), (0.0, 4.0), (4.0, 4.0), (7.0, 7.0), (5.0, 5.0), (4.0, 0.0)]],
-            ValueError,
-            "overlapping edges",
-        ),
-        # zero-width spike: the consecutive edges (6,3) -> (8,3) -> (5,3) overlap
-        (
-            BOUNDARY,
-            [[(3.0, 3.0), (3.0, 6.0), (6.0, 6.0), (6.0, 3.0), (8.0, 3.0), (5.0, 3.0)]],
-            ValueError,
-            "overlapping edges",
-        ),
-        # zero-width slit: the edges (2.5,5) -> (2.5,3) and (2.5,3) -> (2.5,5) overlap
-        (
-            BOUNDARY,
-            [
-                [
-                    (1.0, 1.0),
-                    (1.0, 5.0),
-                    (2.5, 5.0),
-                    (2.5, 3.0),
-                    (2.0, 2.0),
-                    (3.0, 2.0),
-                    (2.5, 3.0),
-                    (2.5, 5.0),
-                    (4.0, 5.0),
-                    (4.0, 1.0),
-                ]
-            ],
-            ValueError,
-            "overlapping edges",
-        ),
-    ],
+    ("boundary", "holes", "error", "message"), INVALID_POLYGON_ENVS
 )
 def test_invalid_polygons_fail_predictably(boundary, holes, error, message):
     with pytest.raises(error, match=message):
@@ -316,6 +322,69 @@ def test_invalid_polygons_fail_predictably(boundary, holes, error, message):
 )
 def test_polygons_touching_themselves_are_valid(boundary, holes):
     PolygonEnvironment(boundary, holes, validate=True)
+
+
+# the vertex (3, 2) touches the edge (1, 4) -> (4, 1), its neighbours lie on the same side.
+# np.linalg.solve (used before #193) found a crossing of the edges (2, 0) -> (3, 2) and (1, 4) -> (4, 1)
+# inside the edges for one of the two vertex orders: the hole was rejected, the boundary accepted.
+TOUCHING_AT_EDGE = [(3.0, 2.0), (2.0, 1.0), (1.0, 4.0), (4.0, 1.0), (2.0, 0.0)]
+
+
+@pytest.mark.parametrize("coords", [TOUCHING_AT_EDGE, TOUCHING_AT_EDGE[::-1]])
+def test_vertex_touching_an_edge_is_valid_in_both_numberings(coords):
+    PolygonEnvironment(coords, [], validate=True)
+    PolygonEnvironment(
+        [(-10.0, -10.0), (10.0, -10.0), (10.0, 10.0), (-10.0, 10.0)],
+        [coords],
+        validate=True,
+    )
+
+
+BOWTIE = [(0.0, 0.0), (2.0, 2.0), (0.0, 2.0), (2.0, 0.0)]
+
+
+@pytest.mark.parametrize(
+    ("boundary", "holes", "message"),
+    [
+        # the vertex indices of the input, also for polygons stored reversed
+        (
+            BOWTIE,
+            [],
+            r"^boundary polygon: .* the edges from vertex 0 to 1 and from vertex 2 to 3 cross at \(1\.0, 1\.0\)$",
+        ),
+        (
+            BOWTIE[::-1],
+            [],
+            r"^boundary polygon: .* the edges from vertex 0 to 1 and from vertex 2 to 3 cross at \(1\.0, 1\.0\)$",
+        ),
+        (
+            None,
+            [RECTANGULAR_HOLE, [(5.0, 5.0), (7.0, 7.0), (5.0, 7.0), (7.0, 5.0)]],
+            r"^hole 1: .* the edges from vertex 0 to 1 and from vertex 2 to 3 cross at \(6\.0, 6\.0\)$",
+        ),
+        (
+            BOUNDARY,
+            [
+                RECTANGULAR_HOLE,
+                [(2.0, 2.0), (5.0, 5.0), (9.0, 9.0), (8.0, 2.0), (2.0, 8.0)],
+            ],
+            r"^hole 1: .* crosses itself at \(5\.0, 5\.0\)$",
+        ),
+        (
+            BOUNDARY,
+            [[(3.0, 3.0), (3.0, 6.0), (6.0, 6.0), (6.0, 3.0), (8.0, 3.0), (5.0, 3.0)]],
+            r"^hole 0: .*overlapping edges at \(6\.0, 3\.0\)$",
+        ),
+        (
+            [(0.0, 0.0), (1.0, 0.0), (1.0, 0.0), (0.0, 1.0)],
+            [],
+            "^boundary polygon: ",
+        ),
+    ],
+)
+def test_validation_errors_name_the_polygon_and_the_location(boundary, holes, message):
+    with pytest.raises(ValueError, match=message):
+        PolygonEnvironment(boundary, holes, validate=True)
 
 
 def test_repeated_queries_do_not_mutate_precomputed_graph():
@@ -421,3 +490,39 @@ def test_verify_is_keyword_only(method):
     with pytest.raises(TypeError):
         getattr(environment, method)((1.0, 5.0), (9.0, 5.0), False)
     getattr(environment, method)((1.0, 5.0), (9.0, 5.0), verify=False)
+
+
+# only the edges 0 and 2 cross. Reversed, they become the edges 4 and 2:
+# a wrong mapping of the vertex indices names edges which do not cross
+CROSSING_HEXAGON = [
+    (0.0, 0.0),
+    (2.0, 2.0),
+    (0.0, 2.0),
+    (2.0, 0.0),
+    (1.5, -1.0),
+    (0.5, -1.0),
+]
+
+
+@pytest.mark.parametrize("coords", [CROSSING_HEXAGON, CROSSING_HEXAGON[::-1]])
+@pytest.mark.parametrize("as_hole", [False, True])
+def test_validation_errors_give_the_edges_of_the_input(coords, as_hole):
+    """the reported vertex indices are those of the input, also for polygons stored reversed"""
+    boundary, holes = (None, [coords]) if as_hole else (coords, [])
+    with pytest.raises(ValueError, match="self intersections") as error:
+        PolygonEnvironment(boundary, holes, validate=True)
+    edges = re.findall(r"from vertex (\d+) to (\d+)", str(error.value))
+    (i1, j1), (i2, j2) = ((int(i), int(j)) for i, j in edges)
+    n = len(coords)
+    assert (j1, j2) == ((i1 + 1) % n, (i2 + 1) % n)
+    assert exact.crossing(coords[i1], coords[j1], coords[i2], coords[j2])
+
+
+def test_crossing_hexagon_is_stored_reversed_in_one_numbering():
+    """``test_validation_errors_give_the_edges_of_the_input`` covers the index mapping of reversed polygons"""
+    for clockwise in (False, True):
+        reversed_numberings = [
+            utils.orient_polygon(array, clockwise) is not array
+            for array in (np.array(CROSSING_HEXAGON), np.array(CROSSING_HEXAGON[::-1]))
+        ]
+        assert sorted(reversed_numberings) == [False, True]

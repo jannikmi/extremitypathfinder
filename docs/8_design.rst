@@ -38,7 +38,8 @@ Non-goals
 - **Robust geometric predicates**: computations use double precision floating point numbers.
   Contacts are only detected for exactly equal coordinates or vertices exactly on an edge (cf. `Numerical Policy`_).
 - **Other distance metrics, 3D, agents with a size**: the package computes Euclidean shortest paths for a point
-  in the plane. Agents with a size can be supported by buffering the obstacles beforehand.
+  in the plane. Agents with a size are supported by inflating the obstacles beforehand
+  (cf. :ref:`agent clearance <clearance>`).
 - **Parallel computation**: the visibility graph is computed in a single thread.
 
 
@@ -327,6 +328,7 @@ A line of sight only touching an edge in one of its vertices, or running along i
     check(crossing edges)
 
     check(edges):
+      keep only the edges with a candidate in [min_rep, max_rep]
       sort the edges by min_rep
       ptr = 0                   # first candidate possibly in a range
       for edge in edges:
@@ -348,6 +350,10 @@ Details:
 - **Sweep**: since the edges are sorted by ``min_rep`` and the candidates by representation,
   candidates before the current edge's range can never be blocked by a following edge.
   The pointer only moves forward, removed candidates shrink the list.
+- **Edges without candidates**: an edge whose angle range contains no candidate cannot block one,
+  candidates are only removed during the sweep. Two vectorised binary searches (``np.searchsorted()``)
+  select the other edges before sorting (``_edges_with_candidates()``), so the Python loop only runs over
+  the few edges that can block a candidate, not over all edges of every origin.
 - **Crossing edges**: an edge spans less than 180 degree, so a representation difference larger than ``2.0``
   means the range wraps around ``0``. Instead of handling the wrap in the sweep, all representations are shifted
   (modulo ``4.0``) so that the smallest upper end of the crossing edges moves to ``0``, which turns the crossing edges
@@ -369,20 +375,43 @@ Properties:
 - intersections (solving a linear system) are only computed for a fraction of the candidates
 - it would also work with line segments instead of polygons (the package however only accepts polygons)
 
-Cost per origin: sorting the edges, :math:`O(n \log n)`, and the candidates, :math:`O(k \log k)`.
-Every edge is visited at most once, and on average only the fraction of candidates within an edge's angle range
-is checked against it, :math:`O(n \cdot k / n) = O(k)`.
-With :math:`k \leq m` this gives :math:`O(n \log n + m)` per origin and :math:`O(m \, n \log n)` for all
-extremities, i.e. :math:`O(n^2 \log n)` in the worst case (:math:`m \sim n`).
+Cost per origin with :math:`k \leq m` candidates: selecting the edges with candidates, :math:`O(n \log k)`
+(vectorised), sorting them, :math:`O(n \log n)`, and the candidates, :math:`O(k \log k)`,
+plus one check per edge and candidate within its angle range.
 
-Comparison with `Lee's visibility graph algorithm <https://dav.ee/papers/Visibility_Graph_Algorithm.pdf>`__
-(also :math:`O(n^2 \log n)`), which `pyvisgraph <https://github.com/TaipanRex/pyvisgraph>`__ uses:
+- **Typical case**: the angle ranges of the edges overlap little, so every candidate is only checked against
+  a few edges. This gives :math:`O(n \log n + m)` per origin and :math:`O(m \, n \log n)`
+  for all extremities.
+- **Worst case**: a candidate in front of an edge is kept and checked again by every following edge
+  whose angle range contains it, e.g. many long edges behind many candidates, all spanning the same angle range.
+  This gives :math:`O(n \log n + n k)` per origin and :math:`O(m \, n \log n + n \, m^2)` for all extremities
+  (the number of candidates decreases from :math:`m` with every origin), i.e. :math:`O(n^3)` for :math:`m \sim n`.
+  In such an environment, doubling both the number of edges and of candidates quadruples
+  the time of ``find_visible()``.
+  An angular sweep would avoid this worst case, but is slower on the measured maps
+  (`#216 <https://github.com/jannikmi/extremitypathfinder/issues/216>`__).
+
+AREA builds on known techniques: sorting by angle around the origin (as Lee's algorithm),
+a trigonometry-free angle representation (the "diamond angle") and culling by angle range and distance.
+Its own part is the edge-centric sweep: every edge eliminates the candidates behind it,
+instead of a rotating ray keeping the edges in a balanced tree.
+
+Comparison with `Lee's visibility graph algorithm <https://dav.ee/papers/Visibility_Graph_Algorithm.pdf>`__,
+which `pyvisgraph <https://github.com/TaipanRex/pyvisgraph>`__ uses.
+Lee's algorithm takes :math:`O(n^2 \log n)` in the worst case when it keeps the edges crossing the sweep ray
+in a balanced search tree. The implementation of pyvisgraph (0.2.1, ``visible_vertices.py``) takes :math:`O(n^3)`
+in the worst case, like AREA for :math:`m \sim n`, for two reasons: it keeps the edges in a sorted Python list
+(``insort()`` and ``del``, :math:`O(n)` per insertion and removal), and for every visible vertex of the same polygon
+it tests whether the line of sight runs through the polygon with a crossing test over all edges of that polygon
+(``edge_in_polygon()``), :math:`O(n)` per pair.
+The list operations are fast memory moves, and the measured maps keep AREA in its typical case (#215).
+The differences:
 
 - Lee checks all edges for intersection initially, AREA only the edges whose angle range contains candidates
 - Lee computes the visibility of all vertices in every run, AREA only of the candidates
 - Lee needs an intersection computation for most vertices (whenever its edge tree is not empty),
   AREA avoids most of them with the angle range and distance tests
-- Lee sorts all vertices by angle on startup and keeps the edges in a binary tree,
+- Lee sorts all vertices by angle on startup and keeps the edges in a binary tree (pyvisgraph: a sorted list),
   AREA sorts edges and candidates
 - both work with line segments, not only polygons
 
@@ -460,6 +489,8 @@ Point in polygon
 
 ``is_within_map()`` accepts a point when it lies within the boundary polygon (its border included)
 and not strictly inside any hole (hole borders are part of the map).
+Only the holes whose closed bounding box contains the point are tested (``polygon_bounds()``):
+a point outside of it lies neither inside the hole nor on its border.
 ``_inside_polygon()`` first checks for every edge whether the point lies exactly on it (``_lies_on_edge()``)
 and then returns the given border value. Otherwise it counts the crossings of a horizontal ray from the point
 in positive ``x`` direction with the polygon edges (crossing number). Edges with exactly one vertex to the right
@@ -485,13 +516,24 @@ Input validation
 With ``validate=True`` every polygon is checked (``_check_polygon()``):
 
 - shape, at least 3 vertices, finite coordinates, no identical consecutive vertices
-- **proper self intersections**: every pair of non-neighbouring edges is tested by solving a 2x2 linear system
-  (``_get_intersection_status()``), intersections strictly inside both edges are rejected, :math:`O(n^2)` per polygon
+- **proper self intersections** (``_find_crossing()``): only pairs of non-neighbouring edges whose bounding boxes
+  overlap are tested. A sweep along x over the edges sorted by their smallest x coordinate selects the pairs
+  overlapping in x, a vectorised comparison those overlapping in y (in chunks, to bound the memory).
+  For these pairs the 2x2 linear system is solved with Cramer's rule and compared without division
+  (``_crossing_parameters()``, exact for integer coordinates), intersections strictly inside both edges are rejected.
+  :math:`O(n \log n + k)` vectorised operations for :math:`k` pairs of edges overlapping in x,
+  :math:`O(n^2)` in the worst case (e.g. a zigzag of edges all overlapping in x). Coordinate differences
+  beyond about :math:`10^{154}` overflow in the cross products and go undetected (the package does not work at
+  such magnitudes anyway, e.g. the area check overflows too)
 - **non-zero area**: shoelace formula on coordinates translated to the first vertex (avoids cancellation)
 - **crossings at self contacts** (``check_polygon_contacts()``): at every position where the polygon touches itself,
   two rays with the same direction mean overlapping edges (zero-width spikes or slits), and two corners
   whose rays interleave (exactly one ray of the second corner lies within the first corner) mean the polygon
   crosses itself
+
+The errors name the polygon (``boundary polygon`` or ``hole <index>``) and the location: the crossing edges
+(with the vertex indices of the input, also for polygons stored reversed) and their crossing,
+or the position of a crossing or an overlap at a self contact.
 
 The orientation is not validated: ``orient_polygon()`` reverses polygons with the opposite numbering,
 using the sign of :math:`\sum (x_2 - x_1)(y_2 + y_1)` over all edges (``_has_clockwise_numbering()``, positive: clockwise).
@@ -530,6 +572,23 @@ A query only has to compute the visibility of two points. This favours use cases
 
 Precomputing all shortest paths between extremities was rejected: memory grows quadratically with the number of
 extremities, and a fully connected graph would slow down A* (it would visit every node).
+
+AREA instead of a different algorithm
+-------------------------------------
+
+The visibility stays computed with AREA, other algorithms are not used as a replacement (cf. `Related Work`_).
+The cost of the package is the visibility from many points, one at a time: from every extremity during the
+construction, from start and goal per query. Any algorithm of this kind costs at least linear time per point,
+so replacing AREA would mainly change constant factors. A rotational sweep with a tree of edges (Lee) is slower
+in Python on the measured maps (#216). Triangular expansion, a navigation mesh (Polyanya) or continuous Dijkstra
+need a triangulation of the free space: the polygons would have to be merged first (they may touch and overlap),
+the exact contact semantics re-established, and either a dependency added or a lot of code written.
+AREA carries the tested behaviour at the edge cases, the audit against exact arithmetic
+and the identical results with and without Numba.
+
+Changes of the scaling are added next to AREA, not instead of it: precomputed data for faster queries (#223)
+or an optional engine for very large or changing environments (#177). AREA then serves as the reference
+for their results.
 
 Angle representations instead of angles
 ---------------------------------------
@@ -607,7 +666,19 @@ Numerical Policy
 - **Lines of sight touching edges**: a line of sight touching an edge only in one of its vertices, or running along it,
   is not blocked by the edge. What happens at the vertex is decided by its wedges.
 - Intersections are only computed (a 2x2 linear system, ``_lies_behind_inner()``) when cheaper tests
-  (angle range, distance) cannot decide.
+  (angle range, distance) cannot decide. A determinant rounding to 0 (a direction parallel to the edge in floating
+  point) means "not behind the edge", in both modes.
+- **Audit against exact arithmetic** (#3, ``prototypes/float_audit.py``, the integer case is tested in
+  ``tests/test_exact_decisions.py``): every decision above was compared with
+  the exact decision (``fractions.Fraction``) for the same ``float64`` values, on integer, decimal grid, projected
+  (1e6 plus decimals), random and near-degenerate inputs (up to 100,000 cases per function and kind of input),
+  with identical results with and without Numba. There were no misdecisions when all coordinates, query points
+  included, are integers (up to 2^20). All misdecisions concern directions
+  or points within about one unit in the last place of a decision boundary: directions whose exact angle
+  representations differ by less than 1e-16 may compare equal or in the wrong order, and points about one unit in the
+  last place next to an edge may count as on the edge (by the 180 degree rule of ``_lies_on_edge()``) or fall on the
+  wrong side of it in the point in polygon test. Such inputs are within the rounding errors of the coordinates
+  themselves; exact predicates everywhere would be a large and slower change to the core and are not used.
 
 
 Complexity and Memory
@@ -619,8 +690,10 @@ With ``n`` vertices and ``m`` extremities (usually ``m << n``):
 Step                               Time                        Notes
 =================================  ==========================  =====================================================
 points and wedges                  ``O(n²)``                   vectorised bounding box test: edges through vertices
-visibility graph                   ``O(m n log n)``            AREA for every extremity, cf. `Algorithms`_
-query: visibility of start, goal   ``O(n log n + m)``          dominates the query time
+visibility graph                   ``O(m n log n)``            AREA for every extremity (typical case;
+                                                               worst case ``O(n m²)``), cf. `Algorithms`_
+query: visibility of start, goal   ``O(n log n + m)``          dominates the query time (typical case;
+                                                               worst case ``O(n m)``)
 query: A*                          ``O(E log E)``              ``E``: graph and temporary edges
 =================================  ==========================  =====================================================
 
@@ -631,6 +704,8 @@ A query uses ``O(n + m)`` additional memory.
 
 Profiling large environments shows that the A* search takes about 5% of the query time,
 most of the time is spent on the visibility of start and goal. Optimisations should target ``find_visible()``.
+``prototypes/complexity_profile.py`` measures the steps of the preparation and how often AREA checks a candidate
+(the measured maps stay in its typical case, #215).
 Benchmarks: :ref:`speed-tests`, ``scripts/speed_benchmarks.py`` and ``prototypes/large_env_query_profile.py``.
 
 
@@ -652,6 +727,62 @@ The tests (``tests/``) are organised by concern:
 ``tox`` runs the tests for all supported Python versions with the minimum and the latest dependencies,
 each with and without numba. Release artifacts are additionally installed and smoke tested in isolation
 (``make release-check``). Bug fixes should come with a regression test reproducing the bug.
+
+
+.. _related_work:
+
+Related Work
+============
+
+How the approach of this package relates to the literature on Euclidean shortest paths among polygonal obstacles.
+Packages solving the same problem are compared in :ref:`alternatives`.
+
+Constructing visibility graphs
+    Lee's rotational sweep (1978) computes the visibility graph of :math:`n` vertices in :math:`O(n^2 \log n)` time.
+    Welzl (1985), Asano et al. (1986) and Overmars and Welzl (1988) reduced this to :math:`O(n^2)`,
+    `Ghosh and Mount (1991) <https://www.cs.umd.edu/~mount/Papers/sicomp91-visib.pdf>`__ to the output sensitive
+    :math:`O(n \log n + E)` for :math:`E` visibility edges, and
+    `Chen and Wang (2015) <https://doaj.org/article/83ae71cdf1754c2d838667b17b0f2432>`__ to
+    :math:`O(n + h \log h + E)` for :math:`h` obstacles, given a triangulation of the free space.
+    AREA does not improve these bounds, its worst case, :math:`O(n^3)` for :math:`m \sim n`, is worse than Lee's
+    (cf. `Angle Range Elimination Algorithm (AREA)`_, which also names the techniques it builds on).
+    It trades the worst case guarantee for fewer and simpler operations on typical maps.
+    We are not aware of a published description of its edge-centric sweep.
+
+Shortest paths without a visibility graph
+    The continuous Dijkstra method computes a single shortest path in :math:`O(n \log n)` time
+    (Hershberger and Suri, 1999; Wang, SODA 2021, with :math:`O(n)` space),
+    and in :math:`O(n + h \log h)` given a triangulation of the free space
+    (`Wang, STOC 2021 <https://digitalcommons.usu.edu/computer_science_facpubs/20>`__).
+    These algorithms are optimal for single queries, but complex to implement. This package instead precomputes a
+    graph for many queries in a static environment.
+
+Reduced visibility graphs
+    Restricting the graph to the extremities (cf. `Why extremities suffice`_) and to the edges that can be part of
+    shortest paths (bitangents and obstacle edges between extremities) is known as the *tangent graph* (Liu and Arimoto, 1992) or *reduced visibility graph*
+    (`LaValle, Planning Algorithms, 6.2.4 <https://lavalle.pl/planning/node271.html>`__).
+    The graph reduction of this package follows Vinther et al. (2015, cf. `Visibility graph reduction`_).
+    `Sparse visibility graphs <https://arxiv.org/abs/1702.01524>`__ (Oh and Leong, 2017) prune edges
+    with the same taut path argument and build a hierarchy of them for any-angle paths on grids.
+
+Queries
+    Like this package, End Point Search (Shen et al., 2020) and
+    `Euclidean hub labelling <https://ojs.aaai.org/index.php/AAAI/article/view/26463>`__ (Du, Shen and Cheema, 2023)
+    connect start and goal to the extremities visible from them. Instead of searching a graph, they look up
+    distances between the extremities precomputed on the reduced visibility graph (hub labelling also stores the
+    visible extremities of grid cells): much faster queries at the cost of a lot of memory
+    (reduced by `EHL* <https://arxiv.org/abs/2408.11341>`__).
+    Polyanya (Cui, Harabor and Grastien, 2017) searches a navigation mesh instead.
+    `RayScan <https://ojs.aaai.org/index.php/ICAPS/article/view/6654>`__ (Hechenberger et al., 2020)
+    needs no preprocessing at all: it computes the visible vertices during the A* search with ray shooting,
+    which suits changing environments.
+
+Visibility from a point
+    The `triangular expansion algorithm <https://arxiv.org/abs/1403.3905>`__ (Bungiu et al., 2014) computes the
+    visibility from a point by expanding the triangles of a triangulation of the free space.
+    `TřiVis <https://arxiv.org/abs/2410.08752>`__ (Mikula, Kulich and Přeučil, 2024) implements it,
+    vertex to vertex visibility graphs included. It is the most relevant alternative to AREA for both construction
+    and queries, but is based on a triangulation of the free space (C++, not compared yet).
 
 
 Limitations and Possible Extensions

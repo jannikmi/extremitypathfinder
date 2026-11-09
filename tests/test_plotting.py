@@ -1,5 +1,7 @@
 """Drawing environments and searches onto matplotlib axes and exporting them as files."""
 
+from importlib.util import find_spec
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pytest
@@ -229,7 +231,7 @@ def test_docs_figures(tmp_path):
         "touching_vertices.svg",
         "touching_vertex_edge.svg",
         "touching_edges.svg",
-    }
+    } | ({"clearance.svg"} if find_spec("shapely") else set())
     demo = (tmp_path / "demo.svg").read_text(encoding="utf-8")
     assert "prefers-color-scheme: dark" in demo
     assert 'id="path"' in demo

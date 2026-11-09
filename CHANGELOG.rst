@@ -28,6 +28,26 @@ recreate them. Loading them raises a ``ValueError`` explaining this.
 
 other changes:
 
+- Shapely and GeoJSON input (#166): ``PolygonEnvironment.from_shapely(boundary, obstacles, validate=False)``
+  accepts Shapely polygons, multi-polygons and collections, GeoJSON-like mappings and objects with a
+  ``__geo_interface__`` (e.g. GeoPandas), and gives the same environment as the equivalent coordinate lists.
+  Repeated closing and consecutive vertices are removed, interior rings of obstacles are ignored with a warning,
+  features with a null geometry are skipped.
+  Shapely (2.0.6 or later) is an optional extra: ``pip install "extremitypathfinder[shapely]"``.
+- much faster input validation of large polygons (``validate=True``, #193): only edge pairs with overlapping
+  bounding boxes are tested for crossings, vectorised. E.g. the 5k vertex world map of the benchmarks:
+  10.5 s to 0.08 s, a 2,180 vertex polygon: 14.6 s to 0.06 s. The errors name the polygon (``boundary polygon``
+  or ``hole <index>``) and the location of the violation (the crossing edges with their vertex indices,
+  the crossing point). The crossing test solves its 2×2 system in closed form instead of with ``numpy.linalg.solve``
+  and is exact for integer coordinates: valid polygons touching themselves with a vertex on an edge were rejected
+  for one of the two vertex numberings.
+- documentation: agent clearance (#167), a recipe for agents that keep a minimum distance to the obstacles:
+  shrink the boundary and inflate the obstacles with Shapely, then pass them to ``from_shapely()``.
+  Compares the join styles (vertex count, kept clearance, path length).
+- documentation: the engineering design relates the algorithms to the literature (new section "Related Work"),
+  what sets the package apart (README and the alternatives page, which now also lists TřiVis)
+- documentation: when to install with or without Numba (#183): identical results, speed against memory
+  (Numba is loaded in every process at import) and the compilation at the first import.
 - citation metadata (#169): ``CITATION.cff`` (GitHub shows "Cite this repository"), how to cite is explained
   in the README and on the About page. The release tooling keeps its version and date up to date.
 - releases are archived on Zenodo, with a DOI for every version and one for all versions.
@@ -49,6 +69,11 @@ other changes:
 - lower peak memory when preparing some environments with a few thousand vertices: the test which edges pass
   through vertices processes fewer vertex-edge pairs at once (e.g. 9.7 to 7.4 MiB for the 1,985-vertex world map
   of the benchmarks). No change where the visibility graph dominates the peak memory.
+- faster preparation of large environments, identical visibility graphs and paths:
+  the visibility computation skips the edges without candidates in their angle range (#217),
+  and the test whether a vertex lies within the map only checks the holes whose bounding box contains it (#214).
+  E.g. the 5k vertex world map of the benchmarks: 56 to 29 s with Numba, 163 to 50 s without Numba.
+  Queries take as long as before.
 - the ``numba`` extra no longer installs SciPy (#185): a smaller installation (SciPy takes about 110 MB)
   and less memory per process with Numba (about 18 MiB less after import on Linux when SciPy is not installed).
   The test whether a vertex lies behind an edge solves its 2×2 system in closed form instead of with
@@ -64,6 +89,12 @@ other changes:
 - documentation: improved README and documentation landing page (features, quick start, navigation).
 - documentation: engineering design document (goals, architecture, data model, pipelines, algorithms and design decisions).
   The implementation details moved there from the about page.
+- documentation: corrected the worst-case time of the visibility computation (AREA) to ``O(n m²)``
+  for ``n`` vertices and ``m`` extremities (previously stated as ``O(n² log n)``), with its relation to known techniques
+  and the worst case of pyvisgraph's implementation of Lee's algorithm (``O(n³)``: a sorted list instead of a tree,
+  and a test against all edges of the polygon per visible vertex).
+- documentation: contacts and points on edges do not survive transforms that round the coordinates
+  (reprojecting, rotating, shifting by decimals): snap the coordinates after transforming (#3).
 
 bugfixes:
 
@@ -73,9 +104,13 @@ bugfixes:
   Directions are now represented with the "diamond angle" (``|dy| / (|dx| + |dy|)`` per quadrant),
   which resolves all directions equally well. Validation rejects spikes and slits too narrow for floating point
   precision (e.g. 1e-17 wide, from Shapely unions): their free side cannot be decided.
+- a vertex in a direction nearly parallel to an edge, whose determinant rounds to 0, raised a ``ZeroDivisionError``
+  with Numba and was decided by the sign of an infinite value without (#3). It is now not behind the edge in both modes.
 
 internal:
 
+- text derived from the benchmark results is marked (``benchmark-derived`` comments), and a full benchmark run
+  lists the files to update with the new results (#183).
 - documentation: the API documentation lists the plotting functions
   (matplotlib was missing from the documentation dependencies, their import failed).
 - the documentation build in CI (``tox -e docs``) fails on warnings.
@@ -87,6 +122,8 @@ internal:
   and with the locked dependency versions. ``scripts/release.py prepare``, the CI of pull requests changing
   the package version and the "tag release" workflow refuse outdated results.
   ``python scripts/release.py benchmarks`` checks them.
+- ``prototypes/complexity_profile.py`` measures the steps of the preparation and how often the visibility
+  computation checks a candidate (#215).
 - contributing guide: pages have a word limit (``max-words`` in ``pyproject.toml``, exceptions need a reason)
   and every page must be reachable from ``CONTRIBUTING.md``, checked by ``scripts/check_contributing_guide.py``
   in pre-commit and the tests.
@@ -96,6 +133,11 @@ internal:
   implementation, paths checked against the free space, reversed queries and an unpruned visibility graph
   (the elimination of extremities "in front"), and transforms of the environments (scaling by powers of two gives
   identical results, shifts, scaling by 1/3 and rotations the same reachability and lengths within 1e-9).
+- audit of the core floating point decisions (angle representations, edge, point in polygon and orientation tests,
+  ``RAY_TOLERANCE``, ``_lies_behind_inner()``) against exact rational arithmetic (``prototypes/float_audit.py``, #3):
+  no misdecisions when all coordinates are integers (tested in ``tests/test_exact_decisions.py``),
+  the remaining ones lie within about one unit in the last place of a decision boundary
+  (documented in the Numerical Policy of the design document).
 
 
 3.0.0 (2026-10-29)
