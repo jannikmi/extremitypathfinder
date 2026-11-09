@@ -41,8 +41,9 @@ SHA-256 verified), the land masses as obstacles and the sea as free space.
   and the smaller polygon of any intersecting or touching pair dropped.
   Every map is checked with Shapely: simple polygons, pairwise disjoint.
 * **Size sweep**: Douglas-Peucker simplification (``preserve_topology=True``) to a target number of vertices
-  (within 2 %), from the coarsest Natural Earth resolution with enough vertices:
-  250, 500, 1k, 2k, 5k (the raw 110m data), 10k, 20k, 50k, 100k, 200k and 400k vertices.
+  (at least the target and at most 2 % more), from the coarsest Natural Earth resolution with enough vertices
+  after the cleaning: 250, 500, 1k, 2k, 5k, 10k, 20k, 50k, 100k, 200k and 400k vertices.
+  A map of the sweep is named after its target: e.g. the 10k map has 10,000 vertices or more.
   The tolerance is found by bisection. The simplification comes before the cleaning steps above,
   and polygons with an area below the squared tolerance are dropped (slivers, tiny islands).
   The polygons dropped because they intersect or touch another one are counted in the table below.
@@ -128,7 +129,7 @@ Found by the validation while preparing the benchmark, reproducible with
 .. benchmark-derived: the figures of the defects (from ``benchmarks.pyvisgraph_issues`` and the cleaned map). Update this text with every full benchmark run
    (docs/contributing/performance.md, "After a full run").
 
-**Paths through obstacles.** On the cleaned 110m world map (4,954 vertices),
+**Paths through obstacles.** On the cleaned 110m world map without simplification (4,954 vertices),
 the query from the North Sea (3, 56) to the South China Sea (105, 5) returns a path of length 150.26
 with two segments across land: Lisbon to Valencia across Iberia and Algeria to Bab-el-Mandeb across Africa.
 The valid shortest path (``extremitypathfinder``) has length 211.14, around the Cape of Good Hope.
