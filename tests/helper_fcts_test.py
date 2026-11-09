@@ -318,7 +318,8 @@ def test_astar_path_uses_query_edges_without_changing_the_graph():
 
 def test_astar_path_expands_a_node_again_with_an_inconsistent_heuristic():
     # an admissible but inconsistent heuristic: B is expanded through S first (distance 3),
-    # the shorter path through A (distance 2) is found only afterwards
+    # the shorter path through A (distance 2) is found only afterwards.
+    # guards the decision of #157 against a closed set (it would return [s, b, g])
     s, a, b, g = range(4)
     graph = nx.Graph()
     graph.add_weighted_edges_from([(s, a, 1.0), (s, b, 3.0), (a, b, 1.0), (b, g, 3.0)])

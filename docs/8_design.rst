@@ -631,11 +631,11 @@ Ideas specific to visibility graphs were evaluated and not adopted, as they gave
 
 - **a closed set** (never expanding a node twice): with the consistent heuristic the distance check already
   prevents expanding a node again, and expanding again keeps the search exact with admissible heuristics.
-- **skipping neighbours**: a neighbour of the current node that is also a neighbour of its predecessor
-  cannot be reached shorter through the current node (triangle inequality),
-  but checking this costs as much as the distance check it saves.
-- **earlier termination**: the goal is only final when it is taken from the queue;
-  a node reached directly from the start is reached on a shortest path, which the distance check already respects.
+- **skipping neighbours** (not measured): a neighbour of the current node that is also a neighbour of its predecessor
+  cannot be reached shorter through the current node (triangle inequality). The distance check already rejects it,
+  skipping it would need an extra check per neighbour instead.
+- **earlier termination**: the goal is only final when it is taken from the queue.
+  Stopping earlier, e.g. when the goal is first reached, is not exact.
 - **a precomputed adjacency structure** (plain dicts or arrays): costs memory per environment and changes the pickled
   state, the iteration over the networkx dicts is not the bottleneck (cf. #182).
 

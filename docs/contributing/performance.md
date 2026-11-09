@@ -92,8 +92,8 @@ The A* search takes only a small part of the query time.
 
 `utils.astar_path()` is an own A* search that also follows the temporary edges of start and goal,
 so queries neither copy nor change the visibility graph (#136).
-It replaced a port of `networkx.astar_path()` and is as fast (#157: 0.34 ms per search at 900 extremities,
-1.2 ms at 2,500). A closed set and separate loops for graph and query edges gave no gain.
+It replaced a port of `networkx.astar_path()` and is as fast (measurements in #157).
+A closed set and separate loops for graph and query edges gave no gain.
 Alternatives compared in #152 (with measurements) and rejected, mainly for maintainability:
 
 - `networkx.astar_path()` on the visibility graph with the temporary edges added and removed again:

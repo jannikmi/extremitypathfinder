@@ -734,7 +734,8 @@ def astar_path(
     # the insertion number breaks ties in the order of insertion (nodes are never compared).
     # a node whose distance improves is inserted again, the outdated entry is skipped when it is taken.
     insertions = count()
-    queue = [(heuristic(source, target), next(insertions), source, 0.0)]
+    # the source is the only entry at first: its priority does not matter
+    queue = [(0.0, next(insertions), source, 0.0)]
     while queue:
         _, _, node, distance = heappop(queue)
         if distance > distances[node]:

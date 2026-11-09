@@ -34,8 +34,9 @@ The [Engineering Design](../8_design.rst) page gives the full reasoning.
 - **Few dependencies.** Runtime dependencies are numpy and networkx, Numba is an optional extra.
   A new dependency must be justified (what it saves compared to the code it replaces) and accepted by a maintainer.
 
-## Public API
+## Public API and licensing
 
 - The public API is what `__init__.py` exports, the documented methods and attributes of `PolygonEnvironment` and
   `SearchResult`, the plotting functions and the console command. Mark breaking changes with `BREAKING` in the changelog
   and describe the migration (cf. [Changelog](changelog.md)).
+- The package is licensed under MIT only: do not copy or adapt code from other projects (#157).
