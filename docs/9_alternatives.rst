@@ -8,6 +8,23 @@ Only few packages solve the same problem: exact Euclidean shortest paths in a 2D
 bounded by a polygon with polygonal holes, for repeated queries in a static environment.
 
 
+What sets this package apart
+----------------------------
+
+Not the raw speed: compiled tools (cf. `Other packages`_) are faster. What no other package offers together:
+
+- **Python first**: installable with ``pip``, only NumPy and NetworkX as dependencies,
+  optional Numba acceleration with identical results. The only other package on PyPI, pyvisgraph, is unmaintained
+  and returns wrong paths for some inputs (cf. `Other packages`_).
+- **Real-world input as it is**: polygons may touch, overlap and intersect, a boundary polygon is optional,
+  grids are converted. No triangulation, navigation mesh, merging or cleaning of the geometries is needed.
+- **Well-defined, tested behaviour at the edge cases**: contacts, points on edges and collinear vertices
+  follow one set of rules (cf. :ref:`touching`). The floating point decisions are audited against exact arithmetic
+  (cf. :ref:`engineering design <design>`), paths are validated independently in the benchmarks.
+- **Built once, queried many times**: only the protruding corners become graph nodes, and the graph is reduced
+  further, so the many queries in a static environment stay fast.
+
+
 When to use this package
 ------------------------
 
@@ -19,6 +36,7 @@ This package fits best when:
 - the environment is static and you query many paths in it: the visibility graph is computed once,
   each query only connects its start and goal to it
 - you need exact shortest paths, identical with and without the optional Numba acceleration
+- you need predictable results at touching obstacles and other edge cases
 
 Consider an alternative when:
 
@@ -75,6 +93,18 @@ Other packages
 `VisiLibity1 <https://karlobermeyer.github.io/VisiLibity1/>`__ (C++)
     Library for 2D floating-point visibility computations and shortest paths in polygonal environments.
     Python binding: `PyVisiLibity <https://github.com/tsaoyu/PyVisiLibity>`__ (not on PyPI, has to be built).
+
+`TřiVis <https://github.com/janmikulacz/trivis>`__ (C++, free for research use, commercial use by arrangement)
+    Library for visibility queries in polygonal environments with holes, based on the triangular expansion algorithm
+    (cf. :ref:`related work <related_work>`), with floating point arithmetic and robust predicates.
+    Its Pathfinder extension builds a visibility graph of the reflex vertices and computes shortest paths
+    between arbitrary points or all pairs of points.
+    Differences to this package:
+
+    - no Python package or bindings (built with CMake)
+    - the environment is one boundary polygon with simple holes, triangulated by the library;
+      touching and overlapping polygons are not described
+    - fast visibility queries according to its authors; not compared with this package yet
 
 CGAL based packages, e.g. `pyvispoly <https://pypi.org/project/pyvispoly/>`__ (GPL)
     Compute exact visibility polygons, but no shortest paths.

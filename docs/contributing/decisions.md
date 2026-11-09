@@ -21,6 +21,12 @@ the log states the current decisions (git keeps the history).
 Decisions about how we work on the project are in the [process decision log](decisions-process.md).
 Earlier decisions are described in the {ref}`Design Decisions <design_decisions>` and the issues linked there.
 
+## AREA stays the visibility algorithm, others are added next to it (#224)
+
+- **Decided by:** a maintainer
+- **Rejected:** a rotational sweep (#216), triangular expansion, Polyanya or continuous Dijkstra instead.
+- **Details:** {ref}`Design Decisions <design_decisions>`
+
 ## No angular sweep for the worst case of AREA (#216)
 
 - **Decided by:** a maintainer
@@ -33,8 +39,8 @@ Earlier decisions are described in the {ref}`Design Decisions <design_decisions>
 
 - **Decided by:** a maintainer (the rule and closing the gap of manual version changes); an agent (how it is checked)
 - **Rejected:** running the benchmarks in CI (cf. #165 below; shared runners also give noisy timings
-  on changing hardware); checking every pull request (code may change without a rerun of hours until the release);
-  only checking when the release is prepared (misses manual version changes and later merges into `master`);
+  on changing hardware); checking every pull request (code still changes until the release);
+  only checking when the release is prepared (misses manual version changes and later merges);
   comparing `pyproject.toml` and `uv.lock` as files (they change with every release, the measured dependency
   versions are compared instead).
 - **Details:** [Releasing](releasing.md#benchmark-results)

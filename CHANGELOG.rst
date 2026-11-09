@@ -28,6 +28,8 @@ recreate them. Loading them raises a ``ValueError`` explaining this.
 
 other changes:
 
+- documentation: the engineering design relates the algorithms to the literature (new section "Related Work"),
+  what sets the package apart (README and the alternatives page, which now also lists TřiVis)
 - documentation: when to install with or without Numba (#183): identical results, speed against memory
   (Numba is loaded in every process at import) and the compilation at the first import.
 - citation metadata (#169): ``CITATION.cff`` (GitHub shows "Cite this repository"), how to cite is explained
