@@ -535,6 +535,215 @@ class PolygonEnvironment:
         path = [tuple(coords[i]) for i in id_path]
         return graph_result(path, distance)
 
+    def distance_matrix(
+        self,
+        points_a: Iterable[InputCoord],
+        points_b: Iterable[InputCoord] | None = None,
+        *,
+        verify: bool = True,
+    ) -> np.ndarray:
+        """computes the shortest path lengths between many points (a distance matrix)
+
+        Gives the same lengths as :meth:`find_shortest_path` for every pair, but faster:
+        the visibility of every point is computed once (instead of twice per pair)
+        and the visibility graph is searched once per point of ``points_a`` (Dijkstra's algorithm).
+        The environment and its visibility graph are not changed.
+
+        :param points_a: the start points, (x,y) coordinate tuples
+        :param points_b: the goal points, (x,y) coordinate tuples. ``None``: the points of ``points_a``
+        :param verify: whether it should be checked if the points really lie inside the environment
+            (cf. :meth:`find_shortest_path`)
+        :return: the lengths of the shortest paths, a float array of shape ``(len(points_a), len(points_b))``:
+            entry ``[i, j]`` is the length from ``points_a[i]`` to ``points_b[j]``, ``inf`` if there is no path
+        :raises ValueError: when ``verify=True`` and a point does not lie within the map
+        """
+        coords_a = _as_coord_array(points_a)
+        coords_b = coords_a if points_b is None else _as_coord_array(points_b)
+        if verify:
+            for name, query_coords in (("points_a", coords_a), ("points_b", coords_b)):
+                for i, point in enumerate(query_coords):
+                    if not self.within_map(point):
+                        raise ValueError(
+                            f"{name}[{i}] {tuple(point.tolist())} does not lie within the map"
+                        )
+
+        # each position is computed once: query points with identical coordinates are merged
+        unique_idx: dict[tuple[float, float], int] = {}
+        unique_coords: list[np.ndarray] = []
+
+        def unique(query_coords: np.ndarray) -> list[int]:
+            idxs = []
+            for point in query_coords:
+                key = (float(point[0]), float(point[1]))
+                if key not in unique_idx:
+                    unique_idx[key] = self.nr_vertices + len(unique_coords)
+                    unique_coords.append(point)
+                idxs.append(unique_idx[key])
+            return idxs
+
+        idxs_a = unique(coords_a)
+        idxs_b = unique(coords_b)
+        matrix = np.full((len(idxs_a), len(idxs_b)), np.inf, dtype=configs.DTYPE_FLOAT)
+        if len(idxs_a) == 0 or len(idxs_b) == 0:
+            return matrix
+
+        sources = list(dict.fromkeys(idxs_a))
+        targets = list(dict.fromkeys(idxs_b))
+        # temporarily extend data structure (cf. search())
+        coords = np.append(self.coords, np.array(unique_coords), axis=0)
+        query_points = {i: self.points.at(coords[i], i) for i in unique_idx.values()}
+        graph_nodes = np.fromiter(self.graph.nodes, dtype=int)
+        graph_node_at = {i: _graph_node(point) for i, point in query_points.items()}
+
+        # the visibility of every query point, from the point (cf. search(): the visibility is checked from the goal)
+        # query point -> visible graph node -> distance
+        visible_nodes: dict[int, dict[int, float]] = {}
+        # target -> source -> distance, for the sources directly visible from the target
+        visible_sources: dict[int, dict[int, float]] = {}
+        is_target = set(targets)
+        for origin in unique_idx.values():
+            vert_idx2repr, vert_idx2dist = utils.cmp_reps_n_distances(origin, coords)
+            query_candidates = sources if origin in is_target else []
+            visible = self._visible_from_query_point(
+                origin,
+                graph_nodes,
+                query_candidates,
+                coords,
+                vert_idx2repr,
+                vert_idx2dist,
+                query_points,
+            )
+            visible_nodes[origin] = {
+                i: vert_idx2dist[i] for i in visible if i < self.nr_vertices
+            }
+            visible_sources[origin] = {
+                i: vert_idx2dist[i] for i in visible if i >= self.nr_vertices
+            }
+
+        # target -> its temporary edges (graph node -> distance), including the graph node merged with it
+        target_edges = {}
+        for target in targets:
+            edges = visible_nodes[target]
+            node = graph_node_at[target]
+            if node is not None:
+                # a goal merged with a graph node is reached with that node (cf. search())
+                edges = {**edges, node: 0.0}
+            target_edges[target] = edges
+
+        distances: dict[tuple[int, int], float] = {}
+        for source in sources:
+            # the targets not reached directly have to be reached through the graph
+            graph_targets = [
+                target
+                for target in targets
+                if target != source and source not in visible_sources[target]
+            ]
+            source_edges = visible_nodes[source]
+            node = graph_node_at[source]
+            if node is not None:
+                # a start merged with a graph node leaves through the node and through all of its free wedges
+                source_edges = {node: 0.0, **source_edges}
+            settled = {}
+            if graph_targets and source_edges:
+                needed = {i for target in graph_targets for i in target_edges[target]}
+                settled = utils.dijkstra_distances(self.graph, source_edges, needed)
+            for target in targets:
+                if target == source:
+                    distances[source, target] = 0.0
+                elif source in visible_sources[target]:
+                    # the shortest path is the direct line of sight (cf. search())
+                    distances[source, target] = visible_sources[target][source]
+                else:
+                    distances[source, target] = min(
+                        (
+                            settled[node] + weight
+                            for node, weight in target_edges[target].items()
+                            if node in settled
+                        ),
+                        default=np.inf,
+                    )
+
+        for i, source in enumerate(idxs_a):
+            for j, target in enumerate(idxs_b):
+                matrix[i, j] = distances[source, target]
+        return matrix
+
+    def _visible_from_query_point(
+        self,
+        origin: int,
+        graph_nodes: np.ndarray,
+        query_candidates: list[int],
+        coords: np.ndarray,
+        vert_idx2repr: np.ndarray,
+        vert_idx2dist: np.ndarray,
+        query_points: dict[int, Point | None],
+    ) -> set[int]:
+        """the graph nodes and the other query points visible from a query point
+
+        Of candidates with identical angle representation only the closest one is visible
+        (cf. ``utils.find_visible()``).
+        The visibility of each query candidate is the same as in :meth:`search` with the origin as goal
+        and the candidate as start: it is hidden by a closer graph node in the same direction
+        (the path then passes through that node), but not by the graph node at its own position
+        or by other query points. A query point must not hide graph nodes or other query points either:
+        query points sharing a representation with another candidate are checked in separate rounds.
+        """
+        # representation -> distance of the closest graph node in this direction
+        closest_node: dict[float, float] = {}
+        for rep, dist in zip(
+            vert_idx2repr[graph_nodes].tolist(),
+            vert_idx2dist[graph_nodes].tolist(),
+        ):
+            if dist < closest_node.get(rep, np.inf):
+                closest_node[rep] = dist
+        rounds: list[dict[float, int]] = [{}]
+        for i in query_candidates:
+            dist = vert_idx2dist[i]
+            if dist == 0.0:
+                continue
+            rep = float(vert_idx2repr[i])
+            first = 0
+            if rep in closest_node:
+                # Note: the graph node at the position of the candidate has the same distance
+                if closest_node[rep] < dist:
+                    # hidden by a closer graph node
+                    continue
+                first = 1
+            for k in itertools.count(first):
+                if k == len(rounds):
+                    rounds.append({})
+                if rep not in rounds[k]:
+                    rounds[k][rep] = i
+                    break
+        visible = set()
+        for k, query_round in enumerate(rounds):
+            candidates = set(query_round.values())
+            if k == 0:
+                candidates.update(graph_nodes.tolist())
+            if not candidates:
+                continue
+            visible |= self.get_visible_idxs(
+                origin,
+                candidates,
+                coords,
+                vert_idx2repr,
+                vert_idx2dist,
+                query_points,
+            )
+        return visible
+
+
+def _as_coord_array(points: Iterable[InputCoord]) -> np.ndarray:
+    """the query points as a float array of shape (n, 2)"""
+    coords = np.array(list(points), dtype=configs.DTYPE_FLOAT)
+    if coords.size == 0:
+        return coords.reshape(0, 2)
+    if coords.ndim != 2 or coords.shape[1] != 2:
+        raise ValueError(
+            f"the points must be (x,y) coordinate pairs, got an array of shape {coords.shape}"
+        )
+    return coords
+
 
 def _graph_node(point: Point | None) -> int | None:
     """the graph node of a point (an extremity), ``None`` if the point is no extremity"""

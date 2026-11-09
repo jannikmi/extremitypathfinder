@@ -772,6 +772,42 @@ def astar_path(
     return None
 
 
+def dijkstra_distances(
+    graph: t.Graph,
+    source_edges: Mapping[int, float],
+    targets: set[int],
+) -> dict[int, float]:
+    """the shortest distances from a source outside of the graph to graph nodes, with Dijkstra's algorithm
+
+    Searches the graph without modifying (or copying) it.
+    Stops when all targets are settled (early termination).
+
+    :param graph: the weighted graph (edge attribute ``weight``)
+    :param source_edges: the temporary edges of the source: graph node -> weight.
+        A source merged with a graph node has an edge of weight ``0.0`` to it.
+    :param targets: the nodes whose distances are needed
+    :return: the distances of the settled nodes (all reachable targets, possibly more nodes)
+    """
+    adjacency = graph._adj  # for speed-up (cf. networkx.astar_path())
+    # the counter breaks ties in the priority (the nodes are never compared)
+    c = count()
+    queue = [(weight, next(c), node) for node, weight in source_edges.items()]
+    queue.sort()
+    settled: dict[int, float] = {}
+    remaining = len(targets)
+    while queue and remaining > 0:
+        dist, _, node = heappop(queue)
+        if node in settled:
+            continue
+        settled[node] = dist
+        if node in targets:
+            remaining -= 1
+        for neighbour, attributes in adjacency[node].items():
+            if neighbour not in settled:
+                heappush(queue, (dist + attributes["weight"], next(c), neighbour))
+    return settled
+
+
 def compute_graph(
     extremity_indices: np.ndarray,
     coords: np.ndarray,
