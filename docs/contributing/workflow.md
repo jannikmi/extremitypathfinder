@@ -23,9 +23,11 @@ into one label. Within a label, stability issues come first, then the ones with 
 
 - **Demand counts:** a thumbs-up reaction, a use case in a comment or a report by a user raises the priority.
   When you open or triage an issue whose priority depends on demand (a feature, a user-facing change, an optimisation
-  for particular workloads, dropping support), start its description with the demand note of
+  for particular workloads), start its description with the demand note of
   [#171](https://github.com/jannikmi/extremitypathfinder/issues/171): ask for a 👍 and a comment with the use case,
-  with questions specific to the issue (e.g. typical sizes).
+  with questions specific to the issue (e.g. the number of vertices or queries). For dropping support, ask who still
+  needs it instead ([#145](https://github.com/jannikmi/extremitypathfinder/issues/145)).
+  Remove the note once the priority no longer depends on demand.
 - **An issue inherits the highest priority of the issues it blocks,** e.g. a benchmark that other work waits for.
 - **Decision issues before implementations:** decide the issues that change other issues
   (e.g. replacing a dependency) before implementing those.
