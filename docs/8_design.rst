@@ -477,10 +477,13 @@ Query
 - **A***: ``astar_path()`` uses the Euclidean distance to the goal as heuristic. Edge weights are Euclidean distances,
   so the heuristic is admissible and consistent (triangle inequality): the first time the goal is taken from the
   priority queue, its path is a shortest one.
-  The implementation follows ``networkx.astar_path()``: a binary heap with lazy deletion
-  (outdated queue entries are skipped when popped), a counter as tie breaker (nodes are never compared),
-  and caching of the heuristic per enqueued node. The neighbours of a node are those in the precomputed graph
-  followed by the temporary edges of start and goal.
+  The search is an own implementation (#157): a binary heap with lazy deletion
+  (a node whose distance improves is inserted again, outdated queue entries are skipped when popped)
+  and an insertion counter as tie breaker (nodes are never compared).
+  A node is expanded again if a shorter path to it is found after its expansion. With the consistent heuristic
+  this does not happen, but the search also stays exact with a heuristic that is only admissible
+  (e.g. for custom costs, #162) and when rounding violates the triangle inequality.
+  The neighbours of a node are those in the precomputed graph followed by the temporary edges of start and goal.
 - **Distances**: the heuristic uses the distances seen from the goal (computed for the query; a graph node merged
   with the goal has the same coordinates). The length of the path is the sum of its edge weights (``edge_weight()``).
 
@@ -616,13 +619,26 @@ adjacency dictionary. The precomputed graph is never copied, which made up most 
 environments before (#136). As a consequence queries have no side effects, environments can be reused
 and pickled at any time, and ``SearchResult`` is independent of later queries.
 
-Own port of ``networkx.astar_path()``
--------------------------------------
+Own A* search
+-------------
 
-``utils.astar_path()`` is a port of the ``networkx`` A* search that additionally follows the temporary query edges.
+``utils.astar_path()`` is an own A* search that additionally follows the temporary query edges.
 Adding and removing the edges on the shared graph, other graph libraries and Dijkstra searches were compared
 and rejected (#152, details in the :ref:`contribution guidelines <contributing>`).
-The port is under the 3-clause BSD license of ``networkx`` (``LICENSES/networkx.txt``).
+It replaced a port of ``networkx.astar_path()`` (#157), so the package is licensed under MIT only.
+Ideas specific to visibility graphs were evaluated and not adopted, as they gave no measurable gain
+(the search takes a few percent of the query time) or would only hold for Euclidean costs:
+
+- **a closed set** (never expanding a node twice): with the consistent heuristic the distance check already
+  prevents expanding a node again, and expanding again keeps the search exact with admissible heuristics.
+- **skipping neighbours** (not measured): a neighbour of the current node that is also a neighbour of its predecessor
+  cannot be reached shorter through the current node (triangle inequality). The distance check already rejects it,
+  skipping it would need an extra check per neighbour instead.
+- **earlier termination**: the goal is only final when it is taken from the queue.
+  Stopping earlier, e.g. when the goal is first reached, is not exact.
+- **a precomputed adjacency structure** (plain dicts or arrays): costs memory per environment and changes the pickled
+  state, the iteration over the networkx dicts is not the bottleneck (cf. #182).
+
 ``networkx`` is kept as graph data structure because it is a familiar, inspectable public attribute
 (``environment.graph``).
 
@@ -794,10 +810,6 @@ Limitations and Possible Extensions
   (the symmetry optimisation would have to be given up or the results merged), which would parallelise well.
 - **Query speed**: the visibility of start and goal is computed from scratch for every query.
   Spatial indices over the edges could reduce the number of edges checked per query.
-- **A* specialised for visibility graphs**: in the visibility graph it is always shortest to reach a node directly
-  instead of visiting other nodes first (triangle inequality). A custom A* could exploit this to terminate earlier
-  than for general graphs: nodes never have to be revisited (the path only gets longer),
-  and not all neighbours of the current node have to be checked before continuing with the next node.
 - **Dense grids**: environments with many small obstacles have many extremities. A grid based search can be
   faster there (cf. :ref:`usage`).
 

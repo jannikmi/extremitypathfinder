@@ -14,7 +14,6 @@ the data model and the algorithms in detail.
 | `benchmarks/` | comparison with pyvisgraph (cf. [Performance](performance.md)), not part of the package |
 | `prototypes/` | development scripts, e.g. profiling. Not part of the package, not tested |
 | `example.json` | example input of the command line interface (used by the tests and the docs) |
-| `LICENSES/` | third-party licenses (networkx, for `utils.astar_path()`) |
 | `.github/workflows/` | CI (`build.yml`) and the release automation |
 
 ## Package modules

@@ -12,9 +12,7 @@ authors:
     family-names: Kissinger
 version: 3.0.0
 date-released: 2026-10-29
-license:
-  - MIT
-  - BSD-3-Clause
+license: MIT
 repository-code: https://github.com/jannikmi/extremitypathfinder
 url: https://extremitypathfinder.readthedocs.io/en/latest/
 keywords:

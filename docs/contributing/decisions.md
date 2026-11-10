@@ -23,6 +23,14 @@ the log states the current decisions (git keeps the history).
 Decisions about how we work on the project are in the [process decision log](decisions-process.md).
 Earlier decisions are described in the {ref}`Design Decisions <design_decisions>` and the issues linked there.
 
+## Own A* search instead of the networkx port, expanding a node again when its distance improves (#157)
+
+- **Decided by:** a maintainer ([#157](https://github.com/jannikmi/extremitypathfinder/issues/157): replacing the port, MIT only); an agent (no closed set, with #162 in mind)
+- **Rejected:** keeping the port (BSD-3-Clause next to MIT); a closed set (no measured gain, wrong paths with heuristics
+  that are only admissible, e.g. custom costs of #162); skipping neighbours, earlier termination and a precomputed
+  adjacency structure (no gain, or only valid for Euclidean costs).
+- **Details:** {ref}`Design Decisions <design_decisions>`, [Performance](performance.md#shortest-path-search)
+
 ## AREA stays the visibility algorithm, others are added next to it (#224)
 
 - **Decided by:** a maintainer
