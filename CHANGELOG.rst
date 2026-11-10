@@ -23,11 +23,14 @@ BREAKING: the plotting module (``extremitypathfinder.plotting``) has one consist
 - new look: obstacles filled grey, including the area outside of the boundary polygon,
   extremities and the visibility graph in blue, the path in orange.
 
-BREAKING: environments pickled with 3.0 cannot be loaded anymore (changed attributes, pickle format version 4):
+BREAKING: environments pickled with 3.0 cannot be loaded anymore (changed attributes, pickle format version 5):
 recreate them. Loading them raises a ``ValueError`` explaining this.
 
 other changes:
 
+- faster queries (#222): start and goal are no longer connected to the graph nodes they lie "in front" of
+  (they are never the next node of a shortest path, like in the visibility graph). Same paths and lengths.
+  E.g. 200 queries on an environment with 400 extremities: 15 % faster with Numba, 21 % without.
 - license: the package is licensed under MIT only again (#157). The A* search (``utils.astar_path()``) is an own
   implementation instead of a port of ``networkx.astar_path()``, so the 3-clause BSD license of networkx
   (``LICENSES/networkx.txt``) no longer applies. Same paths and lengths, same speed.

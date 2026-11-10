@@ -373,6 +373,22 @@ class PolygonEnvironment:
             query_points,
         )
 
+    def _nodes_in_front(
+        self,
+        origin: int,
+        coords: np.ndarray,
+        vert_idx2repr: np.ndarray,
+        keep: set[int | None],
+    ) -> set[int]:
+        """the graph nodes the query point lies "in front" of, except those to keep
+
+        An edge from a query point to an extremity it lies in front of is never part of a shortest path:
+        a path arriving at the extremity from its front cannot wrap around it (cf. ``Point.in_front()``).
+        """
+        nodes = self.extremity_indices
+        in_front = self.points.in_front_of(nodes, coords[origin], coords, vert_idx2repr)
+        return set(nodes[in_front].tolist()) - keep
+
     def find_shortest_path(
         self,
         start_coordinates: InputCoord,
@@ -449,6 +465,11 @@ class PolygonEnvironment:
         #   the start may leave its point through any free wedge, the graph node only through its own
         candidates_goal = candidate_idxs - {start_node}
         vert_idx2repr, vert_idx2dist = utils.cmp_reps_n_distances(origin, coords)
+        # the graph nodes merged with start and goal are never skipped: they are endpoints of the path
+        merged_nodes = {start_node, goal_node}
+        candidates_goal -= self._nodes_in_front(
+            origin, coords, vert_idx2repr, merged_nodes
+        )
         # the distances to the goal: the A* heuristic
         # (also for a graph node merged with the goal: identical coordinates, identical distances)
         goal_distances = vert_idx2dist
@@ -487,9 +508,12 @@ class PolygonEnvironment:
         # the visibility of only the graphs nodes have to be checked
         # the goal node does not have to be considered, because of the earlier check
         vert_idx2repr, vert_idx2dist = utils.cmp_reps_n_distances(origin, coords)
+        candidates_start = candidate_idxs - self._nodes_in_front(
+            origin, coords, vert_idx2repr, merged_nodes
+        )
         visibles_start = self.get_visible_idxs(
             origin,
-            candidate_idxs,
+            candidates_start,
             coords,
             vert_idx2repr,
             vert_idx2dist,

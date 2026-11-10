@@ -23,7 +23,7 @@ import networkx as nx
 import numpy as np
 import pytest
 
-from extremitypathfinder import PolygonEnvironment, utils
+from extremitypathfinder import PolygonEnvironment, utils, wedges
 from tests.test_cases import GRID_ENV_PARAMS, POLYGON_ENVS
 from tests.test_contacts import BOUNDARY, SELF_TOUCHING_HOLE
 from tests.test_find_visible import find_visible_reference
@@ -340,3 +340,60 @@ def test_inexact_transforms_keep_reachability_and_lengths(
         assert transformed_length == pytest.approx(
             length, rel=TRANSFORM_REL_TOLERANCE
         ), f"{start} - {goal}"
+
+
+def _search_without_skipping(environment, monkeypatch, start, goal):
+    """the search connecting the query points also to the graph nodes they lie "in front" of"""
+    with monkeypatch.context() as m:
+        m.setattr(
+            environment.points,
+            "in_front_of",
+            lambda candidates, *_: np.zeros(len(candidates), dtype=bool),
+        )
+        return environment.search(start, goal, verify=False)
+
+
+def test_skipping_the_nodes_in_front_of_query_points_keeps_the_paths(
+    environment, query_points, monkeypatch
+):
+    """#222: query points on edges, at vertices and at extremities included"""
+    points = query_points + _vertex_and_edge_points(environment)
+    rng = np.random.default_rng(222)
+    pairs = [
+        (points[i], points[j])
+        for i, j in rng.choice(len(points), size=(150, 2))
+        if i != j
+    ]
+    pairs += list(itertools.combinations(query_points, 2))
+    nr_edges, nr_edges_unskipped = 0, 0
+    for start, goal in pairs:
+        result = environment.search(start, goal, verify=False)
+        expected = _search_without_skipping(environment, monkeypatch, start, goal)
+        if expected.length is None:
+            assert result.length is None, f"{start} - {goal}"
+            continue
+        assert result.length == pytest.approx(expected.length, rel=1e-12), (
+            f"{start} - {goal}"
+        )
+        nr_edges += len(result.query_edges or [])
+        nr_edges_unskipped += len(expected.query_edges or [])
+    assert nr_edges <= nr_edges_unskipped
+
+
+def test_in_front_of_matches_point_in_front(environment, query_points):
+    """the vectorised test gives the same result as ``Point.in_front()``"""
+    points = environment.points
+    extremities = environment.extremity_indices
+    for position in query_points + _vertex_and_edge_points(environment):
+        coords = np.append(environment.coords, [position], axis=0)
+        origin = len(coords) - 1
+        representations, distances = utils.cmp_reps_n_distances(origin, coords)
+        candidates = extremities[distances[extremities] != 0.0]
+        found = points.in_front_of(candidates, coords[origin], coords, representations)
+        expected = [
+            points.by_idx[i].in_front(
+                wedges._rep(coords[origin] - coords[i]), coords[origin] - coords[i]
+            )
+            for i in candidates
+        ]
+        assert found.tolist() == expected, f"from {position}"

@@ -376,6 +376,16 @@ class Points:
             self.by_idx[idx] = self._make_point(idx, position, group, edge_idxs)
         # the indices of all points (sorted)
         self.idxs = np.array(sorted(self.by_idx), dtype=int)
+        # the angle range "in front" of every extremity (cf. ``Point.in_front()``) by vertex index:
+        # the representation of its start and its size, NaN for vertices which are no extremity
+        self.front_starts = np.full(len(coords), np.nan)
+        self.front_sizes = np.full(len(coords), np.nan)
+        for idx, point in self.by_idx.items():
+            if point.is_extremity:
+                start, end = point.extremity_wedge
+                front_start = (end + 2.0) % 4.0
+                self.front_starts[idx] = front_start
+                self.front_sizes[idx] = ((start + 2.0) % 4.0 - front_start) % 4.0
 
     def _make_point(
         self,
@@ -436,6 +446,33 @@ class Points:
         if not edge_idxs:
             return None
         return self._make_point(idx, position, [], edge_idxs)
+
+    def in_front_of(
+        self,
+        candidates: np.ndarray,
+        position: np.ndarray,
+        coords: np.ndarray,
+        representations: np.ndarray,
+    ) -> np.ndarray:
+        """whether the position lies "in front" of each candidate extremity, like ``Point.in_front()``, vectorised
+
+        :param candidates: the indices of extremities
+        :param representations: the angle representations of all coordinates seen from the position
+        :return: a boolean mask of the candidates
+        """
+        # the direction from a candidate to the position: the opposite of the one seen from the position
+        reps = (representations[candidates] + 2.0) % 4.0
+        sizes = self.front_sizes[candidates]
+        offsets = (reps - self.front_starts[candidates]) % 4.0
+        in_front = (offsets > 0.0) & (offsets < sizes)
+        # directions close to a bounding ray: the exact test
+        near_start = (offsets < RAY_TOLERANCE) | (offsets > 4.0 - RAY_TOLERANCE)
+        near_bound = near_start | (np.abs(offsets - sizes) < RAY_TOLERANCE)
+        for i in np.flatnonzero(near_bound):
+            candidate = int(candidates[i])
+            vector = position - coords[candidate]
+            in_front[i] = self.by_idx[candidate].in_front(_rep(vector), vector)
+        return in_front
 
     def filter_visible(
         self,

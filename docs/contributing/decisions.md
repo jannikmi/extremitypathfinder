@@ -23,6 +23,14 @@ the log states the current decisions (git keeps the history).
 Decisions about how we work on the project are in the [process decision log](decisions-process.md).
 Earlier decisions are described in the {ref}`Design Decisions <design_decisions>` and the issues linked there.
 
+## Queries skip the graph nodes the query point lies in front of, with a vectorised filter (#222)
+
+- **Decided by:** a maintainer ([#222](https://github.com/jannikmi/extremitypathfinder/issues/222))
+- **Rejected:** connecting query points to all visible graph nodes (about 20 % of the visibility time and a third
+  of the temporary edges are avoidable); a per-candidate Python loop as the filter (makes whole queries about 40 %
+  slower).
+- **Details:** {ref}`Engineering Design <design>`, sections "Visibility graph reduction" and "Query"
+
 ## Own A* search instead of the networkx port, expanding a node again when its distance improves (#157)
 
 - **Decided by:** a maintainer ([#157](https://github.com/jannikmi/extremitypathfinder/issues/157): replacing the port, MIT only); an agent (no closed set, with #162 in mind)
