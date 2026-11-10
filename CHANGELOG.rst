@@ -26,8 +26,28 @@ BREAKING: the plotting module (``extremitypathfinder.plotting``) has one consist
 BREAKING: environments pickled with 3.0 cannot be loaded anymore (changed attributes, pickle format version 4):
 recreate them. Loading them raises a ``ValueError`` explaining this.
 
+BREAKING: malformed input is always rejected with a clear error, also without ``validate=True`` and with ``verify=False``:
+
+- polygons that are no list of at least 3 coordinate pairs (``TypeError``) or have non-finite coordinates
+  (``ValueError``). Previously e.g. an empty boundary raised an ``IndexError`` and a boundary with 2 vertices
+  was accepted. The geometric requirements (e.g. no self intersections) are still only checked with ``validate=True``.
+- start and goal points that do not consist of two values (``TypeError``) or are not finite (``ValueError``).
+  Previously a point with three values raised an internal error and a ``nan`` coordinate with ``verify=False``
+  gave a path of length ``nan``.
+- ``from_grid()``: sizes that are no positive integers, blocked cells that are no integer pairs,
+  blocked cells outside of the grid (previously ignored: remove them from the input)
+  and grids without any free cell (``TypeError`` or ``ValueError`` instead of ``AssertionError``
+  and ``AttributeError``). The blocked cells may be any iterable (e.g. a generator, previously a ``TypeError``).
+
+BREAKING: ``export_pickle()`` and ``load_pickle()`` no longer print to the standard output.
+``export_pickle()`` returns the path of the file.
+
 other changes:
 
+- ``find_shortest_path()`` and ``search()`` always return the path as a list of ``(x, y)`` tuples of Python floats
+  and the length as a Python float. Previously the coordinates and the length were ``numpy.float64``
+  (printed as ``np.float64(1.0)``), and when the goal was directly visible from the start the passed objects were
+  returned unchanged (e.g. tuples of ints, lists or arrays). The values are equal to the previous ones.
 - license: the package is licensed under MIT only again (#157). The A* search (``utils.astar_path()``) is an own
   implementation instead of a port of ``networkx.astar_path()``, so the 3-clause BSD license of networkx
   (``LICENSES/networkx.txt``) no longer applies. Same paths and lengths, same speed.

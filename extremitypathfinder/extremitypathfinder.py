@@ -129,8 +129,9 @@ class PolygonEnvironment:
         :param list_of_hole_coordinates: arrays of coordinates (clockwise or counter clockwise numbering)
         :param validate: whether the requirements of the data should be tested
 
-        :raises TypeError: when validate=True and the input has an invalid shape.
-        :raises ValueError: when validate=True and the input violates the requirements above,
+        :raises TypeError: when a polygon is no list of at least 3 coordinate pairs (always checked).
+        :raises ValueError: when a coordinate is not finite (always checked),
+            when validate=True and the input violates the requirements above,
             and when ``boundary_coordinates`` is ``None`` and no holes are given.
         """
         # loading the map
@@ -146,6 +147,7 @@ class PolygonEnvironment:
             raise ValueError(
                 "At least one hole is required when boundary_coordinates is None."
             )
+        utils.check_polygon_formats(boundary_coordinates, list_of_hole_coordinates)
         # accept both vertex numberings: reverse polygons with the opposite numbering
         input_boundary, input_holes = boundary_coordinates, list_of_hole_coordinates
         boundary_coordinates, list_of_hole_coordinates = utils.orient_polygons(
@@ -210,6 +212,9 @@ class PolygonEnvironment:
         :param size_y: the vertical grid size
         :param obstacle_iter: an iterable of coordinate pairs (x,y) representing blocked grid cells (obstacles)
         :param validate: whether the input should be validated
+        :raises TypeError: when a size is no integer or a blocked cell is no pair of integers
+        :raises ValueError: when a size is not positive, a blocked cell lies outside of the grid
+            or all cells are blocked
         """
         boundary_coordinates, list_of_hole_coordinates = utils.convert_grid(
             size_x, size_y, obstacle_iter
@@ -269,11 +274,14 @@ class PolygonEnvironment:
         coords = self.coords
         return [tuple(coords[i]) for i in range(self.nr_vertices)]
 
-    def export_pickle(self, path: str = DEFAULT_PICKLE_NAME):
-        print("storing map class in:", path)
+    def export_pickle(self, path: str = DEFAULT_PICKLE_NAME) -> str:
+        """stores the environment with its visibility graph in a pickle file (cf. :func:`load_pickle`)
+
+        :return: the path of the file
+        """
         with open(path, "wb") as f:
             pickle.dump(self, f)
-        print("done.\n")
+        return path
 
     def __getstate__(self):
         """adds the pickle format version to the state. Subclasses overriding this must call ``super()``"""
@@ -389,6 +397,11 @@ class PolygonEnvironment:
          Start and goal may lie on a contact point of touching obstacles, the path may leave through
          any free space next to it. On an edge shared by two touching obstacles (inside a wall) there is no path.
         :return: a tuple of shortest path and its length. ([], None) if there is no possible path.
+         The path is a list of ``(x, y)`` tuples of Python floats (also start and goal,
+         whatever type was passed), the length a Python float.
+        :raises TypeError: when start or goal do not consist of two values
+        :raises ValueError: when a coordinate of start or goal is not finite,
+         and when ``verify=True`` and start or goal do not lie within the map
         """
         result = self.search(start_coordinates, goal_coordinates, verify=verify)
         return result.path, result.length
@@ -411,9 +424,17 @@ class PolygonEnvironment:
         :param verify: whether it should be checked if start and goal points really lie inside the environment.
          if points close to or on polygon edges should be accepted as valid input, set this to ``False``.
         :return: the result of the search
+        :raises TypeError: when start or goal do not consist of two values
+        :raises ValueError: when a coordinate of start or goal is not finite,
+         and when ``verify=True`` and start or goal do not lie within the map
         """
         coords_start = np.array(start_coordinates, dtype=float)
         coords_goal = np.array(goal_coordinates, dtype=float)
+        utils.check_query_point(coords_start, "start")
+        utils.check_query_point(coords_goal, "goal")
+        # the returned coordinates: tuples of Python floats, whatever was passed
+        start_coordinates = _coordinate(coords_start)
+        goal_coordinates = _coordinate(coords_goal)
         if verify and not self.within_map(coords_start):
             raise ValueError("start point does not lie within the map")
         if verify and not self.within_map(coords_goal):
@@ -468,7 +489,7 @@ class PolygonEnvironment:
         #   instead of visiting other nodes first (there is never an advantage through reduced edge weight)
         # -> when goal is directly reachable, there can be no other shorter path to it. Terminate
         if start in visibles_goal:
-            d = vert_idx2dist[start]
+            d = float(vert_idx2dist[start])
             return no_graph_result([start_coordinates, goal_coordinates], d)
 
         # merge start and goal with the graph nodes at their positions
@@ -529,11 +550,16 @@ class PolygonEnvironment:
         # the length of the path: the sum of the weights of its edges (Euclidean distances)
         distance = 0.0
         for v1, v2 in itertools.pairwise(id_path):
-            distance += utils.edge_weight(self.graph, query_adjacency, v1, v2)
+            distance += float(utils.edge_weight(self.graph, query_adjacency, v1, v2))
 
         # extract the coordinates from the path
-        path = [tuple(coords[i]) for i in id_path]
+        path = [_coordinate(coords[i]) for i in id_path]
         return graph_result(path, distance)
+
+
+def _coordinate(point: t.FloatArray) -> t.Coordinate:
+    """the point as a tuple of Python floats"""
+    return float(point[0]), float(point[1])
 
 
 def _graph_node(point: Point | None) -> int | None:
