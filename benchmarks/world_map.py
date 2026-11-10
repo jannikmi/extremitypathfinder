@@ -30,6 +30,7 @@ import json
 import math
 import sys
 import urllib.request
+import warnings
 from pathlib import Path
 
 import shapely
@@ -55,6 +56,9 @@ DEFAULT_GRID = 1e-4
 # relative tolerance of the reached number of vertices when downsampling
 TARGET_RTOL = 0.02
 MAX_BISECTION_STEPS = 60
+# version of the map generation: increase it when the generated maps change (invalidates cached maps)
+# 2: at least the target number of vertices (previously at most)
+MAP_VERSION = 2
 
 Coords = list[tuple[float, float]]
 
@@ -190,28 +194,39 @@ def downsample(
 ) -> tuple[list[Polygon], dict]:
     """clean the polygons with the simplification tolerance reaching the target number of vertices
 
-    bisection of the tolerance in log space, the result has at most ``target_vertices`` vertices
-    and lies within ``TARGET_RTOL`` of it if possible
+    bisection of the tolerance in log space, the result has at least ``target_vertices`` vertices
+    and lies within ``TARGET_RTOL`` above it if possible.
+    A map of e.g. 10k vertices therefore has no fewer than 10,000 vertices.
+
+    :raises ValueError: if the cleaned polygons have fewer than ``target_vertices`` vertices
     """
     cleaned, stats = clean(polygons, grid)
-    if stats["vertices"] <= target_vertices:
-        stats["tolerance"] = 0.0
-        return cleaned, stats
+    stats["tolerance"] = 0.0
+    if stats["vertices"] < target_vertices:
+        raise ValueError(
+            f"the cleaned data has {stats['vertices']} vertices, fewer than {target_vertices}"
+        )
+    best = cleaned, stats
     lo, hi = math.log10(grid), 2.0  # tolerances: grid size ... 100 degrees
-    best = None
     for _ in range(MAX_BISECTION_STEPS):
+        if best[1]["vertices"] <= (1 + TARGET_RTOL) * target_vertices:
+            break
         mid = (lo + hi) / 2
         cleaned, stats = clean(polygons, grid, 10**mid)
         stats["tolerance"] = 10**mid
-        if stats["vertices"] > target_vertices:
-            lo = mid
+        if stats["vertices"] < target_vertices:
+            hi = mid
             continue
-        hi = mid
-        best = cleaned, stats
-        if stats["vertices"] >= (1 - TARGET_RTOL) * target_vertices:
-            break
-    if best is None:
-        raise RuntimeError(f"cannot reach {target_vertices} vertices")
+        lo = mid
+        if stats["vertices"] < best[1]["vertices"]:
+            # the closest to the target (the number of vertices need not fall monotonically)
+            best = cleaned, stats
+    if best[1]["vertices"] > (1 + TARGET_RTOL) * target_vertices:
+        warnings.warn(
+            f"downsampling reached {best[1]['vertices']} vertices, more than "
+            f"{TARGET_RTOL:.0%} above the target {target_vertices}",
+            stacklevel=2,
+        )
     return best
 
 
@@ -248,23 +263,29 @@ def build_map(
     """the cleaned world map as JSON serialisable dict (``holes`` like the command line input format)
 
     :param resolution: the Natural Earth resolution. Default: the coarsest resolution
-        with at least ``target_vertices`` vertices (110m without target).
-    :param target_vertices: downsample to (at most) this number of vertices
+        with at least ``target_vertices`` vertices after the cleaning (110m without target).
+    :param target_vertices: downsample to (at least) this number of vertices
     :param validate_epf: also run the (slow) input validation of extremitypathfinder
     """
-    if resolution is None:
-        resolution = RESOLUTIONS[0]
-        if target_vertices is not None:
-            for resolution in RESOLUTIONS:
-                polygons = load_polygons(download(resolution, cache_dir))
-                if nr_vertices(polygons) >= target_vertices:
-                    break
-    polygons = load_polygons(download(resolution, cache_dir))
     if target_vertices is None:
-        cleaned, stats = clean(polygons, grid)
+        resolution = resolution or RESOLUTIONS[0]
+        cleaned, stats = clean(load_polygons(download(resolution, cache_dir)), grid)
         stats["tolerance"] = 0.0
     else:
-        cleaned, stats = downsample(polygons, target_vertices, grid)
+        candidates = RESOLUTIONS if resolution is None else (resolution,)
+        for resolution in candidates:
+            polygons = load_polygons(download(resolution, cache_dir))
+            if nr_vertices(polygons) < target_vertices:
+                continue  # too few vertices even before the cleaning
+            try:
+                cleaned, stats = downsample(polygons, target_vertices, grid)
+                break
+            except ValueError:
+                continue  # too few vertices after the cleaning
+        else:
+            raise ValueError(
+                f"no resolution of {candidates} has {target_vertices} vertices after the cleaning"
+            )
     check(cleaned, validate_epf)
     return {
         "source": f"Natural Earth {NE_RELEASE} ne_{resolution}_land (public domain)",

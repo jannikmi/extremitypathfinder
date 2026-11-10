@@ -1,6 +1,9 @@
 """Tests of the benchmark harness (``benchmarks/``), skipped without the benchmark dependencies."""
 
+import json
+import math
 import sys
+from dataclasses import asdict
 from pathlib import Path
 
 import pytest
@@ -8,7 +11,7 @@ import pytest
 pytest.importorskip("shapely")
 pytest.importorskip("pyvisgraph")
 
-from shapely.geometry import Point
+from shapely.geometry import Point, Polygon
 
 from benchmarks import measure, run, validate, workloads, world_map
 from benchmarks.adapters import NO_NUMBA, get_adapter
@@ -106,9 +109,42 @@ def test_measure_subprocess_and_budget():
 
 
 def test_parse_size():
-    assert workloads.parse_size("5k").resolution == "110m"
+    assert workloads.parse_size("5k").target_vertices == 5000
     assert workloads.parse_size("2000").name == "world_2k"
     assert workloads.parse_size("world_250").target_vertices == 250
+
+
+def test_downsample_reaches_at_least_the_target():
+    """a map of n vertices has at least n vertices (e.g. world_10k: not 9,952)"""
+    polygons = [
+        Polygon(
+            [
+                (10 * i + 4 * math.cos(a), 4 * math.sin(a))
+                for a in (2 * math.pi * k / 400 for k in range(400))
+            ]
+        )
+        for i in range(5)
+    ]
+    for target in (100, 250, 1000):
+        _, stats = world_map.downsample(polygons, target)
+        assert target <= stats["vertices"] <= (1 + world_map.TARGET_RTOL) * target
+    with pytest.raises(ValueError):
+        world_map.downsample(polygons, 2001)
+    # unreachable within the tolerance: a larger simplification drops all polygons
+    with pytest.warns(UserWarning, match="above the target"):
+        _, stats = world_map.downsample(polygons, 5)
+    assert stats["vertices"] >= 5
+
+
+def test_load_world_rebuilds_maps_of_another_map_version(monkeypatch, tmp_path):
+    """cached maps of an earlier map generation (e.g. at most the target) are not reused"""
+    spec = workloads.SWEEP_BY_NAME["world_10k"]
+    old = {"spec": asdict(spec), "ne_release": world_map.NE_RELEASE, "vertices": 9952}
+    (tmp_path / f"{spec.name}.json").write_text(json.dumps(old))
+    monkeypatch.setattr(world_map, "build_map", lambda *_a, **_k: {"vertices": 10081})
+    assert workloads.load_world(spec, tmp_path)["vertices"] == 10081
+    monkeypatch.setattr(world_map, "build_map", lambda *_a, **_k: pytest.fail("cached"))
+    assert workloads.load_world(spec, tmp_path)["vertices"] == 10081
 
 
 def test_quick_run_tolerates_download_failure(monkeypatch, tmp_path):

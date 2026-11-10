@@ -90,17 +90,18 @@ The A* search takes only a small part of the query time.
 
 ## Shortest path search
 
-`utils.astar_path()` is a port of `networkx.astar_path()` that also follows the temporary edges of start and goal,
+`utils.astar_path()` is an own A* search that also follows the temporary edges of start and goal,
 so queries neither copy nor change the visibility graph (#136).
-It is under the 3-clause BSD license of networkx (`LICENSES/networkx.txt`): keep its copyright notice above the function.
+It replaced a port of `networkx.astar_path()` and is as fast (measurements in #157).
+A closed set and separate loops for graph and query edges gave no gain.
 Alternatives compared in #152 (with measurements) and rejected, mainly for maintainability:
 
 - `networkx.astar_path()` on the visibility graph with the temporary edges added and removed again:
   changes shared state during a query (not thread-safe, edges of extremities merged with start or goal must be kept)
-  and was considerably slower than the port.
+  and was considerably slower than the own search.
 - other graph libraries (scipy `csgraph`, igraph, rustworkx): an additional dependency
   and a second graph representation (or `environment.graph` is no networkx graph anymore).
-  Their Dijkstra searches were slower than the port (no heuristic, adding the temporary edges is expensive),
+  Their Dijkstra searches were slower than the own search (no heuristic, adding the temporary edges is expensive),
   the A* of rustworkx saved only little time per query.
 - precomputed shortest paths between all extremities: memory grows quadratically
   with the number of extremities.

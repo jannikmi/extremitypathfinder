@@ -39,5 +39,4 @@ The [Engineering Design](../8_design.rst) page gives the full reasoning.
 - The public API is what `__init__.py` exports, the documented methods and attributes of `PolygonEnvironment` and
   `SearchResult`, the plotting functions and the console command. Mark breaking changes with `BREAKING` in the changelog
   and describe the migration (cf. [Changelog](changelog.md)).
-- `utils.astar_path()` is adapted from networkx and under its 3-clause BSD license (`LICENSES/networkx.txt`):
-  keep its copyright notice above the function.
+- The package is licensed under MIT only: do not copy or adapt code from other projects (#157).

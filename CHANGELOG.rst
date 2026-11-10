@@ -33,6 +33,9 @@ other changes:
   ``find_shortest_path()`` but much faster: the visibility of every point is computed once instead of twice per pair.
   E.g. 100 points in an environment with 904 vertices: 3.1 s instead of 115 s (with Numba).
   The usage page also documents the visibility graph ``environment.graph`` for own NetworkX algorithms.
+- license: the package is licensed under MIT only again (#157). The A* search (``utils.astar_path()``) is an own
+  implementation instead of a port of ``networkx.astar_path()``, so the 3-clause BSD license of networkx
+  (``LICENSES/networkx.txt``) no longer applies. Same paths and lengths, same speed.
 - Shapely and GeoJSON input (#166): ``PolygonEnvironment.from_shapely(boundary, obstacles, validate=False)``
   accepts Shapely polygons, multi-polygons and collections, GeoJSON-like mappings and objects with a
   ``__geo_interface__`` (e.g. GeoPandas), and gives the same environment as the equivalent coordinate lists.
@@ -40,7 +43,7 @@ other changes:
   features with a null geometry are skipped.
   Shapely (2.0.6 or later) is an optional extra: ``pip install "extremitypathfinder[shapely]"``.
 - much faster input validation of large polygons (``validate=True``, #193): only edge pairs with overlapping
-  bounding boxes are tested for crossings, vectorised. E.g. the 5k vertex world map of the benchmarks:
+  bounding boxes are tested for crossings, vectorised. E.g. the 4,954 vertex world map (110m) of the benchmarks:
   10.5 s to 0.08 s, a 2,180 vertex polygon: 14.6 s to 0.06 s. The errors name the polygon (``boundary polygon``
   or ``hole <index>``) and the location of the violation (the crossing edges with their vertex indices,
   the crossing point). The crossing test solves its 2×2 system in closed form instead of with ``numpy.linalg.solve``
@@ -59,7 +62,8 @@ other changes:
   Once this release has its DOI, it is added to ``CITATION.cff`` and the badges (#199).
 - reproducible benchmarks against pyvisgraph (#111): ``python -m benchmarks.run`` (``benchmarks/``,
   ``make benchmark``: quick smoke test, not run in CI) runs a size sweep
-  on cleaned Natural Earth world maps with a build time budget, validates every path independently with Shapely
+  on cleaned Natural Earth world maps with a build time budget (each map has at least its nominal number of
+  vertices, e.g. 10,081 for 10k), validates every path independently with Shapely
   and renders the tables and figures of the performance section of the documentation.
   It measures time, peak and retained memory, with and without Numba.
   ``scripts/speed_benchmarks.py`` uses the same harness. The validation found pyvisgraph 0.2.1 paths
@@ -77,7 +81,7 @@ other changes:
 - faster preparation of large environments, identical visibility graphs and paths:
   the visibility computation skips the edges without candidates in their angle range (#217),
   and the test whether a vertex lies within the map only checks the holes whose bounding box contains it (#214).
-  E.g. the 5k vertex world map of the benchmarks: 56 to 29 s with Numba, 163 to 50 s without Numba.
+  E.g. the 4,954 vertex world map (110m) of the benchmarks: 56 to 29 s with Numba, 163 to 50 s without Numba.
   Queries take as long as before.
 - the ``numba`` extra no longer installs SciPy (#185): a smaller installation (SciPy takes about 110 MB)
   and less memory per process with Numba (about 18 MiB less after import on Linux when SciPy is not installed).

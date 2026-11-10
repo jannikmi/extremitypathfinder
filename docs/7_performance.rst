@@ -48,8 +48,8 @@ Weaknesses and limitations:
 
 - **The preprocessing limits the map size.** The build time grows steeply with the map,
   and the sweep ends where it exceeds the build budget (cf. the build table).
-  Going from the raw 110m data to the finer source data adds many polygons, and the visibility graph
-  grows much faster than the number of vertices there.
+  Going from the coarse 110m data (up to 2k vertices) to the finer source data adds many polygons,
+  and the visibility graph grows much faster than the number of vertices there.
 - **Memory on small maps.** Its peak above the baseline is close to pyvisgraph's on small maps, despite the lower
   retained memory: the build needs temporary data. On large maps the peak is much lower than pyvisgraph's.
   Its baseline is much larger, so its process needs several times as much memory in total on the smallest maps.
