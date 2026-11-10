@@ -377,6 +377,8 @@ def test_skipping_the_nodes_in_front_of_query_points_keeps_the_paths(
         )
         nr_edges += len(result.query_edges or [])
         nr_edges_unskipped += len(expected.query_edges or [])
+    # Note: not strictly fewer in every environment (e.g. the goal first shortcut).
+    # test_core_regressions.py checks that a node is skipped.
     assert nr_edges <= nr_edges_unskipped
 
 

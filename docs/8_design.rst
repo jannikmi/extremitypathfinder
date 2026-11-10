@@ -479,8 +479,8 @@ Query
   in front of are removed from the candidates (cf. `Visibility graph reduction`_), with ``Points.in_front_of()``:
   the front range of every extremity is precomputed, and the direction from an extremity to the query point is the
   opposite of the one seen from the query point (its angle representation plus 2). Directions within
-  ``RAY_TOLERANCE`` of a bound of the range are decided by ``Point.in_front()``, which compares them exactly
-  with the bounding rays. The graph nodes merged with start or goal are never skipped.
+  ``RAY_TOLERANCE`` of a bound of the range are decided by ``Point.in_front()``, like in the graph
+  (it excludes the directions exactly opposite of a bounding ray). The graph nodes merged with start or goal are never skipped.
   AREA keeps only the closest candidate per direction, so skipping a node can make a farther candidate in the same
   direction the closest one. Whether its line of sight passes through the skipped node is decided by the points
   (rule 3, ``Points.filter_visible()``), not by the candidates.
