@@ -463,8 +463,12 @@ The front condition is not symmetric: an edge added from :math:`e_1`'s side is r
 lies in front of :math:`e`. That is why the current neighbours are included in the front test.
 Extremities without edges remain in the graph, start and goal may connect to them.
 
-The reduction does not apply to start and goal: they are endpoints of the path, not intermediate nodes.
-A query point connects to all visible graph nodes, including those in front of it.
+The same argument holds for the edges of start and goal: it is about the extremity :math:`e` being an
+intermediate node, whether the path comes from a query point or from another extremity
+(the "taut path" pruning of `Oh and Leong (2017) <https://arxiv.org/abs/1702.01524>`__ is the same).
+A query point is therefore not connected to the graph nodes it lies in front of (#222).
+The reverse does not hold: start and goal are endpoints of the path, so a query point connects to the visible graph
+nodes lying in front of *it*, also when it is merged with an extremity.
 
 Query
 -----
@@ -475,6 +479,20 @@ Query
   When the start is merged, its graph node is excluded from the candidates visible from the goal:
   it has the same direction and distance as the start and would hide it (only one candidate per direction is kept),
   although the start may leave through any of its wedges and the graph node only through its extremity wedge.
+- **Skipping the nodes in front**: before the visibility of a query point is computed, the graph nodes it lies
+  in front of are removed from the candidates (cf. `Visibility graph reduction`_). The visibility of start and goal
+  takes most of the query time: fewer candidates make it faster, and A* gets fewer temporary edges.
+  The test must be cheaper than what it saves, so it is vectorised (``Points.in_front_of()``):
+  the front range of every extremity is precomputed, and the direction from an extremity to the query point is the
+  opposite of the one seen from the query point (its angle representation plus 2). Directions within
+  ``RAY_TOLERANCE`` of a bound of the range are decided by ``Point.in_front()``, like in the graph
+  (it excludes the directions exactly opposite of a bounding ray). The graph node merged with the query point is not
+  skipped (it is the query point). The one merged with the other query point need not be kept: the edge to it is the
+  straight segment between start and goal, found by the "goal first" check. So the skipped nodes depend only on the
+  query point, and ``distance_matrix()`` skips the same ones.
+  AREA keeps only the closest candidate per direction, so skipping a node can make a farther candidate in the same
+  direction the closest one. Whether its line of sight passes through the skipped node is decided by the points
+  (rule 3, ``Points.filter_visible()``), not by the candidates.
 - **Goal first**: when nothing is visible from the goal there is no path. When the start is visible from the goal,
   the straight segment is the shortest path (no path can be shorter than the Euclidean distance) and the graph is
   not searched.
@@ -501,6 +519,7 @@ but computes the visibility of every point only once instead of twice per pair:
 - The query points are appended to the coordinates (identical positions once) and merged with graph nodes
   as in ``search()``.
 - From every point the visible graph nodes are computed, from every goal point additionally the visible start points.
+  The graph nodes a point lies in front of are skipped as in ``search()``.
   This reproduces the visibility of ``search()`` with that point as goal: a start point is hidden by a closer graph
   node in the same direction (the path then passes through that node and has the same sum of edge weights),
   but not by the graph node at its own position or by other query points. Query points sharing a direction with

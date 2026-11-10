@@ -83,6 +83,32 @@ def as_coord_array(points: Iterable[InputCoord]) -> np.ndarray:
     return coords
 
 
+def nodes_in_front(
+    origin: int,
+    graph_nodes: np.ndarray,
+    coords: np.ndarray,
+    vert_idx2repr: np.ndarray,
+    points: Points,
+    merged_node: int | None,
+) -> set[int]:
+    """the graph nodes the query point lies "in front" of, except the one merged with it
+
+    An edge from a query point to an extremity it lies in front of is never part of a shortest path:
+    a path arriving at the extremity from its front cannot wrap around it (cf. ``Point.in_front()``),
+    like in the visibility graph. Skipping these nodes saves time in the visibility computation,
+    the largest part of a query, and gives A* fewer temporary edges (#222).
+    The decision depends only on the query point, so that ``search()`` and ``distance_matrix()`` skip the same nodes.
+    The node merged with the query point is the query point itself (an endpoint of the path), it is not skipped.
+    A node merged with the other query point need not be kept: the edge to it is the straight segment between
+    the query points, found by the "goal first" check of ``search()``.
+
+    :param graph_nodes: the indices of the graph nodes (extremities)
+    :param merged_node: the graph node at the position of the query point, ``None`` if there is none
+    """
+    in_front = points.in_front_of(graph_nodes, coords[origin], coords, vert_idx2repr)
+    return set(graph_nodes[in_front].tolist()) - {merged_node}
+
+
 def find_visible_from_query(
     origin: int,
     candidates: Iterable[int],
@@ -204,6 +230,10 @@ def search(
     #   the start may leave its point through any free wedge, the graph node only through its own
     candidates_goal = candidate_idxs - {start_node}
     vert_idx2repr, vert_idx2dist = utils.cmp_reps_n_distances(origin, coords)
+    graph_nodes = np.fromiter(graph.nodes, dtype=int)
+    candidates_goal -= nodes_in_front(
+        origin, graph_nodes, coords, vert_idx2repr, points, goal_node
+    )
     # the distances to the goal: the A* heuristic
     # (also for a graph node merged with the goal: identical coordinates, identical distances)
     goal_distances = vert_idx2dist
@@ -244,9 +274,12 @@ def search(
     # the visibility of only the graphs nodes have to be checked
     # the goal node does not have to be considered, because of the earlier check
     vert_idx2repr, vert_idx2dist = utils.cmp_reps_n_distances(origin, coords)
+    candidates_start = candidate_idxs - nodes_in_front(
+        origin, graph_nodes, coords, vert_idx2repr, points, start_node
+    )
     visibles_start = find_visible_from_query(
         origin,
-        candidate_idxs,
+        candidates_start,
         coords,
         vert_idx2repr,
         vert_idx2dist,
@@ -339,9 +372,12 @@ def distance_matrix(
     for origin in unique_idx.values():
         vert_idx2repr, vert_idx2dist = utils.cmp_reps_n_distances(origin, coords)
         query_candidates = sources if origin in is_target else []
+        skipped = nodes_in_front(
+            origin, graph_nodes, coords, vert_idx2repr, points, graph_node_at[origin]
+        )
         visible = _find_visible_from_query_point(
             origin,
-            graph_nodes,
+            graph_nodes[~np.isin(graph_nodes, list(skipped))],
             query_candidates,
             coords,
             vert_idx2repr,

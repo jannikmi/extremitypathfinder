@@ -717,9 +717,9 @@ def _find_visible_and_in_front(
     # -> e1 and e do not have to be connected in the graph.
     # The area "in front of" e: opposite of the angle range outside of the wedge of e (cf. ``Point.in_front()``),
     # extremities exactly opposite of a bounding ray do not lie in front (those edges must not get deleted)
-    # IMPORTANT: this condition only holds for building the basic visibility graph without start and goal node!
-    # When a query point (start/goal) happens to be an extremity, edges to the (visible) extremities in front
-    # MUST be added to the graph!
+    # IMPORTANT: for start and goal only one direction holds: they are endpoints of the path.
+    # A query point is not connected to the extremities it lies in front of (#222, cf. ``search()``),
+    # but when it happens to be an extremity, edges to the (visible) extremities in front of it MUST be added!
     # IMPORTANT: check all extremities here, not just current candidates
     origin_position = coords[origin]
     candidates_in_front = {

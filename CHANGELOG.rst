@@ -22,14 +22,15 @@ BREAKING: the plotting module (``extremitypathfinder.plotting``) has one consist
 - new look: obstacles filled grey, including the area outside of the boundary polygon,
   extremities and the visibility graph in blue, the path in orange.
 
-BREAKING: environments pickled with 3.0 cannot be loaded anymore (changed attributes, pickle format version 4):
+BREAKING: environments pickled with 3.0 cannot be loaded anymore (changed attributes, pickle format version 5):
 recreate them. Loading them raises a ``ValueError`` explaining this.
 
 BREAKING: malformed input is always rejected with a clear error, also without ``validate=True`` and with ``verify=False``:
 
 - polygons that are no list of at least 3 coordinate pairs (``TypeError``, also for ragged lists)
   or have non-finite coordinates (``ValueError``). The message names the polygon.
-  Previously e.g. an empty boundary raised an ``IndexError`` and a boundary with 2 vertices was accepted. The geometric requirements (e.g. no self intersections) are still only checked with ``validate=True``.
+  Previously e.g. an empty boundary raised an ``IndexError`` and a boundary with 2 vertices was accepted.
+  The geometric requirements (e.g. no self intersections) are still only checked with ``validate=True``.
 - start and goal points that do not consist of two values (``TypeError``) or are not finite (``ValueError``).
   Previously a point with three values raised an internal error and a ``nan`` coordinate with ``verify=False``
   gave a path of length ``nan``. ``distance_matrix()`` rejects non-finite points too.
@@ -47,6 +48,10 @@ other changes:
   and the length as a Python float. Previously the coordinates and the length were ``numpy.float64``
   (printed as ``np.float64(1.0)``), and when the goal was directly visible from the start the passed objects were
   returned unchanged (e.g. tuples of ints, lists or arrays). The values are equal to the previous ones.
+- faster queries (#222): start and goal (and the points of ``distance_matrix()``) are no longer connected to
+  the graph nodes they lie "in front" of (they are never the next node of a shortest path, like in the visibility
+  graph). Same paths and lengths.
+  E.g. 200 queries on an environment with 400 extremities: 18 % faster with Numba, 11 % without.
 - shortest path lengths between many points (#175): ``PolygonEnvironment.distance_matrix(points_a, points_b=None)``
   returns the lengths between all start and goal points (``inf`` without a path), identical to a loop over
   ``find_shortest_path()`` but much faster: the visibility of every point is computed once instead of twice per pair.
