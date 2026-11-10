@@ -31,7 +31,7 @@ other changes:
 - faster queries (#222): start and goal (and the points of ``distance_matrix()``) are no longer connected to
   the graph nodes they lie "in front" of (they are never the next node of a shortest path, like in the visibility
   graph). Same paths and lengths.
-  E.g. 200 queries on an environment with 400 extremities: 15 % faster with Numba, 21 % without.
+  E.g. 200 queries on an environment with 400 extremities: 18 % faster with Numba, 11 % without.
 - shortest path lengths between many points (#175): ``PolygonEnvironment.distance_matrix(points_a, points_b=None)``
   returns the lengths between all start and goal points (``inf`` without a path), identical to a loop over
   ``find_shortest_path()`` but much faster: the visibility of every point is computed once instead of twice per pair.
