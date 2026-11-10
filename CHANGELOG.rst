@@ -23,11 +23,15 @@ BREAKING: the plotting module (``extremitypathfinder.plotting``) has one consist
 - new look: obstacles filled grey, including the area outside of the boundary polygon,
   extremities and the visibility graph in blue, the path in orange.
 
-BREAKING: environments pickled with 3.0 cannot be loaded anymore (changed attributes, pickle format version 4):
+BREAKING: environments pickled with 3.0 cannot be loaded anymore (changed attributes, pickle format version 5):
 recreate them. Loading them raises a ``ValueError`` explaining this.
 
 other changes:
 
+- faster queries (#222): start and goal (and the points of ``distance_matrix()``) are no longer connected to
+  the graph nodes they lie "in front" of (they are never the next node of a shortest path, like in the visibility
+  graph). Same paths and lengths.
+  E.g. 200 queries on an environment with 400 extremities: 18 % faster with Numba, 11 % without.
 - shortest path lengths between many points (#175): ``PolygonEnvironment.distance_matrix(points_a, points_b=None)``
   returns the lengths between all start and goal points (``inf`` without a path), identical to a loop over
   ``find_shortest_path()`` but much faster: the visibility of every point is computed once instead of twice per pair.
