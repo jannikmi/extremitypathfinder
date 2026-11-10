@@ -18,9 +18,8 @@ bibliography: paper.bib
 ---
 
 <!--
-JOSS paper (issue #190). The plan and the open tasks are in the pull request that added this file.
-Sections and order as required by JOSS (https://joss.readthedocs.io/en/latest/paper.html).
-Length of the whole paper: 750-1750 words. No API documentation in the paper: refer to the documentation instead.
+JOSS paper (issue #190). The rules for editing it, its figures and building the PDF are in
+docs/contributing/paper.md, the plan and the open tasks in the pull request that added this file.
 Initial prose version, drafted by an AI tool from the earlier content notes and the documentation:
 the maintainer edits it, and checks every statement, before submission.
 -->
@@ -39,7 +38,7 @@ Each query connects its start and goal to this graph and searches it with A\* [@
 The paths are Euclidean shortest paths in the free space, not approximations on a grid or a mesh.
 
 ![The complete visibility graph of all vertices (top) and the reduced graph of the extremities (bottom),
-with the same shortest path.\label{fig:reduction}](graph_reduction.png)
+with the same shortest path.\label{fig:reduction}](graph_reduction.svg)
 
 # Statement of need
 
@@ -83,9 +82,9 @@ because its point-in-polygon test mixes exact and tolerant comparisons.
 Polyanya and TřiVis have not been measured yet.
 
 ![Benchmark on world maps (Apple M1 Pro, one thread). pyvisgraph exceeded the budget at 9,952 vertices;
-its queries on 4,954 vertices are left out, because they are invalid.\label{fig:benchmark}](benchmark_sweep.png)
+its queries on 4,954 vertices are left out, because they are invalid.\label{fig:benchmark}](benchmark_sweep.svg)
 
-![A pyvisgraph path through land (dashed) and the path of `extremitypathfinder`.\label{fig:invalid}](benchmark_world_example.png)
+![A pyvisgraph path through land (dashed) and the path of `extremitypathfinder`.\label{fig:invalid}](benchmark_world_example.svg)
 
 # Software design
 

@@ -1,14 +1,13 @@
-"""Generates the figures of the JOSS paper (paper/*.png).
+"""Generates the figures of the JOSS paper (paper/*.svg).
 
 usage: uv run --all-extras --group benchmark python scripts/paper_figures.py [output_dir]  (default: paper)
 
 The figures reuse the drawings of the documentation: the graph reduction of ``scripts/docs_figures.py``
 and the benchmark figures of ``benchmarks/plot.py``, from the committed results
-(``benchmarks/results/benchmark.json``). They are PNG, because the PDF of the paper is built with LaTeX.
+(``benchmarks/results/benchmark.json``). They are SVG: the PDF build of JOSS converts them to vector graphics.
 The exports are deterministic: regenerating them without changes yields identical files.
 """
 
-import io
 import json
 import sys
 from pathlib import Path
@@ -18,7 +17,6 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
-from PIL import Image
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 # the benchmarks package (the directory of this script is on the path already)
@@ -31,18 +29,27 @@ from benchmarks.adapters import ADAPTERS, PACKAGES
 
 OUTPUT_DIR = REPO_ROOT / "paper"
 RESULTS = REPO_ROOT / "benchmarks" / "results" / "benchmark.json"
-DPI = 250
 
 
 def save(fig, path: Path):
-    """saves the figure as PNG with a palette of 256 colours (flat colours: no visible loss, a third of the size)"""
-    buffer = io.BytesIO()
-    fig.savefig(buffer, dpi=DPI, format="png", bbox_inches="tight", pad_inches=0.03)
+    """saves the figure deterministically (SVG ids, no creation date) and closes it
+
+    With a white background, not transparent: the figures are read on paper.
+    """
+    with plt.rc_context({"svg.hashsalt": "extremitypathfinder-paper"}):
+        fig.savefig(
+            path,
+            format="svg",
+            bbox_inches="tight",
+            pad_inches=0.03,
+            metadata={"Date": None},
+        )
     plt.close(fig)
-    image = (
-        Image.open(buffer).convert("RGB").quantize(colors=256, dither=Image.Dither.NONE)
+    # without trailing whitespace (pre-commit hook)
+    svg = path.read_text(encoding="utf-8")
+    path.write_text(
+        "\n".join(line.rstrip() for line in svg.splitlines()) + "\n", encoding="utf-8"
     )
-    image.save(path, format="png", optimize=True)
     print(f"written: {path} ({path.stat().st_size / 1000:.0f} kB)")
 
 
@@ -52,7 +59,7 @@ def graph_reduction(output_dir: Path):
     draw_graph_reduction(axes, marker_size=2.8, path_width=2.4)
     for ax in axes:
         ax.title.set_fontsize(9)
-    save(fig, output_dir / "graph_reduction.png")
+    save(fig, output_dir / "graph_reduction.svg")
 
 
 def _log_axes(ax, ylabel: str, title: str):
@@ -115,7 +122,7 @@ def benchmark_sweep(results: dict, output_dir: Path):
         bbox_to_anchor=(0.5, 1.07),
     )
     fig.tight_layout(w_pad=1.2)
-    save(fig, output_dir / "benchmark_sweep.png")
+    save(fig, output_dir / "benchmark_sweep.svg")
 
 
 def world_example(results: dict, output_dir: Path):
@@ -131,7 +138,7 @@ def world_example(results: dict, output_dir: Path):
     )
     ax.tick_params(labelsize=8)
     ax.legend(frameon=False, fontsize=8, loc="lower left")
-    save(fig, output_dir / "benchmark_world_example.png")
+    save(fig, output_dir / "benchmark_world_example.svg")
 
 
 def main(output_dir: Path = OUTPUT_DIR):

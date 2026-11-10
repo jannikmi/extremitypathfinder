@@ -122,3 +122,6 @@ target/
 benchmarks/data/
 benchmarks/results/raw/
 benchmarks/results/*.tmp
+
+# built locally with the JOSS Docker image (docs/contributing/paper.md)
+paper/paper.pdf
