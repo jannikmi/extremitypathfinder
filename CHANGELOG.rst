@@ -28,13 +28,13 @@ recreate them. Loading them raises a ``ValueError`` explaining this.
 
 BREAKING: malformed input is always rejected with a clear error, also without ``validate=True`` and with ``verify=False``:
 
-- polygons that are no list of at least 3 coordinate pairs (``TypeError``) or have non-finite coordinates
-  (``ValueError``). Previously e.g. an empty boundary raised an ``IndexError`` and a boundary with 2 vertices
-  was accepted. The geometric requirements (e.g. no self intersections) are still only checked with ``validate=True``.
+- polygons that are no list of at least 3 coordinate pairs (``TypeError``, also for ragged lists)
+  or have non-finite coordinates (``ValueError``). The message names the polygon.
+  Previously e.g. an empty boundary raised an ``IndexError`` and a boundary with 2 vertices was accepted. The geometric requirements (e.g. no self intersections) are still only checked with ``validate=True``.
 - start and goal points that do not consist of two values (``TypeError``) or are not finite (``ValueError``).
   Previously a point with three values raised an internal error and a ``nan`` coordinate with ``verify=False``
   gave a path of length ``nan``.
-- ``from_grid()``: sizes that are no positive integers, blocked cells that are no integer pairs,
+- ``from_grid()``: sizes that are no positive integers (also ``True``), blocked cells that are no integer pairs,
   blocked cells outside of the grid (previously ignored: remove them from the input)
   and grids without any free cell (``TypeError`` or ``ValueError`` instead of ``AssertionError``
   and ``AttributeError``). The blocked cells may be any iterable (e.g. a generator, previously a ``TypeError``).

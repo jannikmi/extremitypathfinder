@@ -71,6 +71,15 @@ def test_path_is_printed_without_numpy_types(environment):
             "boundary polygon: Each point .* two values",
         ),
         ([0, 10, 10, 0], [], TypeError, "boundary polygon: Each point .* two values"),
+        # input numpy cannot convert: ragged, not numeric, too large for a float
+        (
+            [(0, 0), (1,), (2, 2)],
+            [],
+            TypeError,
+            "boundary polygon: expected a list of .* coordinate pairs",
+        ),
+        (BOUNDARY, [[(4, 4), (6, "a"), (6, 6)]], TypeError, "hole 0: expected a list"),
+        (None, [HOLE, [(4, 4), (10**400, 4), (6, 6)]], TypeError, "hole 1: expected a"),
         (
             [(0, 0), (10, 0), (NAN, 10), (0, 10)],
             [],
@@ -100,6 +109,8 @@ def test_malformed_polygons_are_always_rejected(
         ((1,), TypeError, "point must consist of two values"),
         (1, TypeError, "point must consist of two values"),
         ([(1, 1), (2, 2)], TypeError, "point must consist of two values"),
+        ((1, (1, 2)), TypeError, "point: expected two values"),
+        ((1, "a"), TypeError, "point: expected two values"),
         ((NAN, 1), ValueError, "point must be finite"),
         ((1, INF), ValueError, "point must be finite"),
         ((-INF, 1), ValueError, "point must be finite"),
@@ -128,6 +139,27 @@ def test_malformed_query_points_are_always_rejected(
         (5, 5, [(2.5, 2)], TypeError, "blocked cells must be integers"),
         (5, 5, [("a", "b")], TypeError, "blocked cells must be integers"),
         (5, 5, [(1, 2, 3)], TypeError, "blocked cell must consist of two values"),
+        (5, 5, [(1, 2), (3,)], TypeError, "blocked cell must consist of two values"),
+        (5, 5, [(INF, 1)], TypeError, "blocked cells must be integers"),
+        (5, 5, [(NAN, 1)], TypeError, "blocked cells must be integers"),
+        (5, 5, [(True, False)], TypeError, "blocked cells must be integers"),
+        (
+            5,
+            5,
+            [(1e30, 1)],
+            ValueError,
+            r"cell \(1\d{30}, 1\) lies outside of the grid",
+        ),
+        (True, 5, [], TypeError, "size_x must be an integer, got True"),
+        (np.int64(0), 5, [], ValueError, "size_x must be positive, got 0"),
+        # 16 * 16 overflows as uint8
+        (
+            np.uint8(16),
+            np.uint8(16),
+            [(x, y) for x in range(16) for y in range(16)],
+            ValueError,
+            "All cells of the grid are blocked",
+        ),
         (5, 5, [1, 2], TypeError, "blocked cell must consist of two values"),
         (5, 5, [(2, 2), (7, 7)], ValueError, r"cell \(7, 7\) lies outside of the grid"),
         (5, 5, [(5, 0)], ValueError, r"cell \(5, 0\) lies outside of the grid"),
@@ -181,3 +213,30 @@ def test_pickle_export_and_import_do_not_print(environment, tmp_path, capsys):
     captured = capsys.readouterr()
     assert captured.out == ""
     assert captured.err == ""
+
+
+def test_grid_with_narrow_integer_sizes():
+    # 16 * 17 overflows as uint8: not mistaken for a grid without free cells
+    obstacles = [(x, 0) for x in range(16)]
+    environment = PolygonEnvironment.from_grid(np.uint8(16), np.uint8(17), obstacles)
+    assert sorted(environment.boundary_polygon.tolist()) == [
+        [0, 1],
+        [0, 17],
+        [16, 1],
+        [16, 17],
+    ]
+
+
+@pytest.mark.parametrize("boundary", [BOUNDARY, None])
+def test_no_path_is_an_empty_list_and_none(boundary):
+    # the start is enclosed by a ring of four touching holes
+    ring = [
+        [(2, 2), (8, 2), (8, 3), (2, 3)],
+        [(2, 7), (8, 7), (8, 8), (2, 8)],
+        [(2, 3), (3, 3), (3, 7), (2, 7)],
+        [(7, 3), (8, 3), (8, 7), (7, 7)],
+    ]
+    environment = PolygonEnvironment(boundary, ring)
+    assert environment.find_shortest_path((5, 5), (9, 9)) == ([], None)
+    path, length = environment.find_shortest_path((1, 1), (9, 9))
+    _assert_python_floats(path, length)

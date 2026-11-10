@@ -183,6 +183,19 @@ def _check_polygon_format_inner(polygon: t.FloatArray) -> None:
         raise ValueError("Polygon coordinates must be finite.")
 
 
+def to_float_array(data: object, name: str, expected: str) -> t.FloatArray:
+    """converts input into a float array, with a clear error for input numpy cannot convert (e.g. ragged lists)
+
+    :param name: the input in the error message, e.g. "hole 2"
+    :param expected: the expected input in the error message
+    :raises TypeError: when the input cannot be converted
+    """
+    try:
+        return np.array(data, dtype=configs.DTYPE_FLOAT)
+    except (TypeError, ValueError, OverflowError) as error:
+        raise TypeError(f"{name}: expected {expected} ({error})") from None
+
+
 def check_polygon_formats(
     boundary_coords: t.FloatArray | None, list_hole_coords: list[t.FloatArray]
 ) -> None:
@@ -1034,7 +1047,9 @@ def convert_grid(size_x: int, size_y: int, obstacle_iter: iter) -> (list, list):
         if isinstance(size, bool) or not isinstance(size, (int, np.integer)):
             raise TypeError(f"{name} must be an integer, got {size!r}.")
         if size <= 0:
-            raise ValueError(f"{name} must be positive, got {size!r}.")
+            raise ValueError(f"{name} must be positive, got {int(size)}.")
+    # Python integers: narrow numpy integers overflow when multiplied
+    size_x, size_y = int(size_x), int(size_y)
 
     # any iterable (e.g. a generator)
     obstacle_iter = list(obstacle_iter)
@@ -1047,16 +1062,21 @@ def convert_grid(size_x: int, size_y: int, obstacle_iter: iter) -> (list, list):
 
     # convert (x,y) into np.arrays
     # obstacle_iter = [np.array(o) for o in obstacle_iter]
-    obstacle_iter = np.array(obstacle_iter)
+    try:
+        obstacle_iter = np.array(obstacle_iter)
+    except ValueError:  # ragged
+        raise TypeError("Each blocked cell must consist of two values (x,y).") from None
     if obstacle_iter.ndim != 2 or obstacle_iter.shape[1] != 2:
         raise TypeError("Each blocked cell must consist of two values (x,y).")
-    if obstacle_iter.dtype.kind == "f" and np.all(
-        obstacle_iter == np.rint(obstacle_iter)
-    ):
-        # e.g. 2.0 is unambiguous, 2.5 is no cell
-        obstacle_iter = obstacle_iter.astype(np.int64)
-    if obstacle_iter.dtype.kind not in "iu":
+    # integral floats (e.g. 2.0) are unambiguous, 2.5 is no cell
+    is_numeric = obstacle_iter.dtype.kind in "iuf"
+    # Note: an infinite value equals its rounded value
+    is_integral = is_numeric and bool(
+        np.all(np.isfinite(obstacle_iter) & (obstacle_iter == np.rint(obstacle_iter)))
+    )
+    if not is_integral:
         raise TypeError("The coordinates of the blocked cells must be integers.")
+    # Note: tested before converting to integers (large values would overflow)
     outside = (obstacle_iter < 0).any(axis=1) | (obstacle_iter >= (size_x, size_y)).any(
         axis=1
     )
@@ -1066,6 +1086,7 @@ def convert_grid(size_x: int, size_y: int, obstacle_iter: iter) -> (list, list):
             f"The blocked cell ({int(cell[0])}, {int(cell[1])}) lies outside of the grid "
             f"({size_x} x {size_y} cells)."
         )
+    obstacle_iter = obstacle_iter.astype(np.int64)
     if len(np.unique(obstacle_iter, axis=0)) == size_x * size_y:
         raise ValueError("All cells of the grid are blocked: there is no free space.")
 

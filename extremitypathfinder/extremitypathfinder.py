@@ -135,13 +135,14 @@ class PolygonEnvironment:
             and when ``boundary_coordinates`` is ``None`` and no holes are given.
         """
         # loading the map
+        expected = "a list of (x,y) coordinate pairs"
         list_of_hole_coordinates = [
-            np.array(hole_coords, dtype=configs.DTYPE_FLOAT)
-            for hole_coords in list_of_hole_coordinates
+            utils.to_float_array(hole_coords, f"hole {hole_idx}", expected)
+            for hole_idx, hole_coords in enumerate(list_of_hole_coordinates)
         ]
         if boundary_coordinates is not None:
-            boundary_coordinates = np.array(
-                boundary_coordinates, dtype=configs.DTYPE_FLOAT
+            boundary_coordinates = utils.to_float_array(
+                boundary_coordinates, "boundary polygon", expected
             )
         elif not list_of_hole_coordinates:
             raise ValueError(
@@ -428,8 +429,9 @@ class PolygonEnvironment:
         :raises ValueError: when a coordinate of start or goal is not finite,
          and when ``verify=True`` and start or goal do not lie within the map
         """
-        coords_start = np.array(start_coordinates, dtype=float)
-        coords_goal = np.array(goal_coordinates, dtype=float)
+        expected = "two values (x,y)"
+        coords_start = utils.to_float_array(start_coordinates, "start point", expected)
+        coords_goal = utils.to_float_array(goal_coordinates, "goal point", expected)
         utils.check_query_point(coords_start, "start")
         utils.check_query_point(coords_goal, "goal")
         # the returned coordinates: tuples of Python floats, whatever was passed
