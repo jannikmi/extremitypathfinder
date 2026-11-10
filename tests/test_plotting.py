@@ -231,7 +231,7 @@ def test_docs_figures(tmp_path):
         "touching_vertices.svg",
         "touching_vertex_edge.svg",
         "touching_edges.svg",
-    } | ({"clearance.svg"} if find_spec("shapely") else set())
+    } | ({"clearance.svg", "graph_reduction.svg"} if find_spec("shapely") else set())
     demo = (tmp_path / "demo.svg").read_text(encoding="utf-8")
     assert "prefers-color-scheme: dark" in demo
     assert 'id="path"' in demo
@@ -242,3 +242,24 @@ def test_docs_figures(tmp_path):
     first = {name: (tmp_path / name).read_bytes() for name in names}
     generate_figures(tmp_path)
     assert {name: (tmp_path / name).read_bytes() for name in names} == first
+
+
+@pytest.mark.skipif(find_spec("shapely") is None, reason="requires Shapely")
+def test_complete_visibility_graph():
+    """the reduced graph of the graph reduction figure is a subgraph of the complete visibility graph"""
+    from scripts.docs_figures import (
+        BOUNDARY,
+        HOLES,
+        clockwise,
+        complete_visibility_graph,
+    )
+
+    environment = PolygonEnvironment(BOUNDARY, [clockwise(h) for h in HOLES])
+    edges = complete_visibility_graph(environment)
+    complete = {frozenset(edge) for edge in edges}
+    # no duplicates and no zero-length edges (two obstacles share a vertex)
+    assert len(complete) == len(edges)
+    assert all(len(edge) == 2 for edge in complete)
+    coords = [tuple(c) for c in environment.coords]
+    reduced = {frozenset((coords[i], coords[j])) for i, j in environment.graph.edges}
+    assert reduced and reduced < complete

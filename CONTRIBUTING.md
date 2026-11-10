@@ -50,6 +50,7 @@ Whether fixing bugs or implementing features, start with the issues labelled "pr
 | [Documentation](docs/contributing/documentation.md) | change the documentation, its figures or this guide |
 | [Changelog](docs/contributing/changelog.md) | describe your change for users |
 | [Releasing](docs/contributing/releasing.md) | validate or publish a release (maintainers) |
+| [JOSS paper](docs/contributing/paper.md) | edit the paper, its figures or its references |
 | [AI-assisted contributions](docs/contributing/ai-assisted-contributions.md) | use a coding agent or AI assistant |
 | [Decision log](docs/contributing/decisions.md) | look up or record a decided trade-off |
 
