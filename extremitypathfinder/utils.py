@@ -19,6 +19,7 @@ from extremitypathfinder.configs import (
     HOLES_JSON_KEY,
 )
 from extremitypathfinder.utils_numba import (
+    _blocked_candidates,
     _has_clockwise_numbering,
     _inside_polygon,
     _lies_behind,
@@ -291,12 +292,13 @@ def find_visible(
     """finds the candidates whose lines of sight from the origin are not blocked by any of the edges
 
     "Angle Range Elimination Algorithm" (AREA):
-    the edges are sorted after the minimum angle representation of their vertices,
-    the candidates after their angle representation.
+    the candidates are sorted after their angle representation.
     Only the candidates within the angle range of an edge have to be checked against it:
     such a candidate is blocked when it lies behind the edge.
-    Edges whose angle range contains the representation 0.0 ("crossing" the direction (1, 0))
-    are checked separately in a rotated coordinate system.
+    An edge with a few candidates in its range is checked against each of them. An edge with many is entered
+    into a tree over the candidates, which only keeps the closest edges per range of directions,
+    so that every candidate is checked against few edges (cf. ``_blocked_candidates()``).
+    This bounds the worst case: ``O((n + k) log² k)`` for n edges and k candidates.
 
     A line of sight touching an edge only in one of its vertices (or running along it) is not blocked by the edge.
     Whether lines of sight may pass through the vertices is decided by their free wedges (cf. ``wedges.py``).
@@ -316,87 +318,109 @@ def find_visible(
     if len(candidates) == 0:
         return set()
     # only keep the closest of the candidates with identical angle representation
-    candidates_sorted = _eliminate_eq_candidates(candidates, distances, representations)
-    edges = np.fromiter(edges_to_check, dtype=int, count=len(edges_to_check))
+    candidates_sorted = np.array(
+        _eliminate_eq_candidates(candidates, distances, representations), dtype=np.int64
+    )
+    candidate_reps = representations[candidates_sorted]
+    edges = np.fromiter(edges_to_check, dtype=np.int64, count=len(edges_to_check))
+    edge_vertex_idxs = np.asarray(edge_vertex_idxs, dtype=np.int64)
     edges_min_rep, edges_max_rep, edges_max_dist, edges_is_crossing = (
         _edge_angle_ranges(edges, edge_vertex_idxs, representations, distances)
     )
-
-    def check(edges_sorted, edges_min_rep, edges_max_rep, representations):
-        _check_candidates(
-            candidates_sorted,
-            edges_sorted,
-            edges_max_rep,
+    # the terms of the edges for the intersections with the lines of sight (cf. ``_blocked_candidates()``)
+    vectors = coords - coords[origin]
+    p1 = vectors[edge_vertex_idxs[:, 0]]
+    p2 = vectors[edge_vertex_idxs[:, 1]]
+    edges_a = p1[:, 0] - p2[:, 0]
+    edges_b = p1[:, 1] - p2[:, 1]
+    edges_numerator = edges_a * p1[:, 1] - edges_b * p1[:, 0]
+    # an edge is at least as far away as its line
+    with np.errstate(invalid="ignore", divide="ignore"):
+        edges_min_dist = np.abs(edges_numerator) / np.hypot(edges_a, edges_b)
+    blocked = _blocked_candidates(
+        *_candidate_ranges(
+            edges,
             edges_min_rep,
-            origin,
-            distances,
-            representations,
-            coords,
-            edge_vertex_idxs,
+            edges_max_rep,
             edges_max_dist,
-            candidate_edges or {},
+            edges_is_crossing,
+            candidate_reps,
+        ),
+        np.column_stack(
+            [edges_a, edges_b, edges_numerator, edges_max_dist, edges_min_dist]
+        ),
+        np.column_stack([vectors[candidates_sorted], distances[candidates_sorted]]),
+    )
+    visible = set(candidates_sorted[~blocked].tolist())
+
+    # a candidate touching edges (a query point) is not blocked by them, but they might be the closest ones
+    # in its direction and replace the edges behind them in the tree: check it against every edge in its direction
+    for candidate, own_edges in (candidate_edges or {}).items():
+        position = np.searchsorted(candidate_reps, representations[candidate])
+        if position == len(candidates_sorted):
+            continue
+        if candidates_sorted[position] != candidate:
+            # a closer candidate has the same direction
+            continue
+        rep = representations[candidate]
+        min_rep, max_rep = edges_min_rep[edges], edges_max_rep[edges]
+        within = np.where(
+            edges_is_crossing[edges],
+            (rep > max_rep) | (rep < min_rep),
+            (min_rep < rep) & (rep < max_rep),
         )
-
-    regular_edges = edges[~edges_is_crossing[edges]]
-    check(
-        _edges_with_candidates(
-            regular_edges,
-            edges_min_rep,
-            edges_max_rep,
-            candidates_sorted,
-            representations,
-        ),
-        edges_min_rep,
-        edges_max_rep,
-        representations,
-    )
-
-    crossing_edges = edges[edges_is_crossing[edges]]
-    if len(crossing_edges) == 0 or len(candidates_sorted) == 0:
-        return set(candidates_sorted)
-
-    candidates_sorted, edges_max_rep, edges_min_rep, representations = rotate_crossing(
-        candidates_sorted,
-        edges_is_crossing,
-        edges_max_rep,
-        edges_min_rep,
-        representations,
-    )
-    check(
-        _edges_with_candidates(
-            crossing_edges,
-            edges_min_rep,
-            edges_max_rep,
-            candidates_sorted,
-            representations,
-        ),
-        edges_min_rep,
-        edges_max_rep,
-        representations,
-    )
-    return set(candidates_sorted)
+        visible.discard(candidate)
+        for edge in edges[within].tolist():
+            if edge in own_edges:
+                continue
+            if distances[candidate] > edges_max_dist[edge]:
+                break
+            if _lies_behind(*edge_vertex_idxs[edge], candidate, origin, coords):
+                break
+        else:
+            visible.add(candidate)
+    return visible
 
 
-def _edges_with_candidates(
+def _candidate_ranges(
     edges: np.ndarray,
     edges_min_rep: np.ndarray,
     edges_max_rep: np.ndarray,
-    candidates_sorted: list[int],
-    representations: np.ndarray,
-) -> list[int]:
-    """the edges whose closed angle range contains a candidate, sorted by their minimum representation
+    edges_max_dist: np.ndarray,
+    edges_is_crossing: np.ndarray,
+    candidate_reps: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """the candidates whose direction lies strictly within the angle range of an edge
 
-    The other edges cannot block any candidate: candidates are only removed during the sweep, never added.
-    Skipping them changes neither the result nor the order of the remaining edges (stable sort),
-    but saves the Python loop over most of the edges (#217).
+    A line of sight in the direction of a vertex of an edge only touches the edge (or runs along it).
+    The range of a crossing edge contains the representation 0.0 and gives two ranges of candidates.
+    Edges without such candidates cannot block any (#217).
 
-    :param candidates_sorted: the candidates sorted by their representation
+    :param candidate_reps: the representations of the candidates, sorted
+    :return: per range the edge and the positions of its first and its last candidate,
+        sorted by the maximum distance of the edges
     """
-    candidate_reps = representations[np.asarray(candidates_sorted, dtype=int)]
-    first = np.searchsorted(candidate_reps, edges_min_rep[edges], side="left")
-    after_last = np.searchsorted(candidate_reps, edges_max_rep[edges], side="right")
-    edges = edges[after_last > first]
-    return edges[np.argsort(edges_min_rep[edges], kind="stable")].tolist()
+    min_rep = edges_min_rep[edges]
+    max_rep = edges_max_rep[edges]
+    crossing = edges_is_crossing[edges]
+    nr_candidates = len(candidate_reps)
+    # regular edges: min_rep < rep < max_rep, crossing edges: rep > max_rep or rep < min_rep
+    first = np.searchsorted(
+        candidate_reps, np.where(crossing, max_rep, min_rep), side="right"
+    )
+    after_last = np.where(
+        crossing, nr_candidates, np.searchsorted(candidate_reps, max_rep, side="left")
+    )
+    after_last_wrapped = np.searchsorted(candidate_reps, min_rep[crossing], side="left")
+    range_edges = np.concatenate([edges, edges[crossing]])
+    first = np.concatenate([first, np.zeros_like(after_last_wrapped)])
+    after_last = np.concatenate([after_last, after_last_wrapped])
+    selected = np.flatnonzero(after_last > first)
+    # close edges first: most of the edges behind them are then dropped at once
+    selected = selected[
+        np.argsort(edges_max_dist[range_edges[selected]], kind="stable")
+    ]
+    return range_edges[selected], first[selected], after_last[selected] - 1
 
 
 def _eliminate_eq_candidates(
@@ -439,145 +463,6 @@ def _edge_angle_ranges(
     edges_max_dist[edges] = np.maximum(distances[i1], distances[i2])
     edges_is_crossing[edges] = edges_max_rep[edges] - edges_min_rep[edges] > 2.0
     return edges_min_rep, edges_max_rep, edges_max_dist, edges_is_crossing
-
-
-def rotate_crossing(
-    candidate_idxs, edges_is_crossing, edges_max_rep, edges_min_rep, representations
-):
-    if not np.all(edges_min_rep >= 0.0):
-        raise ValueError
-
-    # special case: edges cross the origin
-    # trick: rotate coordinate system to avoid dealing with origin crossings
-    # -> implementation for regular edges can be reused!
-    # bring the minimum maximal angle representation ("supremum") of all crossing edges to 0
-    supremum_cross_edge_rep = np.min(edges_max_rep[edges_is_crossing])
-    infimum_to_0 = 4.0 - supremum_cross_edge_rep
-    # Note: adding an angle < 180deg to the minimum edge_idx representations (quadrant 1 & 2) cannot lead to "overflow"
-    edges_min_rep[edges_is_crossing] = edges_min_rep[edges_is_crossing] + infimum_to_0
-    edges_max_rep[edges_is_crossing] = (
-        edges_max_rep[edges_is_crossing] + infimum_to_0
-    ) % 4.0
-    # Note: all maximum representations were moved to 1. or 2. quadrant
-    # -> became the smaller that the previously min rep! -> swap
-    tmp = edges_min_rep
-    edges_min_rep = edges_max_rep
-    edges_max_rep = tmp
-    # apply same transformation also to the representations of the candidates (and of all other vertices)
-    # IMPORTANT: work on independent copy
-    representations = (representations + infimum_to_0) % 4.0
-    # Note: new sorting is required
-    candidate_idxs = sorted(candidate_idxs, key=lambda i: representations[i])
-    return candidate_idxs, edges_max_rep, edges_min_rep, representations
-
-
-def check_candidates_one_edge(
-    edge_min_rep: float,
-    edge_max_rep: float,
-    edge_max_dist: float,
-    p1: int,
-    p2: int,
-    candidate_ptr: int,
-    origin: int,
-    candidate_indices: list[int],
-    coords: np.ndarray,
-    distances: np.ndarray,
-    representations: np.ndarray,
-    edge_idx: int,
-    candidate_edges: dict[int, set[int]],
-):
-    """removes the candidates blocked by a single edge
-
-    :param candidate_edges: the edges touching a candidate, they do not block it
-    :param candidate_ptr: the first candidate which might lie within the angle range of the edge
-    :return: the first candidate which might lie within the angle range of the following edges
-    """
-    # the candidates with a representation smaller than the minimum representation of the edge
-    # are not blocked by this edge and the following edges (larger or equal minimum representation)
-    for candidate_idx in candidate_indices[candidate_ptr:]:
-        if representations[candidate_idx] >= edge_min_rep:
-            break
-        candidate_ptr += 1
-
-    candidate_ptr_curr = candidate_ptr
-    # Note: the candidate list shrinks during the iteration
-    while candidate_ptr_curr < len(candidate_indices):
-        candidate_idx = candidate_indices[candidate_ptr_curr]
-        candidate_rep = representations[candidate_idx]
-        if candidate_rep > edge_max_rep:
-            # the remaining candidates lie outside of the angle range of the edge
-            break
-        if candidate_rep == edge_min_rep or candidate_rep == edge_max_rep:
-            # the line of sight touches the edge only in one of its vertices (or runs along the edge)
-            visibility_is_blocked = False
-        elif edge_idx in candidate_edges.get(candidate_idx, ()):
-            # the candidate lies on the edge
-            visibility_is_blocked = False
-        else:
-            # optimisation: a candidate farther away than both vertices of the edge surely lies behind it
-            # ATTENTION: a candidate closer than both vertices still needs to be checked!
-            visibility_is_blocked = distances[
-                candidate_idx
-            ] > edge_max_dist or _lies_behind(p1, p2, candidate_idx, origin, coords)
-
-        if visibility_is_blocked:
-            # Note: keep the pointer at the same position (the list shrank)
-            candidate_indices.pop(candidate_ptr_curr)
-        else:
-            candidate_ptr_curr += 1
-
-    return candidate_ptr
-
-
-def _check_candidates(
-    candidate_idxs: list[int],
-    edge_idxs_sorted: list[int],
-    edges_max_rep: np.ndarray,
-    edges_min_rep: np.ndarray,
-    origin: int,
-    distances: np.ndarray,
-    representations: np.ndarray,
-    coords: np.ndarray,
-    edge_vertex_idxs: np.ndarray,
-    edges_max_dist: np.ndarray,
-    candidate_edges: dict[int, set[int]],
-):
-    candidate_ptr = 0
-    for edge_idx in edge_idxs_sorted:
-        if len(candidate_idxs) == 0:
-            # Note: length is decreasing
-            break
-
-        edge_min_rep = edges_min_rep[edge_idx]
-        if candidate_ptr == len(candidate_idxs) - 1:
-            # pointing to the last candidate (w/ highest representation)
-            candidate_idx = candidate_idxs[candidate_ptr]
-            candidate_rep = representations[candidate_idx]
-            if edge_min_rep > candidate_rep:
-                # optimisation: the edge has a higher minimum representation that the last candidate
-                # all following edges have higher minimum representation and hence can't block the visibility
-                # -> visibility computation is finished
-                break
-
-        edge_max_rep = edges_max_rep[edge_idx]
-        edge_max_dist = edges_max_dist[edge_idx]
-        i1, i2 = edge_vertex_idxs[edge_idx]
-
-        candidate_ptr = check_candidates_one_edge(
-            edge_min_rep,
-            edge_max_rep,
-            edge_max_dist,
-            i1,
-            i2,
-            candidate_ptr,
-            origin,
-            candidate_idxs,
-            coords,
-            distances,
-            representations,
-            edge_idx,
-            candidate_edges,
-        )
 
 
 def find_visible_from(

@@ -57,7 +57,10 @@ Earlier decisions are described in the {ref}`Design Decisions <design_decisions>
 
 - **Decided by:** a maintainer
 - **Rejected:** triangular expansion, Polyanya or continuous Dijkstra instead; an angular sweep, also only for
-  the worst case of AREA (#216: slower on the measured maps, no fitting package, none works with Numba).
+  the worst case of AREA (#216: slower on the measured maps, no fitting package, none works with Numba,
+  needs edges that do not cross).
+- **Consequences:** the worst case of AREA is bounded within AREA instead: a tree over the candidates keeps
+  the closest edges (#216), `O(m n log² n)` instead of `O(n m²)`, same results, faster on the measured maps.
 - **Details:** {ref}`Design Decisions <design_decisions>`, `prototypes/sweep_tree_overhead.py` (#216)
 
 ## A release requires up-to-date benchmark results, checked when it is prepared, on its pull request and when it is tagged (#191)

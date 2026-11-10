@@ -4,10 +4,17 @@ from collections.abc import Sequence
 import numpy as np
 
 try:
-    from numba import b1, f8, i8, njit, typeof
+    from numba import b1, f8, i8, njit, typeof, void
 except ImportError:
     # replace Numba functionality with "transparent" implementations
-    from extremitypathfinder.numba_replacements import b1, f8, i8, njit, typeof
+    from extremitypathfinder.numba_replacements import (
+        b1,
+        f8,
+        i8,
+        njit,
+        typeof,
+        void,
+    )
 
 FloatTuple = typeof((1.0, 1.0))
 
@@ -288,3 +295,181 @@ def _lies_behind(
     coords_p2_rel = coords[idx_p2] - coords_origin
     coords_v_rel = coords[idx_v] - coords_origin
     return _lies_behind_inner(coords_p1_rel, coords_p2_rel, coords_v_rel)
+
+
+# nodes of the edge tree up to this height above the leaves store no edge:
+# their (at most ``DIRECT_CHECK_SIZE``) candidates are checked right away (cf. ``_blocked_candidates()``)
+DIRECT_CHECK_LEVEL = 4
+DIRECT_CHECK_SIZE = 2**DIRECT_CHECK_LEVEL
+
+
+@njit(f8(i8, i8, f8[:, :], f8[:, :]), cache=True)
+def _edge_distance(
+    edge: int, candidate: int, edge_terms: np.ndarray, candidate_terms: np.ndarray
+) -> float:
+    """the distance of an edge along the ray from the origin through a candidate, in multiples of its distance
+
+    The same operations as ``_lies_behind_inner()`` with the terms of the edge computed in advance.
+    """
+    a = edge_terms[edge, 0]
+    b = edge_terms[edge, 1]
+    det = a * candidate_terms[candidate, 1] - candidate_terms[candidate, 0] * b
+    if det == 0.0:
+        return np.inf
+    return edge_terms[edge, 2] / det
+
+
+@njit(b1(i8, i8, f8[:, :], f8[:, :]), cache=True)
+def _behind_edge(
+    edge: int, candidate: int, edge_terms: np.ndarray, candidate_terms: np.ndarray
+) -> bool:
+    """whether a candidate within the angle range of an edge lies behind it (cf. ``_lies_behind()``)"""
+    # optimisation: a candidate farther away than both vertices of the edge surely lies behind it
+    # ATTENTION: a candidate closer than both vertices still needs to be checked!
+    if candidate_terms[candidate, 2] > edge_terms[edge, 3]:
+        return True
+    # vertices on the edge are possibly visible! ( < not <=)
+    return _edge_distance(edge, candidate, edge_terms, candidate_terms) < 1.0
+
+
+@njit(void(i8[:], b1[:], i8, i8, i8, f8[:, :], f8[:, :]), cache=True)
+def _insert_edge(
+    tree: np.ndarray,
+    blocked: np.ndarray,
+    node: int,
+    level: int,
+    edge: int,
+    edge_terms: np.ndarray,
+    candidate_terms: np.ndarray,
+) -> None:
+    """adds an edge spanning all directions of a node to the tree (cf. ``_blocked_candidates()``)
+
+    :param level: the height of the node above the leaves
+    """
+    size = len(tree)
+    while level > DIRECT_CHECK_LEVEL:
+        stored = tree[node]
+        if stored < 0:
+            tree[node] = edge
+            return
+        # optimisation: an edge farther away than both vertices of another edge lies behind it in all directions
+        # of the node. It blocks no candidate the other edge does not block (cf. ``_behind_edge()``)
+        if edge_terms[stored, 3] < edge_terms[edge, 4]:
+            return
+        if edge_terms[edge, 3] < edge_terms[stored, 4]:
+            tree[node] = edge
+            return
+        # the candidates of the node: [first, first + 2^level), the left child holds those up to the middle
+        first = (node << level) - size
+        middle = first + (1 << level) // 2 - 1
+        closer_in_middle = _edge_distance(
+            edge, middle, edge_terms, candidate_terms
+        ) < _edge_distance(stored, middle, edge_terms, candidate_terms)
+        closer_at_first = _edge_distance(
+            edge, first, edge_terms, candidate_terms
+        ) < _edge_distance(stored, first, edge_terms, candidate_terms)
+        if closer_in_middle:
+            tree[node] = edge
+            edge = stored
+        # the edge not stored can only be closer on one side of the middle: pass it on to that child
+        level -= 1
+        node *= 2
+        if closer_at_first == closer_in_middle:
+            node += 1
+    # the few candidates of a node at the bottom are checked right away
+    first = (node << level) - size
+    for candidate in range(first, first + (1 << level)):
+        if not blocked[candidate]:
+            blocked[candidate] = _behind_edge(
+                edge, candidate, edge_terms, candidate_terms
+            )
+
+
+@njit(b1[:](i8[:], i8[:], i8[:], f8[:, :], f8[:, :]), cache=True)
+def _blocked_candidates(
+    range_edges: np.ndarray,
+    range_first: np.ndarray,
+    range_last: np.ndarray,
+    edge_terms: np.ndarray,
+    candidate_terms: np.ndarray,
+) -> np.ndarray:
+    """which candidates lie behind an edge, in ``O((r log k + k) log k)`` for r ranges and k candidates
+
+    The candidates are sorted by direction. Each range is an edge with the first and the last candidate
+    (inclusive positions) whose direction lies strictly within the angle range of the edge.
+
+    A segment tree over the candidates stores at most one edge per node: of all edges spanning the directions
+    of a node, the closest one in the middle direction ("Li Chao tree"). Seen from the origin, two edges swap
+    their order at most once (two lines cross at most once), so the edge losing in the middle can only be closer
+    on one side and is passed on to that child. The nodes at the bottom (up to ``DIRECT_CHECK_SIZE`` candidates)
+    store no edge: an edge arriving there is checked against their candidates right away, like every edge
+    with a small range. The closest edge in the direction of a candidate has then either been checked
+    against it or is stored on the way from its leaf to the root: only these edges remain to be checked.
+
+    Edges are only compared in the directions of candidates. No crossings are computed: overlapping polygons
+    (crossing edges) need no special treatment.
+
+    :param edge_terms: per edge (row: the edge index), with its vertices relative to the origin:
+        ``a = x1 - x2``, ``b = y1 - y2``, ``a * y1 - b * x1`` (cf. ``_lies_behind_inner()``),
+        the maximum distance of its vertices, a lower bound of its distance
+    :param candidate_terms: per candidate (in sorted order), relative to the origin: x, y, its distance
+    """
+    nr_candidates = len(candidate_terms)
+    blocked = np.zeros(nr_candidates, dtype=np.bool_)
+    # a complete binary tree: node i has the children 2i and 2i+1, the leaves would start at ``size``
+    size = 1
+    while size < nr_candidates:
+        size *= 2
+    tree = np.full(size, -1, dtype=np.int64)
+
+    for i in range(len(range_edges)):
+        edge = int(range_edges[i])
+        first = int(range_first[i])
+        last = int(range_last[i])
+        if last - first < DIRECT_CHECK_SIZE:
+            # the most frequent case: a few candidates are checked right away
+            for candidate in range(first, last + 1):
+                if not blocked[candidate]:
+                    blocked[candidate] = _behind_edge(
+                        edge, candidate, edge_terms, candidate_terms
+                    )
+            continue
+        # the nodes which together cover exactly the range: at most two per level
+        first += size
+        last += size
+        level = 0
+        while first <= last:
+            if first & 1:
+                _insert_edge(
+                    tree, blocked, first, level, edge, edge_terms, candidate_terms
+                )
+                first += 1
+            if not last & 1:
+                _insert_edge(
+                    tree, blocked, last, level, edge, edge_terms, candidate_terms
+                )
+                last -= 1
+            first >>= 1
+            last >>= 1
+            level += 1
+
+    # most nodes are empty: per node the closest node above it which stores an edge (0: none), level by level
+    above = np.zeros(2 * size, dtype=np.int64)
+    first = 1
+    while first < size:
+        stored_above = np.where(
+            tree[first : 2 * first] >= 0,
+            np.arange(first, 2 * first),
+            above[first : 2 * first],
+        )
+        above[2 * first : 4 * first] = np.repeat(stored_above, 2)
+        first *= 2
+
+    for candidate in range(nr_candidates):
+        node = above[candidate + size]
+        while node > 0 and not blocked[candidate]:
+            blocked[candidate] = _behind_edge(
+                tree[node], candidate, edge_terms, candidate_terms
+            )
+            node = above[node]
+    return blocked

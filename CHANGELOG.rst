@@ -28,6 +28,13 @@ recreate them. Loading them raises a ``ValueError`` explaining this.
 
 other changes:
 
+- the worst case of the visibility computation is bounded (#216): environments with many extremities in front of
+  many long edges (e.g. small obstacles in front of long walls) took ``O(n m²)`` to prepare and ``O(n m)`` per query
+  point (``n`` vertices, ``m`` extremities), now ``O(m n log² n)`` and ``O(n log² n)``.
+  AREA keeps only the closest edges per range of directions in a tree over the candidates
+  (cf. the engineering design). Same results.
+  E.g. such an environment with 3204 vertices: prepared in 18.5 s instead of 170 s, the visibility of a query point
+  in 3 ms instead of 646 ms (with Numba). Typical maps are prepared 1.1 to 1.4 times faster, with and without Numba.
 - shortest path lengths between many points (#175): ``PolygonEnvironment.distance_matrix(points_a, points_b=None)``
   returns the lengths between all start and goal points (``inf`` without a path), identical to a loop over
   ``find_shortest_path()`` but much faster: the visibility of every point is computed once instead of twice per pair.
