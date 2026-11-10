@@ -316,6 +316,21 @@ def test_astar_path_uses_query_edges_without_changing_the_graph():
     assert 3 not in graph
 
 
+def test_astar_path_expands_a_node_again_with_an_inconsistent_heuristic():
+    # an admissible but inconsistent heuristic: B is expanded through S first (distance 3),
+    # the shorter path through A (distance 2) is found only afterwards.
+    # guards the decision of #157 against a closed set (it would return [s, b, g])
+    s, a, b, g = range(4)
+    graph = nx.Graph()
+    graph.add_weighted_edges_from([(s, a, 1.0), (s, b, 3.0), (a, b, 1.0), (b, g, 3.0)])
+    estimates = {s: 0.0, a: 4.0, b: 0.0, g: 0.0}
+
+    def heuristic(n1, n2):
+        return estimates[n1]
+
+    assert astar_path(graph, {}, s, g, heuristic) == [s, a, b, g]
+
+
 @pytest.mark.parametrize("seed", range(20))
 def test_astar_path_matches_networkx(seed):
     rng = np.random.default_rng(seed)
