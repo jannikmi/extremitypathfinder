@@ -62,8 +62,8 @@ Visibility graphs are the classical exact method for Euclidean shortest paths am
 [@lozanoperez1979]. Lee's rotational sweep computes the visibility graph of $n$ vertices in $O(n^2 \log n)$ time
 with a balanced tree of edges [@lee1978proximity]; later algorithms are faster asymptotically. Polyanya [@cui2017polyanya] computes exact any-angle paths on a navigation mesh without
 a visibility graph and is the state of the art for single queries, but it needs a triangulation of the free space
-and has no Python package. TřiVis (C++) computes visibility graphs by triangular expansion, likewise on a triangulation.
-Grid planners such as A\* or Theta\* are simpler, but their paths are in general longer.
+and has no Python package. TřiVis [@mikula2024trivis] (C++) computes visibility graphs by triangular expansion,
+likewise on a triangulation. Grid planners such as A\* or Theta\* are simpler, but their paths are in general longer.
 
 In Python, the closest alternative is pyvisgraph [@pyvisgraph], unmaintained since 2020. It builds the complete
 visibility graph of all obstacle vertices with Lee's algorithm and searches it with Dijkstra's algorithm.
