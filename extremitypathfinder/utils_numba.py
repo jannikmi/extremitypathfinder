@@ -319,20 +319,34 @@ def _edge_distance(
     return edge_terms[edge, 2] / det
 
 
-@njit(b1(i8, i8, f8[:, :], f8[:, :]), cache=True)
+@njit(b1(i8, i8, f8[:, :], f8[:, :], i8[:], i8[:]), cache=True)
 def _behind_edge(
-    edge: int, candidate: int, edge_terms: np.ndarray, candidate_terms: np.ndarray
+    edge: int,
+    candidate: int,
+    edge_terms: np.ndarray,
+    candidate_terms: np.ndarray,
+    own_edges_start: np.ndarray,
+    own_edges: np.ndarray,
 ) -> bool:
-    """whether a candidate within the angle range of an edge lies behind it (cf. ``_lies_behind()``)"""
+    """whether a candidate within the angle range of an edge lies behind it (cf. ``_lies_behind()``)
+
+    Not behind the edges it touches (its "own" edges, cf. ``_blocked_candidates()``).
+    """
     # optimisation: a candidate farther away than both vertices of the edge surely lies behind it
     # ATTENTION: a candidate closer than both vertices still needs to be checked!
-    if candidate_terms[candidate, 2] > edge_terms[edge, 3]:
-        return True
     # vertices on the edge are possibly visible! ( < not <=)
-    return _edge_distance(edge, candidate, edge_terms, candidate_terms) < 1.0
+    behind = candidate_terms[candidate, 2] > edge_terms[edge, 3]
+    if not behind:
+        behind = _edge_distance(edge, candidate, edge_terms, candidate_terms) < 1.0
+    if not behind:
+        return False
+    for i in range(own_edges_start[candidate], own_edges_start[candidate + 1]):
+        if own_edges[i] == edge:
+            return False
+    return True
 
 
-@njit(void(i8[:], b1[:], i8, i8, i8, f8[:, :], f8[:, :]), cache=True)
+@njit(void(i8[:], b1[:], i8, i8, i8, f8[:, :], f8[:, :], i8[:], i8[:]), cache=True)
 def _insert_edge(
     tree: np.ndarray,
     blocked: np.ndarray,
@@ -341,6 +355,8 @@ def _insert_edge(
     edge: int,
     edge_terms: np.ndarray,
     candidate_terms: np.ndarray,
+    own_edges_start: np.ndarray,
+    own_edges: np.ndarray,
 ) -> None:
     """adds an edge spanning all directions of a node to the tree (cf. ``_blocked_candidates()``)
 
@@ -381,17 +397,24 @@ def _insert_edge(
     for candidate in range(first, first + (1 << level)):
         if not blocked[candidate]:
             blocked[candidate] = _behind_edge(
-                edge, candidate, edge_terms, candidate_terms
+                edge,
+                candidate,
+                edge_terms,
+                candidate_terms,
+                own_edges_start,
+                own_edges,
             )
 
 
-@njit(b1[:](i8[:], i8[:], i8[:], f8[:, :], f8[:, :]), cache=True)
+@njit(b1[:](i8[:], i8[:], i8[:], f8[:, :], f8[:, :], i8[:], i8[:]), cache=True)
 def _blocked_candidates(
     range_edges: np.ndarray,
     range_first: np.ndarray,
     range_last: np.ndarray,
     edge_terms: np.ndarray,
     candidate_terms: np.ndarray,
+    own_edges_start: np.ndarray,
+    own_edges: np.ndarray,
 ) -> np.ndarray:
     """which candidates lie behind an edge, in ``O((r log k + k) log k)`` for r ranges and k candidates
 
@@ -413,6 +436,10 @@ def _blocked_candidates(
         ``a = x1 - x2``, ``b = y1 - y2``, ``a * y1 - b * x1`` (cf. ``_lies_behind_inner()``),
         the maximum distance of its vertices, a lower bound of its distance
     :param candidate_terms: per candidate (in sorted order), relative to the origin: x, y, its distance
+    :param own_edges_start: the edges touching candidate i, which do not block it (e.g. a query point on an edge):
+        ``own_edges[own_edges_start[i] : own_edges_start[i + 1]]``.
+        IMPORTANT: the candidate must lie on these edges. An edge in front of it would be taken for the closest one
+        in its direction, and the edges behind that edge would not be checked.
     """
     nr_candidates = len(candidate_terms)
     blocked = np.zeros(nr_candidates, dtype=np.bool_)
@@ -431,7 +458,12 @@ def _blocked_candidates(
             for candidate in range(first, last + 1):
                 if not blocked[candidate]:
                     blocked[candidate] = _behind_edge(
-                        edge, candidate, edge_terms, candidate_terms
+                        edge,
+                        candidate,
+                        edge_terms,
+                        candidate_terms,
+                        own_edges_start,
+                        own_edges,
                     )
             continue
         # the nodes which together cover exactly the range: at most two per level
@@ -441,12 +473,28 @@ def _blocked_candidates(
         while first <= last:
             if first & 1:
                 _insert_edge(
-                    tree, blocked, first, level, edge, edge_terms, candidate_terms
+                    tree,
+                    blocked,
+                    first,
+                    level,
+                    edge,
+                    edge_terms,
+                    candidate_terms,
+                    own_edges_start,
+                    own_edges,
                 )
                 first += 1
             if not last & 1:
                 _insert_edge(
-                    tree, blocked, last, level, edge, edge_terms, candidate_terms
+                    tree,
+                    blocked,
+                    last,
+                    level,
+                    edge,
+                    edge_terms,
+                    candidate_terms,
+                    own_edges_start,
+                    own_edges,
                 )
                 last -= 1
             first >>= 1
@@ -469,7 +517,12 @@ def _blocked_candidates(
         node = above[candidate + size]
         while node > 0 and not blocked[candidate]:
             blocked[candidate] = _behind_edge(
-                tree[node], candidate, edge_terms, candidate_terms
+                tree[node],
+                candidate,
+                edge_terms,
+                candidate_terms,
+                own_edges_start,
+                own_edges,
             )
             node = above[node]
     return blocked

@@ -364,8 +364,9 @@ Details:
   The candidate is blocked when :math:`\mu < 1` (the edge is closer than the candidate).
   Within the angle range the system is regular. The terms that only depend on the edge are computed
   for all edges at once.
-- **Query points on edges**: the edges touching a candidate do not block it. Such a candidate is checked
-  against every edge with its direction in the angle range, without the tree.
+- **Query points on edges**: the edges touching a candidate do not block it (its arrival is decided by rule 4).
+  They are skipped in its check. The candidate must lie on them: an edge is only skipped for a candidate,
+  not for the comparison of the edges in the tree.
 
 **The tree over the candidates.** Checking every edge against every candidate in its angle range takes :math:`O(n k)` per origin
 when many edges span the directions of many candidates, e.g. long walls behind many small obstacles.

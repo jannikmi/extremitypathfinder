@@ -22,7 +22,6 @@ from extremitypathfinder.utils_numba import (
     _blocked_candidates,
     _has_clockwise_numbering,
     _inside_polygon,
-    _lies_behind,
     _no_identical_consequent_vertices,
     edge_vertex_mappings,
     is_within_map,
@@ -312,7 +311,7 @@ def find_visible(
     :param representations: the angle representations of all coordinates seen from the origin
     :param distances: the distances of all coordinates to the origin
     :param candidate_edges: the edges touching a candidate (e.g. a query point on an edge),
-        they do not block it
+        they do not block it. IMPORTANT: the candidate must lie on these edges (cf. ``_blocked_candidates()``).
     :return: the visible candidates
     """
     if len(candidates) == 0:
@@ -350,36 +349,35 @@ def find_visible(
             [edges_a, edges_b, edges_numerator, edges_max_dist, edges_min_dist]
         ),
         np.column_stack([vectors[candidates_sorted], distances[candidates_sorted]]),
+        *_own_edges(candidates, candidates_sorted, candidate_edges or {}),
     )
-    visible = set(candidates_sorted[~blocked].tolist())
+    return set(candidates_sorted[~blocked].tolist())
 
-    # a candidate touching edges (a query point) is not blocked by them, but they might be the closest ones
-    # in its direction and replace the edges behind them in the tree: check it against every edge in its direction
-    for candidate, own_edges in (candidate_edges or {}).items():
-        position = np.searchsorted(candidate_reps, representations[candidate])
-        if position == len(candidates_sorted):
-            continue
-        if candidates_sorted[position] != candidate:
-            # a closer candidate has the same direction
-            continue
-        rep = representations[candidate]
-        min_rep, max_rep = edges_min_rep[edges], edges_max_rep[edges]
-        within = np.where(
-            edges_is_crossing[edges],
-            (rep > max_rep) | (rep < min_rep),
-            (min_rep < rep) & (rep < max_rep),
-        )
-        visible.discard(candidate)
-        for edge in edges[within].tolist():
-            if edge in own_edges:
-                continue
-            if distances[candidate] > edges_max_dist[edge]:
-                break
-            if _lies_behind(*edge_vertex_idxs[edge], candidate, origin, coords):
-                break
-        else:
-            visible.add(candidate)
-    return visible
+
+def _own_edges(
+    candidates: set[int],
+    candidates_sorted: np.ndarray,
+    candidate_edges: Mapping[int, set[int]],
+) -> tuple[np.ndarray, np.ndarray]:
+    """the edges touching the candidates, for ``_blocked_candidates()``
+
+    :return: per sorted candidate (and one more entry) where its edges start, and the edges of all candidates
+    """
+    nr_edges = np.zeros(len(candidates_sorted) + 1, dtype=np.int64)
+    own_edges: dict[int, set[int]] = {}
+    # Note: usually none or few of the candidates touch edges
+    touching = candidate_edges.keys() & candidates
+    if touching:
+        positions = {c: i for i, c in enumerate(candidates_sorted.tolist())}
+        for candidate in touching:
+            edges = candidate_edges[candidate]
+            # Note: not among the sorted candidates when a closer candidate has the same direction
+            position = positions.get(candidate)
+            if position is not None and len(edges) > 0:
+                own_edges[position] = edges
+                nr_edges[position + 1] = len(edges)
+    edges = [edge for position in sorted(own_edges) for edge in own_edges[position]]
+    return np.cumsum(nr_edges), np.array(edges, dtype=np.int64)
 
 
 def _candidate_ranges(

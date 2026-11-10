@@ -11,7 +11,7 @@ import numpy as np
 import pytest
 
 from extremitypathfinder import PolygonEnvironment, configs, utils
-from extremitypathfinder.utils import _lies_behind
+from extremitypathfinder.utils_numba import _lies_behind
 from tests.test_cases import GRID_ENV_PARAMS, POLYGON_ENVS
 
 
@@ -307,7 +307,7 @@ def find_visible_brute_force(
     "env",
     all_envs
     + [_overlapping_squares(seed) for seed in range(3)]
-    + [_many_candidates_before_long_edges(12)],
+    + [_many_candidates_before_long_edges(40)],
 )
 def test_graph_equals_brute_force(env, monkeypatch):
     # e.g. skipping the edges without candidates (#217) and those behind closer edges (#216)
@@ -324,7 +324,7 @@ def _crossing_segments(seed: int):
 
     Many candidates lie within the angle range of an edge, so that the edges are entered into the tree
     (cf. ``utils_numba._blocked_candidates()``). Integer coordinates (every third seed) give candidates
-    exactly on edges and in the directions of edge vertices.
+    exactly on edges and in the directions of edge vertices. Some candidates lie in the middle of an edge.
     """
     rng = np.random.default_rng(seed)
     nr_segments = int(rng.integers(1, 80))
@@ -337,6 +337,12 @@ def _crossing_segments(seed: int):
         origin = rng.uniform(-1, 1, size=(1, 2))
         segments = rng.uniform(-8, 8, size=(2 * nr_segments, 2))
         candidate_coords = rng.uniform(-8, 8, size=(nr_candidates, 2))
+    # some candidates lie on an edge (as query points on edges): it does not block them
+    on_edge = rng.choice(nr_candidates, size=min(5, nr_candidates), replace=False)
+    their_edges = rng.integers(nr_segments, size=len(on_edge))
+    candidate_coords[on_edge] = (
+        segments[2 * their_edges] + segments[2 * their_edges + 1]
+    ) / 2
     coords = np.concatenate([segments, candidate_coords, origin])
     origin = len(coords) - 1
     edge_vertex_idxs = np.arange(2 * nr_segments).reshape(nr_segments, 2)
@@ -348,11 +354,11 @@ def _crossing_segments(seed: int):
         if abs(representations[v1] - representations[v2]) != 2.0
         and not np.array_equal(coords[v1], coords[v2])
     }
-    candidates = set(range(2 * nr_segments, origin))
-    # some candidates are not blocked by some edges (as query points on edges)
+    # Note: candidates identical to the origin are not allowed
+    candidates = {i for i in range(2 * nr_segments, origin) if distances[i] != 0.0}
     candidate_edges = {
-        int(candidate): set(rng.integers(nr_segments, size=3).tolist())
-        for candidate in rng.choice(sorted(candidates), size=min(5, nr_candidates))
+        2 * nr_segments + int(candidate): {int(edge)}
+        for candidate, edge in zip(on_edge, their_edges)
     }
     return (
         origin,
