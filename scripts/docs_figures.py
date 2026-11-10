@@ -404,7 +404,8 @@ def complete_visibility_graph(environment: PolygonEnvironment) -> list:
     holes = [Polygon(hole) for hole in environment.holes]
     free = prepared.prep(boundary.difference(union_all(holes)))
     rings = [boundary.exterior] + [hole.exterior for hole in holes]
-    vertices = [tuple(v) for v in environment.coords]
+    # distinct points: touching obstacles share vertices
+    vertices = list(dict.fromkeys(tuple(v) for v in environment.coords))
     # vertices lying on another polygon: there, obstacles touch each other or the boundary
     contacts = [
         Point(v)
@@ -435,6 +436,7 @@ def draw_graph_reduction(axes, marker_size: float = 3.5, path_width: float = 3.0
     )
     path, _ = environment.find_shortest_path(START, GOAL)
     complete = complete_visibility_graph(environment)
+    nr_points = len({tuple(v) for v in environment.coords})
     style = PlotStyle(
         graph_alpha=0.3,
         line_width=0.7,
@@ -466,7 +468,7 @@ def draw_graph_reduction(axes, marker_size: float = 3.5, path_width: float = 3.0
     )
     draw(environment, path, ax=axes[1], vertices=True, style=style)
     titles = (
-        f"complete visibility graph: {environment.nr_vertices} vertices, {len(complete):,} edges",
+        f"complete visibility graph: {nr_points} vertices, {len(complete):,} edges",
         (
             f"reduced visibility graph: {len(environment.extremity_indices)} extremities,"
             f" {environment.graph.number_of_edges()} edges"

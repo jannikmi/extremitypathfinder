@@ -98,12 +98,12 @@ def benchmark_sweep(results: dict, output_dir: Path):
             [],
             [],
             linestyle="none",
-            marker="o",
+            marker=plot.STYLE["pyvisgraph"]["marker"],
             markersize=5,
             markeredgewidth=1.5,
-            color=plot.TEXT_SECONDARY,
+            color=plot.STYLE["pyvisgraph"]["color"],
             markerfacecolor="white",
-            label="invalid paths",
+            label="pyvisgraph, invalid paths",
         )
     )
     fig.legend(

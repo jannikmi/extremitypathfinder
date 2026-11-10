@@ -255,7 +255,11 @@ def test_complete_visibility_graph():
     )
 
     environment = PolygonEnvironment(BOUNDARY, [clockwise(h) for h in HOLES])
-    complete = {frozenset(edge) for edge in complete_visibility_graph(environment)}
+    edges = complete_visibility_graph(environment)
+    complete = {frozenset(edge) for edge in edges}
+    # no duplicates and no zero-length edges (two obstacles share a vertex)
+    assert len(complete) == len(edges)
+    assert all(len(edge) == 2 for edge in complete)
     coords = [tuple(c) for c in environment.coords]
     reduced = {frozenset((coords[i], coords[j])) for i, j in environment.graph.edges}
     assert reduced and reduced < complete
