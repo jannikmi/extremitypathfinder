@@ -501,10 +501,6 @@ class PolygonEnvironment:
             return no_graph_result([], None)
 
         query_edges += [(start_mapped, i, vert_idx2dist[i]) for i in visibles_start]
-        query_adjacency: dict[int, dict[int, float]] = {}
-        for i, j, d in query_edges:
-            query_adjacency.setdefault(i, {})[j] = d
-            query_adjacency.setdefault(j, {})[i] = d
 
         def graph_result(path: Path, length: Length) -> SearchResult:
             return SearchResult(
@@ -517,23 +513,51 @@ class PolygonEnvironment:
                 self.graph,
             )
 
+        id_path, distance = self._search_graph(
+            start_mapped, goal_mapped, query_edges, goal_distances
+        )
+        if id_path is None:
+            return graph_result([], None)
+
+        # extract the coordinates from the path
+        path = [tuple(coords[i]) for i in id_path]
+        return graph_result(path, distance)
+
+    def _search_graph(
+        self,
+        start: int,
+        goal: int,
+        query_edges: list[tuple[int, int, float]],
+        goal_distances: np.ndarray,
+    ) -> tuple[list[int] | None, Length]:
+        """the shortest path between two graph nodes (or query points) with A*, and its length
+
+        Searches the visibility graph extended by the temporary edges of start and goal,
+        without changing the graph (cf. ``utils.astar_path()``).
+
+        :param query_edges: the temporary edges ``(node, neighbour, length)`` of start and goal
+        :param goal_distances: the distances of all coordinates to the goal: the A* heuristic
+        :return: the node indices of the path and its length, ``(None, None)`` if there is no path
+        """
+        query_adjacency: dict[int, dict[int, float]] = {}
+        for i, j, d in query_edges:
+            query_adjacency.setdefault(i, {})[j] = d
+            query_adjacency.setdefault(j, {})[i] = d
+
         def distance_to_goal(node: int, _goal: int) -> float:
             return goal_distances[node]
 
         id_path = utils.astar_path(
-            self.graph, query_adjacency, start_mapped, goal_mapped, distance_to_goal
+            self.graph, query_adjacency, start, goal, distance_to_goal
         )
         if id_path is None:
-            return graph_result([], None)
+            return None, None
 
         # the length of the path: the sum of the weights of its edges (Euclidean distances)
         distance = 0.0
         for v1, v2 in itertools.pairwise(id_path):
             distance += utils.edge_weight(self.graph, query_adjacency, v1, v2)
-
-        # extract the coordinates from the path
-        path = [tuple(coords[i]) for i in id_path]
-        return graph_result(path, distance)
+        return id_path, distance
 
     def distance_matrix(
         self,
@@ -546,7 +570,7 @@ class PolygonEnvironment:
 
         Gives the same lengths as :meth:`find_shortest_path` for every pair, but faster:
         the visibility of every point is computed once (instead of twice per pair)
-        and the visibility graph is searched once per point of ``points_a`` (Dijkstra's algorithm).
+        and the visibility graph is searched with A* for every pair, like :meth:`find_shortest_path`.
         The environment and its visibility graph are not changed.
 
         :param points_a: the start points, (x,y) coordinate tuples
@@ -623,48 +647,32 @@ class PolygonEnvironment:
                 i: vert_idx2dist[i] for i in visible if i >= self.nr_vertices
             }
 
-        # target -> its temporary edges (graph node -> distance), including the graph node merged with it
-        target_edges = {}
-        for target in targets:
-            edges = visible_nodes[target]
-            node = graph_node_at[target]
-            if node is not None:
-                # a goal merged with a graph node is reached with that node (cf. search())
-                edges = {**edges, node: 0.0}
-            target_edges[target] = edges
-
         distances: dict[tuple[int, int], float] = {}
-        for source in sources:
-            # the targets not reached directly have to be reached through the graph
-            graph_targets = [
-                target
-                for target in targets
-                if target != source and source not in visible_sources[target]
-            ]
-            source_edges = visible_nodes[source]
-            node = graph_node_at[source]
-            if node is not None:
-                # a start merged with a graph node leaves through the node and through all of its free wedges
-                source_edges = {node: 0.0, **source_edges}
-            settled = {}
-            if graph_targets and source_edges:
-                needed = {i for target in graph_targets for i in target_edges[target]}
-                settled = utils.dijkstra_distances(self.graph, source_edges, needed)
-            for target in targets:
-                if target == source:
+        for target in targets:
+            # the distances seen from the goal: the A* heuristic (cf. search())
+            goal_distances = utils.cmp_reps_n_distances(target, coords)[1]
+            goal_node = graph_node_at[target]
+            goal_mapped = target if goal_node is None else goal_node
+            goal_edges = [(i, goal_mapped, d) for i, d in visible_nodes[target].items()]
+            for source in sources:
+                if source == target:
                     distances[source, target] = 0.0
                 elif source in visible_sources[target]:
                     # the shortest path is the direct line of sight (cf. search())
                     distances[source, target] = visible_sources[target][source]
+                elif not goal_edges or not visible_nodes[source]:
+                    # the goal or the start does not see any graph node: no path (cf. search())
+                    distances[source, target] = np.inf
                 else:
-                    distances[source, target] = min(
-                        (
-                            settled[node] + weight
-                            for node, weight in target_edges[target].items()
-                            if node in settled
-                        ),
-                        default=np.inf,
+                    start_node = graph_node_at[source]
+                    start_mapped = source if start_node is None else start_node
+                    query_edges = goal_edges + [
+                        (start_mapped, i, d) for i, d in visible_nodes[source].items()
+                    ]
+                    _, length = self._search_graph(
+                        start_mapped, goal_mapped, query_edges, goal_distances
                     )
+                    distances[source, target] = np.inf if length is None else length
 
         for i, source in enumerate(idxs_a):
             for j, target in enumerate(idxs_b):

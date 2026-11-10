@@ -30,8 +30,8 @@ other changes:
 
 - shortest path lengths between many points (#175): ``PolygonEnvironment.distance_matrix(points_a, points_b=None)``
   returns the lengths between all start and goal points (``inf`` without a path), identical to a loop over
-  ``find_shortest_path()`` but much faster: the visibility of every point is computed once, and the graph is searched
-  once per start point. E.g. 100 points in an environment with 328 vertices: 0.7 s instead of 42 s (with Numba).
+  ``find_shortest_path()`` but much faster: the visibility of every point is computed once instead of twice per pair.
+  E.g. 100 points in an environment with 904 vertices: 3.1 s instead of 115 s (with Numba).
   The usage page also documents the visibility graph ``environment.graph`` for own NetworkX algorithms.
 - Shapely and GeoJSON input (#166): ``PolygonEnvironment.from_shapely(boundary, obstacles, validate=False)``
   accepts Shapely polygons, multi-polygons and collections, GeoJSON-like mappings and objects with a

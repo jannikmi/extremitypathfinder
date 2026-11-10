@@ -498,12 +498,16 @@ but computes the visibility of every point only once instead of twice per pair:
   but not by the graph node at its own position or by other query points. Query points sharing a direction with
   another candidate are therefore checked in separate calls of ``find_visible_from()``,
   so that no query point hides a graph node or another query point.
-- A start visible from a goal gives the straight segment. The other goals are reached through the graph:
-  one Dijkstra search per start point (``dijkstra_distances()``), stopped when all graph nodes visible from
-  the goals not visible from the start are settled. The length to a goal is the minimum over its visible graph nodes of the distance of the node plus
-  the length of the last edge. The sums are added in the same order as in ``search()``.
-- Neither the environment nor its graph is changed: the edges of the start points are passed to the search,
-  the edges of the goal points are added afterwards.
+- A start visible from a goal gives the straight segment. For the other pairs, the graph is searched with A*
+  exactly as in ``search()`` (``_search_graph()``, shared by both): the temporary edges of start and goal
+  and the distances seen from the goal as heuristic. The heuristic is computed once per goal.
+  Paths and lengths are therefore those of ``search()`` by construction.
+- Neither the environment nor its graph is changed: the temporary edges are passed to the search.
+
+The visibility takes most of the query time (cf. :doc:`7_performance`), the A* searches only a small part.
+Computing the visibility once per point gives most of the speed-up, so the graph search was not replaced:
+one Dijkstra search per start point instead of A* per pair gave identical lengths but was not consistently faster
+(cf. the :doc:`decision log <contributing/decisions>`).
 
 Point in polygon
 ----------------

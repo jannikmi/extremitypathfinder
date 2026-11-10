@@ -146,7 +146,8 @@ Distance matrix
 
 Routing, assignment and TSP-style applications need the shortest path lengths between many points.
 ``distance_matrix()`` computes them at once, much faster than calling ``find_shortest_path()`` for every pair:
-the visibility of every point is computed once, and the visibility graph is searched once per start point.
+the visibility of every point is computed once instead of twice per pair. Only the search in the visibility graph
+(A*, a small part of the query time) runs for every pair.
 
 .. code-block:: python
 
@@ -161,7 +162,7 @@ identical to the length returned by ``find_shortest_path()``. It is ``inf`` when
 ``verify=False`` accepts the points without checking whether they lie within the map, like ``find_shortest_path()``.
 Only the lengths are returned: to get a path, call ``find_shortest_path()`` for that pair.
 
-E.g. 100 random points (9,900 pairs) in an environment with 328 vertices: 0.7 s instead of 42 s with a loop over
+E.g. 100 random points (9,900 pairs) in an environment with 904 vertices: 3.1 s instead of 115 s with a loop over
 ``find_shortest_path()`` (with Numba, ``prototypes/distance_matrix_profile.py``).
 
 To run your own NetworkX algorithms, use the visibility graph ``environment.graph``:
