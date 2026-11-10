@@ -118,6 +118,10 @@ bugfixes:
 
 internal:
 
+- the query algorithms (start and goal visibility, graph search, distance matrix) moved from the root module
+  ``extremitypathfinder.py`` into the new module ``queries.py``, together with ``SearchResult``
+  (still importable from ``extremitypathfinder`` and ``extremitypathfinder.extremitypathfinder``).
+  ``PolygonEnvironment`` only checks the input and delegates.
 - text derived from the benchmark results is marked (``benchmark-derived`` comments), and a full benchmark run
   lists the files to update with the new results (#183).
 - documentation: the API documentation lists the plotting functions

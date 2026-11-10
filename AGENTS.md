@@ -24,8 +24,8 @@ make release-check                 # build and validate the release artifacts
 ## Repository map
 
 - `extremitypathfinder/`: the package. Layers, each importing only from below:
-  `command_line`, `plotting` → `extremitypathfinder` (PolygonEnvironment) → `utils` → `wedges` → `utils_numba` →
-  `numba` | `numba_replacements`
+  `command_line`, `plotting` → `extremitypathfinder` (PolygonEnvironment) → `queries` → `utils` → `wedges` →
+  `utils_numba` → `numba` | `numba_replacements`
 - `tests/`: pytest suite. `scripts/`: release tooling, docs figures, benchmarks. `benchmarks/`: comparison with pyvisgraph.
   `prototypes/`: untested dev scripts
 - `docs/`: Sphinx (reStructuredText), contributing guide in Markdown (`docs/contributing/`)
@@ -35,7 +35,8 @@ make release-check                 # build and validate the release artifacts
 1. Read `docs/contributing/invariants.md` before changing the package. Do not change an invariant without an issue
    that decides it.
 2. Results must be identical with and without Numba. Run affected tests in both modes.
-3. Keep the module layering. New dependencies only if justified and accepted by a maintainer.
+3. Keep the module layering and the root module lean: `PolygonEnvironment` only checks the input and delegates,
+   algorithms go into the modules below. New dependencies only if justified and accepted by a maintainer.
 4. Queries never modify the environment or its visibility graph.
 5. Every bugfix comes with a regression test that fails before the fix.
 6. User-facing changes get an entry in the `Unreleased` section of `CHANGELOG.rst`.

@@ -40,7 +40,7 @@ Earlier decisions are described in the {ref}`Design Decisions <design_decisions>
 
   Dijkstra settles most of the graph to reach goals all over the environment, A* only searches towards one goal.
   A* is slower only for many points in small environments (up to 1.8 times).
-- **Consequences:** `distance_matrix()` and `search()` share the graph search (`_search_graph()`),
+- **Consequences:** `distance_matrix()` and `search()` share the graph search (`queries.search_graph()`),
   so their paths and lengths are identical by construction, and returning paths (#237) needs no new search.
   The speed-up comes from computing the visibility once per point. Revisit Dijkstra only if many-to-many queries
   with many points in small environments become a bottleneck for users.
