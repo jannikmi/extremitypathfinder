@@ -43,6 +43,12 @@ The Markdown files are read on GitHub and in the HTML documentation, so links mu
   ```
 
   The exports are deterministic: regenerating them without changes yields identical files.
+- The figures of the JOSS paper (`paper/*.png`) reuse these drawings and the benchmark figures
+  (`benchmarks/plot.py`). Regenerate them with the figures they reuse, and after a full benchmark run:
+
+  ```sh
+  uv run --all-extras --group benchmark python scripts/paper_figures.py
+  ```
 - The benchmark documentation has three pages for three kinds of readers: the results (users),
   the method (reviewers of the numbers) and running them (contributors, in this guide).
   Speed and memory stay on one page, because they are read side by side,

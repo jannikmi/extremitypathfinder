@@ -109,7 +109,7 @@ def _finish(fig, ax, results: dict, path: Path, legend: bool = True, **legend_kw
     )
 
 
-def _line(ax, xs, ys, package, label=None, linestyle="-"):
+def _line(ax, xs, ys, package, label=None, linestyle="-", direct_label=True):
     style = STYLE[package]
     name = ADAPTERS[package].label
     ax.plot(
@@ -123,7 +123,7 @@ def _line(ax, xs, ys, package, label=None, linestyle="-"):
         markerfacecolor=style["color"] if linestyle == "-" else "none",
         label=label or name,
     )
-    if xs and label is None:
+    if xs and label is None and direct_label:
         # direct label at the last point
         ax.annotate(
             # short: a long label takes the width from the axes
@@ -137,11 +137,14 @@ def _line(ax, xs, ys, package, label=None, linestyle="-"):
         )
 
 
-def build_time(results: dict, path: Path):
-    fig, ax = _new_axes(results, "build time (s)")
+def draw_build_time(ax, results: dict, direct_labels: bool = True):
+    """build time over the map size, one line per package, with the budget"""
     for package in PACKAGES:
         _line(
-            ax, *_ok_points(results, package, lambda r: r["build_time"], BUILT), package
+            ax,
+            *_ok_points(results, package, lambda r: r["build_time"], BUILT),
+            package,
+            direct_label=direct_labels,
         )
     budget = results["meta"]["budget"]
     if budget:
@@ -155,15 +158,20 @@ def build_time(results: dict, path: Path):
             fontsize=8,
             color=TEXT_SECONDARY,
         )
+
+
+def build_time(results: dict, path: Path):
+    fig, ax = _new_axes(results, "build time (s)")
+    draw_build_time(ax, results)
     ax.set_title("Preprocessing (build) time")
     _finish(fig, ax, results, path, loc="lower right", fontsize=8)
 
 
-def query_time(results: dict, path: Path):
-    fig, ax = _new_axes(results, "query time (s)")
+def draw_query_time(ax, results: dict, direct_labels: bool = True):
+    """median query time over the map size with the 5th to 95th percentile band"""
     for package in PACKAGES:
         xs, stats = _ok_points(results, package, lambda r: r["query_stats"])
-        _line(ax, xs, [s["p50"] for s in stats], package)
+        _line(ax, xs, [s["p50"] for s in stats], package, direct_label=direct_labels)
         if xs:
             ax.fill_between(
                 xs,
@@ -173,7 +181,42 @@ def query_time(results: dict, path: Path):
                 alpha=0.15,
                 linewidth=0,
             )
+
+
+def query_time(results: dict, path: Path):
+    fig, ax = _new_axes(results, "query time (s)")
+    draw_query_time(ax, results)
     ax.set_title("Query latency: median, 5th–95th percentile band")
+    _finish(fig, ax, results, path, loc="lower right", fontsize=8)
+
+
+def draw_graph_size(ax, results: dict, direct_labels: bool = True):
+    """the number of graph edges over the map size (the same with and without Numba)
+
+    Also for invalid runs (hollow markers): their build is complete, only their paths are wrong.
+    """
+    for package in COMPARED_PACKAGES:
+        xs, ys = _ok_points(results, package, lambda r: r["graph_edges"], BUILT)
+        _line(ax, xs, ys, package, direct_label=direct_labels)
+        invalid = _ok_points(
+            results, package, lambda r: r["graph_edges"], (measure.INVALID,)
+        )
+        ax.plot(
+            *invalid,
+            linestyle="none",
+            marker=STYLE[package]["marker"],
+            markersize=6,
+            markeredgewidth=1.5,
+            color=STYLE[package]["color"],
+            markerfacecolor="white",
+            label="invalid paths" if invalid[0] else None,
+        )
+
+
+def graph_size(results: dict, path: Path):
+    fig, ax = _new_axes(results, "edges of the visibility graph")
+    draw_graph_size(ax, results)
+    ax.set_title("Graph size: reduced (extremitypathfinder) and complete (pyvisgraph)")
     _finish(fig, ax, results, path, loc="lower right", fontsize=8)
 
 
@@ -318,18 +361,8 @@ def _numba(results: dict) -> str:
     return "Numba unknown" if not modes else "with and without Numba"
 
 
-def world_example(results: dict, path: Path):
-    """the smallest world map with the paths of both packages for one query.
-
-    Shows an invalid path when one occurred, otherwise the first query.
-    """
-    if not results["world"]:
-        # replace a stale figure of earlier results
-        fig, ax = plt.subplots(figsize=(8.0, 4.4))
-        ax.axis("off")
-        ax.text(0.5, 0.5, "no world map results", ha="center", va="center")
-        _finish(fig, ax, results, path, legend=False)
-        return
+def world_example_query(results: dict) -> tuple[dict, int]:
+    """the smallest world map with an invalid path and that query, otherwise the first query"""
     entry, query_idx = results["world"][0], 0
     for candidate in results["world"]:
         failures = [
@@ -340,11 +373,15 @@ def world_example(results: dict, path: Path):
         if failures:
             entry, query_idx = candidate, failures[0]["query"]
             break
+    return entry, query_idx
+
+
+def draw_world_example(ax, results: dict, entry: dict, query_idx: int):
+    """the map with the paths of all compared packages for one query"""
     spec = workloads.MapSpec(**entry["map"]["spec"])
     data = workloads.load_world(spec)
     start, goal = results["world_queries"][query_idx]
 
-    fig, ax = plt.subplots(figsize=(8.0, 4.4))
     for hole in data["holes"]:
         xs, ys = zip(*hole)
         ax.fill(xs, ys, color=LAND, linewidth=0)
@@ -380,6 +417,23 @@ def world_example(results: dict, path: Path):
     ax.set_title(
         f"{entry['map']['name']} ({entry['map']['vertices']:,} vertices), query {query_idx}"
     )
+
+
+def world_example(results: dict, path: Path):
+    """the smallest world map with the paths of both packages for one query.
+
+    Shows an invalid path when one occurred, otherwise the first query.
+    """
+    if not results["world"]:
+        # replace a stale figure of earlier results
+        fig, ax = plt.subplots(figsize=(8.0, 4.4))
+        ax.axis("off")
+        ax.text(0.5, 0.5, "no world map results", ha="center", va="center")
+        _finish(fig, ax, results, path, legend=False)
+        return
+    entry, query_idx = world_example_query(results)
+    fig, ax = plt.subplots(figsize=(8.0, 4.4))
+    draw_world_example(ax, results, entry, query_idx)
     _finish(fig, ax, results, path)
 
 
@@ -540,6 +594,7 @@ def memory_composition(results: dict, path: Path):
 FIGURES = {
     "benchmark_build_time.svg": build_time,
     "benchmark_query_time.svg": query_time,
+    "benchmark_graph_size.svg": graph_size,
     "benchmark_memory.svg": memory,
     "benchmark_memory_retained.svg": memory_retained,
     "benchmark_memory_composition.svg": memory_composition,

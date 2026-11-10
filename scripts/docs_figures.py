@@ -392,6 +392,103 @@ def clearance_figure(output_dir: Path):
     export_to_scale(fig, ax, output_dir / "clearance.svg")
 
 
+def complete_visibility_graph(environment: PolygonEnvironment) -> list:
+    """the edges of the classical visibility graph of all polygon vertices, computed with Shapely
+
+    For comparison only: two vertices are connected when the segment between them lies within the closed
+    free space and passes no point where obstacles touch (touching obstacles block paths in this package).
+    """
+    from shapely import LineString, Point, Polygon, prepared, union_all
+
+    boundary = Polygon(environment.boundary_polygon)
+    holes = [Polygon(hole) for hole in environment.holes]
+    free = prepared.prep(boundary.difference(union_all(holes)))
+    rings = [boundary.exterior] + [hole.exterior for hole in holes]
+    vertices = [tuple(v) for v in environment.coords]
+    # vertices lying on another polygon: there, obstacles touch each other or the boundary
+    contacts = [
+        Point(v)
+        for i, ring in enumerate(rings)
+        for v in ring.coords[:-1]
+        if any(other.intersects(Point(v)) for j, other in enumerate(rings) if j != i)
+    ]
+    edges = []
+    for i, start in enumerate(vertices):
+        for goal in vertices[i + 1 :]:
+            segment = LineString([start, goal])
+            if not free.covers(segment):
+                continue
+            through_contact = any(
+                c.coords[0] not in (start, goal) and segment.intersects(c)
+                for c in contacts
+            )
+            if not through_contact:
+                edges.append((start, goal))
+    return edges
+
+
+def draw_graph_reduction(axes, marker_size: float = 3.5, path_width: float = 3.0):
+    """the demo environment: the complete visibility graph of all vertices against the reduced graph
+    of the extremities with the shortest path (two axes)"""
+    environment = PolygonEnvironment(
+        BOUNDARY, [clockwise(hole) for hole in HOLES], validate=True
+    )
+    path, _ = environment.find_shortest_path(START, GOAL)
+    complete = complete_visibility_graph(environment)
+    style = PlotStyle(
+        graph_alpha=0.3,
+        line_width=0.7,
+        path_width=path_width,
+        marker_size=marker_size,
+        vertex_color="#8a8984",
+        outside_color=None,
+    )
+    # the complete graph drawn like the reduced graph, without marking the extremities
+    # the shortest path is the same on both graphs
+    draw(
+        environment,
+        path,
+        ax=axes[0],
+        graph=False,
+        extremities=False,
+        vertices=True,
+        style=style,
+    )
+    axes[0].add_collection(
+        LineCollection(
+            complete,
+            colors=style.graph_color,
+            alpha=style.graph_alpha,
+            linewidths=style.line_width,
+            zorder=2,
+            gid="complete-visibility-graph",
+        )
+    )
+    draw(environment, path, ax=axes[1], vertices=True, style=style)
+    titles = (
+        f"complete visibility graph: {environment.nr_vertices} vertices, {len(complete):,} edges",
+        (
+            f"reduced visibility graph: {len(environment.extremity_indices)} extremities,"
+            f" {environment.graph.number_of_edges()} edges"
+        ),
+    )
+    for ax, title in zip(axes, titles):
+        ax.set_axis_off()
+        margin = 0.4
+        ax.set_xlim(-margin, 50.0 + margin)
+        ax.set_ylim(-margin, 20.0 + margin)
+        ax.set_aspect("equal")
+        ax.set_title(title, fontsize=10, color="#0b0b0b", loc="left")
+    print(f"graph reduction: {titles[0]}; {titles[1]}")
+
+
+def graph_reduction_figure(output_dir: Path):
+    """the reduction of the visibility graph (About page and JOSS paper)"""
+    fig, axes = plt.subplots(2, 1, figsize=(10.0, 8.6))
+    draw_graph_reduction(axes)
+    export_svg(fig, output_dir / "graph_reduction.svg")
+
+
 def main(output_dir: Path = OUTPUT_DIR):
     output_dir.mkdir(parents=True, exist_ok=True)
     demo(output_dir)
@@ -400,9 +497,10 @@ def main(output_dir: Path = OUTPUT_DIR):
     try:
         import shapely  # noqa: F401
     except ImportError:
-        print("skipped: clearance.svg (requires Shapely)")
+        print("skipped: clearance.svg, graph_reduction.svg (require Shapely)")
     else:
         clearance_figure(output_dir)
+        graph_reduction_figure(output_dir)
     for file in sorted(output_dir.glob("*.svg")):
         print(f"written: {file} ({file.stat().st_size / 1000:.0f} kB)")
 

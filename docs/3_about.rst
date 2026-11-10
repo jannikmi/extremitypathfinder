@@ -64,6 +64,14 @@ When obstacles obstruct the direct path (goal is not directly 'visible' from the
 Starting from any point lying "in front of" an extremity ``e``, such that both adjacent edges are visible, one will never visit ``e``, because everything is reachable on a shorter path without ``e`` (except ``e`` itself). An extremity ``e1`` lying in the area "in front of"
 extremity ``e`` hence is never the next vertex in a shortest path coming from ``e``. And also in reverse: when coming from ``e1`` everything else than ``e`` itself can be reached faster without visiting ``e1``. -> ``e`` and ``e1`` do not have to be connected in the graph.
 
+.. figure:: _static/graph_reduction.svg
+    :width: 100%
+    :alt: the complete visibility graph of all vertices above the much sparser reduced graph of the extremities
+
+    the complete visibility graph of all polygon vertices (top) and the reduced visibility graph of this package
+    (bottom): only extremities are nodes, and edges that cannot be part of a shortest path are omitted.
+    The shortest path (orange) is the same on both graphs.
+
 
 .. _algorithm:
 

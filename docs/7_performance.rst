@@ -90,6 +90,13 @@ Speed
 
 .. include:: ../benchmarks/results/benchmark_query.rst
 
+.. figure:: _static/benchmark_graph_size.svg
+   :width: 100%
+   :alt: number of visibility graph edges over the number of vertices, log-log, one line per package
+
+   Edges of the visibility graph: the reduced graph of ``extremitypathfinder`` (the same with and without Numba)
+   and the complete graph of pyvisgraph. A hollow marker is a build with invalid paths.
+
 .. figure:: _static/benchmark_ratio.svg
    :width: 100%
    :alt: ratio of pyvisgraph to extremitypathfinder time for build and query

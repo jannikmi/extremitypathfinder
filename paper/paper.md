@@ -34,9 +34,12 @@ that bends only at protruding obstacle corners.
 `extremitypathfinder` is a Python package that computes such paths exactly.
 The environment is described once, as a boundary polygon with polygonal holes or as a grid with blocked cells,
 and the package precomputes a visibility graph that contains only the protruding corners, the *extremities*,
-and only the edges that can be part of a shortest path [@vinther2015pathfinding].
+and only the edges that can be part of a shortest path [@vinther2015pathfinding], see \autoref{fig:reduction}.
 Each query connects its start and goal to this graph and searches it with A\* [@hart1968astar].
 The paths are Euclidean shortest paths in the free space, not approximations on a grid or a mesh.
+
+![The complete visibility graph of all vertices (top) and the reduced graph of the extremities (bottom),
+with the same shortest path.\label{fig:reduction}](graph_reduction.png)
 
 # Statement of need
 
@@ -74,9 +77,15 @@ visibility computation and search.
 
 A reproducible benchmark on world maps of up to 9,952 vertices, validating every path independently with Shapely,
 measured `extremitypathfinder` (with Numba) as 4.6 to 7.2 times faster than pyvisgraph in building the
-environment, with several times fewer graph edges and faster queries. On the map with 4,954 vertices,
-59 of 200 pyvisgraph paths crossed land, because its point-in-polygon test mixes exact and tolerant comparisons.
+environment, with several times fewer graph edges and faster queries (\autoref{fig:benchmark}).
+On the map with 4,954 vertices, 59 of 200 pyvisgraph paths crossed land (\autoref{fig:invalid}),
+because its point-in-polygon test mixes exact and tolerant comparisons.
 Polyanya and TřiVis have not been measured yet.
+
+![Benchmark on world maps (Apple M1 Pro, one thread). pyvisgraph exceeded the budget at 9,952 vertices;
+its queries on 4,954 vertices are left out, because they are invalid.\label{fig:benchmark}](benchmark_sweep.png)
+
+![A pyvisgraph path through land (dashed) and the path of `extremitypathfinder`.\label{fig:invalid}](benchmark_world_example.png)
 
 # Software design
 
