@@ -339,8 +339,10 @@ class PolygonEnvironment:
 
         :param start_coordinates: a (x,y) coordinate tuple representing the start node
         :param goal_coordinates:  a (x,y) coordinate tuple representing the goal node
-        :param verify: whether it should be checked if start and goal points really lie inside the environment.
-         if points close to or on polygon edges should be accepted as valid input, set this to ``False``.
+        :param verify: whether it should be checked if start and goal points really lie inside the environment
+         (polygon edges included). ``False`` skips the check. A point within rounding error of an edge,
+         but not exactly on it, may then get a wrong path, whose length can depend on the query direction
+         (cf. the numerical policy of the engineering design): move such a point onto the edge or away from it.
          Start and goal may lie on a contact point of touching obstacles, the path may leave through
          any free space next to it. On an edge shared by two touching obstacles (inside a wall) there is no path.
         :return: a tuple of shortest path and its length. ([], None) if there is no possible path.
@@ -363,8 +365,8 @@ class PolygonEnvironment:
 
         :param start_coordinates: a (x,y) coordinate tuple representing the start node
         :param goal_coordinates:  a (x,y) coordinate tuple representing the goal node
-        :param verify: whether it should be checked if start and goal points really lie inside the environment.
-         if points close to or on polygon edges should be accepted as valid input, set this to ``False``.
+        :param verify: whether it should be checked if start and goal points really lie inside the environment
+         (cf. :meth:`find_shortest_path`)
         :return: the result of the search
         """
         if verify and not self.within_map(np.array(start_coordinates, dtype=float)):

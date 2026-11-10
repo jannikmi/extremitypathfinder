@@ -744,6 +744,11 @@ Numerical Policy
   last place next to an edge may count as on the edge (by the 180 degree rule of ``_lies_on_edge()``) or fall on the
   wrong side of it in the point in polygon test. Such inputs are within the rounding errors of the coordinates
   themselves; exact predicates everywhere would be a large and slower change to the core and are not used.
+- **Query points next to an edge**: a query point within rounding error of an edge, but not exactly on it, may be
+  rejected by ``within_map()``. With ``verify=False`` the visibility from it can also be wrong, so its path and length
+  are undefined and can depend on the query direction (#239).
+  Points exactly on an edge are exact (``_lies_on_edge()``): move such a point onto the edge or away from it.
+  A tolerance snapping near points onto edges is not used: it would contradict "near-contacts do not block".
 
 
 Complexity and Memory

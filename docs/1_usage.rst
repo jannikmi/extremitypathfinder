@@ -125,9 +125,11 @@ Query
     path, length = environment.find_shortest_path(start_coordinates, goal_coordinates)
 
 
-If any start and goal point should be accepted without checking if they lie within the map, set ``verify=False``.
-This is required if points lie really close to polygon edges and
-"point in polygon" algorithms might return an unexpected result due to rounding errors.
+Points on polygon edges lie within the map. To accept start and goal points without checking whether they lie
+within the map, set ``verify=False``.
+This does not help with points within rounding error of an edge (but not exactly on it): the check may reject them,
+and without the check they may get a wrong path, whose length can depend on the query direction
+(cf. the numerical policy in :doc:`8_design`). Move such points exactly onto the edge or away from it.
 
 .. code-block:: python
 
