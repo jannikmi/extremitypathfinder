@@ -28,9 +28,15 @@ recreate them. Loading them raises a ``ValueError`` explaining this.
 
 other changes:
 
-- faster queries (#222): start and goal are no longer connected to the graph nodes they lie "in front" of
-  (they are never the next node of a shortest path, like in the visibility graph). Same paths and lengths.
+- faster queries (#222): start and goal (and the points of ``distance_matrix()``) are no longer connected to
+  the graph nodes they lie "in front" of (they are never the next node of a shortest path, like in the visibility
+  graph). Same paths and lengths.
   E.g. 200 queries on an environment with 400 extremities: 15 % faster with Numba, 21 % without.
+- shortest path lengths between many points (#175): ``PolygonEnvironment.distance_matrix(points_a, points_b=None)``
+  returns the lengths between all start and goal points (``inf`` without a path), identical to a loop over
+  ``find_shortest_path()`` but much faster: the visibility of every point is computed once instead of twice per pair.
+  E.g. 100 points in an environment with 904 vertices: 3.1 s instead of 115 s (with Numba).
+  The usage page also documents the visibility graph ``environment.graph`` for own NetworkX algorithms.
 - license: the package is licensed under MIT only again (#157). The A* search (``utils.astar_path()``) is an own
   implementation instead of a port of ``networkx.astar_path()``, so the 3-clause BSD license of networkx
   (``LICENSES/networkx.txt``) no longer applies. Same paths and lengths, same speed.
@@ -116,6 +122,10 @@ bugfixes:
 
 internal:
 
+- the query algorithms (start and goal visibility, graph search, distance matrix) moved from the root module
+  ``extremitypathfinder.py`` into the new module ``queries.py``, together with ``SearchResult``
+  (still importable from ``extremitypathfinder`` and ``extremitypathfinder.extremitypathfinder``).
+  ``PolygonEnvironment`` only checks the input and delegates.
 - text derived from the benchmark results is marked (``benchmark-derived`` comments), and a full benchmark run
   lists the files to update with the new results (#183).
 - documentation: the API documentation lists the plotting functions

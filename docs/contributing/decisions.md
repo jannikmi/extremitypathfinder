@@ -25,6 +25,28 @@ the log states the current decisions (git keeps the history).
 Decisions about how we work on the project are in the [process decision log](decisions-process.md).
 Earlier decisions are described in the {ref}`Design Decisions <design_decisions>` and the issues linked there.
 
+## The distance matrix searches the graph with A* per pair, like single queries (#175)
+
+- **Decided by:** a maintainer
+- **Rejected:** one Dijkstra search per start point (stopped when the graph nodes visible from all goals are settled).
+  It gave identical lengths, but it is a second search algorithm to maintain, paths would need their own
+  tie-breaking to equal those of `find_shortest_path()` (#237), and it was not consistently faster.
+  Measured on the environments of `prototypes/distance_matrix_profile.py` (random points, with Numba;
+  without Numba the same pattern), the time of `distance_matrix()` with Dijkstra / A* per pair:
+
+  | vertices | 20 points | 100 points |
+  | ---: | ---: | ---: |
+  | 104 | 27 / 27 ms | 209 / 373 ms |
+  | 328 | 109 / 66 ms | 715 / 1,036 ms |
+  | 904 | 554 / 173 ms | 2,932 / 2,895 ms |
+
+  Dijkstra settles most of the graph to reach goals all over the environment, A* only searches towards one goal.
+  A* is slower only for many points in small environments (up to 1.8 times).
+- **Consequences:** `distance_matrix()` and `search()` share the graph search (`queries.search_graph()`),
+  so their paths and lengths are identical by construction, and returning paths (#237) needs no new search.
+  The speed-up comes from computing the visibility once per point. Revisit Dijkstra only if many-to-many queries
+  with many points in small environments become a bottleneck for users.
+
 ## Own A* search instead of the networkx port, expanding a node again when its distance improves (#157)
 
 - **Decided by:** a maintainer ([#157](https://github.com/jannikmi/extremitypathfinder/issues/157): replacing the port, MIT only); an agent (no closed set, with #162 in mind)

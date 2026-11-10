@@ -1,15 +1,13 @@
-import itertools
 import pickle
 from collections.abc import Iterable
-from dataclasses import dataclass, field
-from functools import cached_property
 from typing import Self
 
 import numpy as np
 
-from extremitypathfinder import configs, utils
+from extremitypathfinder import configs, queries, utils
 from extremitypathfinder import types as t
 from extremitypathfinder.configs import DEFAULT_PICKLE_NAME
+from extremitypathfinder.queries import SearchResult
 from extremitypathfinder.types import (
     InputCoord,
     InputCoordList,
@@ -20,43 +18,9 @@ from extremitypathfinder.types import (
 )
 from extremitypathfinder.wedges import Point, Points
 
+__all__ = ("PolygonEnvironment", "SearchResult")
+
 _PICKLE_FORMAT_KEY = "_pickle_format_version"
-
-
-@dataclass
-class SearchResult:
-    """The result of a shortest path search with :meth:`PolygonEnvironment.search`.
-
-    * ``path``: the shortest path from start to goal, ``[]`` if there is no possible path
-    * ``length``: the length of the path, ``None`` if there is no possible path
-    * ``coords``: the coordinates of all polygon vertices followed by the start and the goal coordinates
-    * ``idx_start``, ``idx_goal``: the nodes of start and goal in the search graph (indices in ``coords``).
-      Start and goal are merged with graph nodes with identical coordinates.
-      ``None`` when the search terminated without a graph search,
-      e.g. when the goal is directly visible from the start.
-    * ``query_edges``: the temporary edges ``(node, neighbour, length)``
-      connecting start and goal to the visibility graph (``None`` without a graph search)
-    * ``graph``: the search graph (the visibility graph extended by the query edges).
-      Only built on first access (a copy of the visibility graph of the environment at that time).
-      ``None`` without a graph search.
-    """
-
-    path: Path
-    length: Length
-    coords: np.ndarray
-    idx_start: int | None = None
-    idx_goal: int | None = None
-    query_edges: list[tuple[int, int, float]] | None = None
-    # the precomputed visibility graph of the environment (not changed by the search)
-    visibility_graph: t.Graph | None = field(default=None, repr=False, compare=False)
-
-    @cached_property
-    def graph(self) -> t.Graph | None:
-        if self.query_edges is None:
-            return None
-        graph = self.visibility_graph.copy()
-        graph.add_weighted_edges_from(self.query_edges)
-        return graph
 
 
 class PolygonEnvironment:
@@ -353,17 +317,8 @@ class PolygonEnvironment:
         :param query_points: the points at the query points (``None``: no polygon passes the query point).
             Looked up when not given.
         """
-        if query_points is not None and origin in query_points:
-            point = query_points[origin]
-        else:
-            point = self.points.at(coords[origin], origin)
-        wedges = [] if point is None else point.wedges
-        # Note: candidates with identical coordinates are not visible (they get merged)
-        candidates = {i for i in candidates if vert_idx2dist[i] != 0.0}
-        return utils.find_visible_from(
+        return queries.find_visible_from_query(
             origin,
-            point,
-            wedges,
             candidates,
             coords,
             vert_idx2repr,
@@ -372,22 +327,6 @@ class PolygonEnvironment:
             self.points,
             query_points,
         )
-
-    def _nodes_in_front(
-        self,
-        origin: int,
-        coords: np.ndarray,
-        vert_idx2repr: np.ndarray,
-        keep: set[int | None],
-    ) -> set[int]:
-        """the graph nodes the query point lies "in front" of, except those to keep
-
-        An edge from a query point to an extremity it lies in front of is never part of a shortest path:
-        a path arriving at the extremity from its front cannot wrap around it (cf. ``Point.in_front()``).
-        """
-        nodes = self.extremity_indices
-        in_front = self.points.in_front_of(nodes, coords[origin], coords, vert_idx2repr)
-        return set(nodes[in_front].tolist()) - keep
 
     def find_shortest_path(
         self,
@@ -428,140 +367,58 @@ class PolygonEnvironment:
          if points close to or on polygon edges should be accepted as valid input, set this to ``False``.
         :return: the result of the search
         """
-        coords_start = np.array(start_coordinates, dtype=float)
-        coords_goal = np.array(goal_coordinates, dtype=float)
-        if verify and not self.within_map(coords_start):
+        if verify and not self.within_map(np.array(start_coordinates, dtype=float)):
             raise ValueError("start point does not lie within the map")
-        if verify and not self.within_map(coords_goal):
+        if verify and not self.within_map(np.array(goal_coordinates, dtype=float)):
             raise ValueError("goal point does not lie within the map")
-
-        start = self.idx_start
-        goal = self.idx_goal
-        # temporarily extend data structure
-        coords = np.append(self.coords, (coords_start, coords_goal), axis=0)
-
-        def no_graph_result(path: Path, length: Length) -> SearchResult:
-            return SearchResult(path, length, coords)
-
-        if np.array_equal(coords_start, coords_goal):
-            # start and goal are identical and can be reached instantly
-            return no_graph_result([start_coordinates, goal_coordinates], 0.0)
-
-        # the points at start and goal, and the graph nodes at their positions (merged with them)
-        query_points = {
-            start: self.points.at(coords_start, start),
-            goal: self.points.at(coords_goal, goal),
-        }
-        start_node, goal_node = (_graph_node(query_points[i]) for i in (start, goal))
-
-        # check the goal node first (earlier termination possible)
-        origin = goal
-        # the visibility of only the graph nodes has to be checked (not all extremities!)
-        # IMPORTANT: also check if the start node is visible from the goal node!
-        candidate_idxs: set[int] = set(self.graph.nodes)
-        candidate_idxs.add(start)
-        # Note: the graph node at the start position must not hide the start
-        #   (only the closest of candidates in the same direction is visible, cf. find_visible()):
-        #   the start may leave its point through any free wedge, the graph node only through its own
-        candidates_goal = candidate_idxs - {start_node}
-        vert_idx2repr, vert_idx2dist = utils.cmp_reps_n_distances(origin, coords)
-        # the graph nodes merged with start and goal are never skipped: they are endpoints of the path
-        merged_nodes = {start_node, goal_node}
-        candidates_goal -= self._nodes_in_front(
-            origin, coords, vert_idx2repr, merged_nodes
-        )
-        # the distances to the goal: the A* heuristic
-        # (also for a graph node merged with the goal: identical coordinates, identical distances)
-        goal_distances = vert_idx2dist
-        visibles_goal = self.get_visible_idxs(
-            origin,
-            candidates_goal,
-            coords,
-            vert_idx2repr,
-            vert_idx2dist,
-            query_points,
-        )
-        if len(visibles_goal) == 0:
-            # The goal node does not have any neighbours. Hence there is not possible path to the goal.
-            return no_graph_result([], None)
-
-        # IMPORTANT geometrical property of this problem: it is always shortest to directly reach a node
-        #   instead of visiting other nodes first (there is never an advantage through reduced edge weight)
-        # -> when goal is directly reachable, there can be no other shorter path to it. Terminate
-        if start in visibles_goal:
-            d = vert_idx2dist[start]
-            return no_graph_result([start_coordinates, goal_coordinates], d)
-
-        # merge start and goal with the graph nodes at their positions
-        start_mapped = start if start_node is None else start_node
-        goal_mapped = goal if goal_node is None else goal_node
-
-        # the temporary edges connecting start and goal to the graph
-        # Note: the precomputed self.graph is neither changed nor copied (copying is expensive for large graphs)
-        #   https://github.com/jannikmi/extremitypathfinder/issues/136
-        # Note: also here unnecessary edges in the graph could be deleted
-        # optimising the graph here however is more expensive than beneficial,
-        # as the graph is only being used for a single query
-        query_edges = [(i, goal_mapped, vert_idx2dist[i]) for i in visibles_goal]
-
-        origin = start
-        # the visibility of only the graphs nodes have to be checked
-        # the goal node does not have to be considered, because of the earlier check
-        vert_idx2repr, vert_idx2dist = utils.cmp_reps_n_distances(origin, coords)
-        candidates_start = candidate_idxs - self._nodes_in_front(
-            origin, coords, vert_idx2repr, merged_nodes
-        )
-        visibles_start = self.get_visible_idxs(
-            origin,
-            candidates_start,
-            coords,
-            vert_idx2repr,
-            vert_idx2dist,
-            query_points,
+        return queries.search(
+            start_coordinates,
+            goal_coordinates,
+            self.graph,
+            self.coords,
+            self.edge_vertex_idxs,
+            self.points,
         )
 
-        if len(visibles_start) == 0:
-            # The start node does not have any neighbours. Hence there is no possible path to the goal.
-            return no_graph_result([], None)
+    def distance_matrix(
+        self,
+        points_a: Iterable[InputCoord],
+        points_b: Iterable[InputCoord] | None = None,
+        *,
+        verify: bool = True,
+    ) -> np.ndarray:
+        """computes the shortest path lengths between many points (a distance matrix)
 
-        query_edges += [(start_mapped, i, vert_idx2dist[i]) for i in visibles_start]
-        query_adjacency: dict[int, dict[int, float]] = {}
-        for i, j, d in query_edges:
-            query_adjacency.setdefault(i, {})[j] = d
-            query_adjacency.setdefault(j, {})[i] = d
+        Gives the same lengths as :meth:`find_shortest_path` for every pair, but faster:
+        the visibility of every point is computed once (instead of twice per pair)
+        and the visibility graph is searched with A* for every pair, like :meth:`find_shortest_path`.
+        The environment and its visibility graph are not changed.
 
-        def graph_result(path: Path, length: Length) -> SearchResult:
-            return SearchResult(
-                path,
-                length,
-                coords,
-                start_mapped,
-                goal_mapped,
-                query_edges,
-                self.graph,
-            )
-
-        def distance_to_goal(node: int, _goal: int) -> float:
-            return goal_distances[node]
-
-        id_path = utils.astar_path(
-            self.graph, query_adjacency, start_mapped, goal_mapped, distance_to_goal
+        :param points_a: the start points, (x,y) coordinate tuples
+        :param points_b: the goal points, (x,y) coordinate tuples. ``None``: the points of ``points_a``
+        :param verify: whether it should be checked if the points really lie inside the environment
+            (cf. :meth:`find_shortest_path`)
+        :return: the lengths of the shortest paths, a float array of shape ``(len(points_a), len(points_b))``:
+            entry ``[i, j]`` is the length from ``points_a[i]`` to ``points_b[j]``, ``inf`` if there is no path
+        :raises ValueError: when ``verify=True`` and a point does not lie within the map
+        """
+        coords_a = queries.as_coord_array(points_a)
+        coords_b = coords_a if points_b is None else queries.as_coord_array(points_b)
+        if verify:
+            checked = [("points_a", coords_a)]
+            if points_b is not None:
+                checked.append(("points_b", coords_b))
+            for name, query_coords in checked:
+                for i, point in enumerate(query_coords):
+                    if not self.within_map(point):
+                        raise ValueError(
+                            f"{name}[{i}] {tuple(point.tolist())} does not lie within the map"
+                        )
+        return queries.distance_matrix(
+            coords_a,
+            coords_b,
+            self.graph,
+            self.coords,
+            self.edge_vertex_idxs,
+            self.points,
         )
-        if id_path is None:
-            return graph_result([], None)
-
-        # the length of the path: the sum of the weights of its edges (Euclidean distances)
-        distance = 0.0
-        for v1, v2 in itertools.pairwise(id_path):
-            distance += utils.edge_weight(self.graph, query_adjacency, v1, v2)
-
-        # extract the coordinates from the path
-        path = [tuple(coords[i]) for i in id_path]
-        return graph_result(path, distance)
-
-
-def _graph_node(point: Point | None) -> int | None:
-    """the graph node of a point (an extremity), ``None`` if the point is no extremity"""
-    if point is None or not point.is_extremity:
-        return None
-    return point.idx

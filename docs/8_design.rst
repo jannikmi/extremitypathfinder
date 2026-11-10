@@ -52,7 +52,8 @@ The package is a small library with a single entry point, the class ``PolygonEnv
 
     extremitypathfinder/
     ├── __init__.py              public API
-    ├── extremitypathfinder.py   PolygonEnvironment, SearchResult
+    ├── extremitypathfinder.py   PolygonEnvironment: the public API, delegating to the modules below
+    ├── queries.py               queries: start and goal visibility, graph search, distance matrix
     ├── wedges.py                points and free wedges
     ├── utils.py                 visibility (AREA), graph, A*, validation, grids, I/O
     ├── utils_numba.py           numerical kernels (optionally compiled)
@@ -68,7 +69,9 @@ The modules form layers, each one only imports from the layers below it:
 
     command_line, plotting       user interfaces
             │
-    extremitypathfinder          PolygonEnvironment, SearchResult
+    extremitypathfinder          PolygonEnvironment
+            │
+    queries                      search, distance matrix, SearchResult
             │
     utils                        visibility, graph, A*, validation
             │
@@ -78,7 +81,8 @@ The modules form layers, each one only imports from the layers below it:
             │
     numba | numba_replacements
 
-``PolygonEnvironment`` orchestrates the computation and owns all state.
+``PolygonEnvironment`` owns all state and is the public API: it checks the input and delegates the algorithms
+to the modules below (``utils.compute_graph()`` for the preparation, ``queries`` for the queries).
 ``utils`` and ``wedges`` contain stateless functions and the immutable ``Points`` structure,
 ``utils_numba`` contains the innermost numerical loops.
 
@@ -469,7 +473,7 @@ nodes lying in front of *it*, also when it is merged with an extremity.
 Query
 -----
 
-``search()`` computes the visibility of start and goal with the same routine and then searches the graph:
+``search()`` (``queries.search()``) computes the visibility of start and goal with the same routine and then searches the graph:
 
 - **Merging**: a query point at the position of an extremity is mapped to that graph node.
   When the start is merged, its graph node is excluded from the candidates visible from the goal:
@@ -482,7 +486,10 @@ Query
   the front range of every extremity is precomputed, and the direction from an extremity to the query point is the
   opposite of the one seen from the query point (its angle representation plus 2). Directions within
   ``RAY_TOLERANCE`` of a bound of the range are decided by ``Point.in_front()``, like in the graph
-  (it excludes the directions exactly opposite of a bounding ray). The graph nodes merged with start or goal are never skipped.
+  (it excludes the directions exactly opposite of a bounding ray). The graph node merged with the query point is not
+  skipped (it is the query point). The one merged with the other query point need not be kept: the edge to it is the
+  straight segment between start and goal, found by the "goal first" check. So the skipped nodes depend only on the
+  query point, and ``distance_matrix()`` skips the same ones.
   AREA keeps only the closest candidate per direction, so skipping a node can make a farther candidate in the same
   direction the closest one. Whether its line of sight passes through the skipped node is decided by the points
   (rule 3, ``Points.filter_visible()``), not by the candidates.
@@ -501,6 +508,33 @@ Query
   The neighbours of a node are those in the precomputed graph followed by the temporary edges of start and goal.
 - **Distances**: the heuristic uses the distances seen from the goal (computed for the query; a graph node merged
   with the goal has the same coordinates). The length of the path is the sum of its edge weights (``edge_weight()``).
+
+Distance matrix
+---------------
+
+``distance_matrix()`` (``queries.distance_matrix()``) gives the same lengths as ``search()`` for every pair of points,
+bit for bit (#175),
+but computes the visibility of every point only once instead of twice per pair:
+
+- The query points are appended to the coordinates (identical positions once) and merged with graph nodes
+  as in ``search()``.
+- From every point the visible graph nodes are computed, from every goal point additionally the visible start points.
+  The graph nodes a point lies in front of are skipped as in ``search()``.
+  This reproduces the visibility of ``search()`` with that point as goal: a start point is hidden by a closer graph
+  node in the same direction (the path then passes through that node and has the same sum of edge weights),
+  but not by the graph node at its own position or by other query points. Query points sharing a direction with
+  another candidate are therefore checked in separate calls of ``find_visible_from()``,
+  so that no query point hides a graph node or another query point.
+- A start visible from a goal gives the straight segment. For the other pairs, the graph is searched with A*
+  exactly as in ``search()`` (``queries.search_graph()``, shared by both): the temporary edges of start and goal
+  and the distances seen from the goal as heuristic. The heuristic is computed once per goal.
+  Paths and lengths are therefore those of ``search()`` by construction.
+- Neither the environment nor its graph is changed: the temporary edges are passed to the search.
+
+The visibility takes most of the query time (cf. :doc:`7_performance`), the A* searches only a small part.
+Computing the visibility once per point gives most of the speed-up, so the graph search was not replaced:
+one Dijkstra search per start point instead of A* per pair gave identical lengths but was not consistently faster
+(cf. the :doc:`decision log <contributing/decisions>`).
 
 Point in polygon
 ----------------
