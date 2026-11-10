@@ -240,3 +240,12 @@ def test_no_path_is_an_empty_list_and_none(boundary):
     assert environment.find_shortest_path((5, 5), (9, 9)) == ([], None)
     path, length = environment.find_shortest_path((1, 1), (9, 9))
     _assert_python_floats(path, length)
+
+
+@pytest.mark.parametrize("verify", [False, True])
+@pytest.mark.parametrize("point", [(NAN, 2), (2, INF)])
+def test_distance_matrix_rejects_non_finite_points(environment, point, verify):
+    with pytest.raises(ValueError, match="points must be finite"):
+        environment.distance_matrix([(1, 1), point], verify=verify)
+    with pytest.raises(ValueError, match="points must be finite"):
+        environment.distance_matrix([(1, 1)], [point], verify=verify)

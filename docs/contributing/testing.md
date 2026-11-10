@@ -84,6 +84,7 @@ when you change `utils_numba.py` or code calling it.
   | `test_geometry_regressions.py` | documented polygon edge cases |
   | `test_find_visible.py` | visibility detection against a reference implementation |
   | `test_random_queries.py` | random query points: visibility, paths, graph reduction, transforms |
+  | `test_distance_matrix.py` | `distance_matrix()`: identical to a loop over `find_shortest_path()` |
   | `helper_fcts_test.py` | helper functions in `utils.py` |
   | `test_input_and_output.py` | malformed input is always rejected, results are Python floats |
   | `test_acceleration.py` | the execution backend (Numba or not) |

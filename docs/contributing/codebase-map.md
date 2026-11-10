@@ -23,7 +23,9 @@ The modules form layers. Each module only imports from the layers below it:
 ```text
 command_line, plotting       user interfaces
         │
-extremitypathfinder          PolygonEnvironment, SearchResult
+extremitypathfinder          PolygonEnvironment
+        │
+queries                      search, distance matrix, SearchResult
         │
 utils                        visibility, graph, A*, validation
         │
@@ -37,7 +39,8 @@ numba | numba_replacements
 | Module | Change it to … |
 | --- | --- |
 | `__init__.py` | change the public API (`PolygonEnvironment`, `SearchResult`, `load_pickle`) |
-| `extremitypathfinder.py` | change how an environment is prepared or a query is run (`PolygonEnvironment` owns all state) |
+| `extremitypathfinder.py` | change the public methods of `PolygonEnvironment` (it owns all state, checks the input and delegates) |
+| `queries.py` | change how a query is run: start and goal visibility, graph search, distance matrix, `SearchResult` |
 | `utils.py` | change input validation and orientation, visibility (`find_visible()`), the graph, A* (`astar_path()`), grids, JSON and pickle I/O |
 | `wedges.py` | change what happens at vertices: points, free wedges, which vertices are extremities |
 | `utils_numba.py` | change the innermost numerical loops (angle representations, intersection tests) |
@@ -45,6 +48,11 @@ numba | numba_replacements
 | `plotting.py` | change the drawings and plot exports (Matplotlib) |
 | `command_line.py` | change the console command |
 | `configs.py`, `types.py` | add constants or type aliases |
+
+**Keep the root module lean.** `extremitypathfinder.py` holds the public API: the methods of `PolygonEnvironment`
+with their docstrings, input checks and the state. Algorithms go into the module of their layer as functions that
+take the data they need (e.g. `utils.compute_graph()`, `queries.search()`), and the method only delegates.
+Add a new module of the right layer for a new group of algorithms instead of growing the root module or `utils.py`.
 
 ## Where the time goes
 

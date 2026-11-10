@@ -1,6 +1,5 @@
 Changelog
-=========
-
+==
 Unreleased
 ----------
 
@@ -33,7 +32,7 @@ BREAKING: malformed input is always rejected with a clear error, also without ``
   Previously e.g. an empty boundary raised an ``IndexError`` and a boundary with 2 vertices was accepted. The geometric requirements (e.g. no self intersections) are still only checked with ``validate=True``.
 - start and goal points that do not consist of two values (``TypeError``) or are not finite (``ValueError``).
   Previously a point with three values raised an internal error and a ``nan`` coordinate with ``verify=False``
-  gave a path of length ``nan``.
+  gave a path of length ``nan``. ``distance_matrix()`` rejects non-finite points too.
 - ``from_grid()``: sizes that are no positive integers (also ``True``), blocked cells that are no integer pairs,
   blocked cells outside of the grid (previously ignored: remove them from the input)
   and grids without any free cell (``TypeError`` or ``ValueError`` instead of ``AssertionError``
@@ -48,6 +47,11 @@ other changes:
   and the length as a Python float. Previously the coordinates and the length were ``numpy.float64``
   (printed as ``np.float64(1.0)``), and when the goal was directly visible from the start the passed objects were
   returned unchanged (e.g. tuples of ints, lists or arrays). The values are equal to the previous ones.
+- shortest path lengths between many points (#175): ``PolygonEnvironment.distance_matrix(points_a, points_b=None)``
+  returns the lengths between all start and goal points (``inf`` without a path), identical to a loop over
+  ``find_shortest_path()`` but much faster: the visibility of every point is computed once instead of twice per pair.
+  E.g. 100 points in an environment with 904 vertices: 3.1 s instead of 115 s (with Numba).
+  The usage page also documents the visibility graph ``environment.graph`` for own NetworkX algorithms.
 - license: the package is licensed under MIT only again (#157). The A* search (``utils.astar_path()``) is an own
   implementation instead of a port of ``networkx.astar_path()``, so the 3-clause BSD license of networkx
   (``LICENSES/networkx.txt``) no longer applies. Same paths and lengths, same speed.
@@ -133,6 +137,10 @@ bugfixes:
 
 internal:
 
+- the query algorithms (start and goal visibility, graph search, distance matrix) moved from the root module
+  ``extremitypathfinder.py`` into the new module ``queries.py``, together with ``SearchResult``
+  (still importable from ``extremitypathfinder`` and ``extremitypathfinder.extremitypathfinder``).
+  ``PolygonEnvironment`` only checks the input and delegates.
 - text derived from the benchmark results is marked (``benchmark-derived`` comments), and a full benchmark run
   lists the files to update with the new results (#183).
 - documentation: the API documentation lists the plotting functions

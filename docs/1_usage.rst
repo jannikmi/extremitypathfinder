@@ -147,6 +147,35 @@ This is required if points lie really close to polygon edges and
     the search: the temporary edges connecting start and goal to the visibility graph dashed in green, the shortest path in orange
 
 
+Distance matrix
+---------------
+
+Routing, assignment and TSP-style applications need the shortest path lengths between many points.
+``distance_matrix()`` computes them at once, much faster than calling ``find_shortest_path()`` for every pair:
+the visibility of every point is computed once instead of twice per pair. Only the search in the visibility graph
+(A*, a small part of the query time) runs for every pair.
+
+.. code-block:: python
+
+    waypoints = [(4.5, 1.0), (4.0, 8.5), (1.0, 1.0)]
+    # the lengths between all pairs of the waypoints: shape (3, 3)
+    lengths = environment.distance_matrix(waypoints)
+    # from every start to every goal: shape (number of starts, number of goals) = (1, 2)
+    lengths = environment.distance_matrix(waypoints[:1], waypoints[1:])
+
+Entry ``[i, j]`` is the length of the shortest path from the ``i``-th start to the ``j``-th goal,
+identical to the length returned by ``find_shortest_path()``. It is ``inf`` when there is no path.
+``verify=False`` accepts the points without checking whether they lie within the map, like ``find_shortest_path()``.
+Only the lengths are returned: to get a path, call ``find_shortest_path()`` for that pair.
+
+E.g. 100 random points (9,900 pairs) in an environment with 904 vertices: 3.1 s instead of 115 s with a loop over
+``find_shortest_path()`` (with Numba, ``prototypes/distance_matrix_profile.py``).
+
+To run your own NetworkX algorithms, use the visibility graph ``environment.graph``:
+its nodes are the indices of the extremities in ``environment.coords``, the edge attribute ``weight``
+is the Euclidean length of the edge. Start and goal points are not part of it.
+
+
 
 Shapely and GeoJSON input
 -------------------------

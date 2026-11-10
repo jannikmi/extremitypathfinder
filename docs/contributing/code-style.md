@@ -22,6 +22,9 @@ is tracked in [#173](https://github.com/jannikmi/extremitypathfinder/issues/173)
   `uv run --with mypy --with types-networkx --with types-shapely mypy --strict extremitypathfinder`).
   Enforcing it for the whole package is tracked in [#226](https://github.com/jannikmi/extremitypathfinder/issues/226).
 - Shared type aliases live in `types.py`, constants in `configs.py`.
+- **Modular code:** algorithms are functions in the module of their layer, not methods of `PolygonEnvironment`,
+  which only checks the input and delegates (cf. [Codebase map](codebase-map.md#package-modules)).
+  Split long functions into helpers with one purpose each.
 - Docstrings for public functions and for non-obvious internal ones. Explain *why*, not what the next line does.
 - Keep functions in `utils_numba.py` compilable by Numba: numpy arrays and scalars, explicit signatures,
   no Python objects (cf. [Invariants](invariants.md)).
