@@ -128,6 +128,10 @@ Found by the validation while preparing the benchmark, reproducible with
 
 .. benchmark-derived: the figures of the defects (from ``benchmarks.pyvisgraph_issues`` and the cleaned map). Update this text with every full benchmark run
    (docs/contributing/performance.md, "After a full run").
+   TODO at the next full run (#234): the paragraph "Paths through obstacles" still describes the unsimplified 110m map,
+   which is no longer part of the sweep. Re-derive it on a map of the sweep (e.g. world_5k): an invalid pyvisgraph
+   path from the correctness results with its length and the valid length, and the number of pyvisgraph's edges
+   through land. Then remove this TODO.
 
 **Paths through obstacles.** On the cleaned 110m world map without simplification (4,954 vertices),
 the query from the North Sea (3, 56) to the South China Sea (105, 5) returns a path of length 150.26
