@@ -476,7 +476,9 @@ Query
   it has the same direction and distance as the start and would hide it (only one candidate per direction is kept),
   although the start may leave through any of its wedges and the graph node only through its extremity wedge.
 - **Skipping the nodes in front**: before the visibility of a query point is computed, the graph nodes it lies
-  in front of are removed from the candidates (cf. `Visibility graph reduction`_), with ``Points.in_front_of()``:
+  in front of are removed from the candidates (cf. `Visibility graph reduction`_). The visibility of start and goal
+  takes most of the query time: fewer candidates make it faster, and A* gets fewer temporary edges.
+  The test must be cheaper than what it saves, so it is vectorised (``Points.in_front_of()``):
   the front range of every extremity is precomputed, and the direction from an extremity to the query point is the
   opposite of the one seen from the query point (its angle representation plus 2). Directions within
   ``RAY_TOLERANCE`` of a bound of the range are decided by ``Point.in_front()``, like in the graph

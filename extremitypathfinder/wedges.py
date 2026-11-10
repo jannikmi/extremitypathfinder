@@ -456,6 +456,10 @@ class Points:
     ) -> np.ndarray:
         """whether the position lies "in front" of each candidate extremity, like ``Point.in_front()``, vectorised
 
+        Called for every query with all extremities as candidates: calling ``Point.in_front()`` for each of them
+        would cost more than skipping the extremities saves (#222). Only the directions close to a bound of the
+        front range are decided by ``Point.in_front()``.
+
         :param candidates: the indices of extremities
         :param representations: the angle representations of all coordinates seen from the position
         :return: a boolean mask of the candidates
