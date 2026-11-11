@@ -64,6 +64,11 @@ def graph_node(point: Point | None) -> int | None:
     return point.idx
 
 
+def _coordinate(point: t.FloatArray) -> t.Coordinate:
+    """the point as a tuple of Python floats"""
+    return float(point[0]), float(point[1])
+
+
 def as_coord_array(points: Iterable[InputCoord]) -> np.ndarray:
     """the query points as a float array of shape (n, 2)"""
     coords = np.array(list(points), dtype=configs.DTYPE_FLOAT)
@@ -73,6 +78,8 @@ def as_coord_array(points: Iterable[InputCoord]) -> np.ndarray:
         raise ValueError(
             f"the points must be (x,y) coordinate pairs, got an array of shape {coords.shape}"
         )
+    if not np.all(np.isfinite(coords)):
+        raise ValueError("the coordinates of the points must be finite")
     return coords
 
 
@@ -176,8 +183,8 @@ def search_graph(
 
 
 def search(
-    start_coordinates: InputCoord,
-    goal_coordinates: InputCoord,
+    coords_start: t.FloatArray,
+    coords_goal: t.FloatArray,
     graph: t.Graph,
     vertex_coords: np.ndarray,
     edge_vertex_idxs: np.ndarray,
@@ -185,11 +192,14 @@ def search(
 ) -> SearchResult:
     """the shortest path between start and goal (cf. :meth:`PolygonEnvironment.search`)
 
+    :param coords_start: the (x,y) coordinates of the start, two finite values
+    :param coords_goal: the (x,y) coordinates of the goal, two finite values
     :param vertex_coords: the coordinates of all polygon vertices.
         Start and goal get the indices after them.
+    :return: the result, with the path as tuples of Python floats and the length as a Python float
     """
-    coords_start = np.array(start_coordinates, dtype=float)
-    coords_goal = np.array(goal_coordinates, dtype=float)
+    start_coordinates = _coordinate(coords_start)
+    goal_coordinates = _coordinate(coords_goal)
     start = len(vertex_coords)
     goal = start + 1
     # temporarily extend data structure
@@ -245,7 +255,7 @@ def search(
     #   instead of visiting other nodes first (there is never an advantage through reduced edge weight)
     # -> when goal is directly reachable, there can be no other shorter path to it. Terminate
     if start in visibles_goal:
-        d = vert_idx2dist[start]
+        d = float(vert_idx2dist[start])
         return no_graph_result([start_coordinates, goal_coordinates], d)
 
     # merge start and goal with the graph nodes at their positions
@@ -302,8 +312,8 @@ def search(
         return graph_result([], None)
 
     # extract the coordinates from the path
-    path = [tuple(coords[i]) for i in id_path]
-    return graph_result(path, distance)
+    path = [_coordinate(coords[i]) for i in id_path]
+    return graph_result(path, float(distance))
 
 
 def distance_matrix(

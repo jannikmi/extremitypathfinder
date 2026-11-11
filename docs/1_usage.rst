@@ -24,7 +24,7 @@ Ensure that all the following conditions on the polygons are fulfilled:
 
 - numpy or python array of coordinate tuples: ``[(x1,y1), (x2,y2,)...]``
 - the first point is NOT repeated at the end
-- must at least contain 3 vertices
+- must at least contain 3 vertices, with finite coordinates
 - no consequent vertices with identical coordinates in the polygons (same coordinates in general are allowed)
 - a polygon must NOT have self intersections. It may touch itself (identical vertices, a vertex on an edge),
   but must not cross itself there
@@ -82,7 +82,8 @@ hole must be supplied.
 
 .. note::
 
-    Pass ``validate=True`` in order to check the condition on the data.
+    The format of the polygons (at least 3 coordinate pairs, finite) is always checked.
+    Pass ``validate=True`` in order to check the other conditions on the data.
     Raises ``TypeError`` if the input has the wrong type and ``ValueError`` if the input is invalid.
     The message names the polygon (``boundary polygon`` or ``hole <index>``) and the location of the violation,
     e.g. ``hole 1: The given polygon has self intersections: the edges from vertex 0 to 1 and from vertex 2 to 3
@@ -123,7 +124,12 @@ Query
     start_coordinates = (4.5, 1.0)
     goal_coordinates = (4.0, 8.5)
     path, length = environment.find_shortest_path(start_coordinates, goal_coordinates)
+    # path: [(4.5, 1.0), (3.0, 7.0), (4.0, 8.5)], length: 7.987...
 
+The path is a list of ``(x, y)`` tuples of Python floats including start and goal, the length a Python float.
+If there is no path, ``([], None)`` is returned.
+Start and goal must consist of two finite values (``TypeError``, ``ValueError``)
+and lie within the map (``ValueError``).
 
 Points on polygon edges lie within the map. To accept start and goal points without checking whether they lie
 within the map, set ``verify=False``.
@@ -308,6 +314,8 @@ A grid of ``size_x`` times ``size_y`` cells with blocked cells (obstacles) can b
 Coordinates refer to the corners of the grid cells, i.e. cell ``(x, y)`` spans ``[x, x+1] x [y, y+1]``.
 The polygons follow the borders of the blocked cells, they are not simplified (no diagonal edges).
 Diagonally adjacent blocked cells touch at a corner: paths cannot pass between them (no corner cutting).
+The sizes must be positive integers and the blocked cells integer pairs within the grid,
+with at least one free cell (``TypeError``, ``ValueError``).
 
 
 .. code-block:: python
