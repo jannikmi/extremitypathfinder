@@ -407,6 +407,17 @@ The image at the top of this documentation and all other figures are made this w
     the image made with ``draw()``: obstacles in grey, vertices in grey, extremities and the visibility graph in blue,
     the shortest path in orange
 
+The same drawing works for real geometry: land masses are the obstacles, the sea is the free space.
+The environment below has a few hundred vertices (the simplified Natural Earth land polygons of the benchmarks),
+the path leads from the North Atlantic around Africa to the Tasman Sea
+(longitude/latitude are used as planar coordinates).
+``scripts/world_demo.py`` generates the image.
+
+.. figure:: _static/demo_world.svg
+    :alt: shortest path through a simplified world map
+
+    shortest path between two points in the sea, around the land masses
+
 ``environment.search()`` performs the same search as ``find_shortest_path()``,
 but returns a ``SearchResult`` with the data of the search (e.g. the temporary edges of start and goal and the search graph)
 in addition to the path and its length.
