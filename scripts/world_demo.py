@@ -2,7 +2,7 @@
 
 Standalone: generates ``docs/_static/demo_world.svg`` with the actual result of the package,
 drawn with ``extremitypathfinder.plotting.draw()``. The map is the Natural Earth land data of the benchmarks
-(``benchmarks/world_map.py``: downloaded once, checksum verified), simplified to a few hundred vertices
+(``benchmarks/world_map.py``: downloaded once, checksum verified), simplified to a few thousand vertices
 so that the visibility graph stays sparse and readable.
 Coordinates are longitude/latitude degrees used as planar coordinates (paths do not cross the antimeridian).
 The export is deterministic and has the dark mode colors of ``scripts/docs_figures.py``.
@@ -31,12 +31,12 @@ from extremitypathfinder.plotting import PlotStyle, draw
 # (longitude, latitude), both in the sea: from the North Atlantic around Africa to the Tasman Sea
 START = (-30.0, 40.0)
 GOAL = (150.0, -40.0)
-DEFAULT_NR_VERTICES = 500
+DEFAULT_NR_VERTICES = 2000
 # thin lines and small markers for the large extent
 STYLE = PlotStyle(
-    graph_alpha=0.12,
-    marker_size=2.0,
-    line_width=0.5,
+    graph_alpha=0.06,
+    marker_size=1.5,
+    line_width=0.4,
     path_width=2.2,
     outside_color=None,
 )

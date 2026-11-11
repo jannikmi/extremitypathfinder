@@ -408,7 +408,7 @@ The image at the top of this documentation and all other figures are made this w
     the shortest path in orange
 
 The same drawing works for real geometry: land masses are the obstacles, the sea is the free space.
-The environment below has a few hundred vertices (the simplified Natural Earth land polygons of the benchmarks),
+The environment below has a few thousand vertices (the simplified Natural Earth land polygons of the benchmarks),
 the path leads from the North Atlantic around Africa to the Tasman Sea
 (longitude/latitude are used as planar coordinates).
 ``scripts/world_demo.py`` generates the image.
