@@ -1,6 +1,5 @@
 Changelog
-=========
-
+==
 Unreleased
 ----------
 
@@ -23,8 +22,25 @@ BREAKING: the plotting module (``extremitypathfinder.plotting``) has one consist
 - new look: obstacles filled grey, including the area outside of the boundary polygon,
   extremities and the visibility graph in blue, the path in orange.
 
-BREAKING: environments pickled with 3.0 cannot be loaded anymore (changed attributes, pickle format version 4):
+BREAKING: environments pickled with 3.0 cannot be loaded anymore (changed attributes, pickle format version 5):
 recreate them. Loading them raises a ``ValueError`` explaining this.
+
+BREAKING: malformed input is always rejected with a clear error, also without ``validate=True`` and with ``verify=False``:
+
+- polygons that are no list of at least 3 coordinate pairs (``TypeError``, also for ragged lists)
+  or have non-finite coordinates (``ValueError``). The message names the polygon.
+  Previously e.g. an empty boundary raised an ``IndexError`` and a boundary with 2 vertices was accepted.
+  The geometric requirements (e.g. no self intersections) are still only checked with ``validate=True``.
+- start and goal points that do not consist of two values (``TypeError``) or are not finite (``ValueError``).
+  Previously a point with three values raised an internal error and a ``nan`` coordinate with ``verify=False``
+  gave a path of length ``nan``. ``distance_matrix()`` rejects non-finite points too.
+- ``from_grid()``: sizes that are no positive integers (also ``True``), blocked cells that are no integer pairs,
+  blocked cells outside of the grid (previously ignored: remove them from the input)
+  and grids without any free cell (``TypeError`` or ``ValueError`` instead of ``AssertionError``
+  and ``AttributeError``). The blocked cells may be any iterable (e.g. a generator, previously a ``TypeError``).
+
+BREAKING: ``export_pickle()`` and ``load_pickle()`` no longer print to the standard output.
+``export_pickle()`` returns the path of the file.
 
 other changes:
 
@@ -36,6 +52,14 @@ other changes:
   whose angle range contains the direction (1, 0): they are now compared like at all other edges.
   E.g. such an environment with 3204 vertices: prepared in 18.5 s instead of 170 s, the visibility of a query point
   in 3 ms instead of 646 ms (with Numba). Typical maps are prepared 1.1 to 1.4 times faster, with and without Numba.
+- ``find_shortest_path()`` and ``search()`` always return the path as a list of ``(x, y)`` tuples of Python floats
+  and the length as a Python float. Previously the coordinates and the length were ``numpy.float64``
+  (printed as ``np.float64(1.0)``), and when the goal was directly visible from the start the passed objects were
+  returned unchanged (e.g. tuples of ints, lists or arrays). The values are equal to the previous ones.
+- faster queries (#222): start and goal (and the points of ``distance_matrix()``) are no longer connected to
+  the graph nodes they lie "in front" of (they are never the next node of a shortest path, like in the visibility
+  graph). Same paths and lengths.
+  E.g. 200 queries on an environment with 400 extremities: 18 % faster with Numba, 11 % without.
 - shortest path lengths between many points (#175): ``PolygonEnvironment.distance_matrix(points_a, points_b=None)``
   returns the lengths between all start and goal points (``inf`` without a path), identical to a loop over
   ``find_shortest_path()`` but much faster: the visibility of every point is computed once instead of twice per pair.
@@ -57,6 +81,8 @@ other changes:
   the crossing point). The crossing test solves its 2×2 system in closed form instead of with ``numpy.linalg.solve``
   and is exact for integer coordinates: valid polygons touching themselves with a vertex on an edge were rejected
   for one of the two vertex numberings.
+- documentation: ``verify=False`` does not help with query points within rounding error of an edge (#239):
+  their path may be wrong and depend on the query direction. Move them onto the edge or away from it.
 - documentation: agent clearance (#167), a recipe for agents that keep a minimum distance to the obstacles:
   shrink the boundary and inflate the obstacles with Shapely, then pass them to ``from_shapely()``.
   Compares the join styles (vertex count, kept clearance, path length).

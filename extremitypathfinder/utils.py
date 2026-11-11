@@ -170,14 +170,7 @@ def _check_polygon(
         raise type(error)(f"{name}: {error}") from None
 
 
-def _check_polygon_inner(polygon: t.FloatArray, is_reversed: bool) -> None:
-    """ensures that all the following conditions on the polygons are fulfilled:
-    - must at least contain 3 vertices
-    - no consequent vertices with identical coordinates in the polygons! In general might have the same coordinates
-    - a polygon must not have self intersections (intersections with other polygons are allowed).
-      A polygon may touch itself (identical vertices, a vertex on an edge), but must not cross itself there
-    - no collinear overlapping edges (zero-width spikes or slits)
-    """
+def _check_polygon_format_inner(polygon: t.FloatArray) -> None:
     if polygon.size == 0:
         raise TypeError("Given polygons must at least contain 3 vertices.")
     if polygon.ndim != 2:
@@ -188,6 +181,65 @@ def _check_polygon_inner(polygon: t.FloatArray, is_reversed: bool) -> None:
         raise TypeError("Each point of a polygon must consist of two values (x,y).")
     if not np.all(np.isfinite(polygon)):
         raise ValueError("Polygon coordinates must be finite.")
+
+
+def to_float_array(data: object, name: str, expected: str) -> t.FloatArray:
+    """converts input into a float array, with a clear error for input numpy cannot convert (e.g. ragged lists)
+
+    :param name: the input in the error message, e.g. "hole 2"
+    :param expected: the expected input in the error message
+    :raises TypeError: when the input cannot be converted
+    """
+    try:
+        return np.array(data, dtype=configs.DTYPE_FLOAT)
+    except (TypeError, ValueError, OverflowError) as error:
+        raise TypeError(f"{name}: expected {expected} ({error})") from None
+
+
+def check_polygon_formats(
+    boundary_coords: t.FloatArray | None, list_hole_coords: list[t.FloatArray]
+) -> None:
+    """ensures that every polygon is an array of at least 3 finite (x,y) coordinates
+
+    Always checked (cheap), unlike the geometric requirements (cf. ``check_data_requirements()``):
+    the data structures of the environment cannot be built from other input.
+
+    :raises TypeError, ValueError: naming the polygon
+    """
+    polygons: list[tuple[str, t.FloatArray]] = [
+        (f"hole {hole_idx}", hole) for hole_idx, hole in enumerate(list_hole_coords)
+    ]
+    if boundary_coords is not None:
+        polygons.insert(0, ("boundary polygon", boundary_coords))
+    for name, polygon in polygons:
+        try:
+            _check_polygon_format_inner(polygon)
+        except (TypeError, ValueError) as error:
+            raise type(error)(f"{name}: {error}") from None
+
+
+def check_query_point(point: t.FloatArray, name: str) -> None:
+    """ensures that a query point consists of two finite values
+
+    :param name: the point in the error messages, e.g. "start"
+    :raises TypeError: when the point does not consist of two values
+    :raises ValueError: when a coordinate is not finite
+    """
+    if point.shape != (2,):
+        raise TypeError(f"The {name} point must consist of two values (x,y).")
+    if not np.all(np.isfinite(point)):
+        raise ValueError(f"The coordinates of the {name} point must be finite.")
+
+
+def _check_polygon_inner(polygon: t.FloatArray, is_reversed: bool) -> None:
+    """ensures that all the following conditions on the polygons are fulfilled:
+    - must at least contain 3 vertices
+    - no consequent vertices with identical coordinates in the polygons! In general might have the same coordinates
+    - a polygon must not have self intersections (intersections with other polygons are allowed).
+      A polygon may touch itself (identical vertices, a vertex on an edge), but must not cross itself there
+    - no collinear overlapping edges (zero-width spikes or slits)
+    """
+    _check_polygon_format_inner(polygon)
     if not _no_identical_consequent_vertices(polygon):
         raise ValueError("Consequent vertices of a polynomial must not be identical.")
     crossing = _find_crossing(polygon)
@@ -548,9 +600,9 @@ def _find_visible_and_in_front(
     # -> e1 and e do not have to be connected in the graph.
     # The area "in front of" e: opposite of the angle range outside of the wedge of e (cf. ``Point.in_front()``),
     # extremities exactly opposite of a bounding ray do not lie in front (those edges must not get deleted)
-    # IMPORTANT: this condition only holds for building the basic visibility graph without start and goal node!
-    # When a query point (start/goal) happens to be an extremity, edges to the (visible) extremities in front
-    # MUST be added to the graph!
+    # IMPORTANT: for start and goal only one direction holds: they are endpoints of the path.
+    # A query point is not connected to the extremities it lies in front of (#222, cf. ``search()``),
+    # but when it happens to be an extremity, edges to the (visible) extremities in front of it MUST be added!
     # IMPORTANT: check all extremities here, not just current candidates
     origin_position = coords[origin]
     candidates_in_front = {
@@ -874,8 +926,16 @@ def convert_grid(size_x: int, size_y: int, obstacle_iter: iter) -> (list, list):
         the origin of the polygon coordinate system is (-0.5,-0.5) in the grid cell system (= corners of the grid)
     """
 
-    assert size_x > 0 and size_y > 0
+    for name, size in (("size_x", size_x), ("size_y", size_y)):
+        if isinstance(size, bool) or not isinstance(size, (int, np.integer)):
+            raise TypeError(f"{name} must be an integer, got {size!r}.")
+        if size <= 0:
+            raise ValueError(f"{name} must be positive, got {int(size)}.")
+    # Python integers: narrow numpy integers overflow when multiplied
+    size_x, size_y = int(size_x), int(size_y)
 
+    # any iterable (e.g. a generator)
+    obstacle_iter = list(obstacle_iter)
     if len(obstacle_iter) == 0:
         # there are no obstacles. return just the simple boundary rectangle
         boundary = np.array(
@@ -885,7 +945,33 @@ def convert_grid(size_x: int, size_y: int, obstacle_iter: iter) -> (list, list):
 
     # convert (x,y) into np.arrays
     # obstacle_iter = [np.array(o) for o in obstacle_iter]
-    obstacle_iter = np.array(obstacle_iter)
+    try:
+        obstacle_iter = np.array(obstacle_iter)
+    except ValueError:  # ragged
+        raise TypeError("Each blocked cell must consist of two values (x,y).") from None
+    if obstacle_iter.ndim != 2 or obstacle_iter.shape[1] != 2:
+        raise TypeError("Each blocked cell must consist of two values (x,y).")
+    # integral floats (e.g. 2.0) are unambiguous, 2.5 is no cell
+    is_numeric = obstacle_iter.dtype.kind in "iuf"
+    # Note: an infinite value equals its rounded value
+    is_integral = is_numeric and bool(
+        np.all(np.isfinite(obstacle_iter) & (obstacle_iter == np.rint(obstacle_iter)))
+    )
+    if not is_integral:
+        raise TypeError("The coordinates of the blocked cells must be integers.")
+    # Note: tested before converting to integers (large values would overflow)
+    outside = (obstacle_iter < 0).any(axis=1) | (obstacle_iter >= (size_x, size_y)).any(
+        axis=1
+    )
+    if outside.any():
+        cell = obstacle_iter[np.flatnonzero(outside)[0]]
+        raise ValueError(
+            f"The blocked cell ({int(cell[0])}, {int(cell[1])}) lies outside of the grid "
+            f"({size_x} x {size_y} cells)."
+        )
+    obstacle_iter = obstacle_iter.astype(np.int64)
+    if len(np.unique(obstacle_iter, axis=0)) == size_x * size_y:
+        raise ValueError("All cells of the grid are blocked: there is no free space.")
 
     def within_grid(pos):
         return 0 <= pos[0] < size_x and 0 <= pos[1] < size_y
@@ -1094,6 +1180,5 @@ def load_pickle(path=DEFAULT_PICKLE_NAME):
         Recreate the environment from its polygons instead.
     :raises AttributeError: when the pickled class no longer exists (e.g. ``PlottingEnvironment`` of 2.x)
     """
-    print("loading map from:", path)
     with open(path, "rb") as f:
         return pickle.load(f)

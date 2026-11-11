@@ -132,3 +132,21 @@ def test_the_environment_is_not_changed():
     graph, graph_before = environment.graph, before["graph"]
     assert sorted(graph.nodes) == sorted(graph_before.nodes)
     assert sorted(graph.edges(data=True)) == sorted(graph_before.edges(data=True))
+
+
+@pytest.mark.parametrize("env_id", list(CONTACT_ENVIRONMENTS))
+def test_skipping_the_nodes_in_front_keeps_the_lengths_at_contacts(env_id, monkeypatch):
+    """#222: the same lengths without skipping the graph nodes a query point lies in front of,
+    for vertices, contacts and points on edges (points inside obstacles are no valid input)"""
+    env_params = CONTACT_ENVIRONMENTS[env_id]
+    environment = PolygonEnvironment(*env_params)
+    points = _vertices_and_edge_midpoints(env_params)
+    points += [(x / 2, y / 2) for x in range(0, 21, 4) for y in range(0, 21, 4)]
+    points = [p for p in sorted(set(points)) if environment.within_map(np.array(p))]
+    matrix = environment.distance_matrix(points, verify=False)
+    monkeypatch.setattr(
+        environment.points,
+        "in_front_of",
+        lambda candidates, *_: np.zeros(len(candidates), dtype=bool),
+    )
+    assert np.array_equal(matrix, _loop(environment, points, points))

@@ -93,23 +93,26 @@ class PolygonEnvironment:
         :param list_of_hole_coordinates: arrays of coordinates (clockwise or counter clockwise numbering)
         :param validate: whether the requirements of the data should be tested
 
-        :raises TypeError: when validate=True and the input has an invalid shape.
-        :raises ValueError: when validate=True and the input violates the requirements above,
+        :raises TypeError: when a polygon is no list of at least 3 coordinate pairs (always checked).
+        :raises ValueError: when a coordinate is not finite (always checked),
+            when validate=True and the input violates the requirements above,
             and when ``boundary_coordinates`` is ``None`` and no holes are given.
         """
         # loading the map
+        expected = "a list of (x,y) coordinate pairs"
         list_of_hole_coordinates = [
-            np.array(hole_coords, dtype=configs.DTYPE_FLOAT)
-            for hole_coords in list_of_hole_coordinates
+            utils.to_float_array(hole_coords, f"hole {hole_idx}", expected)
+            for hole_idx, hole_coords in enumerate(list_of_hole_coordinates)
         ]
         if boundary_coordinates is not None:
-            boundary_coordinates = np.array(
-                boundary_coordinates, dtype=configs.DTYPE_FLOAT
+            boundary_coordinates = utils.to_float_array(
+                boundary_coordinates, "boundary polygon", expected
             )
         elif not list_of_hole_coordinates:
             raise ValueError(
                 "At least one hole is required when boundary_coordinates is None."
             )
+        utils.check_polygon_formats(boundary_coordinates, list_of_hole_coordinates)
         # accept both vertex numberings: reverse polygons with the opposite numbering
         input_boundary, input_holes = boundary_coordinates, list_of_hole_coordinates
         boundary_coordinates, list_of_hole_coordinates = utils.orient_polygons(
@@ -174,6 +177,9 @@ class PolygonEnvironment:
         :param size_y: the vertical grid size
         :param obstacle_iter: an iterable of coordinate pairs (x,y) representing blocked grid cells (obstacles)
         :param validate: whether the input should be validated
+        :raises TypeError: when a size is no integer or a blocked cell is no pair of integers
+        :raises ValueError: when a size is not positive, a blocked cell lies outside of the grid
+            or all cells are blocked
         """
         boundary_coordinates, list_of_hole_coordinates = utils.convert_grid(
             size_x, size_y, obstacle_iter
@@ -233,11 +239,14 @@ class PolygonEnvironment:
         coords = self.coords
         return [tuple(coords[i]) for i in range(self.nr_vertices)]
 
-    def export_pickle(self, path: str = DEFAULT_PICKLE_NAME):
-        print("storing map class in:", path)
+    def export_pickle(self, path: str = DEFAULT_PICKLE_NAME) -> str:
+        """stores the environment with its visibility graph in a pickle file (cf. :func:`load_pickle`)
+
+        :return: the path of the file
+        """
         with open(path, "wb") as f:
             pickle.dump(self, f)
-        print("done.\n")
+        return path
 
     def __getstate__(self):
         """adds the pickle format version to the state. Subclasses overriding this must call ``super()``"""
@@ -339,11 +348,18 @@ class PolygonEnvironment:
 
         :param start_coordinates: a (x,y) coordinate tuple representing the start node
         :param goal_coordinates:  a (x,y) coordinate tuple representing the goal node
-        :param verify: whether it should be checked if start and goal points really lie inside the environment.
-         if points close to or on polygon edges should be accepted as valid input, set this to ``False``.
+        :param verify: whether it should be checked if start and goal points really lie inside the environment
+         (polygon edges included). ``False`` skips the check. A point within rounding error of an edge,
+         but not exactly on it, may then get a wrong path, whose length can depend on the query direction
+         (cf. the numerical policy of the engineering design): move such a point onto the edge or away from it.
          Start and goal may lie on a contact point of touching obstacles, the path may leave through
          any free space next to it. On an edge shared by two touching obstacles (inside a wall) there is no path.
         :return: a tuple of shortest path and its length. ([], None) if there is no possible path.
+         The path is a list of ``(x, y)`` tuples of Python floats (also start and goal,
+         whatever type was passed), the length a Python float.
+        :raises TypeError: when start or goal do not consist of two values
+        :raises ValueError: when a coordinate of start or goal is not finite,
+         and when ``verify=True`` and start or goal do not lie within the map
         """
         result = self.search(start_coordinates, goal_coordinates, verify=verify)
         return result.path, result.length
@@ -363,17 +379,25 @@ class PolygonEnvironment:
 
         :param start_coordinates: a (x,y) coordinate tuple representing the start node
         :param goal_coordinates:  a (x,y) coordinate tuple representing the goal node
-        :param verify: whether it should be checked if start and goal points really lie inside the environment.
-         if points close to or on polygon edges should be accepted as valid input, set this to ``False``.
+        :param verify: whether it should be checked if start and goal points really lie inside the environment
+         (cf. :meth:`find_shortest_path`)
         :return: the result of the search
+        :raises TypeError: when start or goal do not consist of two values
+        :raises ValueError: when a coordinate of start or goal is not finite,
+         and when ``verify=True`` and start or goal do not lie within the map
         """
-        if verify and not self.within_map(np.array(start_coordinates, dtype=float)):
+        expected = "two values (x,y)"
+        coords_start = utils.to_float_array(start_coordinates, "start point", expected)
+        coords_goal = utils.to_float_array(goal_coordinates, "goal point", expected)
+        utils.check_query_point(coords_start, "start")
+        utils.check_query_point(coords_goal, "goal")
+        if verify and not self.within_map(coords_start):
             raise ValueError("start point does not lie within the map")
-        if verify and not self.within_map(np.array(goal_coordinates, dtype=float)):
+        if verify and not self.within_map(coords_goal):
             raise ValueError("goal point does not lie within the map")
         return queries.search(
-            start_coordinates,
-            goal_coordinates,
+            coords_start,
+            coords_goal,
             self.graph,
             self.coords,
             self.edge_vertex_idxs,
@@ -400,7 +424,8 @@ class PolygonEnvironment:
             (cf. :meth:`find_shortest_path`)
         :return: the lengths of the shortest paths, a float array of shape ``(len(points_a), len(points_b))``:
             entry ``[i, j]`` is the length from ``points_a[i]`` to ``points_b[j]``, ``inf`` if there is no path
-        :raises ValueError: when ``verify=True`` and a point does not lie within the map
+        :raises ValueError: when the points are no (x,y) coordinate pairs or not finite,
+            and when ``verify=True`` and a point does not lie within the map
         """
         coords_a = queries.as_coord_array(points_a)
         coords_b = coords_a if points_b is None else queries.as_coord_array(points_b)

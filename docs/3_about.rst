@@ -81,7 +81,7 @@ ________________
     polygon environment with the optimised visibility graph in blue
 
 
-- **2. Including start and goal:** For each shortest path query the start and goal points are being connected to the internal graph depending on their visibility. The precomputed graph stays unchanged:
+- **2. Including start and goal:** For each shortest path query the start and goal points are being connected to the internal graph depending on their visibility, except to the extremities they lie "in front of" (by the same argument). The precomputed graph stays unchanged:
 
 .. figure:: _static/search_graph.svg
 

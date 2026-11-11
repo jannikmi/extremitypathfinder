@@ -15,6 +15,8 @@ Record only decisions that outlive their pull request and whose rejected options
 in the final state of the pull request. Leave out details fully explained on the page they affect.
 Leave out decisions whose outcome is documented elsewhere and that are not important enough to be remembered,
 e.g. the scope of a feature (a documentation recipe now, a parameter later on demand): the issue records them.
+An improvement (an optimisation, a fix, a feature) is no decision to record, even if a maintainer approved it:
+explain its reasoning where it is implemented, in the code or the documentation of the affected part.
 
 Keep the entries correct when the referenced content moves or changes.
 A maintainer confirms an agent decision by changing **Decided by**.
