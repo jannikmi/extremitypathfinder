@@ -54,8 +54,9 @@ Ray = tuple[np.ndarray, float]
 # The free side of the polygon (left of its edges) reaches counter clockwise from the second to the first ray.
 Incidence = tuple[int, float, float]
 
-# directions with representations this close to a bounding ray are compared exactly
-RAY_TOLERANCE = 1e-12
+# window around a bounding ray in which directions are checked for being exactly on the ray (``_ray_rep()``).
+# Larger than the rounding error of the representations of exactly collinear vectors (about 1e-16 to 1e-15).
+RAY_WINDOW = 1e-12
 
 
 def _rep(vector: np.ndarray) -> float:
@@ -194,7 +195,7 @@ class Point:
         :param vector: the direction, to compare it exactly with the bounding rays
         """
         for wedge in wedges:
-            if any(abs(rep - bound) < RAY_TOLERANCE for bound in wedge):
+            if any(abs(rep - bound) < RAY_WINDOW for bound in wedge):
                 rep = self.rep(vector)
             if in_closure(rep, wedge):
                 return True
@@ -470,8 +471,8 @@ class Points:
         offsets = (reps - self.front_starts[candidates]) % 4.0
         in_front = (offsets > 0.0) & (offsets < sizes)
         # directions close to a bounding ray: the exact test
-        near_start = (offsets < RAY_TOLERANCE) | (offsets > 4.0 - RAY_TOLERANCE)
-        near_bound = near_start | (np.abs(offsets - sizes) < RAY_TOLERANCE)
+        near_start = (offsets < RAY_WINDOW) | (offsets > 4.0 - RAY_WINDOW)
+        near_bound = near_start | (np.abs(offsets - sizes) < RAY_WINDOW)
         for i in np.flatnonzero(near_bound):
             candidate = int(candidates[i])
             vector = position - coords[candidate]
@@ -541,10 +542,8 @@ class Points:
         point_reps_sorted = representations[point_idxs_sorted]
         candidates = np.fromiter(visible, dtype=int, count=len(visible))
         candidate_reps = representations[candidates]
-        lower = np.searchsorted(point_reps_sorted, candidate_reps - RAY_TOLERANCE)
-        upper = np.searchsorted(
-            point_reps_sorted, candidate_reps + RAY_TOLERANCE, "right"
-        )
+        lower = np.searchsorted(point_reps_sorted, candidate_reps - RAY_WINDOW)
+        upper = np.searchsorted(point_reps_sorted, candidate_reps + RAY_WINDOW, "right")
         blocked = {
             int(candidate)
             for candidate, low, up in zip(candidates, lower, upper)

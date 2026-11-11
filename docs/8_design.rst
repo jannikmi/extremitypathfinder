@@ -292,8 +292,9 @@ The rules applied with the wedges (``wedges.py``):
    for a line of sight that did not cross the polygon, so it is only checked at contacts)
 
 The bounding rays belong to the wedges (closed angle ranges, ``in_closure()``): paths may run along edges.
-Directions within ``RAY_TOLERANCE`` of a bounding ray are compared with the exact ray directions instead of their
-representations (``Point.rep()``), so that collinear edges of different length behave consistently.
+Directions exactly on a bounding ray (zero cross product, same direction) take the representation of that ray
+(``Point.rep()``), so that collinear edges of different length behave consistently. The check only runs for directions
+within ``RAY_WINDOW`` of a bound (cf. `Numerical Policy`_).
 
 Visibility from one origin
 --------------------------
@@ -428,7 +429,7 @@ Passing through and arriving at points
   (for a query point candidate: in any of its wedges).
 - **Passing (rule 3)**: the points are sorted by their representation seen from the origin. For each candidate,
   a binary search (``np.searchsorted``) finds the points with nearly the same representation
-  (within ``RAY_TOLERANCE``). Those closer than the candidate and exactly on the line of sight
+  (within ``RAY_WINDOW``). Those closer than the candidate and exactly on the line of sight
   (identical representation or zero cross product) must be passable: the directions back to the origin and on to
   the candidate must lie in the same wedge.
 
@@ -485,7 +486,7 @@ Query
   The test must be cheaper than what it saves, so it is vectorised (``Points.in_front_of()``):
   the front range of every extremity is precomputed, and the direction from an extremity to the query point is the
   opposite of the one seen from the query point (its angle representation plus 2). Directions within
-  ``RAY_TOLERANCE`` of a bound of the range are decided by ``Point.in_front()``, like in the graph
+  ``RAY_WINDOW`` of a bound of the range are decided by ``Point.in_front()``, like in the graph
   (it excludes the directions exactly opposite of a bounding ray). The graph node merged with the query point is not
   skipped (it is the query point). The one merged with the other query point need not be kept: the edge to it is the
   straight segment between start and goal, found by the "goal first" check. So the skipped nodes depend only on the
@@ -725,9 +726,14 @@ Numerical Policy
   (exact cross product test, or angle representations exactly 180 degree apart, ``_lies_on_edge()``).
   Near-contacts do not block. This makes the behaviour reproducible and independent of a tolerance parameter.
   For integer coordinates (e.g. grids) the tests are exact.
-- **Rays are exact**: directions that are exactly the same (zero cross product) share one angle representation,
-  even when the representations computed from vectors of different length differ in the last bit
-  (``Point.rep()``). A tiny tolerance (``RAY_TOLERANCE``) only selects which directions are compared exactly.
+- **Rays are exact**: directions that are exactly the same (zero cross product, same direction) share one angle
+  representation, even when the representations computed from vectors of different length differ in the last bit
+  (``Point.rep()``). ``RAY_WINDOW`` (1e-12) is the only numeric constant in the decisions. It is not a tolerance on any
+  decision: it only limits the check for exactly collinear directions to those within 1e-12 of a bounding ray, far above
+  the last-bit differences of their representations. The regression test ``test_in_wedges_collinear_last_bit`` covers
+  directions whose representations differ from the ray's in the last bit. Directions that are not exactly collinear
+  with a ray are decided by their representations, as everywhere else. The 1e-16 bound of the audit
+  (**Audit against exact arithmetic**, below) concerns these non-collinear comparisons.
 - **Lines of sight touching edges**: a line of sight touching an edge only in one of its vertices, or running along it,
   is not blocked by the edge. What happens at the vertex is decided by its wedges.
 - Intersections are only computed (a 2x2 linear system, ``_lies_behind_inner()``) when cheaper tests
