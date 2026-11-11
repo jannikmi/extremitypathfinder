@@ -69,22 +69,19 @@ likewise on a triangulation. Grid planners such as A\* or Theta\* are simpler, b
 
 In Python, the closest alternative is pyvisgraph [@pyvisgraph], unmaintained since 2020. It builds the complete
 visibility graph of all obstacle vertices with Lee's algorithm and searches it with Dijkstra's algorithm.
-Its implementation takes $O(n^3)$ in the worst case: it keeps the edges in a sorted list instead of a tree and tests
-every visible vertex of the same polygon against all edges of that polygon. It has no boundary polygon. A contribution to pyvisgraph would have been a rewrite, because the reduction to
-extremities, the pruning of graph edges, the boundary polygon and touching polygons change its data model,
+Its implementation takes $O(n^3)$ in the worst case and has no boundary polygon. A contribution to pyvisgraph
+would have been a rewrite, because the reduction to extremities, the pruning of graph edges, the boundary polygon and touching polygons change its data model,
 visibility computation and search.
 
 A reproducible benchmark on world maps of up to 9,952 vertices, validating every path independently with Shapely,
 measured `extremitypathfinder` (with Numba) as 4.6 to 7.2 times faster than pyvisgraph in building the
 environment, with several times fewer graph edges and faster queries (\autoref{fig:benchmark}).
-On the map with 4,954 vertices, 59 of 200 pyvisgraph paths crossed land (\autoref{fig:invalid}),
-because its point-in-polygon test mixes exact and tolerant comparisons.
-Polyanya and TřiVis have not been measured yet.
+Independent validation also found invalid pyvisgraph 0.2.1 paths that cross obstacles (59 of 200 on the
+4,954-vertex map; details and reproduction in the repository documentation), an additional reason to prefer
+`extremitypathfinder` for exact results. Polyanya and TřiVis have not been measured yet.
 
 ![Benchmark on world maps (Apple M1 Pro, one thread). pyvisgraph exceeded the budget at 9,952 vertices;
 its queries on 4,954 vertices are left out, because they are invalid.\label{fig:benchmark}](benchmark_sweep.svg)
-
-![A pyvisgraph path through land (dashed) and the path of `extremitypathfinder`.\label{fig:invalid}](benchmark_world_example.svg)
 
 # Software design
 
