@@ -54,7 +54,8 @@ Ray = tuple[np.ndarray, float]
 # The free side of the polygon (left of its edges) reaches counter clockwise from the second to the first ray.
 Incidence = tuple[int, float, float]
 
-# directions with representations this close to a bounding ray are compared exactly
+# window around a bounding ray in which directions are checked for being exactly on the ray (``_ray_rep()``).
+# Larger than the rounding error of the representations of exactly collinear vectors (about 1e-16 to 1e-15).
 RAY_TOLERANCE = 1e-12
 
 

@@ -18,7 +18,8 @@ The [Engineering Design](../8_design.rst) page gives the full reasoning.
   so the free space is on the left of every edge. The input may use either ordering:
   polygons are reversed when they are stored (#161). The free wedges and the point in polygon test rely on it.
 - **Numerical policy.** All coordinates are `float64`. Contacts are exact: polygons touch only when coordinates are
-  exactly equal or a vertex lies exactly on an edge. Near-contacts do not block. There is no tolerance parameter.
+  exactly equal or a vertex lies exactly on an edge. Near-contacts do not block. There is no tolerance parameter. The internal constant `RAY_TOLERANCE` in `wedges.py`
+  only selects exactly collinear directions for the ray's own representation, it decides nothing else (cf. Numerical Policy).
 - **Touching obstacles form a wall.** A path never passes between two obstacles that touch, and never through
   a point where an obstacle touches itself (#24). Cf. the touching section in the About page and `test_contacts.py`.
 - **Free wedges decide everything at vertices.** The four rules in the module docstring of `wedges.py` are the single

@@ -292,8 +292,9 @@ The rules applied with the wedges (``wedges.py``):
    for a line of sight that did not cross the polygon, so it is only checked at contacts)
 
 The bounding rays belong to the wedges (closed angle ranges, ``in_closure()``): paths may run along edges.
-Directions within ``RAY_TOLERANCE`` of a bounding ray are compared with the exact ray directions instead of their
-representations (``Point.rep()``), so that collinear edges of different length behave consistently.
+Directions exactly on a bounding ray (zero cross product) take the representation of that ray (``Point.rep()``),
+so that collinear edges of different length behave consistently. The check only runs for directions within
+``RAY_TOLERANCE`` of a bound (cf. `Numerical Policy`_).
 
 Visibility from one origin
 --------------------------
@@ -727,7 +728,11 @@ Numerical Policy
   For integer coordinates (e.g. grids) the tests are exact.
 - **Rays are exact**: directions that are exactly the same (zero cross product) share one angle representation,
   even when the representations computed from vectors of different length differ in the last bit
-  (``Point.rep()``). A tiny tolerance (``RAY_TOLERANCE``) only selects which directions are compared exactly.
+  (``Point.rep()``). ``RAY_TOLERANCE`` (1e-12) is the only numeric constant in the decisions, and not a tolerance on
+  any decision: it only limits the check for exactly collinear directions (zero cross product) to those within 1e-12
+  of a bounding ray. That is far above the last-bit differences of their representations, so it never misses one.
+  Directions that are not exactly collinear with a ray are decided by their representations, as everywhere else.
+  The audit bound of 1e-16 above concerns these non-collinear comparisons, not this window.
 - **Lines of sight touching edges**: a line of sight touching an edge only in one of its vertices, or running along it,
   is not blocked by the edge. What happens at the vertex is decided by its wedges.
 - Intersections are only computed (a 2x2 linear system, ``_lies_behind_inner()``) when cheaper tests
