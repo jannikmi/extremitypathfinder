@@ -67,7 +67,7 @@ a visibility graph and is the state of the art for single queries, but it needs 
 and has no Python package. TřiVis [@mikula2024trivis] (C++) computes visibility graphs by triangular expansion,
 likewise on a triangulation. Grid planners such as A\* or Theta\* are simpler, but their paths are in general longer.
 
-In Python, the closest alternative is pyvisgraph [@pyvisgraph], unmaintained since 2020. It builds the complete
+In Python, the closest alternative is pyvisgraph [@pyvisgraph], which has had no release since 2018 and no commit since June 2018 (as of November 2026). It builds the complete
 visibility graph of all obstacle vertices with Lee's algorithm and searches it with Dijkstra's algorithm.
 Its implementation takes $O(n^3)$ in the worst case and has no boundary polygon. A contribution to pyvisgraph
 would have been a rewrite, because the reduction to extremities, the pruning of graph edges, the boundary polygon and touching polygons change its data model,
