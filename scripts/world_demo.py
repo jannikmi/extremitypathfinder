@@ -7,6 +7,8 @@ so that the visibility graph stays sparse and readable.
 Coordinates are longitude/latitude degrees used as planar coordinates (paths do not cross the antimeridian).
 The export is deterministic and has the dark mode colors of ``scripts/docs_figures.py``.
 
+The start and goal lie in the sea of the default map only (other vertex counts may need other points).
+
 usage: uv run --group benchmark python scripts/world_demo.py [-n VERTICES] [-o OUTPUT]
 """
 
@@ -40,6 +42,8 @@ STYLE = PlotStyle(
     path_width=2.2,
     outside_color=None,
 )
+# resolution of the embedded visibility graph image
+RASTER_DPI = 100
 # Antarctica is cropped
 LAT_RANGE = (-65.0, 85.0)
 
@@ -48,6 +52,11 @@ def demo(output: Path, nr_vertices: int = DEFAULT_NR_VERTICES):
     world = world_map.build_map(target_vertices=nr_vertices)
     holes = [np.array(hole) for hole in world["holes"]]
     environment = PolygonEnvironment(None, holes, validate=True)
+    for name, point in (("start", START), ("goal", GOAL)):
+        if not environment.within_map(np.array(point)):
+            raise SystemExit(
+                f"the {name} {point} is on land of this map: choose another number of vertices"
+            )
     path, length = environment.find_shortest_path(START, GOAL)
     print(
         f"world demo: path with {len(path)} points, length {length:.2f} degrees,"
@@ -56,10 +65,15 @@ def demo(output: Path, nr_vertices: int = DEFAULT_NR_VERTICES):
     )
     fig, ax = plt.subplots(figsize=(10.0, 5.0))
     draw(environment, path, ax=ax, style=STYLE)
+    # thousands of edges as vector paths would make the file megabytes large: embed the graph as image
+    for artist in ax.get_children():
+        if artist.get_gid() == "visibility-graph":
+            artist.set_rasterized(True)
     ax.set_axis_off()
     ax.set_xlim(-180.0, 180.0)
     ax.set_ylim(*LAT_RANGE)
-    export_svg(fig, output, dark_mode_css())
+    with plt.rc_context({"savefig.dpi": RASTER_DPI}):
+        export_svg(fig, output, dark_mode_css())
 
 
 def main(argv: list[str] | None = None):
