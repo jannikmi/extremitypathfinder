@@ -30,9 +30,9 @@ from benchmarks import world_map
 from extremitypathfinder import PolygonEnvironment
 from extremitypathfinder.plotting import PlotStyle, draw
 
-# (longitude, latitude), both in the sea: from the North Atlantic around Africa to the Tasman Sea
+# (longitude, latitude), both in the sea: from the North Atlantic around Africa to Japan
 START = (-30.0, 40.0)
-GOAL = (150.0, -40.0)
+GOAL = (145.0, 35.0)
 DEFAULT_NR_VERTICES = 2000
 # thin lines and small markers for the large extent
 STYLE = PlotStyle(

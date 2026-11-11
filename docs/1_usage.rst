@@ -409,7 +409,7 @@ The image at the top of this documentation and all other figures are made this w
 
 The same drawing works for real geometry: land masses are the obstacles, the sea is the free space.
 The environment below consists of simplified Natural Earth land polygons (the world map of the benchmarks),
-the path leads from the North Atlantic around Africa to the Tasman Sea
+the path leads from the North Atlantic around Africa through the Strait of Malacca to Japan
 (longitude/latitude are used as planar coordinates).
 ``scripts/world_demo.py`` generates the image.
 

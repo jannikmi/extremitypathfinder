@@ -3577,7 +3577,14 @@ z
 L 254.68861 114.325105
 L 308.925125 186.101575
 L 310.845575 187.159605
-L 512.94 195.19
+L 320.400085 185.80413
+L 444.457435 142.26122
+L 449.497105 131.110055
+L 450.418115 130.079925
+L 461.363905 122.45656
+L 469.54403 117.00645
+L 472.75997 113.758115
+L 505.19 78.94
 " clip-path="url(#pd1b8f180cc)" style="fill: none; stroke: #eb6834; stroke-width: 2.2; stroke-linecap: round"/>
    </g>
    <g id="start">
@@ -3609,7 +3616,7 @@ z
 " style="stroke: #eb6834"/>
     </defs>
     <g clip-path="url(#pd1b8f180cc)">
-     <use xlink:href="#mdf82eba70c" x="512.94" y="195.19" style="fill: #eb6834; stroke: #eb6834"/>
+     <use xlink:href="#mdf82eba70c" x="505.19" y="78.94" style="fill: #eb6834; stroke: #eb6834"/>
     </g>
    </g>
   </g>
