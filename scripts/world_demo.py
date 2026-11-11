@@ -24,7 +24,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 from docs_figures import OUTPUT_DIR, dark_mode_css, export_svg
 
-
 from benchmarks import world_map
 from extremitypathfinder import PolygonEnvironment
 from extremitypathfinder.plotting import PlotStyle, draw
@@ -35,7 +34,11 @@ GOAL = (150.0, -40.0)
 DEFAULT_NR_VERTICES = 500
 # thin lines and small markers for the large extent
 STYLE = PlotStyle(
-    graph_alpha=0.12, marker_size=2.0, line_width=0.5, path_width=2.2, outside_color=None
+    graph_alpha=0.12,
+    marker_size=2.0,
+    line_width=0.5,
+    path_width=2.2,
+    outside_color=None,
 )
 # Antarctica is cropped
 LAT_RANGE = (-65.0, 85.0)
@@ -62,7 +65,9 @@ def demo(output: Path, nr_vertices: int = DEFAULT_NR_VERTICES):
 def main(argv: list[str] | None = None):
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("-n", "--vertices", type=int, default=DEFAULT_NR_VERTICES)
-    parser.add_argument("-o", "--output", type=Path, default=OUTPUT_DIR / "demo_world.svg")
+    parser.add_argument(
+        "-o", "--output", type=Path, default=OUTPUT_DIR / "demo_world.svg"
+    )
     args = parser.parse_args(argv)
     demo(args.output, args.vertices)
 
