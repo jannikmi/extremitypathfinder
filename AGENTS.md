@@ -67,6 +67,7 @@ make release-check                 # build and validate the release artifacts
 | documentation, figures and this contributing guide | `docs/contributing/documentation.md` |
 | changelog entries | `docs/contributing/changelog.md` |
 | optimising | `docs/contributing/performance.md` |
+| the JOSS paper (`paper/`) | `docs/contributing/paper.md` |
 | releases (only when asked) | `docs/contributing/releasing.md` |
 | rules for AI-assisted work | `docs/contributing/ai-assisted-contributions.md` |
 | algorithms and design decisions | `docs/8_design.rst` |

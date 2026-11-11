@@ -1,12 +1,9 @@
-scrapyard.py
-playground.py
-tmp.py
+tmp*
 .pytest_cache
 .DS_Store
 plots/
 venv/
 map.pickle
-TODOs.txt
 # personal Claude Code settings and notes
 .claude/settings.local.json
 CLAUDE.local.md
@@ -125,3 +122,6 @@ target/
 benchmarks/data/
 benchmarks/results/raw/
 benchmarks/results/*.tmp
+
+# built locally with the JOSS Docker image (docs/contributing/paper.md)
+paper/paper.pdf

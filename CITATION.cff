@@ -10,6 +10,8 @@ abstract: >-
 authors:
   - given-names: Jannik
     family-names: Kissinger
+    orcid: "https://orcid.org/0000-0002-1819-6975"
+    alias: jannikmi
 version: 3.0.0
 date-released: 2026-10-29
 license: MIT
