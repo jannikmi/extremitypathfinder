@@ -14,8 +14,8 @@ What sets this package apart
 Not the raw speed: compiled tools (cf. `Other packages`_) are faster. What no other package offers together:
 
 - **Python first**: installable with ``pip``, only NumPy and NetworkX as dependencies,
-  optional Numba acceleration with identical results. The only other package on PyPI, pyvisgraph, is unmaintained
-  and returns wrong paths for some inputs (cf. `Other packages`_).
+  optional Numba acceleration with identical results. The only other package on PyPI, pyvisgraph, has been inactive
+  since 2018 and returns wrong paths for some inputs (cf. `Other packages`_).
 - **Real-world input as it is**: polygons may touch, overlap and intersect, a boundary polygon is optional,
   grids are converted. No triangulation, navigation mesh, merging or cleaning of the geometries is needed.
 - **Well-defined, tested behaviour at the edge cases**: contacts, points on edges and collinear vertices
@@ -54,7 +54,7 @@ Other packages
 
 `pyvisgraph <https://github.com/TaipanRex/pyvisgraph>`__ (Python, MIT)
     The closest alternative: pure Python, installable from PyPI.
-    **Unmaintained**: the last release (0.2.1) dates from 2018, the last commit from 2020.
+    **Inactive**: the last release (0.2.1) and the last commit date from 2018 (as of November 2026).
     Builds the complete visibility graph of all obstacle vertices with Lee's algorithm
     (optionally with multiple worker processes) and finds paths with Dijkstra's algorithm.
     Lee's algorithm takes :math:`O(n^2 \log n)` with a balanced tree of the edges. The implementation of pyvisgraph
