@@ -78,8 +78,11 @@ The optional ``numba`` extra installs Numba >=0.63,<1 (SciPy is not needed).
 Pip selects compatible versions; Numba may constrain
 NumPy more tightly than the ordinary installation.
 Acceleration depends on Numba/llvmlite platform support and adds installation
-size and initial compilation time. Standard, GIL-enabled CPython is tested;
-free-threaded builds and alternative interpreters are not covered by CI.
+size and initial compilation time.
+
+Free-threaded CPython 3.14 (``python3.14t``) is supported and tested in CI, with and without Numba,
+with the latest dependencies. All dependencies keep the GIL disabled, so queries can run in parallel threads
+(cf. :doc:`1_usage`). Other free-threaded versions and alternative interpreters are not covered by CI.
 
 See ``pyproject.toml`` for the complete dependency constraints.
 
