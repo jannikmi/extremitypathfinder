@@ -25,12 +25,20 @@ BREAKING: the plotting module (``extremitypathfinder.plotting``) has one consist
 BREAKING: environments pickled with 3.0 cannot be loaded anymore (changed attributes, pickle format version 5):
 recreate them. Loading them raises a ``ValueError`` explaining this.
 
-BREAKING: malformed input is always rejected with a clear error, also without ``validate=True`` and with ``verify=False``:
+BREAKING: the input is validated by default: ``PolygonEnvironment()``, ``from_grid()``, ``from_shapely()``
+and the command line interface use ``validate=True``. Input that violates the requirements
+(e.g. self intersecting polygons, collinear overlapping edges) previously gave wrong results without an error
+(e.g. no path although start and goal are in the free space) and now raises a ``ValueError`` naming the polygon
+and the location. The validation costs little compared to the preparation of the environment.
+Migration: repair the input (cf. the ``shapely.make_valid()`` recipe of the usage page)
+or pass ``validate=False`` to skip the validation for trusted input.
+
+BREAKING: malformed input is always rejected with a clear error, also with ``validate=False`` and with ``verify=False``:
 
 - polygons that are no list of at least 3 coordinate pairs (``TypeError``, also for ragged lists)
   or have non-finite coordinates (``ValueError``). The message names the polygon.
   Previously e.g. an empty boundary raised an ``IndexError`` and a boundary with 2 vertices was accepted.
-  The geometric requirements (e.g. no self intersections) are still only checked with ``validate=True``.
+  The geometric requirements (e.g. no self intersections) are checked by default and skipped with ``validate=False``.
 - start and goal points that do not consist of two values (``TypeError``) or are not finite (``ValueError``).
   Previously a point with three values raised an internal error and a ``nan`` coordinate with ``verify=False``
   gave a path of length ``nan``. ``distance_matrix()`` rejects non-finite points too.
@@ -173,7 +181,7 @@ internal:
   (the elimination of extremities "in front"), and transforms of the environments (scaling by powers of two gives
   identical results, shifts, scaling by 1/3 and rotations the same reachability and lengths within 1e-9).
 - audit of the core floating point decisions (angle representations, edge, point in polygon and orientation tests,
-  ``RAY_TOLERANCE``, ``_lies_behind_inner()``) against exact rational arithmetic (``prototypes/float_audit.py``, #3):
+  ``RAY_WINDOW``, ``_lies_behind_inner()``) against exact rational arithmetic (``prototypes/float_audit.py``, #3):
   no misdecisions when all coordinates are integers (tested in ``tests/test_exact_decisions.py``),
   the remaining ones lie within about one unit in the last place of a decision boundary
   (documented in the Numerical Policy of the design document).

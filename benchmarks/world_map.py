@@ -235,7 +235,7 @@ def check(polygons: list[Polygon], validate_epf: bool = False):
 
     The Shapely checks (simple polygons, pairwise disjoint) are fast and always run.
     :param validate_epf: additionally run the input validation of extremitypathfinder.
-        Redundant with the Shapely checks and slow on large maps (94 s at 20k vertices).
+        Redundant with the Shapely checks and fast.
     """
     for i, polygon in enumerate(polygons):
         coords = polygon.exterior.coords[:-1]
@@ -265,7 +265,7 @@ def build_map(
     :param resolution: the Natural Earth resolution. Default: the coarsest resolution
         with at least ``target_vertices`` vertices after the cleaning (110m without target).
     :param target_vertices: downsample to (at least) this number of vertices
-    :param validate_epf: also run the (slow) input validation of extremitypathfinder
+    :param validate_epf: also run the input validation of extremitypathfinder
     """
     if target_vertices is None:
         resolution = resolution or RESOLUTIONS[0]
@@ -316,7 +316,7 @@ def main(argv: list[str] | None = None):
     parser.add_argument(
         "--validate-epf",
         action="store_true",
-        help="also run the input validation of extremitypathfinder (slow on large maps)",
+        help="also run the input validation of extremitypathfinder (redundant with the Shapely checks)",
     )
     parser.add_argument("-o", "--output", type=Path, required=True)
     args = parser.parse_args(argv)

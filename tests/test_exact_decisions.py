@@ -162,7 +162,7 @@ def test_find_crossing_exactly(rng, monkeypatch, scale, max_pairs):
 
 
 def test_in_wedges_exactly_near_the_bounding_rays(rng):
-    """directions near a bounding ray are compared exactly (``RAY_TOLERANCE``)"""
+    """directions near a bounding ray are compared exactly (``RAY_WINDOW``)"""
     start, end = rng.integers(-LARGE, LARGE + 1, size=(2, NR_CASES, 2))
     factors = rng.integers(1, 100, size=NR_CASES)
     units = rng.integers(-1, 2, size=(NR_CASES, 2))
@@ -181,3 +181,35 @@ def test_in_wedges_exactly_near_the_bounding_rays(rng):
                     point.in_wedges(_rep(direction), direction, [(rep_a, rep_b)])
                     == expected
                 )
+
+
+# exactly collinear float vectors (cross product 0.0) whose representations differ in the last bit
+# (found by a search over random ray directions and integer factors, full precision)
+LAST_BIT_RAYS = [
+    (
+        np.array([2.9437902314850017, 2.307702229625077]),
+        np.array([100.08886787049006, 78.46187580725262]),
+    ),
+    (
+        np.array([7.798711114410413, 6.44747655086141]),
+        np.array([374.3381334916998, 309.47887444134767]),
+    ),
+    (
+        np.array([0.25517446524156107, 8.582084415940123]),
+        np.array([3.572442513381855, 120.14918182316173]),
+    ),
+]
+
+
+@pytest.mark.parametrize(("ray", "same"), LAST_BIT_RAYS)
+def test_in_wedges_collinear_last_bit(ray, same):
+    """a direction exactly on a bounding ray lies in the closure of its wedge, even if its own representation
+    differs from the ray's in the last bit (``RAY_WINDOW``, ``Point.rep()``)"""
+    assert ray[0] * same[1] - ray[1] * same[0] == 0.0
+    rep = _rep(ray)
+    assert _rep(same) != rep
+    point = Point(0, 2, set(), [], None, [(ray, rep)])
+    same_rep = _rep(same)
+    # the ray is the end of the first wedge and the start of the second
+    assert point.in_wedges(same_rep, same, [(rep - 0.25, rep)])
+    assert point.in_wedges(same_rep, same, [(rep, rep + 0.25)])
