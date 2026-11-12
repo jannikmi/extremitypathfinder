@@ -870,13 +870,13 @@ def render_tables(results: dict) -> dict[str, str]:
             ]
         else:
             row += ["–"] * 2
-        if has_build_results(epf) and has_build_results(pvg):
-            row.append(f"{pvg['graph_edges'] / epf['graph_edges']:.3g}")
+        # the edges of an invalid graph are wrong: no ratio and no cost per edge from it
+        edges_epf = epf.get("graph_edges") if is_ok(epf) else None
+        edges_pvg = pvg.get("graph_edges") if is_ok(pvg) else None
+        row.append(f"{edges_pvg / edges_epf:.3g}" if edges_pvg and edges_epf else "–")
+        for r, edges in ((epf, edges_epf), (pvg, edges_pvg)):
             # time per edge: the cost of finding one edge of the graph
-            row.append(f"{epf['build_time'] / epf['graph_edges'] * 1e6:.3g}")
-            row.append(f"{pvg['build_time'] / pvg['graph_edges'] * 1e6:.3g}")
-        else:
-            row += ["–"] * 3
+            row.append(f"{r['build_time'] / edges * 1e6:.3g}" if edges else "–")
         rows.append(row)
     tables["benchmark_graph.rst"] = note + _list_table(
         "Graph size: nodes, edges and build time per edge",

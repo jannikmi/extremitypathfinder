@@ -306,8 +306,10 @@ def test_invalid_runs_show_build_results_but_no_query_results():
     assert "pyvisgraph" not in tables["benchmark_query.rst"].split("Queries\n", 1)[1]
     # graph size: the extremities of the package, the edge ratio and the time per edge (2 s / 6 edges, 2 s / 4 edges)
     graph = tables["benchmark_graph.rst"]
-    assert "     - 1.5\n" in graph  # edge ratio pyvisgraph / extremitypathfinder
-    assert "(invalid)" in graph
+    # the edges of the invalid graph are marked, no ratio and no time per edge from them
+    assert "6 (invalid)" in graph
+    # the cells after the pyvisgraph edges per vertex: edge ratio, time per edge of extremitypathfinder and pyvisgraph
+    assert graph.endswith("     - 1.5\n     - –\n     - 3.33e+05\n     - –\n")
 
 
 def _system_meta():

@@ -264,23 +264,18 @@ def ratio(results: dict, path: Path):
 
 
 def graph_size(results: dict, path: Path):
-    """edges of the graph over the vertices: the amount of work of the queries (every search touches them)"""
+    """edges of the graph over the vertices (valid graphs only: an invalid graph has wrong edges)"""
     fig, ax = _new_axes(results, "edges of the visibility graph")
+    series = {}
     for package in COMPARED_PACKAGES:
-        _line(
-            ax,
-            *_ok_points(results, package, lambda r: r["graph_edges"], BUILT),
-            package,
-            label=ADAPTERS[package].label,
-        )
-    # references: linear and quadratic growth through the smallest map
-    vertices = [e["map"]["vertices"] for e in results["world"]]
-    if vertices:
-        n0, n1 = min(vertices), max(vertices)
-        pvg_edges = _ok_points(
-            results, "pyvisgraph", lambda r: r["graph_edges"], BUILT
-        )[1]
-        e0 = pvg_edges[0] if pvg_edges else n0
+        xs, ys = _ok_points(results, package, lambda r: r["graph_edges"])
+        series[package] = (xs, ys)
+        _line(ax, xs, ys, package, label=ADAPTERS[package].label)
+    # references: linear and quadratic growth through the first point of the first series
+    anchor = next(((xs[0], ys[0], xs[-1]) for xs, ys in series.values() if xs), None)
+    if anchor:
+        n0, e0, n1 = anchor
+        n1 = max(n1, *(xs[-1] for xs, _ in series.values() if xs))
         for exponent in (1, 2):
             ax.plot(
                 [n0, n1],
@@ -308,8 +303,10 @@ def build_time_over_edges(results: dict, path: Path):
     fig, ax = _new_axes(results, "build time (s)")
     ax.set_xlabel("edges of the visibility graph")
     for package in COMPARED_PACKAGES:
-        edges = _ok_points(results, package, lambda r: r["graph_edges"], BUILT)[1]
-        times = _ok_points(results, package, lambda r: r["build_time"], BUILT)[1]
+        pairs = _ok_points(
+            results, package, lambda r: (r["graph_edges"], r["build_time"])
+        )[1]
+        edges, times = [p[0] for p in pairs], [p[1] for p in pairs]
         # legend instead of direct labels: the line ends are close together
         _line(ax, edges, times, package, label=ADAPTERS[package].label)
     ax.set_title("Build time over the graph edges")

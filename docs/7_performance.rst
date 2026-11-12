@@ -89,13 +89,17 @@ Speed
    Amount of work: edges of the visibility graph. ``extremitypathfinder`` keeps only the extremities as nodes and
    only the edges between them; ``pyvisgraph`` connects every vertex. The dotted lines show linear and quadratic growth.
 
+.. benchmark-derived: the comparison of the cost per edge. Update this text with every full benchmark run
+   (docs/contributing/performance.md, "After a full run").
+
 .. figure:: _static/benchmark_build_time_edges.svg
    :width: 100%
    :alt: build time over the edges of the visibility graph, log-log, one line per package
 
    Build time over the edges of the graph (see the table below for the time per edge).
-   Both lines have a similar slope, but at larger sizes ``extremitypathfinder`` takes longer per edge:
-   its lower build time comes from the smaller graph, not from a cheaper edge.
+   Graphs with invalid edges are left out. Where both graphs are valid (up to 2,000 vertices),
+   the build time per edge of the two packages is about the same:
+   the lower build time of ``extremitypathfinder`` comes from the smaller graph, not from a cheaper edge.
 
 .. include:: ../benchmarks/results/benchmark_graph.rst
 
