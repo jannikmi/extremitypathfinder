@@ -376,3 +376,50 @@ def _crossing_segments(seed: int):
 def test_find_visible_crossing_edges_many_candidates(seed):
     args = _crossing_segments(seed)
     assert utils.find_visible(*args) == find_visible_brute_force(*args)
+
+
+def _near_tie_segments(seed: int):
+    """crossing segments and candidates on an integer grid, moved by a few ulps
+
+    Edges (nearly) touch each other and the candidates, so that the distances compared when entering edges into the
+    tree (cf. ``li_chao_tree.blocked_candidates()``) agree up to rounding.
+    """
+    rng = np.random.default_rng(seed)
+    nr_segments = int(rng.integers(20, 80))
+    nr_candidates = int(rng.integers(100, 600))
+
+    def jitter(points):
+        ulps = rng.integers(-3, 4, size=points.shape) * (
+            rng.random(points.shape) < 0.5
+        )
+        return points + ulps * np.spacing(np.abs(points) + 1)
+
+    segments = jitter(rng.integers(-6, 7, size=(2 * nr_segments, 2)).astype(float))
+    candidate_coords = jitter(rng.integers(-6, 7, size=(nr_candidates, 2)).astype(float))
+    coords = np.concatenate([segments, candidate_coords, [[0.5, 0.25]]])
+    origin = len(coords) - 1
+    edge_vertex_idxs = np.arange(2 * nr_segments).reshape(nr_segments, 2)
+    representations, distances = utils.cmp_reps_n_distances(origin, coords)
+    edges = {
+        edge
+        for edge, (v1, v2) in enumerate(edge_vertex_idxs)
+        if abs(representations[v1] - representations[v2]) != 2.0
+        and not np.array_equal(coords[v1], coords[v2])
+    }
+    candidates = {i for i in range(2 * nr_segments, origin) if distances[i] != 0.0}
+    return (
+        origin,
+        candidates,
+        edges,
+        coords,
+        representations,
+        distances,
+        edge_vertex_idxs,
+        {},
+    )
+
+
+@pytest.mark.parametrize("seed", range(100))
+def test_find_visible_near_ties(seed):
+    args = _near_tie_segments(seed)
+    assert utils.find_visible(*args) == find_visible_brute_force(*args)

@@ -297,7 +297,11 @@ EDGE_A = 0
 EDGE_B = 1
 EDGE_NUMERATOR = 2
 EDGE_MAX_DIST = 3  # the maximum distance of its vertices
-EDGE_MIN_DIST = 4  # a lower bound of its distance: the distance of its line
+EDGE_MIN_DIST = 4  # a lower bound of its distance: the distance of its line (less a rounding margin)
+# Relative margin of ``EDGE_MIN_DIST``: an edge is only dropped as hidden behind another edge when it is farther
+# away than the rounding errors of both distances (a few ulps) can explain. It only makes the pruning more
+# conservative and does not change which candidates are blocked.
+MIN_DIST_MARGIN = 16 * np.finfo(np.float64).eps
 CANDIDATE_X = 0  # the coordinates relative to the origin
 CANDIDATE_Y = 1
 CANDIDATE_DIST = 2
@@ -365,7 +369,7 @@ def compute_edge_terms(
     numerator = a * p1[:, 1] - b * p1[:, 0]
     # an edge is at least as far away as its line
     with np.errstate(invalid="ignore", divide="ignore"):
-        min_dist = np.abs(numerator) / np.hypot(a, b)
+        min_dist = np.abs(numerator) / np.hypot(a, b) * (1.0 - MIN_DIST_MARGIN)
     return np.column_stack([a, b, numerator, edges_max_dist, min_dist])
 
 
