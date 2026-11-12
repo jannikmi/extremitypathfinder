@@ -344,16 +344,12 @@ def _complexity_figure(results: dict, path: Path, kind: str, title: str):
         data, _ = complexity.series(results, kind, package)
         if not data:
             continue
-        first = data[0]
-        base = worst(first["vertices"], first["extremities"] or 0, first["edges"] or 0)
+        terms = [
+            worst(r["vertices"], r["extremities"] or 0, r["edges"] or 0) for r in data
+        ]
         ax.plot(
             [r["vertices"] for r in data],
-            [
-                first["time"]
-                * worst(r["vertices"], r["extremities"] or 0, r["edges"] or 0)
-                / base
-                for r in data
-            ],
+            [data[0]["time"] * term / terms[0] for term in terms],
             color=STYLE[package]["color"],
             linestyle=":",
             linewidth=1,
