@@ -35,7 +35,7 @@ The Markdown files are read on GitHub and in the HTML documentation, so links mu
   sizes, counts of tested inputs and the like go stale. Describe the result qualitatively (e.g. "within the noise",
   "much faster") and refer to the issue or pull request with the measurements. The numbers belong there (cf.
   [Performance](performance.md)), in the changelog entry of a release (a record of that release) and in the
-  generated benchmark tables and figures, which are rendered again with every full run.
+  rendered benchmark pages (tables and figures), which are generated again with every full run and carry exact numbers.
   The same holds for other exact figures (supported versions, ...): refer to their source (e.g. `pyproject.toml`).
   Mark text derived from the benchmark results, so that it is updated with them
   (cf. [After a full run](performance.md#after-a-full-run)).
