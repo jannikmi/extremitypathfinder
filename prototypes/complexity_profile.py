@@ -19,7 +19,7 @@ environments:
 
 FINDINGS (November 2026, Apple M-series, Python 3.14, graph time in seconds):
 
-* the tree over the candidates (#216, ``utils_numba._blocked_candidates()``) bounds the worst case.
+* the tree over the candidates (#216, ``li_chao_tree.blocked_candidates()``) bounds the worst case.
   ``worst``, n = 804 / 1604 / 3204 vertices, before -> after:
   with Numba 3.7 -> 1.2, 23.9 -> 4.7, 169.8 -> 18.5; without Numba 9.5 -> 2.7, 69.1 -> 15.5.
   Before, the graph time grew with n^2.7 to n^2.8, now with n^2.0 (the number of pairs of extremities).

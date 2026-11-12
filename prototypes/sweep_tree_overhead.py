@@ -28,9 +28,9 @@ from O(n log n + n k) to O((n + k) log n), but
 * AREA only loses on adversarial maps, with more than about 10 checks per candidate (measured: 1.5 to 2.3).
 
 The worst case was bounded differently, within AREA: a tree over the candidates keeps the closest edges
-(``utils_numba._blocked_candidates()``, measurements in ``complexity_profile.py``). It needs no order of the edges
+(``li_chao_tree.blocked_candidates()``, measurements in ``complexity_profile.py``). It needs no order of the edges
 along a ray, so crossing edges are no problem, and it is compiled by Numba.
-The times of AREA above were measured before that change.
+The times of AREA above were measured before that change, which only made AREA faster on the measured maps.
 
 usage:
     uv run --with sortedcontainers python prototypes/sweep_tree_overhead.py
