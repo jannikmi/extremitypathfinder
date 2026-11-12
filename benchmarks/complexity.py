@@ -5,13 +5,15 @@ The terms are the ``O(...)`` expressions without the constant factor, with ``n``
 They are defined here only in code: update them here when the complexities change, and the text of
 ``docs/7_performance.rst`` (cf. the ``benchmark-derived`` directive there).
 
-* extremitypathfinder: typical case of ``docs/8_design.rst`` ("Complexity and Memory"),
-  build ``m n log n`` for the visibility graph plus ``n^2`` for the wedges,
-  query ``n log n + m`` for the visibility of start and goal plus ``E log E`` for the A* search.
+* extremitypathfinder: ``docs/8_design.rst`` ("Complexity and Memory"). Typical case: build ``m n log n``
+  for the visibility graph plus ``n^2`` for the wedges, query ``n log n + m`` for the visibility of start and goal
+  plus ``E log E`` for the A* search. Worst case (many edges spanning the directions of many extremities,
+  AREA with a tree over the candidates): ``m n log^2 n`` and ``n log^2 n``.
 * pyvisgraph: Lee's rotational sweep, build ``n^2 log n``. A query computes the visibility of start and goal
   (two sweeps, ``n log n`` each) and runs a heap based Dijkstra, ``E log n``
   (derived from the source of pyvisgraph 0.2.1).
-  The implementation takes ``n^3`` in the worst case (``docs/8_design.rst``), shown as a reference.
+  The implementation takes ``n^3`` in the worst case (``docs/8_design.rst``).
+  The worst cases (``WORST_CASE``) are shown as references.
 
 The terms carry no constants: they say how the work grows, not how fast an implementation is.
 :func:`series` fits one constant per package (at its smallest map) to put the terms on the scale of the measured times.
@@ -43,8 +45,23 @@ TERMS: dict[str, dict[str, tuple[str, Term]]] = {
         ),
     },
 }
-# reference: the worst case of the implementation of pyvisgraph
-PVG_WORST_CASE_BUILD = ("n³", lambda n: n**3)
+# reference: the documented worst cases (``docs/8_design.rst``, "Complexity and Memory"). Only the terms the
+# documentation states: the worst case of the visibility of a query point of pyvisgraph is not stated
+WORST_CASE: dict[str, dict[str, tuple[str, Term]]] = {
+    "build": {
+        EPF: (
+            "m·n·log² n + n²",
+            lambda n, m, e: m * n * math.log2(n) ** 2 + n * n,
+        ),
+        PVG: ("n³", lambda n, m, e: n**3),
+    },
+    "query": {
+        EPF: (
+            "n·log² n + m + E·log E",
+            lambda n, m, e: n * math.log2(n) ** 2 + m + e * math.log2(e),
+        ),
+    },
+}
 # build: invalid runs built a complete graph (their time is valid), the query terms need the valid graph edges
 STATUSES = {"build": (measure.OK, measure.INVALID), "query": (measure.OK,)}
 

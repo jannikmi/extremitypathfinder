@@ -806,6 +806,15 @@ L 207.159145 85.027494
 L 274.660965 47.744594
 " clip-path="url(#p1d495328c7)" style="fill: none; stroke: #eb6834; stroke-opacity: 0.7; stroke-width: 1.5; stroke-linecap: square"/>
    </g>
+   <g id="line2d_47">
+    <path d="M 72.0569 221.296428
+L 138.919032 189.902119
+L 207.159145 158.754373
+L 274.660965 130.188468
+L 363.921044 95.838908
+L 432.00271 50.238599
+" clip-path="url(#p1d495328c7)" style="fill: none; stroke-dasharray: 1,1.65; stroke-dashoffset: 0; stroke: #2a78d6"/>
+   </g>
    <g id="patch_3">
     <path d="M 54.059609 230.480781
 L 54.059609 28.425
@@ -1030,14 +1039,14 @@ z
     </g>
    </g>
    <g id="legend_1">
-    <g id="line2d_47">
+    <g id="line2d_48">
      <g>
-      <use xlink:href="#mf38168bcb1" x="293.717344" y="184.133125" style="fill: #2a78d6; stroke: #2a78d6"/>
+      <use xlink:href="#mf38168bcb1" x="252.492813" y="172.163398" style="fill: #2a78d6; stroke: #2a78d6"/>
      </g>
     </g>
     <g id="text_8">
      <!-- extremitypathfinder, measured -->
-     <g transform="translate(306.317344 186.583125) scale(0.07 -0.07)">
+     <g transform="translate(265.092813 174.613398) scale(0.07 -0.07)">
       <defs>
        <path id="Inter-Regular-5df" d="M 400 -1122
 L 831 -1122
@@ -1078,15 +1087,15 @@ z
       <use xlink:href="#Inter-Regular-256" transform="translate(1389.890625 0)"/>
      </g>
     </g>
-    <g id="line2d_48">
-     <path d="M 286.717344 196.102852
-L 293.717344 196.102852
-L 300.717344 196.102852
+    <g id="line2d_49">
+     <path d="M 245.492813 184.133125
+L 252.492813 184.133125
+L 259.492813 184.133125
 " style="fill: none; stroke: #2a78d6; stroke-opacity: 0.7; stroke-width: 1.5; stroke-linecap: square"/>
     </g>
     <g id="text_9">
      <!-- extremitypathfinder: n·log n + m + E·log E -->
-     <g transform="translate(306.317344 198.552852) scale(0.07 -0.07)">
+     <g transform="translate(265.092813 186.583125) scale(0.07 -0.07)">
       <defs>
        <path id="Inter-Regular-5e7" d="M 922 1791
 C 1156 1791 1344 1978 1344 2213
@@ -1209,14 +1218,14 @@ z
       <use xlink:href="#Inter-Regular-5f" transform="translate(1902.5 0)"/>
      </g>
     </g>
-    <g id="line2d_49">
+    <g id="line2d_50">
      <g>
-      <use xlink:href="#me1a7f0d4ed" x="293.717344" y="208.072578" style="fill: #eb6834; stroke: #eb6834; stroke-linejoin: miter"/>
+      <use xlink:href="#me1a7f0d4ed" x="252.492813" y="196.102852" style="fill: #eb6834; stroke: #eb6834; stroke-linejoin: miter"/>
      </g>
     </g>
     <g id="text_10">
      <!-- pyvisgraph, measured -->
-     <g transform="translate(306.317344 210.522578) scale(0.07 -0.07)">
+     <g transform="translate(265.092813 198.552852) scale(0.07 -0.07)">
       <use xlink:href="#Inter-Regular-34d"/>
       <use xlink:href="#Inter-Regular-3e8" transform="translate(59.28125 0)"/>
       <use xlink:href="#Inter-Regular-3d6" transform="translate(115.484375 0)"/>
@@ -1239,15 +1248,15 @@ z
       <use xlink:href="#Inter-Regular-256" transform="translate(990.328125 0)"/>
      </g>
     </g>
-    <g id="line2d_50">
-     <path d="M 286.717344 220.042305
-L 293.717344 220.042305
-L 300.717344 220.042305
+    <g id="line2d_51">
+     <path d="M 245.492813 208.072578
+L 252.492813 208.072578
+L 259.492813 208.072578
 " style="fill: none; stroke: #eb6834; stroke-opacity: 0.7; stroke-width: 1.5; stroke-linecap: square"/>
     </g>
     <g id="text_11">
      <!-- pyvisgraph: 2·n·log n + E·log n -->
-     <g transform="translate(306.317344 222.492305) scale(0.07 -0.07)">
+     <g transform="translate(265.092813 210.522578) scale(0.07 -0.07)">
       <use xlink:href="#Inter-Regular-34d"/>
       <use xlink:href="#Inter-Regular-3e8" transform="translate(59.28125 0)"/>
       <use xlink:href="#Inter-Regular-3d6" transform="translate(115.484375 0)"/>
@@ -1281,9 +1290,115 @@ L 300.717344 220.042305
       <use xlink:href="#Inter-Regular-307" transform="translate(1376.484375 0)"/>
      </g>
     </g>
+    <g id="line2d_52">
+     <path d="M 245.492813 220.042305
+L 252.492813 220.042305
+L 259.492813 220.042305
+" style="fill: none; stroke-dasharray: 1,1.65; stroke-dashoffset: 0; stroke: #2a78d6"/>
+    </g>
+    <g id="text_12">
+     <!-- extremitypathfinder worst case: n·log² n + m + E·log E -->
+     <g transform="translate(265.092813 222.492305) scale(0.07 -0.07)">
+      <defs>
+       <path id="Inter-Regular-3da" d="M 1278 0
+L 1838 0
+L 2291 1581
+C 2403 1972 2513 2409 2619 2853
+C 2725 2406 2831 1981 2947 1581
+L 3400 0
+L 3959 0
+L 5019 3494
+L 4422 3494
+L 3997 1969
+C 3891 1588 3775 1147 3659 613
+C 3550 1153 3438 1597 3338 1969
+L 2925 3494
+L 2325 3494
+L 1906 1969
+C 1800 1581 1688 1134 1575 603
+C 1459 1159 1341 1603 1241 1969
+L 816 3494
+L 219 3494
+L 1278 0
+z
+" transform="scale(0.015625)"/>
+       <path id="Inter-Regular-647" d="M 369 2806
+L 2491 2806
+L 2491 3241
+L 1125 3241
+L 1125 3263
+L 1603 3609
+C 2288 4106 2409 4356 2409 4634
+C 2409 5069 2000 5375 1372 5375
+C 772 5375 350 5066 350 4591
+L 869 4591
+C 869 4816 1072 4956 1369 4956
+C 1656 4956 1878 4816 1878 4591
+C 1878 4403 1731 4269 1431 4031
+L 369 3191
+L 369 2806
+z
+" transform="scale(0.015625)"/>
+      </defs>
+      <use xlink:href="#Inter-Regular-267"/>
+      <use xlink:href="#Inter-Regular-3e3" transform="translate(56.046875 0)"/>
+      <use xlink:href="#Inter-Regular-37b" transform="translate(112.59375 0)"/>
+      <use xlink:href="#Inter-Regular-356" transform="translate(145.3125 0)"/>
+      <use xlink:href="#Inter-Regular-267" transform="translate(181.296875 0)"/>
+      <use xlink:href="#Inter-Regular-300" transform="translate(239.59375 0)"/>
+      <use xlink:href="#Inter-Regular-2b2" transform="translate(327.1875 0)"/>
+      <use xlink:href="#Inter-Regular-37b" transform="translate(351.40625 0)"/>
+      <use xlink:href="#Inter-Regular-3e8" transform="translate(386.078125 0)"/>
+      <use xlink:href="#Inter-Regular-34d" transform="translate(442.28125 0)"/>
+      <use xlink:href="#Inter-Regular-1fc" transform="translate(504.5 0)"/>
+      <use xlink:href="#Inter-Regular-37b" transform="translate(560.65625 0)"/>
+      <use xlink:href="#Inter-Regular-29f" transform="translate(593.375 0)"/>
+      <use xlink:href="#Inter-Regular-288" transform="translate(652.5 0)"/>
+      <use xlink:href="#Inter-Regular-2b2" transform="translate(689.515625 0)"/>
+      <use xlink:href="#Inter-Regular-307" transform="translate(713.734375 0)"/>
+      <use xlink:href="#Inter-Regular-256" transform="translate(772.8125 0)"/>
+      <use xlink:href="#Inter-Regular-267" transform="translate(834.046875 0)"/>
+      <use xlink:href="#Inter-Regular-356" transform="translate(892.34375 0)"/>
+      <use xlink:href="#Inter-Regular-6eb" transform="translate(929.984375 0)"/>
+      <use xlink:href="#Inter-Regular-3da" transform="translate(958.109375 0)"/>
+      <use xlink:href="#Inter-Regular-318" transform="translate(1038.140625 0)"/>
+      <use xlink:href="#Inter-Regular-356" transform="translate(1098.109375 0)"/>
+      <use xlink:href="#Inter-Regular-369" transform="translate(1135.75 0)"/>
+      <use xlink:href="#Inter-Regular-37b" transform="translate(1188.53125 0)"/>
+      <use xlink:href="#Inter-Regular-6eb" transform="translate(1221.25 0)"/>
+      <use xlink:href="#Inter-Regular-24b" transform="translate(1249.375 0)"/>
+      <use xlink:href="#Inter-Regular-1fc" transform="translate(1307.484375 0)"/>
+      <use xlink:href="#Inter-Regular-369" transform="translate(1363.640625 0)"/>
+      <use xlink:href="#Inter-Regular-267" transform="translate(1416.421875 0)"/>
+      <use xlink:href="#Inter-Regular-5e3" transform="translate(1474.71875 0)"/>
+      <use xlink:href="#Inter-Regular-6eb" transform="translate(1503.53125 0)"/>
+      <use xlink:href="#Inter-Regular-307" transform="translate(1531.65625 0)"/>
+      <use xlink:href="#Inter-Regular-5e7" transform="translate(1590.734375 0)"/>
+      <use xlink:href="#Inter-Regular-2e2" transform="translate(1619.546875 0)"/>
+      <use xlink:href="#Inter-Regular-318" transform="translate(1643.765625 0)"/>
+      <use xlink:href="#Inter-Regular-293" transform="translate(1703.734375 0)"/>
+      <use xlink:href="#Inter-Regular-647" transform="translate(1765.0625 0)"/>
+      <use xlink:href="#Inter-Regular-6eb" transform="translate(1809.25 0)"/>
+      <use xlink:href="#Inter-Regular-307" transform="translate(1837.375 0)"/>
+      <use xlink:href="#Inter-Regular-6eb" transform="translate(1896.453125 0)"/>
+      <use xlink:href="#Inter-Regular-5f4" transform="translate(1924.578125 0)"/>
+      <use xlink:href="#Inter-Regular-6eb" transform="translate(1990.734375 0)"/>
+      <use xlink:href="#Inter-Regular-300" transform="translate(2018.859375 0)"/>
+      <use xlink:href="#Inter-Regular-6eb" transform="translate(2106.453125 0)"/>
+      <use xlink:href="#Inter-Regular-601" transform="translate(2134.578125 0)"/>
+      <use xlink:href="#Inter-Regular-6eb" transform="translate(2200.734375 0)"/>
+      <use xlink:href="#Inter-Regular-5f" transform="translate(2228.859375 0)"/>
+      <use xlink:href="#Inter-Regular-5e7" transform="translate(2288.96875 0)"/>
+      <use xlink:href="#Inter-Regular-2e2" transform="translate(2317.78125 0)"/>
+      <use xlink:href="#Inter-Regular-318" transform="translate(2342 0)"/>
+      <use xlink:href="#Inter-Regular-293" transform="translate(2401.96875 0)"/>
+      <use xlink:href="#Inter-Regular-6eb" transform="translate(2463.296875 0)"/>
+      <use xlink:href="#Inter-Regular-5f" transform="translate(2491.421875 0)"/>
+     </g>
+    </g>
    </g>
   </g>
-  <g id="text_12">
+  <g id="text_13">
    <!-- Apple M1 Pro, Python 3.14.2, extremitypathfinder 3.0.0 (Numba), pyvisgraph 0.2.1 -->
    <g style="fill: #52514e" transform="translate(4.608 285.12) scale(0.07 -0.07)">
     <defs>

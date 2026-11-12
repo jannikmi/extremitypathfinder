@@ -339,20 +339,26 @@ def _complexity_figure(results: dict, path: Path, kind: str, title: str):
             alpha=0.7,
             label=f"{name}: {complexity.TERMS[kind][package][0]}",
         )
-    if kind == "build":
-        data, c = complexity.series(results, kind, "pyvisgraph")
-        if data:
-            formula, worst = complexity.PVG_WORST_CASE_BUILD
-            n0 = data[0]["vertices"]
-            xs = [r["vertices"] for r in data]
-            ax.plot(
-                xs,
-                [data[0]["time"] * worst(x) / worst(n0) for x in xs],
-                color=TEXT_SECONDARY,
-                linestyle=":",
-                linewidth=1,
-                label=f"pyvisgraph worst case: {formula}",
-            )
+    # the documented worst cases, anchored at the first measured point: only the slopes can be compared
+    for package, (formula, worst) in complexity.WORST_CASE[kind].items():
+        data, _ = complexity.series(results, kind, package)
+        if not data:
+            continue
+        first = data[0]
+        base = worst(first["vertices"], first["extremities"] or 0, first["edges"] or 0)
+        ax.plot(
+            [r["vertices"] for r in data],
+            [
+                first["time"]
+                * worst(r["vertices"], r["extremities"] or 0, r["edges"] or 0)
+                / base
+                for r in data
+            ],
+            color=STYLE[package]["color"],
+            linestyle=":",
+            linewidth=1,
+            label=f"{ADAPTERS[package].label} worst case: {formula}",
+        )
     ax.set_title(title)
     _finish(fig, ax, results, path, loc="lower right", fontsize=7)
 

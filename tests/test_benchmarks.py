@@ -748,3 +748,23 @@ def test_complexity_rows_robustness():
     results = _complexity_results()
     results["world"][0]["results"]["extremitypathfinder"]["status"] = "invalid"
     assert complexity.rows(results, "query", complexity.PVG) == []
+
+
+def test_complexity_worst_case_references():
+    import math
+
+    from benchmarks import complexity
+
+    # the documented worst cases: m n log^2 n + n^2 (build) and n log^2 n + m + E log E (query) of extremitypathfinder
+    _, build = complexity.WORST_CASE["build"][complexity.EPF]
+    assert build(16, 8, 20) == 8 * 16 * math.log2(16) ** 2 + 16 * 16
+    _, query = complexity.WORST_CASE["query"][complexity.EPF]
+    assert query(16, 8, 20) == 16 * math.log2(16) ** 2 + 8 + 20 * math.log2(20)
+    # the worst case is never below the typical case
+    for kind in ("build", "query"):
+        typical = complexity.TERMS[kind][complexity.EPF][1]
+        worst = complexity.WORST_CASE[kind][complexity.EPF][1]
+        assert worst(100, 50, 200) >= typical(100, 50, 200)
+    # pyvisgraph: n^3 for the build, no documented worst case for the query
+    assert complexity.WORST_CASE["build"][complexity.PVG][1](10, 0, 0) == 1000
+    assert complexity.PVG not in complexity.WORST_CASE["query"]
