@@ -135,6 +135,10 @@ other changes:
   Polygons with the opposite numbering are reversed into the internal convention (boundary counter clockwise,
   holes clockwise), also in ``boundary_polygon`` and ``holes``. Previously wrongly numbered polygons
   raised a ``ValueError`` with ``validate=True`` and gave wrong results without validation.
+- official support of free-threaded CPython 3.14 (``python3.14t``, #254), with and without Numba:
+  queries on one environment can run in parallel threads, without the GIL. CI tests it and checks that no
+  dependency re-enables the GIL. A new test checks that queries from several threads on one environment
+  give the same results as sequential ones (also with the GIL).
 - documentation: new demo image (SVG, adapts to dark mode) and all figures regenerated with the new plotting functions
   (SVG instead of PNG). ``scripts/docs_figures.py`` generates them.
 - documentation: improved README and documentation landing page (features, quick start, navigation).
