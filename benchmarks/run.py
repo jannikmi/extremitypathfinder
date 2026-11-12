@@ -30,7 +30,7 @@ import time
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 
-from benchmarks import measure, validate, workloads, world_map
+from benchmarks import complexity, measure, validate, workloads, world_map
 from benchmarks.adapters import ADAPTERS, NO_NUMBA, OWN_PACKAGES, PACKAGES
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -775,6 +775,45 @@ def system_summary(meta: dict) -> str:
     )
 
 
+def _complexity_table(results: dict) -> str:
+    """the complexity terms per map and the ratio pyvisgraph / extremitypathfinder of terms and measured times"""
+    cells = {}
+    for kind in complexity.TERMS:
+        for package in (complexity.EPF, complexity.PVG):
+            for r in complexity.rows(results, kind, package):
+                cells[kind, package, r["vertices"]] = r["term"]
+        for r in complexity.ratios(results, kind):
+            cells[kind, "ratio", r["vertices"]] = r["term"]
+            cells[kind, "measured", r["vertices"]] = r["time"]
+
+    def cell(*key, fmt):
+        return fmt(cells[key]) if key in cells else "–"
+
+    rows = []
+    for e in results["world"]:
+        n = e["map"]["vertices"]
+        row = [f"{n:,}"]
+        for kind in complexity.TERMS:
+            row += [
+                cell(kind, complexity.EPF, n, fmt=lambda x: f"{x:.3g}"),
+                cell(kind, complexity.PVG, n, fmt=lambda x: f"{x:.3g}"),
+                cell(kind, "ratio", n, fmt=lambda x: f"{x:.2f}"),
+                cell(kind, "measured", n, fmt=lambda x: f"{x:.2f}"),
+            ]
+        rows.append(row)
+    header = ["Vertices"]
+    for kind in complexity.TERMS:
+        header += [
+            f"{kind.capitalize()} term extremitypathfinder ({complexity.TERMS[kind][complexity.EPF][0]})",
+            f"{kind.capitalize()} term pyvisgraph ({complexity.TERMS[kind][complexity.PVG][0]})",
+            f"{kind.capitalize()} term ratio pyvisgraph / extremitypathfinder",
+            f"{kind.capitalize()} measured ratio pyvisgraph / extremitypathfinder",
+        ]
+    return _list_table(
+        "Complexity terms (without constants) and measured time ratios", header, rows
+    )
+
+
 def render_tables(results: dict) -> dict[str, str]:
     """the RST tables of the results: file name -> content"""
     note = _note(results)
@@ -846,6 +885,56 @@ def render_tables(results: dict) -> dict[str, str]:
         ],
         rows,
     )
+
+    rows = []
+    for e in world:
+        epf = e["results"].get("extremitypathfinder", {})
+        pvg = e["results"].get("pyvisgraph", {})
+        vertices = e["map"]["vertices"]
+        row = [f"{vertices:,}"]
+        if has_build_results(epf):
+            # the nodes of the graph are the extremities: the vertices a shortest path can turn at
+            row += [
+                f"{epf['graph_nodes']:,}",
+                f"{epf['graph_nodes'] / vertices:.0%}",
+                f"{epf['graph_edges']:,}",
+                f"{epf['graph_edges'] / vertices:.1f}",
+            ]
+        else:
+            row += ["–"] * 4
+        if has_build_results(pvg):
+            row += [
+                _mark(pvg, f"{pvg['graph_edges']:,}"),
+                f"{pvg['graph_edges'] / vertices:.1f}",
+            ]
+        else:
+            row += ["–"] * 2
+        # the edges of an invalid graph are wrong: no ratio and no cost per edge from it
+        edges_epf = epf.get("graph_edges") if is_ok(epf) else None
+        edges_pvg = pvg.get("graph_edges") if is_ok(pvg) else None
+        row.append(f"{edges_pvg / edges_epf:.3g}" if edges_pvg and edges_epf else "–")
+        for r, edges in ((epf, edges_epf), (pvg, edges_pvg)):
+            # time per edge: the cost of finding one edge of the graph
+            row.append(f"{r['build_time'] / edges * 1e6:.3g}" if edges else "–")
+        rows.append(row)
+    tables["benchmark_graph.rst"] = note + _list_table(
+        "Graph size: nodes, edges and build time per edge",
+        [
+            "Vertices",
+            "Extremities (= nodes) extremitypathfinder",
+            "Share of the vertices",
+            "Edges extremitypathfinder",
+            "Edges per vertex extremitypathfinder",
+            "Edges pyvisgraph",
+            "Edges per vertex pyvisgraph",
+            "Edge ratio pyvisgraph / extremitypathfinder",
+            "Build time per edge extremitypathfinder (µs)",
+            "Build time per edge pyvisgraph (µs)",
+        ],
+        rows,
+    )
+
+    tables["benchmark_complexity.rst"] = note + _complexity_table(results)
 
     rows = []
     for e in world:

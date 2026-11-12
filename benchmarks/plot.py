@@ -19,7 +19,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FuncFormatter, LogLocator, NullFormatter
 
-from benchmarks import measure, workloads
+from benchmarks import complexity, measure, workloads
 from benchmarks.adapters import ADAPTERS, COMPARED_PACKAGES, NO_NUMBA, PACKAGES
 
 matplotlib.use("Agg")
@@ -260,6 +260,120 @@ def ratio(results: dict, path: Path):
         "extremitypathfinder",
         "pyvisgraph / extremitypathfinder",
         "Speed ratio (query: sizes where both are valid)",
+    )
+
+
+def graph_size(results: dict, path: Path):
+    """edges of the graph over the vertices (valid graphs only: an invalid graph has wrong edges)"""
+    fig, ax = _new_axes(results, "edges of the visibility graph")
+    series = {}
+    for package in COMPARED_PACKAGES:
+        xs, ys = _ok_points(results, package, lambda r: r["graph_edges"])
+        series[package] = (xs, ys)
+        _line(ax, xs, ys, package, label=ADAPTERS[package].label)
+    # references: linear and quadratic growth through the first point of the first series
+    anchor = next(((xs[0], ys[0], xs[-1]) for xs, ys in series.values() if xs), None)
+    if anchor:
+        n0, e0, n1 = anchor
+        n1 = max(n1, *(xs[-1] for xs, _ in series.values() if xs))
+        for exponent in (1, 2):
+            ax.plot(
+                [n0, n1],
+                [e0, e0 * (n1 / n0) ** exponent],
+                color=TEXT_SECONDARY,
+                linestyle=":",
+                linewidth=1,
+            )
+            x = n0 * (n1 / n0) ** 0.6
+            ax.annotate(
+                f"∝ n^{exponent}" if exponent > 1 else "∝ n",
+                (x, e0 * (x / n0) ** exponent),
+                xytext=(0, 4),
+                textcoords="offset points",
+                ha="center",
+                fontsize=8,
+                color=TEXT_SECONDARY,
+            )
+    ax.set_title("Graph size: edges over vertices")
+    _finish(fig, ax, results, path, loc="lower right", fontsize=8)
+
+
+def build_time_over_edges(results: dict, path: Path):
+    """build time over the graph edges: separates the number of edges (the work) from the cost per edge"""
+    fig, ax = _new_axes(results, "build time (s)")
+    ax.set_xlabel("edges of the visibility graph")
+    for package in COMPARED_PACKAGES:
+        pairs = _ok_points(
+            results, package, lambda r: (r["graph_edges"], r["build_time"])
+        )[1]
+        edges, times = [p[0] for p in pairs], [p[1] for p in pairs]
+        # legend instead of direct labels: the line ends are close together
+        _line(ax, edges, times, package, label=ADAPTERS[package].label)
+    ax.set_title("Build time over the graph edges")
+    _finish(fig, ax, results, path, loc="lower right", fontsize=8)
+
+
+def _complexity_figure(results: dict, path: Path, kind: str, title: str):
+    fig, ax = _new_axes(results, "time (s)")
+    for package in COMPARED_PACKAGES:
+        data, c = complexity.series(results, kind, package)
+        if not data:
+            continue
+        xs = [r["vertices"] for r in data]
+        style = STYLE[package]
+        name = ADAPTERS[package].label
+        ax.plot(
+            xs,
+            [r["time"] for r in data],
+            linestyle="",
+            marker=style["marker"],
+            markersize=6,
+            color=style["color"],
+            label=f"{name}, measured",
+        )
+        ax.plot(
+            xs,
+            [c * r["term"] for r in data],
+            color=style["color"],
+            linewidth=1.5,
+            alpha=0.7,
+            label=f"{name}: {complexity.TERMS[kind][package][0]}",
+        )
+    # the documented worst cases, anchored at the first measured point: only the slopes can be compared
+    for package, (formula, worst) in complexity.WORST_CASE[kind].items():
+        data, _ = complexity.series(results, kind, package)
+        if not data:
+            continue
+        terms = [
+            worst(r["vertices"], r["extremities"] or 0, r["edges"] or 0) for r in data
+        ]
+        ax.plot(
+            [r["vertices"] for r in data],
+            [data[0]["time"] * term / terms[0] for term in terms],
+            color=STYLE[package]["color"],
+            linestyle=":",
+            linewidth=1,
+            label=f"{ADAPTERS[package].label} worst case: {formula}",
+        )
+    ax.set_title(title)
+    _finish(fig, ax, results, path, loc="lower right", fontsize=7)
+
+
+def complexity_build(results: dict, path: Path):
+    _complexity_figure(
+        results,
+        path,
+        "build",
+        "Build: measured time and the complexity term × constant",
+    )
+
+
+def complexity_query(results: dict, path: Path):
+    _complexity_figure(
+        results,
+        path,
+        "query",
+        "Query (median): measured time and the complexity term × constant",
     )
 
 
@@ -543,6 +657,10 @@ FIGURES = {
     "benchmark_memory.svg": memory,
     "benchmark_memory_retained.svg": memory_retained,
     "benchmark_memory_composition.svg": memory_composition,
+    "benchmark_graph_size.svg": graph_size,
+    "benchmark_build_time_edges.svg": build_time_over_edges,
+    "benchmark_complexity_build.svg": complexity_build,
+    "benchmark_complexity_query.svg": complexity_query,
     "benchmark_ratio.svg": ratio,
     "benchmark_numba_ratio.svg": numba_ratio,
     "benchmark_world_example.svg": world_example,
