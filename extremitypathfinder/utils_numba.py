@@ -7,13 +7,7 @@ try:
     from numba import b1, f8, i8, njit, typeof
 except ImportError:
     # replace Numba functionality with "transparent" implementations
-    from extremitypathfinder.numba_replacements import (
-        b1,
-        f8,
-        i8,
-        njit,
-        typeof,
-    )
+    from extremitypathfinder.numba_replacements import b1, f8, i8, njit, typeof
 
 FloatTuple = typeof((1.0, 1.0))
 

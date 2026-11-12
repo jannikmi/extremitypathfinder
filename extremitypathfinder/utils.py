@@ -351,7 +351,7 @@ def find_visible(
     An edge with a few candidates in its range is checked against each of them. An edge with many is entered
     into a tree over the candidates, which only keeps the closest edges per range of directions,
     so that every candidate is checked against few edges (cf. ``li_chao_tree.blocked_candidates()``).
-    This bounds the worst case: ``O((n + k) log² k)`` for n edges and k candidates.
+    This bounds the worst case (the bound is stated in ``li_chao_tree``).
 
     A line of sight touching an edge only in one of its vertices (or running along it) is not blocked by the edge.
     Whether lines of sight may pass through the vertices is decided by their free wedges (cf. ``wedges.py``).
