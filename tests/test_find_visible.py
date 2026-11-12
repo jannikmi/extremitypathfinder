@@ -11,7 +11,7 @@ import numpy as np
 import pytest
 
 from extremitypathfinder import PolygonEnvironment, configs, utils
-from extremitypathfinder.utils import _lies_behind
+from extremitypathfinder.utils_numba import _lies_behind
 from tests.test_cases import GRID_ENV_PARAMS, POLYGON_ENVS
 
 
@@ -246,20 +246,133 @@ def _overlapping_squares(seed: int):
     return boundary, holes
 
 
-def _all_edges_sorted(
-    edges, edges_min_rep, edges_max_rep, candidates_sorted, representations
-):
-    """the edges of the sweep without skipping those without candidates (before #217)"""
-    return sorted(edges.tolist(), key=lambda e: edges_min_rep[e])
+def _many_candidates_before_long_edges(nr: int):
+    """the worst case of a check of every edge against every candidate in its angle range (#216)
+
+    Squares on a convex arc (most see each other) below long slabs, whose edges span the directions
+    of many squares at once.
+    """
+    holes = []
+    for i in range(nr):
+        x = 4.0 * (i - nr // 2)
+        y = round(x * x / (4.0 * nr), 3)
+        holes.append([(x, y), (x, y + 1), (x + 1, y + 1), (x + 1, y)])
+    width = 400.0 * nr
+    bottom = 4.0 * nr + 4.0
+    for i in range(nr):
+        y = bottom + 2.0 * i
+        holes.append([(-width, y), (-width, y + 1), (width, y + 1), (width, y)])
+    top = bottom + 2.0 * nr + 1
+    boundary = [
+        (-2 * width, -5.0),
+        (2 * width, -5.0),
+        (2 * width, top),
+        (-2 * width, top),
+    ]
+    return boundary, holes
+
+
+def find_visible_brute_force(
+    origin,
+    candidates,
+    edges_to_check,
+    coords,
+    representations,
+    distances,
+    edge_vertex_idxs,
+    candidate_edges=None,
+) -> set[int]:
+    """``utils.find_visible()`` checking every edge against every candidate in its angle range"""
+    candidate_edges = candidate_edges or {}
+    visible = set()
+    for candidate in utils._eliminate_eq_candidates(
+        candidates, distances, representations
+    ):
+        for edge in edges_to_check:
+            v1, v2 = edge_vertex_idxs[edge]
+            if edge in candidate_edges.get(candidate, ()):
+                continue
+            if not _within_angle_range(
+                representations[candidate], representations[v1], representations[v2]
+            ):
+                continue
+            if find_candidates_behind(origin, v1, v2, {candidate}, distances, coords):
+                break
+        else:
+            visible.add(candidate)
+    return visible
 
 
 @pytest.mark.parametrize(
-    "env", all_envs + [_overlapping_squares(seed) for seed in range(3)]
+    "env",
+    all_envs
+    + [_overlapping_squares(seed) for seed in range(3)]
+    + [_many_candidates_before_long_edges(40)],
 )
-def test_skipping_edges_without_candidates_keeps_the_graph(env, monkeypatch):
+def test_graph_equals_brute_force(env, monkeypatch):
+    # e.g. skipping the edges without candidates (#217) and those behind closer edges (#216)
     boundary, holes = env
     graph = PolygonEnvironment(boundary, holes).graph
-    monkeypatch.setattr(utils, "_edges_with_candidates", _all_edges_sorted)
+    monkeypatch.setattr(utils, "find_visible", find_visible_brute_force)
     expected = PolygonEnvironment(boundary, holes).graph
     assert sorted(graph.edges(data="weight")) == sorted(expected.edges(data="weight"))
     assert sorted(graph.nodes) == sorted(expected.nodes)
+
+
+def _crossing_segments(seed: int):
+    """random segments crossing each other (as the edges of overlapping polygons) with many candidates
+
+    Many candidates lie within the angle range of an edge, so that the edges are entered into the tree
+    (cf. ``utils_numba._blocked_candidates()``). Integer coordinates (every third seed) give candidates
+    exactly on edges and in the directions of edge vertices. Some candidates lie in the middle of an edge.
+    """
+    rng = np.random.default_rng(seed)
+    nr_segments = int(rng.integers(1, 80))
+    nr_candidates = int(rng.integers(1, 800))
+    if seed % 3 == 0:
+        origin = np.array([[0.5, 0.25]])
+        segments = rng.integers(-8, 9, size=(2 * nr_segments, 2)).astype(float)
+        candidate_coords = rng.integers(-8, 9, size=(nr_candidates, 2)).astype(float)
+    else:
+        origin = rng.uniform(-1, 1, size=(1, 2))
+        segments = rng.uniform(-8, 8, size=(2 * nr_segments, 2))
+        candidate_coords = rng.uniform(-8, 8, size=(nr_candidates, 2))
+    # some candidates lie on an edge (as query points on edges): it does not block them
+    on_edge = rng.choice(nr_candidates, size=min(5, nr_candidates), replace=False)
+    their_edges = rng.integers(nr_segments, size=len(on_edge))
+    candidate_coords[on_edge] = (
+        segments[2 * their_edges] + segments[2 * their_edges + 1]
+    ) / 2
+    coords = np.concatenate([segments, candidate_coords, origin])
+    origin = len(coords) - 1
+    edge_vertex_idxs = np.arange(2 * nr_segments).reshape(nr_segments, 2)
+    representations, distances = utils.cmp_reps_n_distances(origin, coords)
+    # no edge may pass through the origin or have identical vertices
+    edges = {
+        edge
+        for edge, (v1, v2) in enumerate(edge_vertex_idxs)
+        if abs(representations[v1] - representations[v2]) != 2.0
+        and not np.array_equal(coords[v1], coords[v2])
+    }
+    # Note: candidates identical to the origin are not allowed
+    candidates = {i for i in range(2 * nr_segments, origin) if distances[i] != 0.0}
+    candidate_edges = {
+        2 * nr_segments + int(candidate): {int(edge)}
+        for candidate, edge in zip(on_edge, their_edges)
+    }
+    return (
+        origin,
+        candidates,
+        edges,
+        coords,
+        representations,
+        distances,
+        edge_vertex_idxs,
+        candidate_edges,
+    )
+
+
+@pytest.mark.parametrize("seed", range(150))
+def test_find_visible_crossing_edges_many_candidates(seed):
+    args = _crossing_segments(seed)
+    assert utils.find_visible(*args) == find_visible_brute_force(*args)

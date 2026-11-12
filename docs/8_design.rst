@@ -326,98 +326,122 @@ A line of sight only touching an edge in one of its vertices, or running along i
     keep only the closest candidate per angle representation
     sort the candidates by angle representation
     per edge: range [min_rep, max_rep] and max_dist of its two vertices
-    crossing edges: max_rep - min_rep > 2 (the range contains 0)
+    per edge: the candidates with min_rep < rep < max_rep (binary searches)
+      crossing edges (max_rep - min_rep > 2, the range contains 0):
+      the candidates with rep > max_rep and those with rep < min_rep
+    keep only the edges with candidates, sort them by max_dist
 
-    check(regular edges)
-    shift all representations: no crossing edge contains 0 anymore
-    check(crossing edges)
+    for edge in edges:
+      few candidates (at most 16):
+        check(edge, candidate) for each of them not yet removed
+      many candidates:
+        enter the edge into the tree over the candidates
+    for candidate in candidates not yet removed:
+      check(edge, candidate) for the edges stored between its leaf and the root
 
-    check(edges):
-      keep only the edges with a candidate in [min_rep, max_rep]
-      sort the edges by min_rep
-      ptr = 0                   # first candidate possibly in a range
-      for edge in edges:
-        stop if no candidates are left
-          or the last candidate lies before min_rep
-        move ptr past the candidates with rep < min_rep
-        for candidate from ptr while rep <= max_rep:
-          rep == min_rep or max_rep  -> keep   (touches a vertex)
-          candidate lies on edge     -> keep   (query point)
-          distance > max_dist        -> remove (behind both vertices)
-          lies_behind(edge, cand.)   -> remove (2x2 linear system)
-          otherwise                  -> keep
+    check(edge, candidate):
+      distance > max_dist          -> remove (behind both vertices)
+      lies_behind(edge, cand.)     -> remove (2x2 linear system)
+      otherwise                    -> keep
 
 Details:
 
 - **Identical directions**: of candidates with exactly the same representation only the closest is kept.
   A path to a farther one passes through the closer one at no extra cost (and the vertex rules decide
   whether it may pass at all).
-- **Sweep**: since the edges are sorted by ``min_rep`` and the candidates by representation,
-  candidates before the current edge's range can never be blocked by a following edge.
-  The pointer only moves forward, removed candidates shrink the list.
-- **Edges without candidates**: an edge whose angle range contains no candidate cannot block one,
-  candidates are only removed during the sweep. Two vectorised binary searches (``np.searchsorted()``)
-  select the other edges before sorting (``_edges_with_candidates()``), so the Python loop only runs over
-  the few edges that can block a candidate, not over all edges of every origin.
+- **Angle ranges**: the candidates are sorted by representation, so the candidates an edge can block are
+  one contiguous range of the sorted candidates, found with vectorised binary searches (``np.searchsorted()``,
+  ``_candidate_ranges()``). The range is open: a candidate in the direction of a vertex of the edge is not blocked
+  by it (touches a vertex).
+- **Edges without candidates**: an edge whose angle range contains no candidate cannot block one and is skipped.
+  The loop only runs over the few edges that can block a candidate, not over all edges of every origin.
 - **Crossing edges**: an edge spans less than 180 degree, so a representation difference larger than ``2.0``
-  means the range wraps around ``0``. Instead of handling the wrap in the sweep, all representations are shifted
-  (modulo ``4.0``) so that the smallest upper end of the crossing edges moves to ``0``, which turns the crossing edges
-  into regular ones. The same sweep is reused.
+  means the range wraps around ``0``. Its candidates are the two ends of the sorted candidates.
 - **Distance shortcut**: a segment lies within the disk around the origin with the radius of its farther vertex.
   A candidate within the angle range but farther away than both edge vertices therefore lies behind the edge.
   Only the remaining candidates need an intersection computation.
-- **Lies behind**: with all vectors relative to the origin, ``_lies_behind_inner()`` solves
-  :math:`p_1 + \lambda (p_2 - p_1) = \mu v` for the intersection of the line of sight :math:`v` with the edge.
+- **Lies behind**: with all vectors relative to the origin, :math:`p_1 + \lambda (p_2 - p_1) = \mu v`
+  is solved for the intersection of the line of sight :math:`v` with the edge (``_lies_behind_inner()``).
   The candidate is blocked when :math:`\mu < 1` (the edge is closer than the candidate).
-  Within the angle range the system is regular.
+  Within the angle range the system is regular. The terms that only depend on the edge are computed
+  for all edges at once.
+- **Query points on edges**: the edges touching a candidate do not block it (its arrival is decided by rule 4).
+  They are skipped in its check. The candidate must lie on them: an edge is only skipped for a candidate,
+  not for the comparison of the edges in the tree.
+
+**The tree over the candidates.** Checking every edge against every candidate in its angle range takes :math:`O(n k)` per origin
+when many edges span the directions of many candidates, e.g. long walls behind many small obstacles.
+A candidate is however already decided by the closest edge in its direction.
+``_blocked_candidates()`` finds it without comparing all edges:
+
+- A segment tree over the sorted candidates: every node stands for a contiguous range of candidates,
+  the root for all of them, its children for the two halves. The candidates of an edge are covered exactly by
+  at most :math:`2 \log k` nodes.
+- A node stores at most one edge: of the edges spanning all its directions, the closest one in its middle direction.
+  Seen from the origin, two edges swap their order at most once (two lines cross at most once).
+  The edge losing in the middle can therefore only be closer on one side of the middle, and is passed on
+  to that child, where the same happens again (a "Li Chao tree").
+- The closest edge in the direction of a candidate is then stored in one of the :math:`\log k` nodes
+  between its leaf and the root. Only these edges are checked against the candidate, with the same check as above.
+- Close edges first, and no work for hidden edges: an edge whose line is farther away than both vertices
+  of the stored edge lies behind it in all directions of the node and is dropped (and the other way round).
+  Sorted by distance, most hidden edges are dropped at the first node they reach.
+- The nodes at the bottom (up to 16 candidates, ``DIRECT_CHECK_SIZE``) store no edge:
+  their candidates are checked right away. On typical maps most edges have few candidates
+  and never reach the tree.
+
+Edges are only compared in the directions of candidates, with the intersection formula of the check.
+No crossings between edges are computed and no order of the edges along a rotating ray is maintained:
+overlapping polygons, whose edges cross, need no special treatment, and a candidate is only removed by the check
+of a single edge, which keeps the exact contact semantics.
+The tree is a plain array, compiled by Numba (``utils_numba.py``).
 
 Properties:
 
-- every edge is checked at most once
 - only a subset of the vertices has to be checked (the candidates, e.g. the extremities, not all vertices)
 - the number of candidates decreases with every origin: visibility is symmetric, each pair is checked once
 - no trigonometric functions
 - intersections (solving a linear system) are only computed for a fraction of the candidates
 - it would also work with line segments instead of polygons (the package however only accepts polygons)
 
-Cost per origin with :math:`k \leq m` candidates: selecting the edges with candidates, :math:`O(n \log k)`
-(vectorised), sorting them, :math:`O(n \log n)`, and the candidates, :math:`O(k \log k)`,
-plus one check per edge and candidate within its angle range.
+Cost per origin with :math:`k \leq m` candidates: the angle ranges, :math:`O(n \log k)` (vectorised),
+sorting the edges with candidates, :math:`O(n \log n)`, and the candidates, :math:`O(k \log k)`,
+plus the checks.
 
 - **Typical case**: the angle ranges of the edges overlap little, so every candidate is only checked against
   a few edges. This gives :math:`O(n \log n + m)` per origin and :math:`O(m \, n \log n)`
   for all extremities.
-- **Worst case**: a candidate in front of an edge is kept and checked again by every following edge
-  whose angle range contains it, e.g. many long edges behind many candidates, all spanning the same angle range.
-  This gives :math:`O(n \log n + n k)` per origin and :math:`O(m \, n \log n + n \, m^2)` for all extremities
-  (the number of candidates decreases from :math:`m` with every origin), i.e. :math:`O(n^3)` for :math:`m \sim n`.
-  In such an environment, doubling both the number of edges and of candidates quadruples
-  the time of ``find_visible()``.
-  An angular sweep would avoid this worst case, but is slower on the measured maps
+- **Worst case**: every edge is entered into :math:`O(\log k)` nodes and passed down :math:`O(\log k)` levels,
+  and every candidate is checked against :math:`O(\log k)` edges.
+  This gives :math:`O(n \log^2 n)` per origin and :math:`O(m \, n \log^2 n)` for all extremities.
+  Without the tree it was :math:`O(n \log n + n k)` per origin, i.e. :math:`O(n^3)` for :math:`m \sim n`
   (`#216 <https://github.com/jannikmi/extremitypathfinder/issues/216>`__).
+  ``prototypes/complexity_profile.py worst`` measures an environment of this kind.
 
 AREA builds on known techniques: sorting by angle around the origin (as Lee's algorithm),
-a trigonometry-free angle representation (the "diamond angle") and culling by angle range and distance.
-Its own part is the edge-centric sweep: every edge eliminates the candidates behind it,
+a trigonometry-free angle representation (the "diamond angle"), culling by angle range and distance,
+and a segment tree storing one line per node (Li Chao tree).
+Its own part is the edge-centric elimination: every edge eliminates the candidates behind it,
 instead of a rotating ray keeping the edges in a balanced tree.
 
 Comparison with `Lee's visibility graph algorithm <https://dav.ee/papers/Visibility_Graph_Algorithm.pdf>`__,
 which `pyvisgraph <https://github.com/TaipanRex/pyvisgraph>`__ uses.
 Lee's algorithm takes :math:`O(n^2 \log n)` in the worst case when it keeps the edges crossing the sweep ray
-in a balanced search tree. The implementation of pyvisgraph (0.2.1, ``visible_vertices.py``) takes :math:`O(n^3)`
-in the worst case, like AREA for :math:`m \sim n`, for two reasons: it keeps the edges in a sorted Python list
+in a balanced search tree, AREA :math:`O(m \, n \log^2 n)`.
+The implementation of pyvisgraph (0.2.1, ``visible_vertices.py``) takes :math:`O(n^3)`
+in the worst case, for two reasons: it keeps the edges in a sorted Python list
 (``insort()`` and ``del``, :math:`O(n)` per insertion and removal), and for every visible vertex of the same polygon
 it tests whether the line of sight runs through the polygon with a crossing test over all edges of that polygon
 (``edge_in_polygon()``), :math:`O(n)` per pair.
-The list operations are fast memory moves, and the measured maps keep AREA in its typical case (#215).
 The differences:
 
 - Lee checks all edges for intersection initially, AREA only the edges whose angle range contains candidates
 - Lee computes the visibility of all vertices in every run, AREA only of the candidates
 - Lee needs an intersection computation for most vertices (whenever its edge tree is not empty),
   AREA avoids most of them with the angle range and distance tests
-- Lee sorts all vertices by angle on startup and keeps the edges in a binary tree (pyvisgraph: a sorted list),
-  AREA sorts edges and candidates
+- Lee sorts all vertices by angle on startup and keeps the edges crossing the sweep ray in a binary tree
+  (pyvisgraph: a sorted list), ordered along the ray, which requires edges that do not cross.
+  AREA sorts the candidates and keeps the closest edges in a tree over them, crossing edges included
 - both work with line segments, not only polygons
 
 Passing through and arriving at points
@@ -633,7 +657,9 @@ The visibility stays computed with AREA, other algorithms are not used as a repl
 The cost of the package is the visibility from many points, one at a time: from every extremity during the
 construction, from start and goal per query. Any algorithm of this kind costs at least linear time per point,
 so replacing AREA would mainly change constant factors. A rotational sweep with a tree of edges (Lee) is slower
-in Python on the measured maps (#216). Triangular expansion, a navigation mesh (Polyanya) or continuous Dijkstra
+in Python on the measured maps and needs edges that do not cross
+(#216: AREA got a tree over the candidates instead,
+cf. `Angle Range Elimination Algorithm (AREA)`_). Triangular expansion, a navigation mesh (Polyanya) or continuous Dijkstra
 need a triangulation of the free space: the polygons would have to be merged first (they may touch and overlap),
 the exact contact semantics re-established, and either a dependency added or a lot of code written.
 AREA carries the tested behaviour at the edge cases, the audit against exact arithmetic
@@ -649,7 +675,7 @@ Angle representations instead of angles
 Directions are compared with a monotone representation in ``[0, 4)`` (one unit per quadrant,
 ``_compute_repr_n_dist()``) instead of ``atan2``. It needs one division, keeps the
 ordering of the angles and is computed without trigonometric functions.
-Everything that sorts or compares directions uses it: the AREA sweep, the free wedges and the "in front" test.
+Everything that sorts or compares directions uses it: AREA, the free wedges and the "in front" test.
 
 One concept for vertices: free wedges
 -------------------------------------
@@ -771,9 +797,9 @@ Step                               Time                        Notes
 =================================  ==========================  =====================================================
 points and wedges                  ``O(n²)``                   vectorised bounding box test: edges through vertices
 visibility graph                   ``O(m n log n)``            AREA for every extremity (typical case;
-                                                               worst case ``O(n m²)``), cf. `Algorithms`_
+                                                               worst case ``O(m n log² n)``), cf. `Algorithms`_
 query: visibility of start, goal   ``O(n log n + m)``          dominates the query time (typical case;
-                                                               worst case ``O(n m)``)
+                                                               worst case ``O(n log² n)``)
 query: A*                          ``O(E log E)``              ``E``: graph and temporary edges
 =================================  ==========================  =====================================================
 
@@ -784,8 +810,8 @@ A query uses ``O(n + m)`` additional memory.
 
 Profiling large environments shows that the A* search takes about 5% of the query time,
 most of the time is spent on the visibility of start and goal. Optimisations should target ``find_visible()``.
-``prototypes/complexity_profile.py`` measures the steps of the preparation and how often AREA checks a candidate
-(the measured maps stay in its typical case, #215).
+``prototypes/complexity_profile.py`` measures the steps of the preparation on maps of growing size,
+also on a worst case of AREA (#215, #216).
 Benchmarks: :ref:`speed-tests`, ``scripts/speed_benchmarks.py`` and ``prototypes/large_env_query_profile.py``.
 
 
@@ -824,10 +850,11 @@ Constructing visibility graphs
     :math:`O(n \log n + E)` for :math:`E` visibility edges, and
     `Chen and Wang (2015) <https://doaj.org/article/83ae71cdf1754c2d838667b17b0f2432>`__ to
     :math:`O(n + h \log h + E)` for :math:`h` obstacles, given a triangulation of the free space.
-    AREA does not improve these bounds, its worst case, :math:`O(n^3)` for :math:`m \sim n`, is worse than Lee's
+    AREA does not improve these bounds: its worst case, :math:`O(m \, n \log^2 n)` for :math:`m` extremities,
+    is a logarithmic factor above Lee's for :math:`m \sim n`
     (cf. `Angle Range Elimination Algorithm (AREA)`_, which also names the techniques it builds on).
-    It trades the worst case guarantee for fewer and simpler operations on typical maps.
-    We are not aware of a published description of its edge-centric sweep.
+    It aims at few and simple operations on typical maps, and at edges that may cross.
+    We are not aware of a published description of its edge-centric elimination.
 
 Shortest paths without a visibility graph
     The continuous Dijkstra method computes a single shortest path in :math:`O(n \log n)` time
