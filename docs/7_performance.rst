@@ -124,6 +124,62 @@ Speed
 
    Speed-up of ``extremitypathfinder`` by Numba: time without Numba / with Numba.
 
+Complexity terms
+~~~~~~~~~~~~~~~~
+
+.. benchmark-derived: the comparison of the complexity terms with the measured times. Update this text with every
+   full benchmark run and with every change of the complexities
+   (docs/contributing/performance.md, "After a full run"; the terms are defined in ``benchmarks/complexity.py``).
+
+The ``O(...)`` terms of the two packages, evaluated for the vertices ``n``, extremities ``m`` and graph edges ``E``
+of every map (without constant factors), and compared with the measured times.
+In the figures, a line is the term times one constant per package, fitted at the smallest map:
+if a line follows its markers, the measured time grows like the term.
+
+- ``extremitypathfinder`` (typical case, :ref:`design <design>`): build ``m n log n + n²``,
+  query ``n log n + m + E log E``.
+- ``pyvisgraph``: build ``n² log n`` (Lee's algorithm; the implementation takes ``n³`` in the worst case, dotted line),
+  query ``2 n log n + E log n`` (two visibility sweeps and a Dijkstra search with a heap).
+
+.. figure:: _static/benchmark_complexity_build.svg
+   :width: 100%
+   :alt: build time and the fitted complexity terms over the number of vertices, log-log, one color per package
+
+   Build time (markers) and complexity term times a constant (lines).
+
+.. figure:: _static/benchmark_complexity_query.svg
+   :width: 100%
+   :alt: median query time and the fitted complexity terms over the number of vertices, log-log, one color per package
+
+   Median query time (markers) and complexity term times a constant (lines).
+
+.. include:: ../benchmarks/results/benchmark_complexity.rst
+
+What this shows:
+
+- The shapes agree: the measured times grow about like the terms. The build of ``pyvisgraph`` follows ``n² log n``
+  and stays far below its ``n³`` worst case. The build of ``extremitypathfinder`` grows slightly slower than its term
+  (the term is the typical case, an upper estimate here).
+- The terms alone do not explain the difference between the packages. They predict a build advantage of
+  ``extremitypathfinder`` of 1.2 to 1.5 and a query advantage of 2.4 to 4.4, the measured ratios are
+  4.6 to 7.2 for the build and 6.6 to 8.4 for queries. The constant factors are not part of ``O(...)``:
+  most of the practical difference comes from the implementation (vectorised, optionally compiled code
+  against pure Python), the rest from the smaller graph.
+
+Limitations:
+
+- The terms are models without constants. The constant per package is fitted at its smallest map,
+  so the lines say how the work grows, not how fast an implementation is.
+- Build: the maps where the package completed the build (also with invalid paths, the time is valid).
+  Query: only the maps with valid paths, because the edges of an invalid graph are wrong:
+  ``pyvisgraph`` has no valid query result above 2,000 vertices.
+- The terms of ``pyvisgraph`` are derived from its algorithm and its source (version 0.2.1),
+  the query term (a heap based Dijkstra search and two single-point sweeps) is not stated by its authors.
+- The terms of ``extremitypathfinder`` are the typical case. They are defined in ``benchmarks/complexity.py``
+  and have to be updated when the complexities change.
+- The map with 9,952 vertices comes from a different data set (50 m) than the smaller ones (110 m):
+  its point is not a continuation of the others.
+
 Memory
 ~~~~~~
 

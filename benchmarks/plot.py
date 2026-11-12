@@ -19,7 +19,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FuncFormatter, LogLocator, NullFormatter
 
-from benchmarks import measure, workloads
+from benchmarks import complexity, measure, workloads
 from benchmarks.adapters import ADAPTERS, COMPARED_PACKAGES, NO_NUMBA, PACKAGES
 
 matplotlib.use("Agg")
@@ -313,6 +313,68 @@ def build_time_over_edges(results: dict, path: Path):
     _finish(fig, ax, results, path, loc="lower right", fontsize=8)
 
 
+def _complexity_figure(results: dict, path: Path, kind: str, title: str):
+    fig, ax = _new_axes(results, "time (s)")
+    for package in COMPARED_PACKAGES:
+        data, c = complexity.series(results, kind, package)
+        if not data:
+            continue
+        xs = [r["vertices"] for r in data]
+        style = STYLE[package]
+        name = ADAPTERS[package].label
+        ax.plot(
+            xs,
+            [r["time"] for r in data],
+            linestyle="",
+            marker=style["marker"],
+            markersize=6,
+            color=style["color"],
+            label=f"{name}, measured",
+        )
+        ax.plot(
+            xs,
+            [c * r["term"] for r in data],
+            color=style["color"],
+            linewidth=1.5,
+            alpha=0.7,
+            label=f"{name}: {complexity.TERMS[kind][package][0]}",
+        )
+    if kind == "build":
+        data, c = complexity.series(results, kind, "pyvisgraph")
+        if data:
+            formula, worst = complexity.PVG_WORST_CASE_BUILD
+            n0 = data[0]["vertices"]
+            xs = [r["vertices"] for r in data]
+            ax.plot(
+                xs,
+                [data[0]["time"] * worst(x) / worst(n0) for x in xs],
+                color=TEXT_SECONDARY,
+                linestyle=":",
+                linewidth=1,
+                label=f"pyvisgraph worst case: {formula}",
+            )
+    ax.set_title(title)
+    _finish(fig, ax, results, path, loc="lower right", fontsize=7)
+
+
+def complexity_build(results: dict, path: Path):
+    _complexity_figure(
+        results,
+        path,
+        "build",
+        "Build: measured time and the complexity term × constant",
+    )
+
+
+def complexity_query(results: dict, path: Path):
+    _complexity_figure(
+        results,
+        path,
+        "query",
+        "Query (median): measured time and the complexity term × constant",
+    )
+
+
 def numba_ratio(results: dict, path: Path):
     _ratio_figure(
         results,
@@ -595,6 +657,8 @@ FIGURES = {
     "benchmark_memory_composition.svg": memory_composition,
     "benchmark_graph_size.svg": graph_size,
     "benchmark_build_time_edges.svg": build_time_over_edges,
+    "benchmark_complexity_build.svg": complexity_build,
+    "benchmark_complexity_query.svg": complexity_query,
     "benchmark_ratio.svg": ratio,
     "benchmark_numba_ratio.svg": numba_ratio,
     "benchmark_world_example.svg": world_example,
