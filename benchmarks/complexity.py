@@ -2,7 +2,8 @@
 
 The terms are the ``O(...)`` expressions without the constant factor, with ``n`` vertices, ``m`` extremities
 (the nodes of the extremitypathfinder graph) and ``E`` edges of the visibility graph of the package.
-They are the *only* place of the formulas: update them here when the complexities change.
+They are defined here only in code: update them here when the complexities change, and the text of
+``docs/7_performance.rst`` (cf. the ``benchmark-derived`` directive there).
 
 * extremitypathfinder: typical case of ``docs/8_design.rst`` ("Complexity and Memory"),
   build ``m n log n`` for the visibility graph plus ``n^2`` for the wedges,
@@ -20,7 +21,6 @@ import math
 from collections.abc import Callable
 
 from benchmarks import measure
-from benchmarks.adapters import ADAPTERS
 
 EPF = "extremitypathfinder"
 PVG = "pyvisgraph"
@@ -50,37 +50,46 @@ STATUSES = {"build": (measure.OK, measure.INVALID), "query": (measure.OK,)}
 
 
 def _measured(result: dict, kind: str) -> float:
-    return result["build_time"] if kind == "build" else result["query_stats"]["p50"]
+    if kind == "build":
+        return result.get("build_time")
+    return (result.get("query_stats") or {}).get("p50")
 
 
 def rows(results: dict, kind: str, package: str) -> list[dict]:
-    """per map where the package has results: vertices, extremities, edges, term and measured time (s)"""
+    """per map where the package has results, ascending in vertices: vertices, extremities, edges, term, time (s)
+
+    The edges and extremities are needed (and the extremitypathfinder result must be valid for queries)
+    only by the terms that use them: the build term of pyvisgraph needs the vertices only.
+    """
     term = TERMS[kind][package][1]
+    uses_graph = (kind, package) != ("build", PVG)
     out = []
     for entry in results["world"]:
         result = entry["results"].get(package)
-        epf = entry["results"].get(EPF)
+        epf = entry["results"].get(EPF) or {}
         if result is None or result["status"] not in STATUSES[kind]:
             continue
-        if epf is None or epf["status"] not in (measure.OK, measure.INVALID):
+        if uses_graph and epf.get("status") not in STATUSES[kind]:
             continue
         n, m, e = (
             entry["map"]["vertices"],
             epf.get("graph_nodes"),
             result.get("graph_edges"),
         )
-        if m is None or e is None or min(n, m, e) < 2:
+        time = _measured(result, kind)
+        graph_missing = uses_graph and (m is None or e is None or min(m, e) < 2)
+        if time is None or n < 2 or graph_missing:
             continue
         out.append(
             {
                 "vertices": n,
                 "extremities": m,
                 "edges": e,
-                "term": term(n, m, e),
-                "time": _measured(result, kind),
+                "term": term(n, m or 0, e or 0),
+                "time": time,
             }
         )
-    return out
+    return sorted(out, key=lambda row: row["vertices"])
 
 
 def series(results: dict, kind: str, package: str) -> tuple[list[dict], float]:
@@ -102,7 +111,3 @@ def ratios(results: dict, kind: str) -> list[dict]:
         }
         for n in sorted(epf.keys() & pvg.keys())
     ]
-
-
-def label(package: str) -> str:
-    return ADAPTERS[package].label

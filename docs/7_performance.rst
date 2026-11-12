@@ -157,8 +157,9 @@ if a line follows its markers, the measured time grows like the term.
 
 What this shows:
 
-- The shapes agree: the measured times grow about like the terms. The build of ``pyvisgraph`` follows ``n² log n``
-  and stays far below its ``n³`` worst case. The build of ``extremitypathfinder`` grows slightly slower than its term
+- The shapes agree: the measured times grow about like the terms. The build of ``pyvisgraph`` has the slope
+  of ``n² log n``, not that of its ``n³`` worst case (the dotted line starts at the same point, only the slopes
+  can be compared). The build of ``extremitypathfinder`` grows slightly slower than its term
   (the term is the typical case, an upper estimate here).
 - The terms alone do not explain the difference between the packages. They predict a build advantage of
   ``extremitypathfinder`` of 1.2 to 1.5 and a query advantage of 2.4 to 4.4, the measured ratios are

@@ -709,7 +709,7 @@ def test_complexity_table_and_figures(tmp_path):
     table = run._complexity_table(results)
     assert "Build term ratio pyvisgraph / extremitypathfinder" in table
     # the map without a pyvisgraph result has no ratios
-    assert table.rstrip().endswith("- –")
+    assert table.rstrip().endswith("- 898\n     - –\n     - –\n     - –")
     plot.complexity_build(
         {"meta": meta, "examples": [], **results}, tmp_path / "build.svg"
     )
@@ -718,3 +718,33 @@ def test_complexity_table_and_figures(tmp_path):
     )
     assert (tmp_path / "build.svg").stat().st_size > 0
     assert (tmp_path / "query.svg").stat().st_size > 0
+
+
+def test_complexity_rows_robustness():
+    from benchmarks import complexity
+
+    results = _complexity_results()
+    world = results["world"]
+    # unsorted maps: ascending rows, so the constant is fitted at the smallest map
+    unsorted = {"world": world[::-1]}
+    data, c = complexity.series(unsorted, "build", complexity.EPF)
+    assert [r["vertices"] for r in data] == [16, 32, 64]
+    assert c * data[0]["term"] == data[0]["time"]
+    # the build term of pyvisgraph needs neither the extremities nor the edges
+    pvg = world[0]["results"]["pyvisgraph"]
+    del pvg["graph_edges"], world[0]["results"]["extremitypathfinder"]["graph_nodes"]
+    assert [
+        r["vertices"] for r in complexity.rows(results, "build", complexity.PVG)
+    ] == [16, 32]
+    # a query term without them, or without query statistics, is skipped
+    assert complexity.rows(results, "query", complexity.PVG) == []
+    del world[2]["results"]["extremitypathfinder"]["query_stats"]
+    assert [
+        r["vertices"] for r in complexity.rows(results, "query", complexity.EPF)
+    ] == [32]
+    # a package without data
+    assert complexity.series({"world": []}, "build", complexity.EPF) == ([], 1.0)
+    # a query needs a valid extremitypathfinder result too
+    results = _complexity_results()
+    results["world"][0]["results"]["extremitypathfinder"]["status"] = "invalid"
+    assert complexity.rows(results, "query", complexity.PVG) == []
