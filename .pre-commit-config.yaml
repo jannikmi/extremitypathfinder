@@ -22,7 +22,7 @@ repos:
       - id: detect-private-key
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.17.3
+    rev: v0.17.4
     hooks:
       # linter.
       - id: ruff-check
@@ -54,7 +54,7 @@ repos:
     hooks:
       - id: check-manifest
         args: [ "--no-build-isolation", "--ignore",  "*.png,*.svg,docs/*,docs/contributing/*,AGENTS.md,CLAUDE.md,.claude/*,.claude/skills/*/*,publish.py,readthedocs.yml,uv.lock,pyproject.toml.orig,setup.py,scripts/*,prototypes/*,benchmarks/*,benchmarks/results/*" ]
-        additional_dependencies: [ numpy, "uv_build>=0.13.6,<0.14" ]
+        additional_dependencies: [ numpy, "uv_build>=0.13.7,<0.14" ]
 
   - repo: https://github.com/asottile/pyupgrade
     rev: v3.22.0
