@@ -52,6 +52,13 @@ BREAKING: ``export_pickle()`` and ``load_pickle()`` no longer print to the stand
 
 other changes:
 
+- the worst case of the visibility computation is bounded (#216): environments with many extremities in front of
+  many long edges (e.g. small obstacles in front of long walls) took ``O(n m²)`` to prepare and ``O(n m)`` per query
+  point (``n`` vertices, ``m`` extremities), now ``O(m n log² n)`` and ``O(n log² n)``.
+  AREA keeps only the closest edges per range of directions in a tree over the candidates
+  (cf. the engineering design). Same results, except for directions differing in the last bit at edges
+  whose angle range contains the direction (1, 0): they are now compared like at all other edges.
+  Such environments are prepared and queried much faster, typical maps somewhat faster (with and without Numba).
 - ``find_shortest_path()`` and ``search()`` always return the path as a list of ``(x, y)`` tuples of Python floats
   and the length as a Python float. Previously the coordinates and the length were ``numpy.float64``
   (printed as ``np.float64(1.0)``), and when the goal was directly visible from the start the passed objects were
