@@ -120,6 +120,9 @@ A path can therefore be longer than before, or not exist at all (``([], None)``)
 Only exact contacts block, tiny gaps between obstacles do not.
 To keep a passage open, leave a gap between the obstacles.
 
-Inputs that were accepted before may be rejected with ``validate=True``:
+Inputs that were accepted before may be rejected, because the input is validated by default
+(``validate=True``, also in ``from_grid()``, ``from_shapely()`` and the command line interface;
+in 2.x the default was ``validate=False``). Repair the input (cf. the ``shapely.make_valid()`` recipe of the usage page)
+or pass ``validate=False`` to skip the validation:
 polygons crossing themselves at a vertex and collinear overlapping edges within a polygon
 (zero-width spikes or slits) are invalid.

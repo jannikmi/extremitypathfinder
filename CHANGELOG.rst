@@ -25,6 +25,14 @@ BREAKING: the plotting module (``extremitypathfinder.plotting``) has one consist
 BREAKING: environments pickled with 3.0 cannot be loaded anymore (changed attributes, pickle format version 5):
 recreate them. Loading them raises a ``ValueError`` explaining this.
 
+BREAKING: the input is validated by default: ``PolygonEnvironment()``, ``from_grid()``, ``from_shapely()``
+and the command line interface use ``validate=True``. Input that violates the requirements
+(e.g. self intersecting polygons, collinear overlapping edges) previously gave wrong results without an error
+(e.g. no path although start and goal are in the free space) and now raises a ``ValueError`` naming the polygon
+and the location. The validation costs little compared to the preparation of the environment.
+Migration: repair the input (cf. the ``shapely.make_valid()`` recipe of the usage page)
+or pass ``validate=False`` to skip the validation for trusted input.
+
 BREAKING: malformed input is always rejected with a clear error, also without ``validate=True`` and with ``verify=False``:
 
 - polygons that are no list of at least 3 coordinate pairs (``TypeError``, also for ragged lists)

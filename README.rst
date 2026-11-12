@@ -113,15 +113,16 @@ Polygon environment
         ],
     ]
     # computes the visibility graph once
-    environment = PolygonEnvironment(boundary_coordinates, list_of_holes, validate=True)
+    environment = PolygonEnvironment(boundary_coordinates, list_of_holes)
 
     # fast consecutive queries
     path, length = environment.find_shortest_path((4.5, 1.0), (4.0, 8.5))
     # path: [(4.5, 1.0), (3.0, 7.0), (4.0, 8.5)], length: 7.987...
 
 ``path`` is ``[]`` and ``length`` is ``None`` when there is no path between start and goal.
-``validate=True`` checks the input polygons (vertex order, self intersections, ...).
-For trusted input it can be skipped to save time (``validate=False``, the default).
+The input polygons are validated by default (self intersections, overlapping edges, ...) and invalid input raises a ``ValueError``.
+The validation costs little compared to the preparation of the environment.
+For trusted input it can be skipped (``validate=False``).
 
 Grid environment
 ~~~~~~~~~~~~~~~~

@@ -165,7 +165,7 @@ so that touching polygons share identical coordinates again. The vertices may be
 counter clockwise (polygons are reversed into the internal convention: boundary counter clockwise,
 holes clockwise). Polygons need at least three vertices, must not
 self-intersect, and must not repeat a vertex immediately (including repeating the first vertex at
-the end). Coordinates must be finite and polygons must have non-zero area. When ``validate=True``,
+the end). Coordinates must be finite and polygons must have non-zero area. By default (``validate=True``),
 violations of these input requirements raise ``TypeError`` or ``ValueError`` before preprocessing.
 
 Geometry simplification is out of scope: the polygons are used exactly as given (grids are converted
@@ -174,7 +174,7 @@ vertices are needed, e.g. with Shapely.
 
 Polygons may touch each other and themselves: identical vertices, vertices on edges and overlapping
 edges are allowed. Touching obstacles block paths (cf. above). A single polygon touching itself
-must not cross itself there: with ``validate=True`` a vertex lying on another edge of the same polygon
+must not cross itself there: by default (``validate=True``) a vertex lying on another edge of the same polygon
 with its neighbours on opposite sides of that edge, identical vertices whose corners interleave
 and collinear overlapping edges within the same polygon (zero-width spikes or slits) raise a ``ValueError``.
 Different polygons may intersect each other.
