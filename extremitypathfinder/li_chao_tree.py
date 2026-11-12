@@ -55,7 +55,9 @@ from extremitypathfinder.utils_numba import (
 )
 
 # nodes of the tree up to this height above the leaves store no edge:
-# their (at most ``DIRECT_CHECK_SIZE``) candidates are checked right away
+# their (at most ``DIRECT_CHECK_SIZE``) candidates are checked right away.
+# Measured with ``prototypes/complexity_profile.py`` (grid and worst case maps): values from 2 to 7 make no measurable
+# difference, the setup per origin dominates (#259).
 DIRECT_CHECK_LEVEL = 4
 DIRECT_CHECK_SIZE = 2**DIRECT_CHECK_LEVEL
 

@@ -389,13 +389,13 @@ def _near_tie_segments(seed: int):
     nr_candidates = int(rng.integers(100, 600))
 
     def jitter(points):
-        ulps = rng.integers(-3, 4, size=points.shape) * (
-            rng.random(points.shape) < 0.5
-        )
+        ulps = rng.integers(-3, 4, size=points.shape) * (rng.random(points.shape) < 0.5)
         return points + ulps * np.spacing(np.abs(points) + 1)
 
     segments = jitter(rng.integers(-6, 7, size=(2 * nr_segments, 2)).astype(float))
-    candidate_coords = jitter(rng.integers(-6, 7, size=(nr_candidates, 2)).astype(float))
+    candidate_coords = jitter(
+        rng.integers(-6, 7, size=(nr_candidates, 2)).astype(float)
+    )
     coords = np.concatenate([segments, candidate_coords, [[0.5, 0.25]]])
     origin = len(coords) - 1
     edge_vertex_idxs = np.arange(2 * nr_segments).reshape(nr_segments, 2)
