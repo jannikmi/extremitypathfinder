@@ -163,7 +163,7 @@ so an environment object is always complete and ready for queries.
 2. **Orientation** (``orient_polygons()``): polygons with the opposite vertex numbering are reversed
    (boundary counter clockwise, holes clockwise). The test is cheap (linear in the number of vertices),
    so it always runs. Input which is no polygon (shape, fewer than 3 vertices) is left to the validation.
-3. **Validation** (optional, ``validate=True``): shapes, minimum vertex count, finite coordinates,
+3. **Validation** (on by default, skipped with ``validate=False``): shapes, minimum vertex count, finite coordinates,
    no repeated consecutive vertices, no self intersections, non-zero area,
    no crossings or overlapping edges at self contacts
    (``check_data_requirements()``, ``check_polygon_contacts()``).
@@ -566,7 +566,7 @@ The bounding box test compares all positions with all edges, :math:`O(n^2)` vect
 Input validation
 ----------------
 
-With ``validate=True`` every polygon is checked (``_check_polygon()``):
+By default (``validate=True``) every polygon is checked (``_check_polygon()``):
 
 - shape, at least 3 vertices, finite coordinates, no identical consecutive vertices
 - **proper self intersections** (``_find_crossing()``): only pairs of non-neighbouring edges whose bounding boxes
@@ -702,12 +702,16 @@ Code paths that operate on whole arrays use vectorised numpy instead
 (e.g. ``reps_n_distances()``, which performs the same floating point operations as its scalar counterpart).
 CI runs the tests with and without numba (``tests/test_acceleration.py`` checks which backend is active).
 
-Optional validation
--------------------
+Validation by default
+---------------------
 
-Validating the input (self intersections, crossings at self contacts) is costly and skipped by default
-(``validate=False``). Callers with trusted or generated input do not pay for it, callers with external input
-should enable it. Invalid input without validation leads to undefined results.
+The input (self intersections, crossings at self contacts) is validated by default (``validate=True``), because invalid
+input without validation silently leads to undefined results, e.g. no path although start and goal are in the free space.
+The validation is cheap compared to the preparation of the environment: on the benchmark world maps, with and without
+Numba, the difference in preparation time is within the noise of the measurement (numbers in #243). The validation accepted every benchmark world map and all but one of the real-world-like environments of
+``prototypes/real_world_geometry.py``. The rejected one has a zero-width slit (a Shapely union artefact) whose free side
+cannot be decided in floating point: without validation, random paths ran through an obstacle.
+Callers with trusted or generated input can skip the validation with ``validate=False``.
 
 Versioned pickles
 -----------------

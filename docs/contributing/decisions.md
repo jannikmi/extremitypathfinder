@@ -25,6 +25,14 @@ the log states the current decisions (git keeps the history).
 Decisions about how we work on the project are in the [process decision log](decisions-process.md).
 Earlier decisions are described in the {ref}`Design Decisions <design_decisions>` and the issues linked there.
 
+## The input is validated by default (#243)
+
+- **Decided by:** a maintainer
+- **Rejected:** keeping `validate=False` (invalid input silently gives wrong paths, the validation costs
+  within the noise of the preparation); a warning instead of an error (needs the validation to run anyway and is easy
+  to miss)
+- **Details:** [Validation by default](../8_design.rst) in the engineering design
+
 ## The distance matrix searches the graph with A* per pair, like single queries (#175)
 
 - **Decided by:** a maintainer

@@ -1,3 +1,4 @@
+import json
 import subprocess
 from pathlib import Path
 
@@ -21,3 +22,21 @@ def test_main(cmd: list[str]):
     print("length:", length)
     path = " ".join(splits[:-1])
     print("path:", path)
+
+
+def test_main_validates_the_input(tmp_path):
+    """regression (#243): invalid input is rejected instead of giving wrong paths"""
+    invalid = {
+        "boundary": [[0, 0], [10, 0], [10, 10], [0, 10]],
+        "holes": [[[4, 4], [6, 6], [6, 4], [4, 6]]],  # self-intersecting
+    }
+    path = tmp_path / "invalid.json"
+    path.write_text(json.dumps(invalid))
+    res = subprocess.run(
+        ["extremitypathfinder", str(path), "-s", "1", "5", "-g", "9", "5"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert res.returncode != 0
+    assert "self intersections" in res.stderr

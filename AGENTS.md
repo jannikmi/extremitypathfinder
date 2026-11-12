@@ -43,7 +43,8 @@ make release-check                 # build and validate the release artifacts
 7. Never edit `uv.lock` by hand (`make lock`). Never bump the version, push tags, publish releases,
    or edit `.github/workflows/` unless explicitly asked.
 8. The package is licensed under MIT only: do not copy or adapt code from other projects (`docs/contributing/invariants.md`).
-9. Performance claims need before/after numbers (`docs/contributing/performance.md`).
+9. Performance claims need before/after numbers in the issue or pull request (`docs/contributing/performance.md`).
+   Static pages, docstrings and comments state results qualitatively, without measured numbers (they go stale).
 10. Stay in the scope of the task: no unrelated refactoring or reformatting. Never weaken or skip tests to pass.
 11. Before a larger change, present the trade-off with a recommendation. Unless one option is clearly better,
     a maintainer decides. Record and summarise it (`docs/contributing/workflow.md#trade-offs-and-decisions`).

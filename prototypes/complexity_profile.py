@@ -69,7 +69,7 @@ def timed_preparation(boundary, holes) -> tuple[PolygonEnvironment, dict]:
     utils.compute_graph = timed("graph", original[1])
     try:
         start = time.perf_counter()
-        env = PolygonEnvironment(boundary, holes)
+        env = PolygonEnvironment(boundary, holes, validate=False)
         times["total"] = time.perf_counter() - start
     finally:
         utils.compile_polygon_datastructs, utils.compute_graph = original
@@ -102,7 +102,7 @@ def counted_preparation(boundary, holes) -> dict:
     utils.find_visible = find_visible
     utils.check_candidates_one_edge = check_candidates_one_edge
     try:
-        PolygonEnvironment(boundary, holes)
+        PolygonEnvironment(boundary, holes, validate=False)
     finally:
         utils.find_visible, utils.check_candidates_one_edge = (
             original_find,

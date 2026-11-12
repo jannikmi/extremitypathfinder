@@ -59,7 +59,7 @@ def main():
     for holes_per_side in args.holes_per_side:
         rng = np.random.default_rng(args.seed)
         boundary, holes, size = build_environment(holes_per_side, rng)
-        environment = PolygonEnvironment(boundary, holes)
+        environment = PolygonEnvironment(boundary, holes, validate=False)
         # warm-up (Numba compilation)
         environment.distance_matrix(random_points(environment, 3, size, rng))
         loop(environment, random_points(environment, 3, size, rng))
