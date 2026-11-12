@@ -55,6 +55,7 @@ The package is a small library with a single entry point, the class ``PolygonEnv
     ├── extremitypathfinder.py   PolygonEnvironment: the public API, delegating to the modules below
     ├── queries.py               queries: start and goal visibility, graph search, distance matrix
     ├── wedges.py                points and free wedges
+    ├── li_chao_tree.py          Li Chao tree of edges over the candidates (AREA)
     ├── utils.py                 visibility (AREA), graph, A*, validation, grids, I/O
     ├── utils_numba.py           numerical kernels (optionally compiled)
     ├── numba_replacements.py    stand-ins for numba decorators and types
@@ -76,6 +77,8 @@ The modules form layers, each one only imports from the layers below it:
     utils                        visibility, graph, A*, validation
             │
     wedges                       points and free wedges
+            │
+    li_chao_tree                 Li Chao tree of edges over the candidates
             │
     utils_numba                  numerical kernels
             │
@@ -372,7 +375,7 @@ Details:
 **The tree over the candidates.** Checking every edge against every candidate in its angle range takes :math:`O(n k)` per origin
 when many edges span the directions of many candidates, e.g. long walls behind many small obstacles.
 A candidate is however already decided by the closest edge in its direction.
-``_blocked_candidates()`` finds it without comparing all edges:
+``li_chao_tree.blocked_candidates()`` (``li_chao_tree.py``) finds it without comparing all edges:
 
 - A segment tree over the sorted candidates: every node stands for a contiguous range of candidates,
   the root for all of them, its children for the two halves. The candidates of an edge are covered exactly by
@@ -394,7 +397,7 @@ Edges are only compared in the directions of candidates, with the intersection f
 No crossings between edges are computed and no order of the edges along a rotating ray is maintained:
 overlapping polygons, whose edges cross, need no special treatment, and a candidate is only removed by the check
 of a single edge, which keeps the exact contact semantics.
-The tree is a plain array, compiled by Numba (``utils_numba.py``).
+The tree is a plain array, compiled by Numba (``li_chao_tree.py``, the module docstring describes it in detail).
 
 Properties:
 

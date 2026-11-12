@@ -323,7 +323,7 @@ def _crossing_segments(seed: int):
     """random segments crossing each other (as the edges of overlapping polygons) with many candidates
 
     Many candidates lie within the angle range of an edge, so that the edges are entered into the tree
-    (cf. ``utils_numba._blocked_candidates()``). Integer coordinates (every third seed) give candidates
+    (cf. ``li_chao_tree.blocked_candidates()``). Integer coordinates (every third seed) give candidates
     exactly on edges and in the directions of edge vertices. Some candidates lie in the middle of an edge.
     """
     rng = np.random.default_rng(seed)

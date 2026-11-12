@@ -18,11 +18,13 @@ from extremitypathfinder.configs import (
     DEFAULT_PICKLE_NAME,
     HOLES_JSON_KEY,
 )
+from extremitypathfinder.li_chao_tree import blocked_candidates
 from extremitypathfinder.utils_numba import (
-    _blocked_candidates,
     _has_clockwise_numbering,
     _inside_polygon,
     _no_identical_consequent_vertices,
+    compute_candidate_terms,
+    compute_edge_terms,
     edge_vertex_mappings,
     is_within_map,
     reps_n_distances,
@@ -348,7 +350,7 @@ def find_visible(
     such a candidate is blocked when it lies behind the edge.
     An edge with a few candidates in its range is checked against each of them. An edge with many is entered
     into a tree over the candidates, which only keeps the closest edges per range of directions,
-    so that every candidate is checked against few edges (cf. ``_blocked_candidates()``).
+    so that every candidate is checked against few edges (cf. ``li_chao_tree.blocked_candidates()``).
     This bounds the worst case: ``O((n + k) log² k)`` for n edges and k candidates.
 
     A line of sight touching an edge only in one of its vertices (or running along it) is not blocked by the edge.
@@ -363,7 +365,8 @@ def find_visible(
     :param representations: the angle representations of all coordinates seen from the origin
     :param distances: the distances of all coordinates to the origin
     :param candidate_edges: the edges touching a candidate (e.g. a query point on an edge),
-        they do not block it. IMPORTANT: the candidate must lie on these edges (cf. ``_blocked_candidates()``).
+        they do not block it.
+        IMPORTANT: the candidate must lie on these edges (cf. ``li_chao_tree.blocked_candidates()``).
     :return: the visible candidates
     """
     if len(candidates) == 0:
@@ -378,17 +381,8 @@ def find_visible(
     edges_min_rep, edges_max_rep, edges_max_dist, edges_is_crossing = (
         _edge_angle_ranges(edges, edge_vertex_idxs, representations, distances)
     )
-    # the terms of the edges for the intersections with the lines of sight (cf. ``_blocked_candidates()``)
     vectors = coords - coords[origin]
-    p1 = vectors[edge_vertex_idxs[:, 0]]
-    p2 = vectors[edge_vertex_idxs[:, 1]]
-    edges_a = p1[:, 0] - p2[:, 0]
-    edges_b = p1[:, 1] - p2[:, 1]
-    edges_numerator = edges_a * p1[:, 1] - edges_b * p1[:, 0]
-    # an edge is at least as far away as its line
-    with np.errstate(invalid="ignore", divide="ignore"):
-        edges_min_dist = np.abs(edges_numerator) / np.hypot(edges_a, edges_b)
-    blocked = _blocked_candidates(
+    blocked = blocked_candidates(
         *_candidate_ranges(
             edges,
             edges_min_rep,
@@ -397,10 +391,10 @@ def find_visible(
             edges_is_crossing,
             candidate_reps,
         ),
-        np.column_stack(
-            [edges_a, edges_b, edges_numerator, edges_max_dist, edges_min_dist]
+        compute_edge_terms(vectors, edge_vertex_idxs, edges_max_dist),
+        compute_candidate_terms(
+            vectors[candidates_sorted], distances[candidates_sorted]
         ),
-        np.column_stack([vectors[candidates_sorted], distances[candidates_sorted]]),
         *_own_edges(candidates, candidates_sorted, candidate_edges or {}),
     )
     return set(candidates_sorted[~blocked].tolist())
@@ -411,7 +405,7 @@ def _own_edges(
     candidates_sorted: np.ndarray,
     candidate_edges: Mapping[int, set[int]],
 ) -> tuple[np.ndarray, np.ndarray]:
-    """the edges touching the candidates, for ``_blocked_candidates()``
+    """the edges touching the candidates, for ``li_chao_tree.blocked_candidates()``
 
     :return: per sorted candidate (and one more entry) where its edges start, and the edges of all candidates
     """
