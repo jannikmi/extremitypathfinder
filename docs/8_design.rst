@@ -707,32 +707,11 @@ Validation by default
 
 The input (self intersections, crossings at self contacts) is validated by default (``validate=True``), because invalid
 input without validation silently leads to undefined results, e.g. no path although start and goal are in the free space.
-The validation is cheap compared to the preparation of the environment. Preparation time in seconds on the benchmark
-world maps, ``validate=False`` / ``validate=True``, two runs each (shared 4 vCPU Linux VM, Python 3.13, indicative only;
-the validation alone takes 0.14 s at 5,020 and 0.56 s at 20,262 vertices):
-
-.. list-table::
-   :header-rows: 1
-
-   * - Vertices
-     - With Numba
-     - Without Numba
-   * - 1,009
-     - 1.88, 1.83 / 1.87, 1.85
-     - 2.69, 2.55 / 2.61, 2.74
-   * - 2,009
-     - 5.98, 6.14 / 6.03, 6.40
-     - 9.38, 9.45 / 8.96, 8.93
-   * - 5,020
-     - 45.6, 49.8 / 44.7, 46.3
-     - not measured
-
-The differences are within the noise. The validation accepted every
-benchmark world map (1,009 to 20,262 vertices) and all but one of 180 real-world-like environments of
-``prototypes/real_world_geometry.py``. The rejected one has a zero-width slit about :math:`10^{-17}` wide
-(a Shapely union artefact) whose free side cannot be decided in floating point: without validation, 35 of 300
-random paths ran through an obstacle. Callers with trusted or generated input can skip the validation with
-``validate=False``.
+The validation is cheap compared to the preparation of the environment: on the benchmark world maps, with and without
+Numba, the difference in preparation time is within the noise of the measurement (numbers in #243). The validation accepted every benchmark world map and all but one of the real-world-like environments of
+``prototypes/real_world_geometry.py``. The rejected one has a zero-width slit (a Shapely union artefact) whose free side
+cannot be decided in floating point: without validation, random paths ran through an obstacle.
+Callers with trusted or generated input can skip the validation with ``validate=False``.
 
 Versioned pickles
 -----------------

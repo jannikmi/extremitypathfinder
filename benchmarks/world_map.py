@@ -235,7 +235,7 @@ def check(polygons: list[Polygon], validate_epf: bool = False):
 
     The Shapely checks (simple polygons, pairwise disjoint) are fast and always run.
     :param validate_epf: additionally run the input validation of extremitypathfinder.
-        Redundant with the Shapely checks (0.56 s at 20k vertices).
+        Redundant with the Shapely checks and fast.
     """
     for i, polygon in enumerate(polygons):
         coords = polygon.exterior.coords[:-1]
