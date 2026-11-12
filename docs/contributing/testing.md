@@ -14,7 +14,9 @@ The tests use [pytest](https://docs.pytest.org/). A bare `pytest` only collects 
 ## Full matrix
 
 The tox configuration in `pyproject.toml` tests all supported Python versions with the minimum and the latest
-dependencies, with and without Numba. CI runs all of these environments.
+dependencies, with and without Numba, and free-threaded CPython 3.14 (`py314t`, `py314t-numba`) with the latest
+dependencies. There, `tests/test_threads.py` fails if an imported extension module re-enables the GIL.
+CI runs all of these environments.
 
 ```sh
 make tox                  # all environments (needs all Python versions)

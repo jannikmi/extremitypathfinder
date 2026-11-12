@@ -181,6 +181,28 @@ is the Euclidean length of the edge. Start and goal points are not part of it.
 
 
 
+Threads
+-------
+
+Queries do not change the environment: ``find_shortest_path()``, ``search()`` and ``distance_matrix()``
+can be called from several threads on the same environment at once.
+On free-threaded CPython (``python3.14t``) the threads run in parallel, also with Numba:
+
+.. code-block:: python
+
+    from concurrent.futures import ThreadPoolExecutor
+
+    pairs = [((4.5, 1.0), (4.0, 8.5)), ((1.0, 1.0), (4.0, 8.5))]
+    with ThreadPoolExecutor() as executor:
+        results = list(
+            executor.map(lambda pair: environment.find_shortest_path(*pair), pairs)
+        )
+
+Do not modify its attributes (e.g. ``environment.graph``) while it is queried.
+Separate environments can be created in parallel threads.
+
+
+
 Shapely and GeoJSON input
 -------------------------
 

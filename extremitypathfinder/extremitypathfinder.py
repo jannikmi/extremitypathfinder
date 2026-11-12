@@ -52,6 +52,8 @@ class PolygonEnvironment:
     an obstacle touches itself. Paths may run along obstacle edges and through the vertices of a single obstacle.
     A contact means exactly equal coordinates or a vertex exactly on an edge, near-contacts (tiny gaps) do not block.
     Overlapping polygons act as their union.
+
+    Queries do not change the environment: they may run in several threads at once (cf. the usage page).
     """
 
     nr_vertices: int
