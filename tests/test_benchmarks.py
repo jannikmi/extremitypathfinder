@@ -115,7 +115,7 @@ def test_parse_size():
 
 
 def test_downsample_reaches_at_least_the_target():
-    """a map of n vertices has at least n vertices (e.g. world_10k: not 9,952)"""
+    """a map of n vertices has at least n vertices (e.g. world_6k: not 5,952)"""
     polygons = [
         Polygon(
             [
@@ -139,12 +139,12 @@ def test_downsample_reaches_at_least_the_target():
 def test_load_world_rebuilds_maps_of_another_map_version(monkeypatch, tmp_path):
     """cached maps of an earlier map generation (e.g. at most the target) are not reused"""
     spec = workloads.SWEEP_BY_NAME["world_5k"]
-    old = {"spec": asdict(spec), "ne_release": world_map.NE_RELEASE, "vertices": 9952}
+    old = {"spec": asdict(spec), "ne_release": world_map.NE_RELEASE, "vertices": 4954}
     (tmp_path / f"{spec.name}.json").write_text(json.dumps(old))
-    monkeypatch.setattr(world_map, "build_map", lambda *_a, **_k: {"vertices": 10081})
-    assert workloads.load_world(spec, tmp_path)["vertices"] == 10081
+    monkeypatch.setattr(world_map, "build_map", lambda *_a, **_k: {"vertices": 5081})
+    assert workloads.load_world(spec, tmp_path)["vertices"] == 5081
     monkeypatch.setattr(world_map, "build_map", lambda *_a, **_k: pytest.fail("cached"))
-    assert workloads.load_world(spec, tmp_path)["vertices"] == 10081
+    assert workloads.load_world(spec, tmp_path)["vertices"] == 5081
 
 
 def test_quick_run_tolerates_download_failure(monkeypatch, tmp_path):

@@ -196,7 +196,7 @@ def downsample(
 
     bisection of the tolerance in log space, the result has at least ``target_vertices`` vertices
     and lies within ``TARGET_RTOL`` above it if possible.
-    A map of e.g. 10k vertices therefore has no fewer than 10,000 vertices.
+    A map of e.g. 6k vertices therefore has no fewer than 6,000 vertices.
 
     :raises ValueError: if the cleaned polygons have fewer than ``target_vertices`` vertices
     """
