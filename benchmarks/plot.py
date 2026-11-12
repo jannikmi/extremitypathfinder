@@ -263,6 +263,59 @@ def ratio(results: dict, path: Path):
     )
 
 
+def graph_size(results: dict, path: Path):
+    """edges of the graph over the vertices: the amount of work of the queries (every search touches them)"""
+    fig, ax = _new_axes(results, "edges of the visibility graph")
+    for package in COMPARED_PACKAGES:
+        _line(
+            ax,
+            *_ok_points(results, package, lambda r: r["graph_edges"], BUILT),
+            package,
+            label=ADAPTERS[package].label,
+        )
+    # references: linear and quadratic growth through the smallest map
+    vertices = [e["map"]["vertices"] for e in results["world"]]
+    if vertices:
+        n0, n1 = min(vertices), max(vertices)
+        pvg_edges = _ok_points(
+            results, "pyvisgraph", lambda r: r["graph_edges"], BUILT
+        )[1]
+        e0 = pvg_edges[0] if pvg_edges else n0
+        for exponent in (1, 2):
+            ax.plot(
+                [n0, n1],
+                [e0, e0 * (n1 / n0) ** exponent],
+                color=TEXT_SECONDARY,
+                linestyle=":",
+                linewidth=1,
+            )
+            x = n0 * (n1 / n0) ** 0.6
+            ax.annotate(
+                f"∝ n^{exponent}" if exponent > 1 else "∝ n",
+                (x, e0 * (x / n0) ** exponent),
+                xytext=(0, 4),
+                textcoords="offset points",
+                ha="center",
+                fontsize=8,
+                color=TEXT_SECONDARY,
+            )
+    ax.set_title("Graph size: edges over vertices")
+    _finish(fig, ax, results, path, loc="lower right", fontsize=8)
+
+
+def build_time_over_edges(results: dict, path: Path):
+    """build time over the graph edges: separates the number of edges (the work) from the cost per edge"""
+    fig, ax = _new_axes(results, "build time (s)")
+    ax.set_xlabel("edges of the visibility graph")
+    for package in COMPARED_PACKAGES:
+        edges = _ok_points(results, package, lambda r: r["graph_edges"], BUILT)[1]
+        times = _ok_points(results, package, lambda r: r["build_time"], BUILT)[1]
+        # legend instead of direct labels: the line ends are close together
+        _line(ax, edges, times, package, label=ADAPTERS[package].label)
+    ax.set_title("Build time over the graph edges")
+    _finish(fig, ax, results, path, loc="lower right", fontsize=8)
+
+
 def numba_ratio(results: dict, path: Path):
     _ratio_figure(
         results,
@@ -543,6 +596,8 @@ FIGURES = {
     "benchmark_memory.svg": memory,
     "benchmark_memory_retained.svg": memory_retained,
     "benchmark_memory_composition.svg": memory_composition,
+    "benchmark_graph_size.svg": graph_size,
+    "benchmark_build_time_edges.svg": build_time_over_edges,
     "benchmark_ratio.svg": ratio,
     "benchmark_numba_ratio.svg": numba_ratio,
     "benchmark_world_example.svg": world_example,

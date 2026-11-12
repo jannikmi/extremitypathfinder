@@ -304,6 +304,10 @@ def test_invalid_runs_show_build_results_but_no_query_results():
     for cell in ("3 MiB", "10 MiB", "13 MiB"):
         assert memory.count(f"     - {cell}\n") == 2
     assert "pyvisgraph" not in tables["benchmark_query.rst"].split("Queries\n", 1)[1]
+    # graph size: the extremities of the package, the edge ratio and the time per edge (2 s / 6 edges, 2 s / 4 edges)
+    graph = tables["benchmark_graph.rst"]
+    assert "     - 1.5\n" in graph  # edge ratio pyvisgraph / extremitypathfinder
+    assert "(invalid)" in graph
 
 
 def _system_meta():

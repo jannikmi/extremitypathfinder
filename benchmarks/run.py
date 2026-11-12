@@ -849,6 +849,54 @@ def render_tables(results: dict) -> dict[str, str]:
 
     rows = []
     for e in world:
+        epf = e["results"].get("extremitypathfinder", {})
+        pvg = e["results"].get("pyvisgraph", {})
+        vertices = e["map"]["vertices"]
+        row = [f"{vertices:,}"]
+        if has_build_results(epf):
+            # the nodes of the graph are the extremities: the vertices a shortest path can turn at
+            row += [
+                f"{epf['graph_nodes']:,}",
+                f"{epf['graph_nodes'] / vertices:.0%}",
+                f"{epf['graph_edges']:,}",
+                f"{epf['graph_edges'] / vertices:.1f}",
+            ]
+        else:
+            row += ["–"] * 4
+        if has_build_results(pvg):
+            row += [
+                _mark(pvg, f"{pvg['graph_edges']:,}"),
+                f"{pvg['graph_edges'] / vertices:.1f}",
+            ]
+        else:
+            row += ["–"] * 2
+        if has_build_results(epf) and has_build_results(pvg):
+            row.append(f"{pvg['graph_edges'] / epf['graph_edges']:.3g}")
+            # time per edge: the cost of finding one edge of the graph
+            row.append(f"{epf['build_time'] / epf['graph_edges'] * 1e6:.3g}")
+            row.append(f"{pvg['build_time'] / pvg['graph_edges'] * 1e6:.3g}")
+        else:
+            row += ["–"] * 3
+        rows.append(row)
+    tables["benchmark_graph.rst"] = note + _list_table(
+        "Graph size: nodes, edges and build time per edge",
+        [
+            "Vertices",
+            "Extremities (= nodes) extremitypathfinder",
+            "Share of the vertices",
+            "Edges extremitypathfinder",
+            "Edges per vertex extremitypathfinder",
+            "Edges pyvisgraph",
+            "Edges per vertex pyvisgraph",
+            "Edge ratio pyvisgraph / extremitypathfinder",
+            "Build time per edge extremitypathfinder (µs)",
+            "Build time per edge pyvisgraph (µs)",
+        ],
+        rows,
+    )
+
+    rows = []
+    for e in world:
         for package in PACKAGES:
             r = e["results"].get(package, {})
             if has_build_results(r):

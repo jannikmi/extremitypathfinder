@@ -82,6 +82,23 @@ Speed
 
 .. include:: ../benchmarks/results/benchmark_build.rst
 
+.. figure:: _static/benchmark_graph_size.svg
+   :width: 100%
+   :alt: edges of the visibility graph over the number of vertices, log-log, one line per package
+
+   Amount of work: edges of the visibility graph. ``extremitypathfinder`` keeps only the extremities as nodes and
+   only the edges between them; ``pyvisgraph`` connects every vertex. The dotted lines show linear and quadratic growth.
+
+.. figure:: _static/benchmark_build_time_edges.svg
+   :width: 100%
+   :alt: build time over the edges of the visibility graph, log-log, one line per package
+
+   Build time over the edges of the graph (see the table below for the time per edge).
+   Both lines have a similar slope, but at larger sizes ``extremitypathfinder`` takes longer per edge:
+   its lower build time comes from the smaller graph, not from a cheaper edge.
+
+.. include:: ../benchmarks/results/benchmark_graph.rst
+
 .. figure:: _static/benchmark_query_time.svg
    :width: 100%
    :alt: query latency over the number of vertices, log-log, median and 5th to 95th percentile band
