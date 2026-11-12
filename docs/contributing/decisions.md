@@ -25,6 +25,14 @@ the log states the current decisions (git keeps the history).
 Decisions about how we work on the project are in the [process decision log](decisions-process.md).
 Earlier decisions are described in the {ref}`Design Decisions <design_decisions>` and the issues linked there.
 
+## The input is validated by default (#243)
+
+- **Decided by:** a maintainer
+- **Rejected:** keeping `validate=False` (invalid input silently gives wrong paths, the validation costs
+  within the noise of the preparation); a warning instead of an error (needs the validation to run anyway and is easy
+  to miss)
+- **Details:** [Validation by default](../8_design.rst) in the engineering design
+
 ## The distance matrix searches the graph with A* per pair, like single queries (#175)
 
 - **Decided by:** a maintainer
@@ -59,7 +67,12 @@ Earlier decisions are described in the {ref}`Design Decisions <design_decisions>
 
 - **Decided by:** a maintainer
 - **Rejected:** triangular expansion, Polyanya or continuous Dijkstra instead; an angular sweep, also only for
-  the worst case of AREA (#216: slower on the measured maps, no fitting package, none works with Numba).
+  the worst case of AREA (#216: slower on the measured maps, no fitting package, none works with Numba,
+  needs edges that do not cross).
+- **Consequences:** the worst case of AREA is bounded within AREA instead: a tree over the candidates keeps
+  the closest edges (#216), `O(m n log² n)` instead of `O(n m²)`, faster on the measured maps. Same results,
+  except that the edges whose angle range contains the direction (1, 0) compare directions without rotating them
+  (differences in the last bit).
 - **Details:** {ref}`Design Decisions <design_decisions>`, `prototypes/sweep_tree_overhead.py` (#216)
 
 ## A release requires up-to-date benchmark results, checked when it is prepared, on its pull request and when it is tagged (#191)

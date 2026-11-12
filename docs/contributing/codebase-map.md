@@ -31,6 +31,8 @@ utils                        visibility, graph, A*, validation
         │
 wedges                       points and free wedges
         │
+li_chao_tree                 Li Chao tree of edges over the candidates
+        │
 utils_numba                  numerical kernels
         │
 numba | numba_replacements
@@ -43,6 +45,7 @@ numba | numba_replacements
 | `queries.py` | change how a query is run: start and goal visibility, graph search, distance matrix, `SearchResult` |
 | `utils.py` | change input validation and orientation, visibility (`find_visible()`), the graph, A* (`astar_path()`), grids, JSON and pickle I/O |
 | `wedges.py` | change what happens at vertices: points, free wedges, which vertices are extremities |
+| `li_chao_tree.py` | change how AREA finds the candidates behind an edge: the Li Chao tree (`blocked_candidates()`) |
 | `utils_numba.py` | change the innermost numerical loops (angle representations, intersection tests) |
 | `numba_replacements.py` | change the stand-ins used when Numba is not installed |
 | `plotting.py` | change the drawings and plot exports (Matplotlib) |

@@ -52,6 +52,8 @@ class PolygonEnvironment:
     an obstacle touches itself. Paths may run along obstacle edges and through the vertices of a single obstacle.
     A contact means exactly equal coordinates or a vertex exactly on an edge, near-contacts (tiny gaps) do not block.
     Overlapping polygons act as their union.
+
+    Queries do not change the environment: they may run in several threads at once (cf. the usage page).
     """
 
     nr_vertices: int
@@ -68,7 +70,7 @@ class PolygonEnvironment:
         self,
         boundary_coordinates: OptionalInputCoordList,
         list_of_hole_coordinates: Iterable[InputCoordList],
-        validate: bool = False,
+        validate: bool = True,
     ):
         """stores the passed input polygons in the environment and computes the visibility graph
 
@@ -91,7 +93,8 @@ class PolygonEnvironment:
             When ``None``, the environment is unbounded and at least one hole must
             be supplied.
         :param list_of_hole_coordinates: arrays of coordinates (clockwise or counter clockwise numbering)
-        :param validate: whether the requirements of the data should be tested
+        :param validate: whether the requirements of the data should be tested (default). Pass ``False`` to skip
+            the validation for trusted input. Invalid input without validation leads to undefined results.
 
         :raises TypeError: when a polygon is no list of at least 3 coordinate pairs (always checked).
         :raises ValueError: when a coordinate is not finite (always checked),
@@ -164,7 +167,7 @@ class PolygonEnvironment:
         size_x: int,
         size_y: int,
         obstacle_iter: ObstacleIterator,
-        validate: bool = False,
+        validate: bool = True,
     ) -> "PolygonEnvironment":
         """Convert a grid with blocked cells (obstacles) into a polygon environment
 
@@ -176,7 +179,7 @@ class PolygonEnvironment:
         :param size_x: the horizontal grid size
         :param size_y: the vertical grid size
         :param obstacle_iter: an iterable of coordinate pairs (x,y) representing blocked grid cells (obstacles)
-        :param validate: whether the input should be validated
+        :param validate: whether the input should be validated (default), cf. the constructor
         :raises TypeError: when a size is no integer or a blocked cell is no pair of integers
         :raises ValueError: when a size is not positive, a blocked cell lies outside of the grid
             or all cells are blocked
@@ -191,7 +194,7 @@ class PolygonEnvironment:
         cls,
         boundary: t.GeometryInput,
         obstacles: t.GeometryInput = None,
-        validate: bool = False,
+        validate: bool = True,
     ) -> Self:
         """Create an environment from `Shapely <https://shapely.readthedocs.io/>`__ or GeoJSON-like geometries
 
@@ -213,7 +216,7 @@ class PolygonEnvironment:
             and at least one obstacle must be supplied.
         :param obstacles: the obstacles: a polygon, a multi-polygon, a geometry collection of polygons
             or an iterable of these. Empty geometries are skipped.
-        :param validate: whether the converted input should be validated,
+        :param validate: whether the converted input should be validated (default),
             with the same validation as the coordinate input of the constructor
         :raises ImportError: when Shapely is not installed
         :raises TypeError: when a geometry is not a polygon (or a collection of polygons)

@@ -288,3 +288,95 @@ def _lies_behind(
     coords_p2_rel = coords[idx_p2] - coords_origin
     coords_v_rel = coords[idx_v] - coords_origin
     return _lies_behind_inner(coords_p1_rel, coords_p2_rel, coords_v_rel)
+
+
+# Column layout of the precomputed terms of the edges and the candidates (seen from the origin).
+# The terms of an edge are those of ``_lies_behind_inner()``: with its vertices p1, p2 relative to the origin
+# a = x1 - x2, b = y1 - y2 and the numerator a * y1 - b * x1.
+EDGE_A = 0
+EDGE_B = 1
+EDGE_NUMERATOR = 2
+EDGE_MAX_DIST = 3  # the maximum distance of its vertices
+EDGE_MIN_DIST = 4  # a lower bound of its distance: the distance of its line (less a rounding margin)
+# Relative margin of ``EDGE_MIN_DIST``: an edge is only dropped as hidden behind another edge when it is farther
+# away than the rounding errors of both distances (a few ulps) can explain. It only makes the pruning more
+# conservative and does not change which candidates are blocked.
+MIN_DIST_MARGIN = 16 * np.finfo(np.float64).eps
+CANDIDATE_X = 0  # the coordinates relative to the origin
+CANDIDATE_Y = 1
+CANDIDATE_DIST = 2
+
+
+@njit(f8(i8, i8, f8[:, :], f8[:, :]), cache=True)
+def _edge_distance(
+    edge: int, candidate: int, edge_terms: np.ndarray, candidate_terms: np.ndarray
+) -> float:
+    """the distance of an edge along the ray from the origin through a candidate, in multiples of its distance
+
+    The same operations as ``_lies_behind_inner()`` with the terms of the edge computed in advance.
+    """
+    a = edge_terms[edge, EDGE_A]
+    b = edge_terms[edge, EDGE_B]
+    x = candidate_terms[candidate, CANDIDATE_X]
+    y = candidate_terms[candidate, CANDIDATE_Y]
+    det = a * y - x * b
+    if det == 0.0:
+        return np.inf
+    return edge_terms[edge, EDGE_NUMERATOR] / det
+
+
+@njit(b1(i8, i8, f8[:, :], f8[:, :], i8[:], i8[:]), cache=True)
+def _behind_edge(
+    edge: int,
+    candidate: int,
+    edge_terms: np.ndarray,
+    candidate_terms: np.ndarray,
+    own_edges_start: np.ndarray,
+    own_edges: np.ndarray,
+) -> bool:
+    """whether a candidate within the angle range of an edge lies behind it (cf. ``_lies_behind()``)
+
+    Not behind the edges it touches (its "own" edges, cf. ``li_chao_tree.blocked_candidates()``).
+    """
+    # optimisation: a candidate farther away than both vertices of the edge surely lies behind it
+    # ATTENTION: a candidate closer than both vertices still needs to be checked!
+    # vertices on the edge are possibly visible! ( < not <=)
+    behind = (
+        candidate_terms[candidate, CANDIDATE_DIST] > edge_terms[edge, EDGE_MAX_DIST]
+    )
+    if not behind:
+        behind = _edge_distance(edge, candidate, edge_terms, candidate_terms) < 1.0
+    if not behind:
+        return False
+    for i in range(own_edges_start[candidate], own_edges_start[candidate + 1]):
+        if own_edges[i] == edge:
+            return False
+    return True
+
+
+def compute_edge_terms(
+    vectors: np.ndarray, edge_vertex_idxs: np.ndarray, edges_max_dist: np.ndarray
+) -> np.ndarray:
+    """the terms of all edges for ``_edge_distance()`` and ``_behind_edge()`` (columns ``EDGE_*``)
+
+    :param vectors: all coordinates relative to the origin
+    :param edges_max_dist: per edge the maximum distance of its vertices to the origin
+    """
+    p1 = vectors[edge_vertex_idxs[:, 0]]
+    p2 = vectors[edge_vertex_idxs[:, 1]]
+    a = p1[:, 0] - p2[:, 0]
+    b = p1[:, 1] - p2[:, 1]
+    numerator = a * p1[:, 1] - b * p1[:, 0]
+    # an edge is at least as far away as its line
+    with np.errstate(invalid="ignore", divide="ignore"):
+        min_dist = np.abs(numerator) / np.hypot(a, b) * (1.0 - MIN_DIST_MARGIN)
+    return np.column_stack([a, b, numerator, edges_max_dist, min_dist])
+
+
+def compute_candidate_terms(vectors: np.ndarray, distances: np.ndarray) -> np.ndarray:
+    """the terms of candidates for ``_edge_distance()`` and ``_behind_edge()`` (columns ``CANDIDATE_*``)
+
+    :param vectors: the coordinates of the candidates relative to the origin
+    :param distances: their distances to the origin
+    """
+    return np.column_stack([vectors, distances])

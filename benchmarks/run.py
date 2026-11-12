@@ -983,8 +983,11 @@ def render_tables(results: dict) -> dict[str, str]:
 
     rows = []
     for e in world + results["examples"]:
+        statuses = {r["status"] for r in e["results"].values()} - {NOT_RUN}
+        # a map which no package can build says nothing about correctness
+        nothing_built = statuses == {measure.OVER_BUDGET}
         for package, r in e["results"].items():
-            if r["status"] in (measure.OK, NOT_RUN):
+            if r["status"] in (measure.OK, NOT_RUN) or nothing_built:
                 continue
             if r["status"] == measure.INVALID:
                 v = r["validation"]

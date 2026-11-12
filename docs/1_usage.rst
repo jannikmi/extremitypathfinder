@@ -68,7 +68,7 @@ Ensure that all the following conditions on the polygons are fulfilled:
     ]
     from extremitypathfinder import PolygonEnvironment
 
-    environment = PolygonEnvironment(boundary_coordinates, list_of_holes, validate=False)
+    environment = PolygonEnvironment(boundary_coordinates, list_of_holes)
 
 
 If there is no explicit boundary polygon, pass ``None`` instead. The environment
@@ -77,13 +77,15 @@ hole must be supplied.
 
 .. code-block:: python
 
-    environment = PolygonEnvironment(None, list_of_holes, validate=False)
+    environment = PolygonEnvironment(None, list_of_holes)
 
 
 .. note::
 
     The format of the polygons (at least 3 coordinate pairs, finite) is always checked.
-    Pass ``validate=True`` in order to check the other conditions on the data.
+    The other conditions on the data (e.g. no self intersections) are checked by default, too.
+    Pass ``validate=False`` to skip these checks for trusted input: invalid input then leads to undefined results,
+    e.g. no path although start and goal are in the free space.
     Raises ``TypeError`` if the input has the wrong type and ``ValueError`` if the input is invalid.
     The message names the polygon (``boundary polygon`` or ``hole <index>``) and the location of the violation,
     e.g. ``hole 1: The given polygon has self intersections: the edges from vertex 0 to 1 and from vertex 2 to 3
@@ -179,6 +181,28 @@ is the Euclidean length of the edge. Start and goal points are not part of it.
 
 
 
+Threads
+-------
+
+Queries do not change the environment: ``find_shortest_path()``, ``search()`` and ``distance_matrix()``
+can be called from several threads on the same environment at once.
+On free-threaded CPython (``python3.14t``) the threads run in parallel, also with Numba:
+
+.. code-block:: python
+
+    from concurrent.futures import ThreadPoolExecutor
+
+    pairs = [((4.5, 1.0), (4.0, 8.5)), ((1.0, 1.0), (4.0, 8.5))]
+    with ThreadPoolExecutor() as executor:
+        results = list(
+            executor.map(lambda pair: environment.find_shortest_path(*pair), pairs)
+        )
+
+Do not modify its attributes (e.g. ``environment.graph``) while it is queried.
+Separate environments can be created in parallel threads.
+
+
+
 Shapely and GeoJSON input
 -------------------------
 
@@ -215,11 +239,11 @@ which gives the same environment as the equivalent coordinate lists:
             shapely.Polygon([(6, 6), (8, 6), (8, 8), (6, 8)]),
         ]
     )
-    environment = PolygonEnvironment.from_shapely(boundary, obstacles, validate=True)
+    environment = PolygonEnvironment.from_shapely(boundary, obstacles)
     path, length = environment.find_shortest_path((1, 1), (9, 9))
     line = shapely.LineString(path)  # the path as a Shapely geometry
 
-With ``validate=True``, the converted coordinates are checked with the same validation as the coordinate input.
+By default (``validate=True``), the converted coordinates are checked with the same validation as the coordinate input.
 Shapely's own validity rules differ (e.g. a polygon touching itself at a vertex is valid here, but not in Shapely).
 Geometries rejected by the validation can often be repaired with Shapely before passing them,
 e.g. with ``shapely.make_valid()``, which splits a self-intersecting polygon into valid parts:
@@ -228,7 +252,7 @@ e.g. with ``shapely.make_valid()``, which splits a self-intersecting polygon int
 
     obstacle = shapely.Polygon([(2, 2), (4, 4), (4, 2), (2, 4)])  # crosses itself
     obstacles = shapely.make_valid(obstacle)  # two touching triangles
-    environment = PolygonEnvironment.from_shapely(boundary, obstacles, validate=True)
+    environment = PolygonEnvironment.from_shapely(boundary, obstacles)
 
 The repaired geometry may contain lines or points (e.g. from a zero-width spike):
 keep only the polygons, e.g. with ``shapely.make_valid(obstacle, method="structure")``, and check the result.
@@ -264,7 +288,7 @@ with Shapely, then find the shortest path for a point, which keeps the clearance
             for hole in list_of_hole_coordinates
         ]
     )
-    environment = PolygonEnvironment.from_shapely(boundary, obstacles, validate=True)
+    environment = PolygonEnvironment.from_shapely(boundary, obstacles)
     path, length = environment.find_shortest_path((1.0, 3.0), (11.0, 4.0))
     # length: 11.908... (without clearance: 10.236...)
 

@@ -21,7 +21,8 @@ class SubscriptAndCallable:
         pass
 
     def __class_getitem__(cls, item):
-        return None
+        # an array type, e.g. the return type in ``b1[:](i8[:])``
+        return cls
 
 
 # DTYPES

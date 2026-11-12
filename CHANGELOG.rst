@@ -25,12 +25,20 @@ BREAKING: the plotting module (``extremitypathfinder.plotting``) has one consist
 BREAKING: environments pickled with 3.0 cannot be loaded anymore (changed attributes, pickle format version 5):
 recreate them. Loading them raises a ``ValueError`` explaining this.
 
-BREAKING: malformed input is always rejected with a clear error, also without ``validate=True`` and with ``verify=False``:
+BREAKING: the input is validated by default: ``PolygonEnvironment()``, ``from_grid()``, ``from_shapely()``
+and the command line interface use ``validate=True``. Input that violates the requirements
+(e.g. self intersecting polygons, collinear overlapping edges) previously gave wrong results without an error
+(e.g. no path although start and goal are in the free space) and now raises a ``ValueError`` naming the polygon
+and the location. The validation costs little compared to the preparation of the environment.
+Migration: repair the input (cf. the ``shapely.make_valid()`` recipe of the usage page)
+or pass ``validate=False`` to skip the validation for trusted input.
+
+BREAKING: malformed input is always rejected with a clear error, also with ``validate=False`` and with ``verify=False``:
 
 - polygons that are no list of at least 3 coordinate pairs (``TypeError``, also for ragged lists)
   or have non-finite coordinates (``ValueError``). The message names the polygon.
   Previously e.g. an empty boundary raised an ``IndexError`` and a boundary with 2 vertices was accepted.
-  The geometric requirements (e.g. no self intersections) are still only checked with ``validate=True``.
+  The geometric requirements (e.g. no self intersections) are checked by default and skipped with ``validate=False``.
 - start and goal points that do not consist of two values (``TypeError``) or are not finite (``ValueError``).
   Previously a point with three values raised an internal error and a ``nan`` coordinate with ``verify=False``
   gave a path of length ``nan``. ``distance_matrix()`` rejects non-finite points too.
@@ -44,6 +52,13 @@ BREAKING: ``export_pickle()`` and ``load_pickle()`` no longer print to the stand
 
 other changes:
 
+- the worst case of the visibility computation is bounded (#216): environments with many extremities in front of
+  many long edges (e.g. small obstacles in front of long walls) took ``O(n m²)`` to prepare and ``O(n m)`` per query
+  point (``n`` vertices, ``m`` extremities), now ``O(m n log² n)`` and ``O(n log² n)``.
+  AREA keeps only the closest edges per range of directions in a tree over the candidates
+  (cf. the engineering design). Same results, except for directions differing in the last bit at edges
+  whose angle range contains the direction (1, 0): they are now compared like at all other edges.
+  Such environments are prepared and queried much faster, typical maps somewhat faster (with and without Numba).
 - ``find_shortest_path()`` and ``search()`` always return the path as a list of ``(x, y)`` tuples of Python floats
   and the length as a Python float. Previously the coordinates and the length were ``numpy.float64``
   (printed as ``np.float64(1.0)``), and when the goal was directly visible from the start the passed objects were
@@ -119,6 +134,10 @@ other changes:
   Polygons with the opposite numbering are reversed into the internal convention (boundary counter clockwise,
   holes clockwise), also in ``boundary_polygon`` and ``holes``. Previously wrongly numbered polygons
   raised a ``ValueError`` with ``validate=True`` and gave wrong results without validation.
+- official support of free-threaded CPython 3.14 (``python3.14t``, #254), with and without Numba:
+  queries on one environment can run in parallel threads, without the GIL. CI tests it and checks that no
+  dependency re-enables the GIL. A new test checks that queries from several threads on one environment
+  give the same results as sequential ones (also with the GIL).
 - documentation: new demo image (SVG, adapts to dark mode) and all figures regenerated with the new plotting functions
   (SVG instead of PNG). ``scripts/docs_figures.py`` generates them.
 - documentation: improved README and documentation landing page (features, quick start, navigation).

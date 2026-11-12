@@ -45,7 +45,7 @@ def _spec(target: int) -> MapSpec:
     return MapSpec(f"world_{label}", None, target)
 
 
-# every map has at least its nominal number of vertices (e.g. world_10k: 10,000 or more)
+# every map has at least its nominal number of vertices (e.g. world_6k: 6,000 or more)
 WORLD_SWEEP = tuple(
     _spec(n)
     for n in (
@@ -53,13 +53,10 @@ WORLD_SWEEP = tuple(
         500,
         1000,
         2000,
+        3000,
+        4000,
         5000,
-        10_000,
-        20_000,
-        50_000,
-        100_000,
-        200_000,
-        400_000,
+        6000,
     )
 )
 QUICK_SWEEP = WORLD_SWEEP[:2]

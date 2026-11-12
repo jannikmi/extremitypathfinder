@@ -249,3 +249,16 @@ def test_distance_matrix_rejects_non_finite_points(environment, point, verify):
         environment.distance_matrix([(1, 1), point], verify=verify)
     with pytest.raises(ValueError, match="points must be finite"):
         environment.distance_matrix([(1, 1)], [point], verify=verify)
+
+
+BOW_TIE_BOUNDARY = [(0, 0), (10, 0), (10, 10), (0, 10)]
+BOW_TIE_HOLE = [(4, 4), (6, 6), (6, 4), (4, 6)]  # self-intersecting
+
+
+def test_validation_is_the_default():
+    """regression (#243): invalid input silently gave wrong answers ([] and no distance) by default"""
+    with pytest.raises(ValueError, match="self intersections"):
+        PolygonEnvironment(BOW_TIE_BOUNDARY, [BOW_TIE_HOLE])
+    # validate=False stays available to skip the validation
+    env = PolygonEnvironment(BOW_TIE_BOUNDARY, [BOW_TIE_HOLE], validate=False)
+    assert env.find_shortest_path((1, 5), (9, 5)) == ([], None)

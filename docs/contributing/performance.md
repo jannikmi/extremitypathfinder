@@ -20,8 +20,8 @@ Measure before and after optimising, and include the numbers in the pull request
   ```
 
 - `prototypes/complexity_profile.py` reports per environment size the time of the wedges and of the visibility graph
-  and how often AREA checks a candidate against an edge (constant in its typical case):
-  `uv run --all-extras --group benchmark python prototypes/complexity_profile.py world 1k 2k`.
+  (`uv run --all-extras --group benchmark python prototypes/complexity_profile.py world 1k 2k`),
+  also for a worst case of AREA with many candidates in front of long edges (`... complexity_profile.py worst 100 200`).
 
 `prototypes/` contains such development scripts. They are not part of the package and not run by the tests.
 
