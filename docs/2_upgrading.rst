@@ -83,7 +83,7 @@ The plotting directory is an argument of these functions instead of a global set
    * - ``env = PlottingEnvironment(plotting_dir="plots")``
 
        ``env.store(boundary, holes)``
-     - ``env = PolygonEnvironment(boundary, holes)``
+     - ``env = PolygonEnvironment(boundary, holes)`` (validates the input by default, cf. below)
 
        ``plot_environment(env, plotting_dir="plots")``
    * - ``env.find_shortest_path(start, goal)``

@@ -33,12 +33,12 @@ and the location. The validation costs little compared to the preparation of the
 Migration: repair the input (cf. the ``shapely.make_valid()`` recipe of the usage page)
 or pass ``validate=False`` to skip the validation for trusted input.
 
-BREAKING: malformed input is always rejected with a clear error, also without ``validate=True`` and with ``verify=False``:
+BREAKING: malformed input is always rejected with a clear error, also with ``validate=False`` and with ``verify=False``:
 
 - polygons that are no list of at least 3 coordinate pairs (``TypeError``, also for ragged lists)
   or have non-finite coordinates (``ValueError``). The message names the polygon.
   Previously e.g. an empty boundary raised an ``IndexError`` and a boundary with 2 vertices was accepted.
-  The geometric requirements (e.g. no self intersections) are still only checked with ``validate=True``.
+  The geometric requirements (e.g. no self intersections) are checked by default and skipped with ``validate=False``.
 - start and goal points that do not consist of two values (``TypeError``) or are not finite (``ValueError``).
   Previously a point with three values raised an internal error and a ``nan`` coordinate with ``verify=False``
   gave a path of length ``nan``. ``distance_matrix()`` rejects non-finite points too.

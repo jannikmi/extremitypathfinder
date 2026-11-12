@@ -73,7 +73,7 @@ Measurements
   like the others, with the same budget and validation, and takes part in the check that all lengths agree.
   The comparison with pyvisgraph (ratios, graph size) uses the setup with Numba.
   pyvisgraph is pure Python. All run single-threaded (pyvisgraph ``workers=1``).
-* **Build (preprocessing) time**: wall time of ``PolygonEnvironment(None, holes)``
+* **Build (preprocessing) time**: wall time of ``PolygonEnvironment(None, holes, validate=False)`` (without the input validation)
   and ``VisGraph().build(polygons, workers=1)``.
   One build per package and size. Builds under 1 s are repeated until 5 s or 5 runs and the minimum is reported.
 * **Query latency**: ``time.perf_counter_ns`` per query on the prepared environment (p50, p95, p99, mean, queries/s).
