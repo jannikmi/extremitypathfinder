@@ -42,8 +42,8 @@ SHA-256 verified), the land masses as obstacles and the sea as free space.
   Every map is checked with Shapely: simple polygons, pairwise disjoint.
 * **Size sweep**: Douglas-Peucker simplification (``preserve_topology=True``) to a target number of vertices
   (at least the target and at most 2 % more), from the coarsest Natural Earth resolution with enough vertices
-  after the cleaning: 250, 500, 1k, 2k, 5k, 10k, 20k, 50k, 100k, 200k and 400k vertices.
-  A map of the sweep is named after its target: e.g. the 10k map has 10,000 vertices or more.
+  after the cleaning: 250, 500, 1k, 2k, 3k, 4k, 5k and 6k vertices.
+  A map of the sweep is named after its target: e.g. the 6k map has 6,000 vertices or more.
   The tolerance is found by bisection. The simplification comes before the cleaning steps above,
   and polygons with an area below the squared tolerance are dropped (slivers, tiny islands).
   The polygons dropped because they intersect or touch another one are counted in the table below.

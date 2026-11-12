@@ -138,7 +138,7 @@ def test_downsample_reaches_at_least_the_target():
 
 def test_load_world_rebuilds_maps_of_another_map_version(monkeypatch, tmp_path):
     """cached maps of an earlier map generation (e.g. at most the target) are not reused"""
-    spec = workloads.SWEEP_BY_NAME["world_10k"]
+    spec = workloads.SWEEP_BY_NAME["world_5k"]
     old = {"spec": asdict(spec), "ne_release": world_map.NE_RELEASE, "vertices": 9952}
     (tmp_path / f"{spec.name}.json").write_text(json.dumps(old))
     monkeypatch.setattr(world_map, "build_map", lambda *_a, **_k: {"vertices": 10081})
@@ -629,3 +629,63 @@ def test_rendering_a_full_run_lists_the_derived_text(tmp_path, capsys):
     out = ["--tables-dir", str(tmp_path), "--figures-dir", str(tmp_path)]
     assert run.main(["--render-only", str(results), *out]) == 0
     assert "docs/7_performance.rst" in capsys.readouterr().err
+
+
+def test_correctness_table_omits_maps_which_no_package_built():
+    """over budget for every package: no information on correctness; over budget for one: shown"""
+    meta = {
+        "quick": False,
+        "budget": 600,
+        "query_limit": None,
+        "nr_queries": 1,
+        **_system_meta(),
+    }
+
+    def entry(name, statuses):
+        return {
+            "map": {
+                "name": name,
+                "resolution": "110m",
+                "polygons": 1,
+                "vertices": 4,
+                "tolerance": 0.0,
+                "dropped_intersecting": 0,
+            },
+            "results": {
+                package: {"status": status, "budget": 600, **built}
+                if status == measure.OK
+                else {"status": status, "budget": 600}
+                for package, status in statuses.items()
+            },
+        }
+
+    stats = dict.fromkeys(("p5", "p50", "p95", "p99", "mean"), 1e-3)
+    built = {
+        "build_time": 2.0,
+        "graph_nodes": 4,
+        "graph_edges": 6,
+        "memory_peak": 3 * 2**20,
+        "memory_baseline": 10 * 2**20,
+        "query_stats": {**stats, "queries_per_s": 1000.0, "n": 1},
+    }
+    world = [
+        entry(
+            "both_over",
+            {
+                "extremitypathfinder": measure.OVER_BUDGET,
+                "pyvisgraph": measure.OVER_BUDGET,
+            },
+        ),
+        entry(
+            "one_over",
+            {
+                "extremitypathfinder": measure.OK,
+                "pyvisgraph": measure.OVER_BUDGET,
+            },
+        ),
+    ]
+    table = run.render_tables({"meta": meta, "world": world, "examples": []})[
+        "benchmark_correctness.rst"
+    ]
+    assert "both_over" not in table
+    assert "one_over" in table
