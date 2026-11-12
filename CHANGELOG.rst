@@ -58,8 +58,7 @@ other changes:
   AREA keeps only the closest edges per range of directions in a tree over the candidates
   (cf. the engineering design). Same results, except for directions differing in the last bit at edges
   whose angle range contains the direction (1, 0): they are now compared like at all other edges.
-  E.g. such an environment with 3204 vertices: prepared in 18.5 s instead of 170 s, the visibility of a query point
-  in 3 ms instead of 646 ms (with Numba). Typical maps are prepared 1.1 to 1.4 times faster, with and without Numba.
+  Such environments are prepared and queried much faster, typical maps somewhat faster (with and without Numba).
 - ``find_shortest_path()`` and ``search()`` always return the path as a list of ``(x, y)`` tuples of Python floats
   and the length as a Python float. Previously the coordinates and the length were ``numpy.float64``
   (printed as ``np.float64(1.0)``), and when the goal was directly visible from the start the passed objects were
