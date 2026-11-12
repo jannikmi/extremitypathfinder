@@ -3,14 +3,6 @@
 Decided trade-offs about how we work on the project (contributing guide, issues, pull requests), newest first.
 Entry format and rules: [Decision log](decisions.md).
 
-## Static pages state measured results qualitatively, the numbers stay in issues, pull requests and generated tables (#243)
-
-- **Decided by:** a maintainer
-- **Rejected:** exact numbers in the design and usage pages (they go stale and nothing updates them; only the
-  generated benchmark tables and the text marked as derived from them are updated with a full run);
-  no numbers anywhere (performance claims must stay checkable: they go into the pull request and the issue).
-- **Details:** [Documentation](documentation.md#content)
-
 ## The next issue is implemented by a guide page and the `/implement-next` skill, claimed by a comment (#195)
 
 - **Decided by:** a maintainer (bundling related issues, claims for concurrent work); an agent (comment claims
