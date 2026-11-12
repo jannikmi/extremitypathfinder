@@ -410,19 +410,17 @@ def _own_edges(
     :return: per sorted candidate (and one more entry) where its edges start, and the edges of all candidates
     """
     nr_edges = np.zeros(len(candidates_sorted) + 1, dtype=np.int64)
-    own_edges: dict[int, set[int]] = {}
     # Note: usually none or few of the candidates touch edges
     touching = candidate_edges.keys() & candidates
-    if touching:
-        positions = {c: i for i, c in enumerate(candidates_sorted.tolist())}
-        for candidate in touching:
-            edges = candidate_edges[candidate]
-            # Note: not among the sorted candidates when a closer candidate has the same direction
-            position = positions.get(candidate)
-            if position is not None and len(edges) > 0:
-                own_edges[position] = edges
-                nr_edges[position + 1] = len(edges)
-    edges = [edge for position in sorted(own_edges) for edge in own_edges[position]]
+    if not touching:
+        return np.cumsum(nr_edges), np.zeros(0, dtype=np.int64)
+    # Note: a touching candidate is not among the sorted candidates when a closer one has the same direction
+    positions = np.flatnonzero(np.isin(candidates_sorted, list(touching)))
+    edges = []
+    for position in positions.tolist():
+        own_edges = candidate_edges[int(candidates_sorted[position])]
+        nr_edges[position + 1] = len(own_edges)
+        edges.extend(own_edges)
     return np.cumsum(nr_edges), np.array(edges, dtype=np.int64)
 
 
