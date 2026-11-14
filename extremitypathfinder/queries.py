@@ -50,9 +50,8 @@ class SearchResult:
 
     @cached_property
     def graph(self) -> t.Graph | None:
-        if self.query_edges is None:
+        if self.query_edges is None or self.visibility_graph is None:
             return None
-        assert self.visibility_graph is not None, "a search result carries the graph"
         graph = self.visibility_graph.copy()
         graph.add_weighted_edges_from(self.query_edges)
         return graph
@@ -316,8 +315,7 @@ def search(
 
     # extract the coordinates from the path
     path = [_coordinate(coords[i]) for i in id_path]
-    assert distance is not None, "a path has a length"
-    return graph_result(path, float(distance))
+    return graph_result(path, None if distance is None else float(distance))
 
 
 def distance_matrix(

@@ -210,7 +210,9 @@ class Point:
         :param rep: the angle representation of the direction
         :param vector: the direction, to compare it exactly with the bounding rays
         """
-        assert self.extremity_wedge is not None, "only defined for extremities"
+        if self.extremity_wedge is None:
+            # no wedge larger than 180 degree: nothing lies "in front"
+            return False
         start, end = self.extremity_wedge
         if any(
             _cross(ray, vector) == 0.0 and np.dot(ray, vector) < 0.0
@@ -510,10 +512,11 @@ class Points:
                 wedges = point.wedges
             else:
                 point = self.by_idx[candidate]
-                if not point.is_contact:
+                extremity_wedge = point.extremity_wedge
+                # (the candidates are extremities)
+                if extremity_wedge is None or not point.is_contact:
                     return True
-                assert point.extremity_wedge is not None, "contacts are extremities"
-                wedges = [point.extremity_wedge]
+                wedges = [extremity_wedge]
             vector = origin_position - coords[candidate]
             return point.in_wedges(_rep(vector), vector, wedges)
 

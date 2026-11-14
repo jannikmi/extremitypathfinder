@@ -607,7 +607,9 @@ def _find_visible_and_in_front(
     # do not consider points lying in front when looking for visible extremities,
     # even if they are actually visible.
     candidates = candidates.difference(candidates_in_front)
-    assert point.extremity_wedge is not None, "the origin is an extremity"
+    if point.extremity_wedge is None:
+        # (the origin is an extremity)
+        return candidates_in_front, set()
     visible_idxs = find_visible_from(
         origin,
         point,
