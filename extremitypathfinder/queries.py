@@ -468,7 +468,9 @@ def _find_visible_from_query_point(
                 # hidden by a closer graph node
                 continue
             first = 1
-        for k in itertools.count(first):
+        for k in itertools.count(
+            first
+        ):  # pragma: no branch (endless, ends with the break)
             if k == len(rounds):
                 rounds.append({})
             if rep not in rounds[k]:

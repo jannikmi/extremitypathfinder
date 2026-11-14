@@ -990,7 +990,8 @@ def convert_grid(size_x: int, size_y: int, obstacle_iter: iter) -> (list, list):
         # returns the lowest and leftmost unblocked grid cell from the start position
         # for which the detection function evaluates to True
         start_x, start_y = start_pos
-        for y in range(start_y, size_y):
+        # (the loops always find a cell: grids without free cells are rejected)
+        for y in range(start_y, size_y):  # pragma: no branch
             for x in range(start_x, size_x):
                 pos = np.array([x, y])
                 if boundary_detect_fct(pos, **kwargs):
