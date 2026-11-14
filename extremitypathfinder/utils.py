@@ -1,11 +1,12 @@
 import json
+import os
 import pickle
 import warnings
-from collections.abc import Callable, Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from heapq import heappop, heappush
 from itertools import count
 from math import inf
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, cast
 
 import networkx as nx
 import numpy as np
@@ -416,7 +417,7 @@ def _own_edges(
         return np.cumsum(nr_edges), np.zeros(0, dtype=np.int64)
     # Note: a touching candidate is not among the sorted candidates when a closer one has the same direction
     positions = np.flatnonzero(np.isin(candidates_sorted, list(touching)))
-    edges = []
+    edges: list[int] = []
     for position in positions.tolist():
         own_edges = candidate_edges[int(candidates_sorted[position])]
         nr_edges[position + 1] = len(own_edges)
@@ -605,6 +606,7 @@ def _find_visible_and_in_front(
     # do not consider points lying in front when looking for visible extremities,
     # even if they are actually visible.
     candidates = candidates.difference(candidates_in_front)
+    assert point.extremity_wedge is not None, "the origin is an extremity"
     visible_idxs = find_visible_from(
         origin,
         point,
@@ -629,7 +631,7 @@ def edge_weight(
     try:
         return query_edges[n1][n2]
     except KeyError:
-        return graph[n1][n2]["weight"]
+        return float(graph[n1][n2]["weight"])
 
 
 def astar_path(
@@ -652,8 +654,9 @@ def astar_path(
     :param heuristic: an admissible estimate of the distance between two nodes (never larger than the true distance)
     """
     # the dict of dicts of the networkx graph: node -> neighbour -> edge attributes
-    adjacency = graph._adj
-    empty: dict = {}
+    # (private, but the public views are slower and this is the innermost loop)
+    adjacency: Mapping[int, Mapping[int, Any]] = graph._adj  # type: ignore[attr-defined]
+    empty: dict[int, Any] = {}
     # the shortest distance from the source found so far and the predecessor on that path
     distances: dict[int, float] = {source: 0.0}
     predecessors: dict[int, int] = {}
@@ -746,7 +749,7 @@ def compute_graph(
     return graph
 
 
-def _try_extraction(json_data, key):
+def _try_extraction(json_data: Mapping[str, Any], key: str) -> Any:
     try:
         extracted_data = json_data[key]
     except KeyError as e:
@@ -754,11 +757,14 @@ def _try_extraction(json_data, key):
     return extracted_data
 
 
-def _convert2polygon(json_list):
-    return [tuple(coord_pair_list) for coord_pair_list in json_list]
+def _convert2polygon(json_list: Iterable[Iterable[float]]) -> list[t.InputCoord]:
+    # the JSON data is not validated here (cf. ``to_float_array()``)
+    return [cast(t.InputCoord, tuple(coord_pair_list)) for coord_pair_list in json_list]
 
 
-def read_json(path2json_file):
+def read_json(
+    path2json_file: str | os.PathLike[str],
+) -> tuple[list[t.InputCoord], list[list[t.InputCoord]]]:
     """
     Parse data from a JSON file and save as lists of tuples for both boundary and holes.
     NOTE: The format of the JSON file is explained in the command line script (argparse definition)
@@ -905,7 +911,12 @@ def convert_shapely(
     return boundary_coordinates, holes
 
 
-def convert_grid(size_x: int, size_y: int, obstacle_iter: iter) -> (list, list):
+IntArray = npt.NDArray[np.int64]
+
+
+def convert_grid(
+    size_x: int, size_y: int, obstacle_iter: Iterable[Iterable[float]]
+) -> tuple[npt.NDArray[np.float64], list[npt.NDArray[np.float64]]]:
     """
     prerequisites: the grid must not have non-obstacle cells which are surrounded by obstacles
     ("single white cell in black surrounding" = useless for path planning)
@@ -927,8 +938,8 @@ def convert_grid(size_x: int, size_y: int, obstacle_iter: iter) -> (list, list):
     size_x, size_y = int(size_x), int(size_y)
 
     # any iterable (e.g. a generator)
-    obstacle_iter = list(obstacle_iter)
-    if len(obstacle_iter) == 0:
+    obstacle_list = list(obstacle_iter)
+    if len(obstacle_list) == 0:
         # there are no obstacles. return just the simple boundary rectangle
         boundary = np.array(
             [(0, 0), (size_x, 0), (size_x, size_y), (0, size_y)], dtype=float
@@ -936,57 +947,58 @@ def convert_grid(size_x: int, size_y: int, obstacle_iter: iter) -> (list, list):
         return boundary, []
 
     # convert (x,y) into np.arrays
-    # obstacle_iter = [np.array(o) for o in obstacle_iter]
     try:
-        obstacle_iter = np.array(obstacle_iter)
+        obstacles = np.array(obstacle_list)
     except ValueError:  # ragged
         raise TypeError("Each blocked cell must consist of two values (x,y).") from None
-    if obstacle_iter.ndim != 2 or obstacle_iter.shape[1] != 2:
+    if obstacles.ndim != 2 or obstacles.shape[1] != 2:
         raise TypeError("Each blocked cell must consist of two values (x,y).")
     # integral floats (e.g. 2.0) are unambiguous, 2.5 is no cell
-    is_numeric = obstacle_iter.dtype.kind in "iuf"
+    is_numeric = obstacles.dtype.kind in "iuf"
     # Note: an infinite value equals its rounded value
     is_integral = is_numeric and bool(
-        np.all(np.isfinite(obstacle_iter) & (obstacle_iter == np.rint(obstacle_iter)))
+        np.all(np.isfinite(obstacles) & (obstacles == np.rint(obstacles)))
     )
     if not is_integral:
         raise TypeError("The coordinates of the blocked cells must be integers.")
     # Note: tested before converting to integers (large values would overflow)
-    outside = (obstacle_iter < 0).any(axis=1) | (obstacle_iter >= (size_x, size_y)).any(
-        axis=1
-    )
+    outside = (obstacles < 0).any(axis=1) | (obstacles >= (size_x, size_y)).any(axis=1)
     if outside.any():
-        cell = obstacle_iter[np.flatnonzero(outside)[0]]
+        cell = obstacles[np.flatnonzero(outside)[0]]
         raise ValueError(
             f"The blocked cell ({int(cell[0])}, {int(cell[1])}) lies outside of the grid "
             f"({size_x} x {size_y} cells)."
         )
-    obstacle_iter = obstacle_iter.astype(np.int64)
-    if len(np.unique(obstacle_iter, axis=0)) == size_x * size_y:
+    obstacles = obstacles.astype(np.int64)
+    if len(np.unique(obstacles, axis=0)) == size_x * size_y:
         raise ValueError("All cells of the grid are blocked: there is no free space.")
 
-    def within_grid(pos):
-        return 0 <= pos[0] < size_x and 0 <= pos[1] < size_y
+    def within_grid(pos: IntArray) -> bool:
+        return bool(0 <= pos[0] < size_x and 0 <= pos[1] < size_y)
 
-    def is_equal(pos1, pos2):
-        return np.all(pos1 == pos2)
+    def is_equal(pos1: IntArray, pos2: IntArray) -> bool:
+        return bool(np.all(pos1 == pos2))
 
-    def pos_in_iter(pos, iter):
+    def pos_in_iter(pos: IntArray, iter: Iterable[IntArray]) -> bool:
         for i in iter:
             if is_equal(pos, i):
                 return True
         return False
 
-    def is_obstacle(pos):
-        return pos_in_iter(pos, obstacle_iter)
+    def is_obstacle(pos: IntArray) -> bool:
+        return pos_in_iter(pos, obstacles)
 
-    def is_blocked(pos):
+    def is_blocked(pos: IntArray) -> bool:
         return not within_grid(pos) or is_obstacle(pos)
 
-    def is_unblocked(pos):
+    def is_unblocked(pos: IntArray) -> bool:
         return within_grid(pos) and not is_obstacle(pos)
 
-    def find_start(start_pos, boundary_detect_fct, **kwargs):
+    def find_start(
+        start_pos: tuple[int, int],
+        boundary_detect_fct: Callable[..., bool],
+        **kwargs: Any,
+    ) -> IntArray:
         # returns the lowest and leftmost unblocked grid cell from the start position
         # for which the detection function evaluates to True
         start_x, start_y = start_pos
@@ -995,13 +1007,18 @@ def convert_grid(size_x: int, size_y: int, obstacle_iter: iter) -> (list, list):
                 pos = np.array([x, y])
                 if boundary_detect_fct(pos, **kwargs):
                     return pos
+        raise RuntimeError("no cell found: the grid has free cells and obstacles")
 
     # north, east, south, west
     directions = np.array([[0, 1], [1, 0], [0, -1], [-1, 0]], dtype=int)
     # the correct offset to determine where nodes should be added.
     offsets = np.array([[0, 1], [1, 1], [1, 0], [0, 0]], dtype=int)
 
-    def construct_polygon(start_pos, boundary_detect_fct, cntr_clockwise_wanted: bool):
+    def construct_polygon(
+        start_pos: IntArray,
+        boundary_detect_fct: Callable[[IntArray], bool],
+        cntr_clockwise_wanted: bool,
+    ) -> npt.NDArray[np.float64]:
         current_pos = start_pos.copy()
         # (at least) the west and south are blocked
         #   -> there has to be a polygon node at the current position (bottom left corner of the cell)
@@ -1075,19 +1092,19 @@ def convert_grid(size_x: int, size_y: int, obstacle_iter: iter) -> (list, list):
     # the border value does not matter here
 
     def get_unchecked_obstacles(
-        obstacles: Iterable, poly: np.ndarray, required_val: bool = True
-    ) -> list:
-        unchecked_obstacles = []
-        for o in obstacles:
+        cells: Iterable[IntArray], poly: np.ndarray, required_val: bool = True
+    ) -> list[IntArray]:
+        unchecked_obstacles: list[IntArray] = []
+        for o in cells:
             p = o + 0.5
             if _inside_polygon(p, poly, border_value=True) == required_val:
                 unchecked_obstacles.append(o)
 
         return unchecked_obstacles
 
-    unchecked_obstacles = get_unchecked_obstacles(obstacle_iter, boundary_edges)
+    unchecked_obstacles = get_unchecked_obstacles(obstacles, boundary_edges)
 
-    hole_list = []
+    hole_list: list[npt.NDArray[np.float64]] = []
     while len(unchecked_obstacles) > 0:
         start_pos = find_start(
             start_pos=(0, 0), boundary_detect_fct=pos_in_iter, iter=unchecked_obstacles
@@ -1107,7 +1124,9 @@ def convert_grid(size_x: int, size_y: int, obstacle_iter: iter) -> (list, list):
     return boundary_edges, hole_list
 
 
-def _cmp_edge_and_vertex_idxs(list_of_polygons):
+def _cmp_edge_and_vertex_idxs(
+    list_of_polygons: Sequence[np.ndarray],
+) -> tuple[np.ndarray, np.ndarray]:
     # compute edge and vertex indices from polygon data structure
     edge_and_vertex_indices = [
         edge_vertex_mappings(len(coords_poly)) for coords_poly in list_of_polygons
@@ -1165,7 +1184,7 @@ def compile_polygon_datastructs(
     return coords, edge_vertex_idxs, vertex_edge_idxs, points
 
 
-def load_pickle(path=DEFAULT_PICKLE_NAME):
+def load_pickle(path: str | os.PathLike[str] = DEFAULT_PICKLE_NAME) -> Any:
     """loads an environment exported with :meth:`PolygonEnvironment.export_pickle`
 
     :raises ValueError: when the environment was pickled with an incompatible version of this package (e.g. 2.x).

@@ -18,7 +18,7 @@ JSON_HELP_MSG = (
 )
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description="parse extremitypathfinder parameters")
     parser.add_argument("path2json_file", type=str, help=JSON_HELP_MSG)
     parser.add_argument(

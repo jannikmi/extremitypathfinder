@@ -4,6 +4,7 @@
 :func:`plot_environment` and :func:`plot_search` export these drawings as files.
 """
 
+import os
 import time
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -52,7 +53,9 @@ class PlotStyle:
 DEFAULT_STYLE = PlotStyle()
 
 
-def _draw_endpoints(ax: Axes, start, goal, style: PlotStyle):
+def _draw_endpoints(
+    ax: Axes, start: Sequence[float], goal: Sequence[float], style: PlotStyle
+) -> None:
     """start: ring, goal: disk"""
     area = (2.5 * style.marker_size) ** 2
     ax.scatter(
@@ -256,7 +259,12 @@ def draw_search(
     return ax
 
 
-def _export(ax: Axes, plotting_dir, file_name: str | None, default_name: str) -> Path:
+def _export(
+    ax: Axes,
+    plotting_dir: str | os.PathLike[str],
+    file_name: str | None,
+    default_name: str,
+) -> Path:
     if file_name is None:
         file_name = f"{default_name}_{time.time_ns()}{PLOT_FILE_ENDING}"
     directory = Path(plotting_dir)
@@ -269,7 +277,7 @@ def _export(ax: Axes, plotting_dir, file_name: str | None, default_name: str) ->
 
 def plot_environment(
     environment: PolygonEnvironment,
-    plotting_dir=PLOTTING_DIR,
+    plotting_dir: str | os.PathLike[str] = PLOTTING_DIR,
     *,
     file_name: str | None = None,
     style: PlotStyle = DEFAULT_STYLE,
@@ -291,7 +299,7 @@ def plot_environment(
 def plot_search(
     environment: PolygonEnvironment,
     result: SearchResult,
-    plotting_dir=PLOTTING_DIR,
+    plotting_dir: str | os.PathLike[str] = PLOTTING_DIR,
     *,
     file_name: str | None = None,
     style: PlotStyle = DEFAULT_STYLE,

@@ -52,6 +52,7 @@ class SearchResult:
     def graph(self) -> t.Graph | None:
         if self.query_edges is None:
             return None
+        assert self.visibility_graph is not None, "a search result carries the graph"
         graph = self.visibility_graph.copy()
         graph.add_weighted_edges_from(self.query_edges)
         return graph
@@ -169,7 +170,7 @@ def search_graph(
         query_adjacency.setdefault(j, {})[i] = d
 
     def distance_to_goal(node: int, _goal: int) -> float:
-        return goal_distances[node]
+        return float(goal_distances[node])
 
     id_path = utils.astar_path(graph, query_adjacency, start, goal, distance_to_goal)
     if id_path is None:
@@ -203,7 +204,9 @@ def search(
     start = len(vertex_coords)
     goal = start + 1
     # temporarily extend data structure
-    coords = np.append(vertex_coords, (coords_start, coords_goal), axis=0)
+    coords = np.concatenate(
+        (vertex_coords, np.asarray((coords_start, coords_goal))), axis=0
+    )
 
     def no_graph_result(path: Path, length: Length) -> SearchResult:
         return SearchResult(path, length, coords)
@@ -313,6 +316,7 @@ def search(
 
     # extract the coordinates from the path
     path = [_coordinate(coords[i]) for i in id_path]
+    assert distance is not None, "a path has a length"
     return graph_result(path, float(distance))
 
 
