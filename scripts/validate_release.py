@@ -163,6 +163,7 @@ def validate_typing(python: Path, workspace: Path) -> None:
     (workspace / "typed_misuse.py").write_text(TYPED_MISUSE, encoding="utf-8")
     result = subprocess.run(
         [*mypy, "typed_misuse.py"],
+        check=False,
         cwd=workspace,
         text=True,
         stdout=subprocess.PIPE,
