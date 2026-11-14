@@ -1,7 +1,8 @@
 # Releasing
 
-Releases are done by the maintainers. Contributors and agents never bump the version, push tags
-or change the release workflows unless they are asked to.
+Releases are done by the maintainers. Contributors and agents never bump the version or push tags
+unless they are asked to. Changes of the release workflows are allowed, but point them out with their reasoning
+in the pull request.
 
 ## Release validation
 

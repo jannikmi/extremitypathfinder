@@ -66,7 +66,7 @@ Numba compiled code is invisible to coverage, so the code is measured as plain P
 and the results are combined. The report lists the missing lines and fails below 100%.
 New code needs tests that assert its behaviour (not only run it). Exclude a line with `# pragma: no cover`
 or `# pragma: no branch` only if it cannot be reached, and say why in a comment.
-CI does not check the coverage yet (a job edits `.github/workflows/`, which needs an explicit request).
+The CI job `coverage` runs the same environments and is required by `ci-passed`.
 
 ## CI and external packages
 

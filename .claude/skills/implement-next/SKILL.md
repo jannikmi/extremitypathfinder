@@ -71,7 +71,7 @@ Unlike `/unblock`, this posts options without asking, but never a decision a mai
   push them, and put findings that need a decision into the pull request for the maintainer.
 - When the checks of the latest commit pass, mark the pull request ready with `update_pull_request` (`draft: false`).
 - PR events wake the session: fix CI failures, merge conflicts and review comments as they come.
-  Never merge, approve, bump the version or edit `.github/workflows/`.
+  Never merge, approve or bump the version. Point out edits of `.github/workflows/` with their reasoning in the pull request.
 
 ## Report (step 9)
 
