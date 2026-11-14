@@ -169,6 +169,34 @@ def test_hole_touching_two_boundary_edges_separates_the_map():
     assert environment.find_shortest_path((0.0, 0.0), (0.0, 4.0)) == ([], None)
 
 
+def test_disconnected_free_space_with_graph_nodes_on_both_sides():
+    # start and goal see graph nodes (the corners of the holes), but the graph is not connected
+    boundary = [
+        (0.0, 0.0),
+        (5.0, 0.0),
+        (5.0, 5.0),
+        (10.0, 5.0),
+        (10.0, 10.0),
+        (5.0, 10.0),
+        (5.0, 5.0),
+        (0.0, 5.0),
+    ]
+    holes = [
+        [(1.0, 1.0), (2.0, 1.0), (2.0, 2.0), (1.0, 2.0)],
+        [(8.0, 8.0), (9.0, 8.0), (9.0, 9.0), (8.0, 9.0)],
+    ]
+    environment = PolygonEnvironment(boundary, holes, validate=True)
+
+    assert environment.find_shortest_path((0.5, 0.5), (9.5, 9.5)) == ([], None)
+    assert environment.find_shortest_path((3.0, 1.5), (7.0, 8.5)) == ([], None)
+    # around the hole: two equally long detours (via (1, 2) or (2, 1))
+    path, length = environment.find_shortest_path((0.5, 0.5), (4.0, 4.0))
+    assert len(path) == 3
+    assert length == pytest.approx(hypot(0.5, 1.5) + hypot(3.0, 2.0))
+    matrix = environment.distance_matrix([(0.5, 0.5), (9.5, 9.5)])
+    assert np.isinf(matrix[0, 1])
+
+
 def test_boundary_touching_itself_separates_the_map():
     # two squares of free space touching at (5, 5)
     boundary = [

@@ -461,19 +461,21 @@ def _find_visible_from_query_point(
         if dist == 0.0:
             continue
         rep = float(vert_idx2repr[i])
-        first = 0
+        k = 0
         if rep in closest_node:
             # Note: the graph node at the position of the candidate has the same distance
             if closest_node[rep] < dist:
                 # hidden by a closer graph node
                 continue
-            first = 1
-        for k in itertools.count(first):
+            k = 1
+        # the first round without a candidate in this direction
+        while True:
             if k == len(rounds):
                 rounds.append({})
             if rep not in rounds[k]:
                 rounds[k][rep] = i
                 break
+            k += 1
     visible: set[int] = set()
     for k, query_round in enumerate(rounds):
         candidates = set(query_round.values())

@@ -40,8 +40,9 @@ make release-check                 # build and validate the release artifacts
 4. Queries never modify the environment or its visibility graph.
 5. Every bugfix comes with a regression test that fails before the fix.
 6. User-facing changes get an entry in the `Unreleased` section of `CHANGELOG.rst`.
-7. Never edit `uv.lock` by hand (`make lock`). Never bump the version, push tags, publish releases,
-   or edit `.github/workflows/` unless explicitly asked.
+7. Never edit `uv.lock` by hand (`make lock`). Never bump the version, push tags or publish releases unless explicitly asked.
+   Editing `.github/workflows/` is allowed, but point out every edit and its reasoning in the pull request
+   (`docs/contributing/workflow.md#pull-requests`). Never touch CI secrets.
 8. The package is licensed under MIT only: do not copy or adapt code from other projects (`docs/contributing/invariants.md`).
 9. Performance claims need before/after numbers in the issue or pull request (`docs/contributing/performance.md`).
    Static pages, docstrings and comments state results qualitatively, without measured numbers (they go stale).

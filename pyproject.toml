@@ -52,6 +52,7 @@ Repository = "https://github.com/jannikmi/extremitypathfinder"
 dev = [
     "pre-commit",
     "pytest",
+    "pytest-cov",
     "tox",
 ]
 # also required for running the tests
@@ -113,6 +114,17 @@ entry-points = ["CONTRIBUTING.md"]
 # a bare `pytest` runs the test suite only (not scripts/ or prototypes/)
 testpaths = ["tests"]
 
+[tool.coverage.run]
+branch = true
+source = ["extremitypathfinder"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+fail_under = 100
+# only run in a subprocess by the tests
+omit = ["*/extremitypathfinder/command_line.py"]
+
 [tool.tox]
 legacy_tox_ini = """
 [tox]
@@ -152,6 +164,48 @@ setenv =
 commands =
     python -m pip check
     python -m pytest {posargs}
+
+# coverage of the core algorithm (cf. docs/contributing/testing.md#coverage):
+# Numba compiled code is invisible to coverage, so the code is measured as plain Python in two runs
+# (`NUMBA_DISABLE_JIT` with Numba installed, and the stand-ins without Numba), then combined
+[testenv:cov-jit-off]
+extras =
+    shapely
+    numba
+deps =
+    pytest
+    pytest-cov
+    matplotlib
+setenv =
+    MPLBACKEND = Agg
+    NUMBA_DISABLE_JIT = 1
+    COVERAGE_FILE = {toxworkdir}{/}.coverage.jit-off
+commands =
+    python -m pytest --cov --cov-report= --cov-fail-under=0 --deselect tests/test_acceleration.py::test_numba_without_scipy {posargs}
+
+[testenv:cov-no-numba]
+extras =
+    shapely
+deps =
+    pytest
+    pytest-cov
+    matplotlib
+setenv =
+    MPLBACKEND = Agg
+    COVERAGE_FILE = {toxworkdir}{/}.coverage.no-numba
+commands =
+    python -m pytest --cov --cov-report= --cov-fail-under=0 {posargs}
+
+[testenv:coverage]
+skip_install = true
+depends = cov-jit-off, cov-no-numba
+deps =
+    coverage
+setenv =
+    COVERAGE_FILE = {toxworkdir}{/}.coverage
+commands =
+    coverage combine {toxworkdir}{/}.coverage.jit-off {toxworkdir}{/}.coverage.no-numba
+    coverage report
 
 [testenv:docs]
 basepython = python3.12

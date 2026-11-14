@@ -1,3 +1,4 @@
+import json
 from os.path import abspath, join, pardir
 
 import networkx as nx
@@ -12,7 +13,14 @@ from extremitypathfinder.utils import (
     polygon_bounds,
     read_json,
 )
-from extremitypathfinder.utils_numba import _compute_repr_n_dist, is_within_map
+from extremitypathfinder.utils_numba import (
+    _compute_repr_n_dist,
+    _edge_distance,
+    compute_candidate_terms,
+    compute_edge_terms,
+    is_within_map,
+)
+from extremitypathfinder.wedges import in_closure, wedge_size
 from tests.helpers import proto_test_case
 from tests.test_find_visible import _clean_visibles
 
@@ -119,6 +127,38 @@ def test_read_json():
     assert len(first_hole) == 4
     assert len(first_hole[0]) == 2
     PolygonEnvironment(boundary_coordinates, list_of_holes, validate=True)
+
+
+@pytest.mark.parametrize(
+    "missing_key", [configs.BOUNDARY_JSON_KEY, configs.HOLES_JSON_KEY]
+)
+def test_read_json_without_a_required_key(tmp_path, missing_key):
+    data = {
+        configs.BOUNDARY_JSON_KEY: [[0, 0], [1, 0], [1, 1]],
+        configs.HOLES_JSON_KEY: [],
+    }
+    del data[missing_key]
+    path = tmp_path / "environment.json"
+    path.write_text(json.dumps(data))
+    with pytest.raises(ValueError, match=missing_key):
+        read_json(str(path))
+
+
+def test_edge_along_the_ray_through_the_origin_is_infinitely_far():
+    # the edge lies on a line through the origin: it never crosses the ray through the candidate
+    vectors = np.array([[1.0, 1.0], [2.0, 2.0]])
+    distances = np.hypot(*vectors.T)
+    edge_vertex_idxs = np.array([[0, 1]])
+    edge_terms = compute_edge_terms(vectors, edge_vertex_idxs, distances[:1])
+    candidate_terms = compute_candidate_terms(vectors[:1], distances[:1])
+    assert _edge_distance(0, 0, edge_terms, candidate_terms) == np.inf
+
+
+def test_wedge_of_a_single_ray_is_the_whole_circle():
+    wedge = (1.5, 1.5)
+    assert wedge_size(wedge) == 4.0
+    for direction in (0.0, 1.5, 3.9):
+        assert in_closure(direction, wedge)
 
 
 @pytest.mark.parametrize(
