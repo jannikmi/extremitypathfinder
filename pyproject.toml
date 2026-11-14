@@ -181,7 +181,7 @@ setenv =
     NUMBA_DISABLE_JIT = 1
     COVERAGE_FILE = {toxworkdir}{/}.coverage.jit-off
 commands =
-    python -m pytest --cov --cov-report= --deselect tests/test_acceleration.py::test_numba_without_scipy {posargs}
+    python -m pytest --cov --cov-report= --cov-fail-under=0 --deselect tests/test_acceleration.py::test_numba_without_scipy {posargs}
 
 [testenv:cov-no-numba]
 extras =
@@ -194,7 +194,7 @@ setenv =
     MPLBACKEND = Agg
     COVERAGE_FILE = {toxworkdir}{/}.coverage.no-numba
 commands =
-    python -m pytest --cov --cov-report= {posargs}
+    python -m pytest --cov --cov-report= --cov-fail-under=0 {posargs}
 
 [testenv:coverage]
 skip_install = true

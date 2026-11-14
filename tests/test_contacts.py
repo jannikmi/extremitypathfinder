@@ -189,8 +189,10 @@ def test_disconnected_free_space_with_graph_nodes_on_both_sides():
 
     assert environment.find_shortest_path((0.5, 0.5), (9.5, 9.5)) == ([], None)
     assert environment.find_shortest_path((3.0, 1.5), (7.0, 8.5)) == ([], None)
-    path, _ = environment.find_shortest_path((0.5, 0.5), (4.0, 4.0))
-    assert path == [(0.5, 0.5), (1.0, 2.0), (4.0, 4.0)]
+    # around the hole: two equally long detours (via (1, 2) or (2, 1))
+    path, length = environment.find_shortest_path((0.5, 0.5), (4.0, 4.0))
+    assert len(path) == 3
+    assert length == pytest.approx(hypot(0.5, 1.5) + hypot(3.0, 2.0))
     matrix = environment.distance_matrix([(0.5, 0.5), (9.5, 9.5)])
     assert np.isinf(matrix[0, 1])
 
