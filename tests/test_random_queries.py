@@ -399,3 +399,32 @@ def test_in_front_of_matches_point_in_front(environment, query_points):
             for i in candidates
         ]
         assert found.tolist() == expected, f"from {position}"
+
+
+def test_wedge_masks_match_the_scalar_tests(environment, query_points):
+    """the vectorised tests give the same results as ``Point.in_wedges()`` and ``Point.in_front()`` (#262)
+
+    seen from every point of the environment, for the directions to all vertices and query points,
+    which include directions exactly on, opposite of and next to the bounding rays
+    """
+    coords = np.append(environment.coords, query_points, axis=0)
+    for origin, point in environment.points.by_idx.items():
+        representations, distances = utils.cmp_reps_n_distances(origin, coords)
+        others = np.flatnonzero(distances != 0.0)
+        reps = representations[others]
+        vectors = coords[others] - coords[origin]
+        wedge_sets = [point.wedges, *([wedge] for wedge in point.wedges)]
+        for wedge_set in wedge_sets:
+            found = point.in_wedges_mask(reps, vectors, wedge_set)
+            expected = [
+                point.in_wedges(rep, vector, wedge_set)
+                for rep, vector in zip(reps.tolist(), vectors)
+            ]
+            assert found.tolist() == expected, f"from {coords[origin]}"
+        if point.is_extremity:
+            found = point.in_front_mask(reps, vectors)
+            expected = [
+                point.in_front(rep, vector)
+                for rep, vector in zip(reps.tolist(), vectors)
+            ]
+            assert found.tolist() == expected, f"from {coords[origin]}"
