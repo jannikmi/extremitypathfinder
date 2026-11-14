@@ -39,6 +39,23 @@ Path("smoke-result.json").write_text(
 )
 """
 
+# a user of the installed package: type checkers must use its annotations (PEP 561, ``py.typed``)
+TYPED_USAGE = """
+from extremitypathfinder import PolygonEnvironment
+
+environment = PolygonEnvironment([(0.0, 0.0), (1.0, 0.0), (1.0, 1.0)], [])
+path, length = environment.find_shortest_path((0.2, 0.1), (0.8, 0.5))
+total: float | None = length
+"""
+
+# must be rejected: with ignored (untyped) annotations the call would pass
+TYPED_MISUSE = """
+from extremitypathfinder import PolygonEnvironment
+
+environment = PolygonEnvironment([(0.0, 0.0), (1.0, 0.0), (1.0, 1.0)], [])
+environment.find_shortest_path("start", 1)
+"""
+
 NUMBA_TEST = """
 from extremitypathfinder import utils_numba
 
@@ -130,6 +147,32 @@ def validate_install(
 
         if install_numba:
             run([str(python), "-I", "-c", NUMBA_TEST], cwd=workspace)
+        else:
+            validate_typing(python, workspace)
+
+
+def validate_typing(python: Path, workspace: Path) -> None:
+    """Check with mypy in the environment of the installed artifact that its annotations are used by type checkers."""
+    run(
+        [str(python), "-m", "pip", "install", "--disable-pip-version-check", "mypy"],
+        cwd=workspace,
+    )
+    mypy = [str(python), "-m", "mypy", "--strict", "--no-incremental"]
+    (workspace / "typed_usage.py").write_text(TYPED_USAGE, encoding="utf-8")
+    run([*mypy, "typed_usage.py"], cwd=workspace)
+    (workspace / "typed_misuse.py").write_text(TYPED_MISUSE, encoding="utf-8")
+    result = subprocess.run(
+        [*mypy, "typed_misuse.py"],
+        cwd=workspace,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+    )
+    print(result.stdout, end="", flush=True)
+    if result.returncode != 1 or "[arg-type]" not in result.stdout:
+        raise RuntimeError(
+            "mypy did not report the wrong call: the annotations of the installed package are not used"
+        )
 
 
 def find_artifacts(distribution_directory: Path) -> tuple[Path, Path]:
