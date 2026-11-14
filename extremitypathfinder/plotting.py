@@ -14,6 +14,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.axes import Axes
 from matplotlib.collections import LineCollection, PatchCollection
+from matplotlib.figure import Figure
 from matplotlib.patches import PathPatch, Polygon
 from matplotlib.path import Path as DrawingPath
 
@@ -270,8 +271,12 @@ def _export(
     directory = Path(plotting_dir)
     directory.mkdir(parents=True, exist_ok=True)
     file_path = directory / file_name
-    ax.figure.savefig(file_path, bbox_inches="tight")
-    plt.close(ax.figure)
+    figure = ax.figure
+    if not isinstance(figure, Figure):
+        # a sub-figure cannot be saved on its own
+        raise TypeError(f"expected axes of a figure, got {type(figure).__name__}")
+    figure.savefig(file_path, bbox_inches="tight")
+    plt.close(figure)
     return file_path.resolve()
 
 

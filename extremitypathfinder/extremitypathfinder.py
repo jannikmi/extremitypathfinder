@@ -1,6 +1,6 @@
 import pickle
 from collections.abc import Iterable
-from typing import Any, Self
+from typing import Self, cast
 
 import numpy as np
 
@@ -229,12 +229,12 @@ class PolygonEnvironment:
         return self.nr_vertices
 
     @property
-    def all_extremities(self) -> list[tuple[Any, ...]]:
+    def all_extremities(self) -> list[tuple[float, ...]]:
         coords = self.coords
         return [tuple(coords[i]) for i in self.extremity_indices]
 
     @property
-    def all_vertices(self) -> list[tuple[Any, ...]]:
+    def all_vertices(self) -> list[tuple[float, ...]]:
         coords = self.coords
         return [tuple(coords[i]) for i in range(self.nr_vertices)]
 
@@ -247,17 +247,21 @@ class PolygonEnvironment:
             pickle.dump(self, f)
         return path
 
-    def __getstate__(self) -> Any:
+    def __getstate__(self) -> t.PickleState:
         """adds the pickle format version to the state. Subclasses overriding this must call ``super()``"""
-        state = super().__getstate__()
+        full_state = cast(t.PickleState, super().__getstate__())
         # (dict, slots) for subclasses with ``__slots__``
-        state, slots = state if isinstance(state, tuple) else (state, None)
+        state, slots = (
+            full_state if isinstance(full_state, tuple) else (full_state, None)
+        )
         state = {**state, _PICKLE_FORMAT_KEY: configs.PICKLE_FORMAT_VERSION}
         return state if slots is None else (state, slots)
 
-    def __setstate__(self, state: Any) -> None:
-        state, slots = state if isinstance(state, tuple) else (state, None)
-        state = dict(state)
+    def __setstate__(self, full_state: t.PickleState) -> None:
+        loaded, slots = (
+            full_state if isinstance(full_state, tuple) else (full_state, None)
+        )
+        state = dict(loaded)
         pickle_format = state.pop(_PICKLE_FORMAT_KEY, None)
         if pickle_format != configs.PICKLE_FORMAT_VERSION:
             found = (

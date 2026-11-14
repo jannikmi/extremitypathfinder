@@ -115,12 +115,14 @@ strict = true
 python_version = "3.12"
 files = ["extremitypathfinder"]
 
-# Numba and Matplotlib are optional dependencies, not installed in the pre-commit environment, and Numba ships no
-# type information: their imports are untyped (``Any``) in every environment, so that the result does not depend on
-# what is installed.
+# Numba and Matplotlib are optional dependencies, not installed in the pre-commit environment: their imports are
+# untyped (``Any``) there. Numba is also skipped when installed (it has no usable type information and the
+# ``except ImportError`` fallback to ``numba_replacements`` would be a redefinition). Matplotlib's types are used when
+# installed: the code passes with and without them.
 [[tool.mypy.overrides]]
-module = ["numba", "matplotlib", "matplotlib.*"]
+module = ["numba", "numba.*", "matplotlib", "matplotlib.*"]
 ignore_missing_imports = true
+follow_imports = "skip"
 
 # ``@njit(...)`` is untyped (Numba has no stubs): the decorated kernels keep their annotations in the source,
 # but the compiled functions are untyped as seen by mypy.

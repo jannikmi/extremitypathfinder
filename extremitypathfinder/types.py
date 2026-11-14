@@ -24,6 +24,8 @@ else:
     Graph = nx.Graph
 FloatArray = npt.NDArray[np.float64]
 IntArray = npt.NDArray[np.int64]
+# the state of a pickled environment: the attributes, and the ``__slots__`` of subclasses as a second dict
+type PickleState = dict[str, object] | tuple[dict[str, object], dict[str, object]]
 
 
 class GeoInterface(Protocol):

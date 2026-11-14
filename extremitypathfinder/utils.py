@@ -3,6 +3,7 @@ import os
 import pickle
 import warnings
 from collections.abc import Callable, Iterable, Mapping, Sequence
+from functools import partial
 from heapq import heappop, heappush
 from itertools import count
 from math import inf
@@ -655,7 +656,8 @@ def astar_path(
     """
     # the dict of dicts of the networkx graph: node -> neighbour -> edge attributes
     # (private, but the public views are slower and this is the innermost loop)
-    adjacency: Mapping[int, Mapping[int, Any]] = graph._adj  # type: ignore[attr-defined]
+    adjacency: Mapping[int, Mapping[int, Mapping[str, float]]] = graph._adj  # type: ignore[attr-defined]
+    # the attributes of an edge of the graph, or the weight of a query edge
     empty: dict[int, Any] = {}
     # the shortest distance from the source found so far and the predecessor on that path
     distances: dict[int, float] = {source: 0.0}
@@ -993,8 +995,7 @@ def convert_grid(
 
     def find_start(
         start_pos: tuple[int, int],
-        boundary_detect_fct: Callable[..., bool],
-        **kwargs: Any,
+        boundary_detect_fct: Callable[[t.IntArray], bool],
     ) -> t.IntArray:
         # returns the lowest and leftmost unblocked grid cell from the start position
         # for which the detection function evaluates to True
@@ -1002,7 +1003,7 @@ def convert_grid(
         for y in range(start_y, size_y):
             for x in range(start_x, size_x):
                 pos = np.array([x, y])
-                if boundary_detect_fct(pos, **kwargs):
+                if boundary_detect_fct(pos):
                     return pos
         raise RuntimeError("no cell found: the grid has free cells and obstacles")
 
@@ -1104,7 +1105,8 @@ def convert_grid(
     hole_list: list[npt.NDArray[np.float64]] = []
     while len(unchecked_obstacles) > 0:
         start_pos = find_start(
-            start_pos=(0, 0), boundary_detect_fct=pos_in_iter, iter=unchecked_obstacles
+            start_pos=(0, 0),
+            boundary_detect_fct=partial(pos_in_iter, iter=unchecked_obstacles),
         )
         hole = construct_polygon(
             start_pos, boundary_detect_fct=is_unblocked, cntr_clockwise_wanted=False
@@ -1183,6 +1185,9 @@ def compile_polygon_datastructs(
 
 def load_pickle(path: str | os.PathLike[str] = DEFAULT_PICKLE_NAME) -> Any:
     """loads an environment exported with :meth:`PolygonEnvironment.export_pickle`
+
+    Returns ``Any``: a pickle holds objects of any class (also subclasses of ``PolygonEnvironment``), and this layer
+    cannot import the environment class.
 
     :raises ValueError: when the environment was pickled with an incompatible version of this package (e.g. 2.x).
         Recreate the environment from its polygons instead.
