@@ -911,9 +911,6 @@ def convert_shapely(
     return boundary_coordinates, holes
 
 
-IntArray = npt.NDArray[np.int64]
-
-
 def convert_grid(
     size_x: int, size_y: int, obstacle_iter: Iterable[Iterable[float]]
 ) -> tuple[npt.NDArray[np.float64], list[npt.NDArray[np.float64]]]:
@@ -973,32 +970,32 @@ def convert_grid(
     if len(np.unique(obstacles, axis=0)) == size_x * size_y:
         raise ValueError("All cells of the grid are blocked: there is no free space.")
 
-    def within_grid(pos: IntArray) -> bool:
+    def within_grid(pos: t.IntArray) -> bool:
         return bool(0 <= pos[0] < size_x and 0 <= pos[1] < size_y)
 
-    def is_equal(pos1: IntArray, pos2: IntArray) -> bool:
+    def is_equal(pos1: t.IntArray, pos2: t.IntArray) -> bool:
         return bool(np.all(pos1 == pos2))
 
-    def pos_in_iter(pos: IntArray, iter: Iterable[IntArray]) -> bool:
+    def pos_in_iter(pos: t.IntArray, iter: Iterable[t.IntArray]) -> bool:
         for i in iter:
             if is_equal(pos, i):
                 return True
         return False
 
-    def is_obstacle(pos: IntArray) -> bool:
+    def is_obstacle(pos: t.IntArray) -> bool:
         return pos_in_iter(pos, obstacles)
 
-    def is_blocked(pos: IntArray) -> bool:
+    def is_blocked(pos: t.IntArray) -> bool:
         return not within_grid(pos) or is_obstacle(pos)
 
-    def is_unblocked(pos: IntArray) -> bool:
+    def is_unblocked(pos: t.IntArray) -> bool:
         return within_grid(pos) and not is_obstacle(pos)
 
     def find_start(
         start_pos: tuple[int, int],
         boundary_detect_fct: Callable[..., bool],
         **kwargs: Any,
-    ) -> IntArray:
+    ) -> t.IntArray:
         # returns the lowest and leftmost unblocked grid cell from the start position
         # for which the detection function evaluates to True
         start_x, start_y = start_pos
@@ -1015,8 +1012,8 @@ def convert_grid(
     offsets = np.array([[0, 1], [1, 1], [1, 0], [0, 0]], dtype=int)
 
     def construct_polygon(
-        start_pos: IntArray,
-        boundary_detect_fct: Callable[[IntArray], bool],
+        start_pos: t.IntArray,
+        boundary_detect_fct: Callable[[t.IntArray], bool],
         cntr_clockwise_wanted: bool,
     ) -> npt.NDArray[np.float64]:
         current_pos = start_pos.copy()
@@ -1092,9 +1089,9 @@ def convert_grid(
     # the border value does not matter here
 
     def get_unchecked_obstacles(
-        cells: Iterable[IntArray], poly: np.ndarray, required_val: bool = True
-    ) -> list[IntArray]:
-        unchecked_obstacles: list[IntArray] = []
+        cells: Iterable[t.IntArray], poly: np.ndarray, required_val: bool = True
+    ) -> list[t.IntArray]:
+        unchecked_obstacles: list[t.IntArray] = []
         for o in cells:
             p = o + 0.5
             if _inside_polygon(p, poly, border_value=True) == required_val:

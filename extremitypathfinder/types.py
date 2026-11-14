@@ -23,6 +23,7 @@ else:
     # not subscriptable at runtime in all supported NetworkX versions
     Graph = nx.Graph
 FloatArray = npt.NDArray[np.float64]
+IntArray = npt.NDArray[np.int64]
 
 
 class GeoInterface(Protocol):
