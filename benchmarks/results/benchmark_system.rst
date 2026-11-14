@@ -1,4 +1,4 @@
 - Machine: Apple M1 Pro, 10 logical cores, 32 GiB RAM, macOS-26.3-arm64-arm-64bit-Mach-O
-- Python 3.14.2 (CPython), extremitypathfinder 3.0.0, numpy 2.5.4, networkx 3.7, numba 0.68.0, llvmlite 0.50.0, scipy 1.18.1, pyvisgraph 0.2.1, shapely 2.2.0
-- Commit ``de8280fc61``, 2026-11-03T10:10:26+00:00, command: ``python -m benchmarks.run --fresh``
+- Python 3.14.2 (CPython), extremitypathfinder 3.0.0, numpy 2.5.4, networkx 3.7, numba 0.68.1, llvmlite 0.50.0, scipy 1.18.1, pyvisgraph 0.2.1, shapely 2.2.0
+- Commit ``e12d108f3b (dirty)``, 2026-11-12T23:41:35+00:00, command: ``python -m benchmarks.run --fresh``
 - Build budget 600 s per package and size, no query time limit, 200 queries (seed 0)
