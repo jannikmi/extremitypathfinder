@@ -6,6 +6,7 @@ import subprocess
 import sys
 import tempfile
 import venv
+import zipfile
 from pathlib import Path
 
 SMOKE_TEST = """
@@ -144,6 +145,15 @@ def find_artifacts(distribution_directory: Path) -> tuple[Path, Path]:
     return wheels[0].resolve(), source_distributions[0].resolve()
 
 
+def check_typed_marker(wheel: Path) -> None:
+    """The wheel must contain the PEP 561 marker, otherwise type checkers ignore the annotations of the package."""
+    with zipfile.ZipFile(wheel) as archive:
+        if "extremitypathfinder/py.typed" not in archive.namelist():
+            raise ValueError(
+                f"{wheel.name} does not contain extremitypathfinder/py.typed."
+            )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("distribution_directory", type=Path)
@@ -156,6 +166,7 @@ def main() -> None:
     args = parser.parse_args()
 
     wheel, source_distribution = find_artifacts(args.distribution_directory)
+    check_typed_marker(wheel)
     example = args.example.resolve()
     for artifact in (wheel, source_distribution):
         validate_install(

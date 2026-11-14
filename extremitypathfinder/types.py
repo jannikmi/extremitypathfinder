@@ -14,11 +14,16 @@ Path = list[Coordinate]
 Length = float | None
 InputNumerical = float | int
 InputCoord = tuple[InputNumerical, InputNumerical]
-InputCoordList = np.ndarray | list[InputCoord]
+InputCoordList = npt.NDArray[Any] | list[InputCoord]
 OptionalInputCoordList = InputCoordList | None
 ObstacleIterator = Iterable[InputCoord]
-Graph = nx.Graph
+if TYPE_CHECKING:
+    Graph = nx.Graph[int]
+else:
+    # not subscriptable at runtime in all supported NetworkX versions
+    Graph = nx.Graph
 FloatArray = npt.NDArray[np.float64]
+IntArray = npt.NDArray[np.int64]
 
 
 class GeoInterface(Protocol):

@@ -109,6 +109,25 @@ entry-points = ["CONTRIBUTING.md"]
 # max-words = 1200
 # reason = "why splitting or condensing it would make it worse"
 
+[tool.mypy]
+# static type checking of the package (pre-commit hook, cf. docs/contributing/code-style.md)
+strict = true
+python_version = "3.12"
+files = ["extremitypathfinder"]
+
+# Numba and Matplotlib are optional dependencies, not installed in the pre-commit environment, and Numba ships no
+# type information: their imports are untyped (``Any``) in every environment, so that the result does not depend on
+# what is installed.
+[[tool.mypy.overrides]]
+module = ["numba", "matplotlib", "matplotlib.*"]
+ignore_missing_imports = true
+
+# ``@njit(...)`` is untyped (Numba has no stubs): the decorated kernels keep their annotations in the source,
+# but the compiled functions are untyped as seen by mypy.
+[[tool.mypy.overrides]]
+module = ["extremitypathfinder.utils_numba", "extremitypathfinder.li_chao_tree"]
+disallow_untyped_decorators = false
+
 [tool.pytest.ini_options]
 # a bare `pytest` runs the test suite only (not scripts/ or prototypes/)
 testpaths = ["tests"]

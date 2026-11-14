@@ -18,9 +18,10 @@ is tracked in [#173](https://github.com/jannikmi/extremitypathfinder/issues/173)
   as possible: e.g. `list[int]` instead of `list`, `npt.NDArray[np.float64]` (`types.FloatArray`) instead of `np.ndarray`,
   `X | None` for optional values, `Self` for alternative constructors. Use `Any` only for untyped data at the boundaries
   (JSON, GeoJSON mappings). Optional dependencies (e.g. Shapely) are imported for annotations under `TYPE_CHECKING`.
-  New code must pass `mypy --strict` (until #226 is done, check that the reported lines are not yours:
-  `uv run --with mypy --with types-networkx --with types-shapely mypy --strict extremitypathfinder`).
-  Enforcing it for the whole package is tracked in [#226](https://github.com/jannikmi/extremitypathfinder/issues/226).
+  The package must pass `mypy --strict` (pre-commit hook `mypy`, so also `make check` and CI;
+  configured in `pyproject.toml`, every exception is justified there): `uv run pre-commit run mypy --all-files`.
+  Numba and Matplotlib are untyped imports, so `@njit` kernels are untyped for mypy.
+  The package ships `py.typed` (PEP 561): its annotations are part of the public interface.
 - Shared type aliases live in `types.py`, constants in `configs.py`.
 - **Modular code:** algorithms are functions in the module of their layer, not methods of `PolygonEnvironment`,
   which only checks the input and delegates (cf. [Codebase map](codebase-map.md#package-modules)).

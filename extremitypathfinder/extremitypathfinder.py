@@ -1,6 +1,6 @@
 import pickle
 from collections.abc import Iterable
-from typing import Self
+from typing import Any, Self
 
 import numpy as np
 
@@ -16,6 +16,7 @@ from extremitypathfinder.types import (
     OptionalInputCoordList,
     Path,
 )
+from extremitypathfinder.utils_numba import is_within_map
 from extremitypathfinder.wedges import Point, Points
 
 __all__ = ("PolygonEnvironment", "SearchResult")
@@ -103,54 +104,49 @@ class PolygonEnvironment:
         """
         # loading the map
         expected = "a list of (x,y) coordinate pairs"
-        list_of_hole_coordinates = [
+        hole_arrays = [
             utils.to_float_array(hole_coords, f"hole {hole_idx}", expected)
             for hole_idx, hole_coords in enumerate(list_of_hole_coordinates)
         ]
+        boundary_array: t.FloatArray | None = None
         if boundary_coordinates is not None:
-            boundary_coordinates = utils.to_float_array(
+            boundary_array = utils.to_float_array(
                 boundary_coordinates, "boundary polygon", expected
             )
-        elif not list_of_hole_coordinates:
+        elif not hole_arrays:
             raise ValueError(
                 "At least one hole is required when boundary_coordinates is None."
             )
-        utils.check_polygon_formats(boundary_coordinates, list_of_hole_coordinates)
+        utils.check_polygon_formats(boundary_array, hole_arrays)
         # accept both vertex numberings: reverse polygons with the opposite numbering
-        input_boundary, input_holes = boundary_coordinates, list_of_hole_coordinates
-        boundary_coordinates, list_of_hole_coordinates = utils.orient_polygons(
-            boundary_coordinates, list_of_hole_coordinates
-        )
+        input_boundary, input_holes = boundary_array, hole_arrays
+        boundary_array, hole_arrays = utils.orient_polygons(boundary_array, hole_arrays)
         if validate:
             # the error messages give the vertex indices of the input
             holes_reversed = [
                 hole is not input_hole
-                for hole, input_hole in zip(list_of_hole_coordinates, input_holes)
+                for hole, input_hole in zip(hole_arrays, input_holes)
             ]
-            if boundary_coordinates is None:
-                utils.check_hole_data_requirements(
-                    list_of_hole_coordinates, holes_reversed
-                )
+            if boundary_array is None:
+                utils.check_hole_data_requirements(hole_arrays, holes_reversed)
             else:
                 utils.check_data_requirements(
-                    boundary_coordinates,
-                    list_of_hole_coordinates,
-                    boundary_coordinates is not input_boundary,
+                    boundary_array,
+                    hole_arrays,
+                    boundary_array is not input_boundary,
                     holes_reversed,
                 )
 
         # Note: independent copy!
-        self.holes = list_of_hole_coordinates
-        self.boundary_polygon = boundary_coordinates
+        self.holes = hole_arrays
+        self.boundary_polygon = boundary_array
 
         (
             self.coords,
             self.edge_vertex_idxs,
             self.vertex_edge_idxs,
             self.points,
-        ) = utils.compile_polygon_datastructs(
-            boundary_coordinates, list_of_hole_coordinates
-        )
+        ) = utils.compile_polygon_datastructs(boundary_array, hole_arrays)
         self.extremity_indices = self.points.extremity_idxs
 
         self.nr_vertices = len(self.coords)
@@ -233,12 +229,12 @@ class PolygonEnvironment:
         return self.nr_vertices
 
     @property
-    def all_extremities(self) -> list[tuple]:
+    def all_extremities(self) -> list[tuple[Any, ...]]:
         coords = self.coords
         return [tuple(coords[i]) for i in self.extremity_indices]
 
     @property
-    def all_vertices(self) -> list[tuple]:
+    def all_vertices(self) -> list[tuple[Any, ...]]:
         coords = self.coords
         return [tuple(coords[i]) for i in range(self.nr_vertices)]
 
@@ -251,7 +247,7 @@ class PolygonEnvironment:
             pickle.dump(self, f)
         return path
 
-    def __getstate__(self):
+    def __getstate__(self) -> Any:
         """adds the pickle format version to the state. Subclasses overriding this must call ``super()``"""
         state = super().__getstate__()
         # (dict, slots) for subclasses with ``__slots__``
@@ -259,7 +255,7 @@ class PolygonEnvironment:
         state = {**state, _PICKLE_FORMAT_KEY: configs.PICKLE_FORMAT_VERSION}
         return state if slots is None else (state, slots)
 
-    def __setstate__(self, state):
+    def __setstate__(self, state: Any) -> None:
         state, slots = state if isinstance(state, tuple) else (state, None)
         state = dict(state)
         pickle_format = state.pop(_PICKLE_FORMAT_KEY, None)
@@ -278,7 +274,7 @@ class PolygonEnvironment:
         for name, value in (slots or {}).items():
             setattr(self, name, value)
 
-    def _compute_graph(self):
+    def _compute_graph(self) -> None:
         """Computes a visibility graph optimized (=reduced) for path planning and stores it
 
         Computes all directly reachable extremities based on visibility and their distance to each other
@@ -311,7 +307,7 @@ class PolygonEnvironment:
         :param coords: numerical tuple representing coordinates
         :return: whether the given coordinate is a valid query point
         """
-        return utils.is_within_map(coords, self.boundary_polygon, self.holes)
+        return is_within_map(coords, self.boundary_polygon, self.holes)
 
     def get_visible_idxs(
         self,
