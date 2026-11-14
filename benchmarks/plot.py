@@ -71,6 +71,10 @@ def _new_axes(results: dict, ylabel: str):
     ax.set_yscale("log")
     ax.set_xlabel("vertices of the map")
     ax.set_ylabel(ylabel)
+    # plain numbers on 1, 2, 5 per decade: the default minor labels overlap on a narrow range
+    ax.xaxis.set_major_locator(LogLocator(subs=(1.0, 2.0, 5.0)))
+    ax.xaxis.set_major_formatter(FuncFormatter(lambda value, _: f"{value:,.0f}"))
+    ax.xaxis.set_minor_formatter(NullFormatter())
     ax.grid(True, which="major", color=GRID, linewidth=0.8)
     ax.set_axisbelow(True)
     return fig, ax
@@ -259,7 +263,7 @@ def ratio(results: dict, path: Path):
         "pyvisgraph",
         "extremitypathfinder",
         "pyvisgraph / extremitypathfinder",
-        "Speed ratio (query: sizes where both are valid)",
+        "Speed ratio (query: filled where both are valid)",
     )
 
 
@@ -271,29 +275,32 @@ def graph_size(results: dict, path: Path):
         xs, ys = _ok_points(results, package, lambda r: r["graph_edges"])
         series[package] = (xs, ys)
         _line(ax, xs, ys, package, label=ADAPTERS[package].label)
-    # references: linear and quadratic growth through the first point of the first series
-    anchor = next(((xs[0], ys[0], xs[-1]) for xs, ys in series.values() if xs), None)
-    if anchor:
-        n0, e0, n1 = anchor
-        n1 = max(n1, *(xs[-1] for xs, _ in series.values() if xs))
-        for exponent in (1, 2):
-            ax.plot(
-                [n0, n1],
-                [e0, e0 * (n1 / n0) ** exponent],
-                color=TEXT_SECONDARY,
-                linestyle=":",
-                linewidth=1,
-            )
-            x = n0 * (n1 / n0) ** 0.6
-            ax.annotate(
-                f"∝ n^{exponent}" if exponent > 1 else "∝ n",
-                (x, e0 * (x / n0) ** exponent),
-                xytext=(0, 4),
-                textcoords="offset points",
-                ha="center",
-                fontsize=8,
-                color=TEXT_SECONDARY,
-            )
+    # references: linear growth through the first point of extremitypathfinder, quadratic growth
+    # (the upper bound of a visibility graph) through the first point of pyvisgraph, the
+    # package that builds the dense graph
+    last = max((xs[-1] for xs, _ in series.values() if xs), default=None)
+    for exponent, package in ((1, "extremitypathfinder"), (2, "pyvisgraph")):
+        xs, ys = series.get(package, ([], []))
+        if not xs:
+            continue
+        n0, e0 = xs[0], ys[0]
+        ax.plot(
+            [n0, last],
+            [e0, e0 * (last / n0) ** exponent],
+            color=TEXT_SECONDARY,
+            linestyle=":",
+            linewidth=1,
+        )
+        x = n0 * (last / n0) ** 0.6
+        ax.annotate(
+            f"∝ n^{exponent}" if exponent > 1 else "∝ n",
+            (x, e0 * (x / n0) ** exponent),
+            xytext=(0, 4 if exponent > 1 else -12),
+            textcoords="offset points",
+            ha="center",
+            fontsize=8,
+            color=TEXT_SECONDARY,
+        )
     ax.set_title("Graph size: edges over vertices")
     _finish(fig, ax, results, path, loc="lower right", fontsize=8)
 
@@ -392,6 +399,7 @@ def _ratio_figure(results, path, slower, faster, ylabel, title):
     fig, ax = _new_axes(results, ylabel)
     # build: both built (also with invalid paths), query: both valid
     xs_build, build, xs_query, query = [], [], [], []
+    xs_invalid, invalid = [], []
     for entry in results["world"]:
         epf = entry["results"].get(faster, {})
         pvg = entry["results"].get(slower, {})
@@ -402,12 +410,29 @@ def _ratio_figure(results, path, slower, faster, ylabel, title):
         if epf.get("status") == measure.OK and pvg.get("status") == measure.OK:
             xs_query.append(vertices)
             query.append(pvg["query_stats"]["p50"] / epf["query_stats"]["p50"])
+        elif epf.get("status") == measure.OK and pvg.get("query_stats"):
+            # timed, but the paths of the slower package are wrong: shown hollow
+            xs_invalid.append(vertices)
+            invalid.append(pvg["query_stats"]["p50"] / epf["query_stats"]["p50"])
     ax.plot(
         xs_build, build, color="#1baf7a", marker="o", linewidth=2, label="build time"
     )
     ax.plot(
         xs_query, query, color="#6250d6", marker="D", linewidth=2, label="query (p50)"
     )
+    if invalid:
+        # connected to the last valid size
+        xs, ys = xs_query[-1:] + xs_invalid, query[-1:] + invalid
+        ax.plot(xs, ys, color="#6250d6", linewidth=2, linestyle="--")
+        ax.plot(
+            xs_invalid,
+            invalid,
+            color="#6250d6",
+            marker="D",
+            linestyle="none",
+            markerfacecolor="none",
+            label=f"query (p50), invalid {slower} paths",
+        )
     ax.axhline(1, color=TEXT_SECONDARY, linewidth=1)
     # factors as plain numbers ("6", not "6×10⁰"), only on the major ticks
     ax.yaxis.set_major_locator(LogLocator(subs=(1.0, 2.0, 5.0)))
@@ -492,12 +517,12 @@ def world_example(results: dict, path: Path):
     ax.set_xlabel("longitude (°)")
     ax.set_ylabel("latitude (°)")
     ax.set_title(
-        f"{entry['map']['name']} ({entry['map']['vertices']:,} vertices), query {query_idx}"
+        f"{entry['map']['name']} ({entry['map']['vertices']:,} vertices): "
+        f"start ({start[0]:.1f}°, {start[1]:.1f}°), goal ({goal[0]:.1f}°, {goal[1]:.1f}°)"
     )
     _finish(fig, ax, results, path)
 
 
-NUMBA_COLOR = "#6250d6"
 BASE_COLOR = "#b5b3ab"
 TEMPORARY_COLOR = "#e4e3df"
 
@@ -551,7 +576,7 @@ def _data_segments(result: dict, package: str) -> list[tuple[float, str, str]]:
 
 
 def memory_composition(results: dict, path: Path):
-    """stacked bars per map size: baseline without Numba, Numba, retained and temporary data
+    """stacked bars per map size: baseline, retained and temporary data, optional Numba on top
     (extremitypathfinder) | baseline, retained and temporary data (pyvisgraph)"""
     share = numba_share(results)
     built = _built(results)
@@ -580,7 +605,7 @@ def memory_composition(results: dict, path: Path):
     labels, centers = [], []
     seen = set()
 
-    def bar(x, bottom, height, color, label):
+    def bar(x, bottom, height, color, label, **kwargs):
         # one legend entry per segment kind
         ax.bar(
             x,
@@ -589,6 +614,7 @@ def memory_composition(results: dict, path: Path):
             bottom=bottom,
             color=color,
             label=None if label in seen else label,
+            **kwargs,
         )
         seen.add(label)
 
@@ -597,15 +623,25 @@ def memory_composition(results: dict, path: Path):
         labels.append(f"{entry['map']['vertices']:,}")
         centers.append(i)
         base = (epf["memory_baseline"] - share) / mib
+        # Numba on top: the part of extremitypathfinder that pyvisgraph does not have, optional
         segments = [
-            (base, BASE_COLOR, "interpreter and imports without Numba"),
-            (share / mib, NUMBA_COLOR, "Numba (imports and compiled functions)"),
+            (base, BASE_COLOR, "interpreter and imports"),
             *_data_segments(epf, "extremitypathfinder"),
         ]
         bottom = 0.0
         for height, color, label in segments:
             bar(i - width / 2, bottom, height, color, label)
             bottom += height
+        bar(
+            i - width / 2,
+            bottom,
+            share / mib,
+            "white",
+            "optional: Numba (imports and compiled functions)",
+            hatch="////",
+            edgecolor=STYLE["extremitypathfinder"]["color"],
+        )
+        bottom += share / mib
         ax.annotate(
             f"{bottom:.0f}",
             (i - width / 2, bottom),
@@ -622,7 +658,7 @@ def memory_composition(results: dict, path: Path):
                 (
                     pvg["memory_baseline"] / mib,
                     BASE_COLOR,
-                    "interpreter and imports without Numba",
+                    "interpreter and imports",
                 ),
                 *_data_segments(pvg, "pyvisgraph"),
             ):
