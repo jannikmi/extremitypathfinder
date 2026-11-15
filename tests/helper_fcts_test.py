@@ -144,13 +144,16 @@ def test_read_json_without_a_required_key(tmp_path, missing_key):
         read_json(str(path))
 
 
-def test_edge_along_the_ray_through_the_origin_is_infinitely_far():
-    # the edge lies on a line through the origin: it never crosses the ray through the candidate
-    vectors = np.array([[1.0, 1.0], [2.0, 2.0]])
+def test_edge_parallel_to_the_ray_through_the_candidate_is_infinitely_far():
+    # the edge (1, 2)-(2, 3) is parallel to the ray through the candidate (1, 1) and does not lie on it:
+    # the ray never crosses it (the determinant is 0, the numerator is not)
+    vectors = np.array([[1.0, 2.0], [2.0, 3.0], [1.0, 1.0]])
     distances = np.hypot(*vectors.T)
-    edge_vertex_idxs = np.array([[0, 1]])
-    edge_terms = compute_edge_terms(vectors, edge_vertex_idxs, distances[:1])
-    candidate_terms = compute_candidate_terms(vectors[:1], distances[:1])
+    edge_terms = compute_edge_terms(
+        vectors, np.array([[0, 1]]), distances[:2].max(keepdims=True)
+    )
+    candidate_terms = compute_candidate_terms(vectors[2:], distances[2:])
+    assert edge_terms[0, 2] != 0.0
     assert _edge_distance(0, 0, edge_terms, candidate_terms) == np.inf
 
 
@@ -159,6 +162,10 @@ def test_wedge_of_a_single_ray_is_the_whole_circle():
     assert wedge_size(wedge) == 4.0
     for direction in (0.0, 1.5, 3.9):
         assert in_closure(direction, wedge)
+    # in contrast to a wedge with two different rays
+    assert wedge_size((1.5, 2.5)) == 1.0
+    assert in_closure(2.0, (1.5, 2.5))
+    assert not in_closure(3.9, (1.5, 2.5))
 
 
 @pytest.mark.parametrize(
