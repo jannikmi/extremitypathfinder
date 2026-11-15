@@ -91,7 +91,8 @@ Other packages
     .. polyanya-derived: the comparison with Polyanya. Update this text when the comparison is run again
        (``benchmarks/polyanya/compare.py``).
 
-    - using Polyanya from Python requires writing bindings
+    - using Polyanya from Python requires writing bindings. If you need it in Python, tell us your use case in
+      `issue #177 <https://github.com/jannikmi/extremitypathfinder/issues/177>`__
     - Polyanya needs a triangulation of the free space, this package takes the polygons directly
       (also touching and overlapping ones)
     - Polyanya needs no visibility graph, only the navigation mesh: its preprocessing is orders of magnitude faster

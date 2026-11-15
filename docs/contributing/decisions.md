@@ -25,6 +25,14 @@ the log states the current decisions (git keeps the history).
 Decisions about how we work on the project are in the [process decision log](decisions-process.md).
 Earlier decisions are described in the {ref}`Design Decisions <design_decisions>` and the issues linked there.
 
+## The package stays pure Python, Polyanya is pointed to for speed (#177, #170)
+
+- **Decided by:** a maintainer ([#177](https://github.com/jannikmi/extremitypathfinder/issues/177))
+- **Rejected:** for now, until users show the need in #177: a binding of the Polyanya Rust crate (compiled wheels for
+  all platforms, input preparation, single precision); an own Polyanya implementation in Python or Numba
+  (large effort, likely much slower than the crate).
+- **Details:** {ref}`polyanya-comparison`, the alternatives page
+
 ## The input is validated by default (#243)
 
 - **Decided by:** a maintainer
