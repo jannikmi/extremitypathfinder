@@ -43,7 +43,7 @@ def assert_same_environment(loaded, original):
 def test_round_trip(env_params, test_data, tmp_path):
     original = PolygonEnvironment(*env_params)
     path = tmp_path / "env.npz"
-    assert original.save(path) == path
+    assert original.save(path) == str(path)
     loaded = PolygonEnvironment.load(path)
 
     assert_same_environment(loaded, original)
@@ -201,7 +201,9 @@ def test_corrupted_file_is_rejected(tmp_path, arrays):
     data = bytearray(path.read_bytes())
     data[len(data) // 2] ^= 0xFF
     path.write_bytes(bytes(data))
-    with pytest.raises(ValueError, match="corrupted|truncated|not an environment file"):
+    with pytest.raises(
+        ValueError, match="corrupted or truncated|not an environment file"
+    ):
         PolygonEnvironment.load(path)
 
 
@@ -400,3 +402,46 @@ def test_file_of_format_version_1_still_loads(tmp_path):
     )
     loaded = PolygonEnvironment.load(path)
     assert_same_environment(loaded, PolygonEnvironment(*POLY_ENV_PARAMS))
+
+
+def test_no_polygon_is_rejected(tmp_path, arrays):
+    arrays["boundary"] = arrays["boundary"][:0]
+    arrays["hole_sizes"] = arrays["hole_sizes"][:0]
+    arrays["hole_coords"] = arrays["hole_coords"][:0]
+    with pytest.raises(ValueError, match="no polygon"):
+        load_modified(tmp_path, arrays)
+
+
+def test_missing_array_message_is_not_wrapped(tmp_path, arrays):
+    del arrays["edges"]
+    with pytest.raises(ValueError) as error:
+        load_modified(tmp_path, arrays)
+    assert str(error.value).count("not an environment file") == 1
+
+
+def test_random_corruptions_never_load_other_data(tmp_path):
+    # every damaged file raises a ValueError (zip errors, invalid compressed streams, ...) or still gives the
+    # same environment: the CRC-32 of the zip file detects changed data
+    original = PolygonEnvironment(*POLY_ENV_PARAMS)
+    path = tmp_path / "env.npz"
+    original.save(path)
+    content = path.read_bytes()
+    rng = np.random.default_rng(0)
+    damaged = tmp_path / "damaged.npz"
+    for _ in range(400):
+        data = bytearray(content)
+        for _ in range(rng.integers(1, 4)):
+            data[rng.integers(len(data))] ^= int(rng.integers(1, 256))
+        if rng.random() < 0.15:
+            data = data[: rng.integers(len(data))]
+        damaged.write_bytes(bytes(data))
+        try:
+            loaded = PolygonEnvironment.load(damaged)
+        except ValueError:
+            continue
+        assert_same_environment(loaded, original)
+
+
+def test_save_to_a_missing_directory_raises_os_error(tmp_path):
+    with pytest.raises(OSError):
+        PolygonEnvironment(*POLY_ENV_PARAMS).save(tmp_path / "missing" / "env.npz")

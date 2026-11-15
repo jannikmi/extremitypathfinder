@@ -27,6 +27,7 @@ visibility graph of the polygons: that would need the preparation of the environ
 """
 
 import os
+import zlib
 from dataclasses import dataclass
 from zipfile import BadZipFile
 
@@ -100,6 +101,36 @@ def _check_array(
         raise ValueError(f"'{name}' must have {shape}, got shape {array.shape}.")
 
 
+def _load_arrays(path: str | os.PathLike[str]) -> dict[str, np.ndarray]:
+    """the arrays of the file that belong to the format, without unpickling anything
+
+    :raises OSError: when the file cannot be opened (e.g. it does not exist)
+    :raises ValueError: when the content cannot be read as a ``.npz`` file
+    """
+    # opened here: errors of the file system stay OSErrors, everything raised while reading the content is a ValueError
+    with open(path, "rb") as f:
+        try:
+            with np.load(f, allow_pickle=False) as file:
+                names = set(file.files)
+                return {key: file[key] for key in _KEYS if key in names}
+        except ValueError as error:
+            # numpy refuses object arrays (pickled data) and files that are no ``.npz`` files, e.g. a pickle file
+            raise ValueError(
+                f"{os.fspath(path)}: not an environment file ({error})"
+            ) from None
+        except (
+            BadZipFile,
+            EOFError,
+            OSError,
+            RuntimeError,
+            zlib.error,
+        ) as error:
+            # a corrupted or truncated zip file: a CRC mismatch, an invalid compressed stream or zip header
+            raise ValueError(
+                f"{os.fspath(path)}: corrupted or truncated file ({type(error).__name__}: {error})."
+            ) from None
+
+
 def read(path: str | os.PathLike[str]) -> StoredEnvironment:
     """reads a file written by :func:`write` and checks its structure
 
@@ -107,29 +138,15 @@ def read(path: str | os.PathLike[str]) -> StoredEnvironment:
 
     :raises ValueError: for a file that is no ``.npz`` file (also for a pickle file) or does not contain all arrays,
         is corrupted, has an unknown format version, arrays of the wrong type or shape,
-        or polygons that are not finite, have fewer than 3 vertices or are not stored in the orientation
-        of the environment (counter clockwise boundary, clockwise holes)
+        or no polygon at all, or polygons that are not finite, have fewer than 3 vertices or are not stored in the
+        orientation of the environment (counter clockwise boundary, clockwise holes)
     """
-    try:
-        with np.load(path, allow_pickle=False) as file:
-            # ``NpzFile`` has no ``keys()`` in all supported numpy versions
-            names = set(file.files)
-            if not names.issuperset(_KEYS):
-                raise ValueError(
-                    f"{os.fspath(path)}: not an environment file, missing the arrays "
-                    f"{sorted(set(_KEYS) - names)}."
-                )
-            arrays = {key: file[key] for key in _KEYS}
-    except ValueError as error:
-        # numpy refuses object arrays (pickled data) and files that are no ``.npz`` files, e.g. a pickle file
+    arrays = _load_arrays(path)
+    missing = [key for key in _KEYS if key not in arrays]
+    if missing:
         raise ValueError(
-            f"{os.fspath(path)}: not an environment file ({error})"
-        ) from None
-    except BadZipFile as error:
-        # e.g. a CRC mismatch: a corrupted file
-        raise ValueError(f"{os.fspath(path)}: corrupted file ({error}).") from None
-    except EOFError as error:
-        raise ValueError(f"{os.fspath(path)}: truncated file ({error}).") from None
+            f"{os.fspath(path)}: not an environment file, missing the arrays {missing}."
+        )
 
     version = arrays["format_version"]
     if version.shape != () or version.dtype.kind != "i":
@@ -157,6 +174,10 @@ def read(path: str | os.PathLike[str]) -> StoredEnvironment:
 
     # shape (0,2): no boundary polygon (a polygon has at least 3 vertices)
     boundary = arrays["boundary"] if len(arrays["boundary"]) else None
+    if boundary is None and not len(hole_sizes):
+        raise ValueError(
+            "The file contains no polygon: an unbounded environment needs at least one hole."
+        )
     # (``np.split`` of no holes would give one empty hole)
     holes = (
         [hole.copy() for hole in np.split(hole_coords, np.cumsum(hole_sizes)[:-1])]

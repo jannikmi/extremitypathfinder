@@ -244,7 +244,7 @@ class PolygonEnvironment:
         coords = self.coords
         return [tuple(coords[i]) for i in range(self.nr_vertices)]
 
-    def save(self, path: str | os.PathLike[str]) -> str | os.PathLike[str]:
+    def save(self, path: str | os.PathLike[str]) -> str:
         """stores the environment with its visibility graph in a file (cf. :meth:`load`)
 
         The recommended way to keep a prepared environment: a documented ``.npz`` file with only the polygons
@@ -255,6 +255,7 @@ class PolygonEnvironment:
 
         :param path: the file to write, an existing file is overwritten
         :return: the path of the file
+        :raises OSError: when the file cannot be written
         """
         storage.write(
             path,
@@ -263,7 +264,7 @@ class PolygonEnvironment:
             self.extremity_indices,
             self.graph,
         )
-        return path
+        return os.fspath(path)
 
     @classmethod
     def load(cls, path: str | os.PathLike[str]) -> Self:
