@@ -537,11 +537,11 @@ def find_visible_from(
     if point is not None:
         edges.difference_update(point.incident_edges)
         origin_position = coords[origin]
-        candidates = {
-            i
-            for i in candidates
-            if point.in_wedges(representations[i], coords[i] - origin_position, wedges)
-        }
+        idxs = np.fromiter(candidates, dtype=np.int64, count=len(candidates))
+        leaving = point.in_wedges_mask(
+            representations[idxs], coords[idxs] - origin_position, wedges
+        )
+        candidates = set(idxs[leaving].tolist())
 
     # the edges at a query candidate do not block it (its arrival is decided by rule 4), like at the origin.
     # Note: a query point inside an edge might not lie exactly on it in the floating point computations
@@ -597,11 +597,13 @@ def _find_visible_and_in_front(
     # but when it happens to be an extremity, edges to the (visible) extremities in front of it MUST be added!
     # IMPORTANT: check all extremities here, not just current candidates
     origin_position = coords[origin]
-    candidates_in_front = {
-        i
-        for i in candidates_in_front
-        if point.in_front(representations[i], coords[i] - origin_position)
-    }
+    idxs = np.fromiter(
+        candidates_in_front, dtype=np.int64, count=len(candidates_in_front)
+    )
+    in_front = point.in_front_mask(
+        representations[idxs], coords[idxs] - origin_position
+    )
+    candidates_in_front = set(idxs[in_front].tolist())
     # do not consider points lying in front when looking for visible extremities,
     # even if they are actually visible.
     candidates = candidates.difference(candidates_in_front)
