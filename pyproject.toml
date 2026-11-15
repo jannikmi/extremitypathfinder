@@ -133,7 +133,7 @@ files = ["extremitypathfinder"]
 # ``except ImportError`` fallback to ``numba_replacements`` would be a redefinition). Matplotlib's types are used when
 # installed: the code passes with and without them.
 [[tool.mypy.overrides]]
-module = ["numba", "numba.*", "matplotlib", "matplotlib.*"]
+module = ["numba", "matplotlib", "matplotlib.*"]
 ignore_missing_imports = true
 follow_imports = "skip"
 

@@ -183,6 +183,15 @@ class Point:
     def is_extremity(self) -> bool:
         return self.extremity_wedge is not None
 
+    def _front_wedge(self) -> Wedge:
+        """the extremity wedge, which defines the "front": an error for a point that is no extremity"""
+        if self.extremity_wedge is None:
+            raise ValueError(
+                f"Point {self.idx} is no extremity (no free wedge larger than 180 degree): "
+                "only extremities have a front."
+            )
+        return self.extremity_wedge
+
     def rep(self, vector: np.ndarray) -> float:
         """the angle representation of the direction, identical to a ray with exactly the same direction"""
         rep = _ray_rep(vector, self.rays)
@@ -212,12 +221,7 @@ class Point:
         :param rep: the angle representation of the direction
         :param vector: the direction, to compare it exactly with the bounding rays
         """
-        if self.extremity_wedge is None:
-            raise ValueError(
-                f"Point {self.idx} is no extremity (no free wedge larger than 180 degree): "
-                "only extremities have a front."
-            )
-        start, end = self.extremity_wedge
+        start, end = self._front_wedge()
         if any(
             _cross(ray, vector) == 0.0 and np.dot(ray, vector) < 0.0
             for ray, ray_rep in self.rays
@@ -270,7 +274,7 @@ class Point:
         :param vectors: the directions
         :return: a boolean mask of the directions
         """
-        start, end = self.extremity_wedge
+        start, end = self._front_wedge()
         front_start = (end + 2.0) % 4.0
         size = ((start + 2.0) % 4.0 - front_start) % 4.0
         offsets = (reps - front_start) % 4.0
