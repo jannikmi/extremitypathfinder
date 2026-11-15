@@ -52,6 +52,10 @@ class SearchResult:
     def graph(self) -> t.Graph | None:
         if self.query_edges is None:
             return None
+        if self.visibility_graph is None:
+            raise ValueError(
+                "The search result has query edges, but no visibility graph."
+            )
         graph = self.visibility_graph.copy()
         graph.add_weighted_edges_from(self.query_edges)
         return graph
@@ -153,7 +157,7 @@ def search_graph(
     goal: int,
     query_edges: list[tuple[int, int, float]],
     goal_distances: np.ndarray,
-) -> tuple[list[int] | None, Length]:
+) -> tuple[list[int], float] | None:
     """the shortest path between two graph nodes (or query points) with A*, and its length
 
     Searches the visibility graph extended by the temporary edges of start and goal,
@@ -161,7 +165,7 @@ def search_graph(
 
     :param query_edges: the temporary edges ``(node, neighbour, length)`` of start and goal
     :param goal_distances: the distances of all coordinates to the goal: the A* heuristic
-    :return: the node indices of the path and its length, ``(None, None)`` if there is no path
+    :return: the node indices of the path and its length, ``None`` if there is no path
     """
     query_adjacency: dict[int, dict[int, float]] = {}
     for i, j, d in query_edges:
@@ -169,11 +173,12 @@ def search_graph(
         query_adjacency.setdefault(j, {})[i] = d
 
     def distance_to_goal(node: int, _goal: int) -> float:
-        return goal_distances[node]
+        distance: float = goal_distances[node]
+        return distance
 
     id_path = utils.astar_path(graph, query_adjacency, start, goal, distance_to_goal)
     if id_path is None:
-        return None, None
+        return None
 
     # the length of the path: the sum of the weights of its edges (Euclidean distances)
     distance = 0.0
@@ -203,7 +208,9 @@ def search(
     start = len(vertex_coords)
     goal = start + 1
     # temporarily extend data structure
-    coords = np.append(vertex_coords, (coords_start, coords_goal), axis=0)
+    coords = np.concatenate(
+        (vertex_coords, np.asarray((coords_start, coords_goal))), axis=0
+    )
 
     def no_graph_result(path: Path, length: Length) -> SearchResult:
         return SearchResult(path, length, coords)
@@ -305,11 +312,10 @@ def search(
             graph,
         )
 
-    id_path, distance = search_graph(
-        graph, start_mapped, goal_mapped, query_edges, goal_distances
-    )
-    if id_path is None:
+    found = search_graph(graph, start_mapped, goal_mapped, query_edges, goal_distances)
+    if found is None:
         return graph_result([], None)
+    id_path, distance = found
 
     # extract the coordinates from the path
     path = [_coordinate(coords[i]) for i in id_path]
@@ -415,10 +421,10 @@ def distance_matrix(
                 query_edges = goal_edges + [
                     (start_mapped, i, d) for i, d in visible_nodes[source].items()
                 ]
-                _, length = search_graph(
+                found = search_graph(
                     graph, start_mapped, goal_mapped, query_edges, goal_distances
                 )
-                distances[source, target] = np.inf if length is None else length
+                distances[source, target] = np.inf if found is None else found[1]
 
     for i, source in enumerate(idxs_a):
         for j, target in enumerate(idxs_b):
