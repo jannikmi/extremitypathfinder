@@ -101,7 +101,9 @@ Pickled environments
 Environments pickled with 2.x cannot be loaded anymore.
 ``load_pickle()`` raises a ``ValueError`` for them; pickles of a 2.x ``PlottingEnvironment``
 fail earlier, because that class no longer exists.
-Recreate the environments from their polygons and export them again with ``export_pickle()``.
+Recreate the environments from their polygons and store them again. Prefer ``save()`` and ``PolygonEnvironment.load()``
+over ``export_pickle()``: their file format does not depend on the internal attributes
+(cf. :ref:`usage <usage>`).
 
 
 Different results: touching obstacles block paths

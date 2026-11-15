@@ -380,16 +380,26 @@ Cache and import the environment
 --------------------------------
 
 
+The preparation of a large environment takes a long time, loading a stored one much less.
+``save()`` stores the polygons and the visibility graph in a documented ``.npz`` file, ``load()`` reads it:
+
 .. code-block:: python
 
-    environment.export_pickle(path="./pickle_file.pickle")
+    environment.save("./environment.npz")
 
-    from extremitypathfinder import load_pickle
+    from extremitypathfinder import PolygonEnvironment
 
-    environment = load_pickle(path="./pickle_file.pickle")
+    environment = PolygonEnvironment.load("./environment.npz")
 
-Environments pickled with an incompatible version of this package (e.g. 2.x) cannot be loaded
-(``ValueError``): recreate them from their polygons instead.
+The file contains only data: loading it never executes code, and later versions of this package can read it
+as long as the visibility graph does not change (an unknown format version raises a ``ValueError`` asking to recreate
+the environment). The loaded environment gives the same paths and lengths.
+Loading checks the structure of the file (``ValueError``), but neither validates the polygons again
+nor verifies that the graph is the visibility graph of the polygons: load files from sources you trust.
+
+Pickles (``export_pickle()`` and ``load_pickle()``) are still available, but can only be loaded with the same
+version of this package (e.g. environments pickled with 2.x raise a ``ValueError``) and may execute code when loaded:
+only load pickles you wrote yourself. Prefer ``save()`` and ``load()``.
 
 
 

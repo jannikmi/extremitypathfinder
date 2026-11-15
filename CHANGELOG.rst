@@ -52,6 +52,14 @@ BREAKING: ``export_pickle()`` and ``load_pickle()`` no longer print to the stand
 
 other changes:
 
+- a stable file format for prepared environments (#245): ``environment.save(path)`` and ``PolygonEnvironment.load(path)``
+  keep an environment with its visibility graph in a documented ``.npz`` file that contains only data (the polygons,
+  the extremities and the edges with their lengths). Unlike a pickle it does not depend on the internal attributes,
+  so it can be loaded by later versions as long as the visibility graph stays the same, loading it never executes code,
+  and it is much smaller. Loading checks the file (format version, types and shapes, vertex numbering, extremities,
+  edges and weights, ``ValueError``) and rebuilds the cheap data structures instead of computing the graph again.
+  The loaded environment gives the same graph, paths and lengths.
+  ``export_pickle()`` and ``load_pickle()`` stay.
 - the package ships type information (``py.typed``, PEP 561) and is checked with ``mypy --strict``: type checkers now
   use its annotations. Corrected invalid and wrong annotations (e.g. ``utils.convert_grid()``).
 - the worst case of the visibility computation is bounded (#216): environments with many extremities in front of

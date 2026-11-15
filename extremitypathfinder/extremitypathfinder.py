@@ -1,10 +1,11 @@
+import os
 import pickle
 from collections.abc import Iterable
 from typing import Self, cast
 
 import numpy as np
 
-from extremitypathfinder import configs, queries, utils
+from extremitypathfinder import configs, queries, storage, utils
 from extremitypathfinder import types as t
 from extremitypathfinder.configs import DEFAULT_PICKLE_NAME
 from extremitypathfinder.queries import SearchResult
@@ -137,6 +138,13 @@ class PolygonEnvironment:
                     holes_reversed,
                 )
 
+        self._store_polygons(boundary_array, hole_arrays)
+        self._compute_graph()
+
+    def _store_polygons(
+        self, boundary_array: t.FloatArray | None, hole_arrays: list[t.FloatArray]
+    ) -> None:
+        """stores the (oriented) polygons and the data structures computed from them, without the graph"""
         # Note: independent copy!
         self.holes = hole_arrays
         self.boundary_polygon = boundary_array
@@ -154,8 +162,6 @@ class PolygonEnvironment:
         # start and goal points will be stored after all polygon coordinates
         self.idx_start = self.nr_vertices
         self.idx_goal = self.nr_vertices + 1
-
-        self._compute_graph()
 
     @classmethod
     def from_grid(
@@ -238,8 +244,53 @@ class PolygonEnvironment:
         coords = self.coords
         return [tuple(coords[i]) for i in range(self.nr_vertices)]
 
+    def save(self, path: str | os.PathLike[str]) -> str | os.PathLike[str]:
+        """stores the environment with its visibility graph in a file (cf. :meth:`load`)
+
+        The recommended way to keep a prepared environment: a documented ``.npz`` file with only the polygons
+        and the visibility graph (the extremities, the edges and their lengths).
+        Unlike a pickle (:meth:`export_pickle`) it can be loaded by later versions of this package
+        (as long as the visibility graph does not change), and loading it never executes code.
+        The path is used as given, a missing extension ``.npz`` is not added.
+
+        :param path: the file to write, an existing file is overwritten
+        :return: the path of the file
+        """
+        storage.write(
+            path,
+            self.boundary_polygon,
+            self.holes,
+            self.extremity_indices,
+            self.graph,
+        )
+        return path
+
+    @classmethod
+    def load(cls, path: str | os.PathLike[str]) -> Self:
+        """loads an environment stored with :meth:`save`, without computing its visibility graph again
+
+        Only the data structures computed from the polygons are rebuilt, which takes much less time than
+        the preparation of the environment. The loaded environment gives the same paths and lengths as the stored one.
+        The file is checked (format version, shapes and types, vertex numbering, extremities and edges),
+        but the polygons are not validated again and the graph is not verified to be the visibility graph
+        of the polygons: load files only from sources that you trust to be correct.
+
+        :param path: a file written by :meth:`save`
+        :raises ValueError: when the file is no environment file, is corrupted or truncated, was written with
+            another file format version, or its content is inconsistent. The message names the problem.
+        :raises OSError: when the file cannot be read
+        """
+        stored = storage.read(path)
+        environment = cls.__new__(cls)
+        environment._store_polygons(stored.boundary, stored.holes)
+        environment.graph = storage.build_graph(stored, environment.extremity_indices)
+        return environment
+
     def export_pickle(self, path: str = DEFAULT_PICKLE_NAME) -> str:
         """stores the environment with its visibility graph in a pickle file (cf. :func:`load_pickle`)
+
+        Pickles can only be loaded with the same version of this package and may execute code when loaded:
+        prefer :meth:`save` and :meth:`load`.
 
         :return: the path of the file
         """

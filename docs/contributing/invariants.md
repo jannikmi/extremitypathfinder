@@ -44,6 +44,9 @@ The [Engineering Design](../8_design.rst) page gives the full reasoning.
 - **Queries do not change the environment.** A query works on a copy of the coordinates and query local data,
   and never writes to the environment or its visibility graph (thread safety, #136).
   `utils.astar_path()` follows the temporary edges of start and goal for this reason.
+- **The file format of `save()` changes only with the graph semantics.** The file stores the polygons and the visibility
+  graph, everything else is recomputed (cf. the engineering design). A change that keeps other edges needs a new
+  `configs.FILE_FORMAT_VERSION`: `test_file_format.py` fails for it.
 - **Few dependencies.** Runtime dependencies are numpy and networkx, Numba is an optional extra.
   A new dependency must be justified (what it saves compared to the code it replaces) and accepted by a maintainer.
 

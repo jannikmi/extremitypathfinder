@@ -747,10 +747,28 @@ Numba, the difference in preparation time is within the noise of the measurement
 cannot be decided in floating point: without validation, random paths ran through an obstacle.
 Callers with trusted or generated input can skip the validation with ``validate=False``.
 
-Versioned pickles
------------------
+Stored environments
+-------------------
 
-Environments are cached with ``pickle``. Every pickle stores ``configs.PICKLE_FORMAT_VERSION``,
+``save()`` and ``load()`` keep a prepared environment in a documented ``.npz`` file (``storage.py``) that contains
+only data: the polygons as stored by the environment, the extremities and the edges of the visibility graph with their
+lengths. Everything else (the coordinates of all vertices, the mappings between vertices and edges, the points with
+their free wedges) is computed from the polygons when loading. That takes much less than the preparation, and the
+file survives changes of the internal data structures: only a change of the graph semantics (which edges the graph
+keeps) needs a new ``configs.FILE_FORMAT_VERSION``, and loading a file with another version raises a ``ValueError``
+with instructions. The edges are stored in the order of the graph, so that the loaded graph iterates its neighbours
+in the same order and the search breaks ties the same way.
+
+The format is ``.npz`` (``numpy.savez_compressed``, loaded with ``allow_pickle=False``) because it needs no dependency,
+is compact, stores floats exactly and is never unpickled. JSON would be readable by other languages but larger, and
+floats would go through text; it can be added as a conversion on demand (#245). Loading checks the structure
+of the file: types and shapes, the vertex numbering, that the extremities equal those computed from the polygons, and
+that the edges connect distinct extremities once with a finite positive length. A checksum of the coordinates is not
+stored: the zip format already detects corruption, and a checksum in the same file does not detect tampering.
+The load does not verify that the graph is the visibility graph of the polygons (that needs the preparation),
+and does not validate the polygons again.
+
+Pickles (``export_pickle()``) store the internal attributes. Every pickle stores ``configs.PICKLE_FORMAT_VERSION``,
 loading a pickle with a different version raises a ``ValueError`` with instructions instead of producing an
 environment with missing or outdated attributes. Increase the version whenever the stored attributes change
 incompatibly.

@@ -25,7 +25,7 @@ command_line, plotting       user interfaces
         │
 extremitypathfinder          PolygonEnvironment
         │
-queries                      search, distance matrix, SearchResult
+queries, storage             search, distance matrix, SearchResult; the file format
         │
 utils                        visibility, graph, A*, validation
         │
@@ -43,6 +43,7 @@ numba | numba_replacements
 | `__init__.py` | change the public API (`PolygonEnvironment`, `SearchResult`, `load_pickle`) |
 | `extremitypathfinder.py` | change the public methods of `PolygonEnvironment` (it owns all state, checks the input and delegates) |
 | `queries.py` | change how a query is run: start and goal visibility, graph search, distance matrix, `SearchResult` |
+| `storage.py` | change the stable file format of `save()` and `load()` (a new `FILE_FORMAT_VERSION` if the graph semantics change) |
 | `utils.py` | change input validation and orientation, visibility (`find_visible()`), the graph, A* (`astar_path()`), grids, JSON and pickle I/O |
 | `wedges.py` | change what happens at vertices: points, free wedges, which vertices are extremities |
 | `li_chao_tree.py` | change how AREA finds the candidates behind an edge: the Li Chao tree (`blocked_candidates()`) |
