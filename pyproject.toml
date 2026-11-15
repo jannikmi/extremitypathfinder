@@ -109,6 +109,40 @@ entry-points = ["CONTRIBUTING.md"]
 # max-words = 1200
 # reason = "why splitting or condensing it would make it worse"
 
+[tool.ruff.lint]
+# no quiet fallbacks, no assertions in the package (cf. docs/contributing/invariants.md and code-style.md):
+# assertions, blanket ``except`` clauses and swallowed broad exceptions
+extend-select = ["S101", "S110", "S112", "BLE001", "E722"]
+
+[tool.ruff.lint.per-file-ignores]
+# assertions are the idiom of tests and scripts, only the package must not use them
+"tests/**" = ["S101"]
+"scripts/**" = ["S101"]
+"benchmarks/**" = ["S101"]
+"prototypes/**" = ["S101"]
+"docs/**" = ["S101"]
+
+[tool.mypy]
+# static type checking of the package (pre-commit hook, cf. docs/contributing/code-style.md)
+strict = true
+python_version = "3.12"
+files = ["extremitypathfinder"]
+
+# Numba and Matplotlib are optional dependencies, not installed in the pre-commit environment: their imports are
+# untyped (``Any``) there. Numba is also skipped when installed (it has no usable type information and the
+# ``except ImportError`` fallback to ``numba_replacements`` would be a redefinition). Matplotlib's types are used when
+# installed: the code passes with and without them.
+[[tool.mypy.overrides]]
+module = ["numba", "matplotlib", "matplotlib.*"]
+ignore_missing_imports = true
+follow_imports = "skip"
+
+# ``@njit(...)`` is untyped (Numba has no stubs): the decorated kernels keep their annotations in the source,
+# but the compiled functions are untyped as seen by mypy.
+[[tool.mypy.overrides]]
+module = ["extremitypathfinder.utils_numba", "extremitypathfinder.li_chao_tree"]
+disallow_untyped_decorators = false
+
 [tool.pytest.ini_options]
 # a bare `pytest` runs the test suite only (not scripts/ or prototypes/)
 testpaths = ["tests"]
