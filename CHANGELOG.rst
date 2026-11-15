@@ -57,7 +57,8 @@ other changes:
   the extremities and the edges with their lengths). Unlike a pickle it does not depend on the internal attributes,
   so it can be loaded by later versions as long as the visibility graph stays the same, loading it never executes code,
   and it is much smaller. Loading checks the file (format version, types and shapes, vertex numbering, extremities,
-  edges and weights, ``ValueError``) and rebuilds the cheap data structures instead of computing the graph again.
+  edges and weights, ``ValueError``) and rebuilds the data structures computed from the polygons instead of computing the graph again
+  (faster than the preparation, much faster with Numba).
   The loaded environment gives the same graph, paths and lengths.
   ``export_pickle()`` and ``load_pickle()`` stay.
 - the package ships type information (``py.typed``, PEP 561) and is checked with ``mypy --strict``: type checkers now

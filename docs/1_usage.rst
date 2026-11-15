@@ -380,7 +380,8 @@ Cache and import the environment
 --------------------------------
 
 
-The preparation of a large environment takes a long time, loading a stored one much less.
+The preparation of a large environment takes a long time, loading a stored one takes less
+(much less with Numba, because the data structures computed from the polygons are rebuilt).
 ``save()`` stores the polygons and the visibility graph in a documented ``.npz`` file, ``load()`` reads it:
 
 .. code-block:: python

@@ -269,8 +269,9 @@ class PolygonEnvironment:
     def load(cls, path: str | os.PathLike[str]) -> Self:
         """loads an environment stored with :meth:`save`, without computing its visibility graph again
 
-        Only the data structures computed from the polygons are rebuilt, which takes much less time than
-        the preparation of the environment. The loaded environment gives the same paths and lengths as the stored one.
+        Only the data structures computed from the polygons are rebuilt, which takes less time than
+        the preparation of the environment (much less with Numba).
+        The loaded environment gives the same paths and lengths as the stored one.
         The file is checked (format version, shapes and types, vertex numbering, extremities and edges),
         but the polygons are not validated again and the graph is not verified to be the visibility graph
         of the polygons: load files only from sources that you trust to be correct.

@@ -753,7 +753,8 @@ Stored environments
 ``save()`` and ``load()`` keep a prepared environment in a documented ``.npz`` file (``storage.py``) that contains
 only data: the polygons as stored by the environment, the extremities and the edges of the visibility graph with their
 lengths. Everything else (the coordinates of all vertices, the mappings between vertices and edges, the points with
-their free wedges) is computed from the polygons when loading. That takes much less than the preparation, and the
+their free wedges) is computed from the polygons when loading. That takes less than the preparation (much less with Numba: the test of every vertex against the polygons
+is the larger part of it without Numba), and the
 file survives changes of the internal data structures: only a change of the graph semantics (which edges the graph
 keeps) needs a new ``configs.FILE_FORMAT_VERSION``, and loading a file with another version raises a ``ValueError``
 with instructions. The edges are stored in the order of the graph, so that the loaded graph iterates its neighbours

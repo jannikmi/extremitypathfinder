@@ -16,9 +16,10 @@ array                     type, shape content
 ========================= =========== ====================================================================
 
 Everything else (the coordinates of all vertices, the mappings between vertices and edges, the points with their free
-wedges) is cheap and computed from the polygons when loading, so the file survives changes of the internal data
-structures. Only a change of the graph semantics (which edges the visibility graph keeps) needs a new
-``configs.FILE_FORMAT_VERSION``. The edges are stored in the order of the graph (``graph.edges``),
+wedges) is computed from the polygons when loading (much faster than computing the visibility graph with Numba),
+so the file survives changes of the internal data structures. Only a change of the graph semantics
+(which edges the visibility graph keeps) needs a new ``configs.FILE_FORMAT_VERSION``.
+The edges are stored in the order of the graph (``graph.edges``),
 so that the loaded graph iterates its neighbours in the same order and the search breaks ties the same way.
 
 Loading checks the structure of the file (cf. :func:`read` and :func:`build_graph`), but not that the graph is the
