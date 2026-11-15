@@ -216,6 +216,41 @@ Memory
    The data parts are measured with Numba: a build without Numba may peak differently.
 
 
+.. _polyanya-comparison:
+
+Comparison with Polyanya
+------------------------
+
+.. polyanya-derived: the comparison with Polyanya (``benchmarks/polyanya/compare.py``, measurements in #170 and
+   pull request #271). Update this text when the comparison is run again (``benchmarks/polyanya/compare.py``).
+
+`Polyanya <https://docs.rs/polyanya>`__ is the state of the art for this problem (see :ref:`alternatives`):
+it searches a navigation mesh of the free space and needs no visibility graph.
+It was compared on the same world maps and query pairs as above, up to the 6k map,
+using the Rust implementation (a separate harness, not part of the package or its CI).
+The free space is triangulated by the crate itself, inside a rectangle around all obstacles and query points
+(the maps are unbounded). This does not change the shortest paths.
+
+- **Same paths.** All path lengths agree; the remaining differences are rounding (Polyanya computes in single
+  precision).
+- **Much faster preprocessing.** Building the navigation mesh (triangulation, merging of the triangles, baking)
+  is two to three orders of magnitude faster than building the visibility graph, and the gap grows with the map:
+  the visibility graph grows about quadratically, the mesh about linearly.
+- **Much faster queries.** Polyanya answers queries about two orders of magnitude faster (median).
+- **No break-even.** Polyanya is faster at both steps, so this package does not catch up with it
+  at any number of queries per environment.
+
+Limitations of this comparison:
+
+- It compares native code (Rust) with Python (+ Numba, NetworkX), not the algorithms alone:
+  a large part of the query gap is the language and the graph library.
+- Polyanya computes in single precision and needs a triangulation of
+  the free space; this package works in double precision and takes the polygons as they are
+  (cf. :ref:`alternatives`).
+- One run on one machine and no memory measurement, without the separate processes, warm-up and budgets
+  of the main benchmark.
+
+
 .. _benchmark-correctness:
 
 Correctness

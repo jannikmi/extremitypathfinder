@@ -6,7 +6,10 @@ The maps are unbounded, Polyanya needs a bounded free space:
 the bounding box of all obstacles and query points, extended by a margin, is the boundary.
 A shortest path stays in the convex hull of the obstacles and its end points, so this does not change the paths.
 
-    uv run python -m benchmarks.polyanya.compare --sizes 250 1k 2k --queries 200
+    uv run --group benchmark python -m benchmarks.polyanya.compare --sizes 250 1k 2k 4k 6k
+
+Exit code 1 if path lengths differ. The results are only printed: put them into the pull request
+and update the text marked with ``.. polyanya-derived:`` comments in ``docs/``.
 """
 
 import argparse
