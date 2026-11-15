@@ -22,6 +22,13 @@ is tracked in [#173](https://github.com/jannikmi/extremitypathfinder/issues/173)
   configured in `pyproject.toml`, every exception is justified there): `uv run pre-commit run mypy --all-files`.
   Numba and Matplotlib are untyped imports, so `@njit` kernels are untyped for mypy.
   The package ships `py.typed` (PEP 561): its annotations are part of the public interface.
+- **No assertions in the package:** no `assert` statements in `extremitypathfinder/` (tests are exempt). They vanish
+  with `python -O`, so they neither validate nor narrow types reliably. Handle the case (an explicit exception or result)
+  or restructure the types. Raise an exception for invalid input, never use an assertion for it.
+- **No casts for the type checker:** do not wrap values in `float()`, `bool()`, `int()` or `typing.cast()` only to
+  satisfy mypy: they run on every call, in the innermost loops too. Annotate a local variable instead
+  (`rep: float = _compute_repr_n_dist(v)[0]`). Convert only to change the value (e.g. NumPy scalars to Python floats
+  in results), and cast only untyped data at the boundaries (JSON).
 - Shared type aliases live in `types.py`, constants in `configs.py`.
 - **Modular code:** algorithms are functions in the module of their layer, not methods of `PolygonEnvironment`,
   which only checks the input and delegates (cf. [Codebase map](codebase-map.md#package-modules)).

@@ -634,7 +634,8 @@ def edge_weight(
     try:
         return query_edges[n1][n2]
     except KeyError:
-        return float(graph[n1][n2]["weight"])
+        weight: float = graph[n1][n2]["weight"]
+        return weight
 
 
 def astar_path(
@@ -975,10 +976,11 @@ def convert_grid(
         raise ValueError("All cells of the grid are blocked: there is no free space.")
 
     def within_grid(pos: t.IntArray) -> bool:
-        return bool(0 <= pos[0] < size_x and 0 <= pos[1] < size_y)
+        inside: bool = 0 <= pos[0] < size_x and 0 <= pos[1] < size_y
+        return inside
 
-    def is_equal(pos1: t.IntArray, pos2: t.IntArray) -> bool:
-        return bool(np.all(pos1 == pos2))
+    def is_equal(pos1: t.IntArray, pos2: t.IntArray) -> np.bool_:
+        return np.all(pos1 == pos2)
 
     def pos_in_iter(pos: t.IntArray, iter: Iterable[t.IntArray]) -> bool:
         for i in iter:

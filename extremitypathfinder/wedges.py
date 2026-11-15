@@ -60,11 +60,13 @@ RAY_WINDOW = 1e-12
 
 
 def _rep(vector: np.ndarray) -> float:
-    return float(_compute_repr_n_dist(vector)[0])
+    rep: float = _compute_repr_n_dist(vector)[0]
+    return rep
 
 
 def _cross(vector1: np.ndarray, vector2: np.ndarray) -> float:
-    return float(vector1[0] * vector2[1] - vector1[1] * vector2[0])
+    cross: float = vector1[0] * vector2[1] - vector1[1] * vector2[0]
+    return cross
 
 
 def in_closure(rep: float, wedge: Wedge) -> bool:

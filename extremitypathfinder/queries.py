@@ -169,7 +169,8 @@ def search_graph(
         query_adjacency.setdefault(j, {})[i] = d
 
     def distance_to_goal(node: int, _goal: int) -> float:
-        return float(goal_distances[node])
+        distance: float = goal_distances[node]
+        return distance
 
     id_path = utils.astar_path(graph, query_adjacency, start, goal, distance_to_goal)
     if id_path is None:
