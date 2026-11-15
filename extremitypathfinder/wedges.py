@@ -223,6 +223,57 @@ class Point:
         front_end = (start + 2.0) % 4.0
         return 0.0 < (rep - front_start) % 4.0 < (front_end - front_start) % 4.0
 
+    def in_wedges_mask(
+        self, reps: np.ndarray, vectors: np.ndarray, wedges: Iterable[Wedge]
+    ) -> np.ndarray:
+        """whether each direction lies within (the closure of) one of the wedges, like ``in_wedges()``, vectorised
+
+        Called with all candidates of a visibility computation: calling ``in_wedges()`` for each of them
+        costs more than the visibility computation itself (#262).
+        Only the directions close to a bounding ray are decided by ``in_wedges()``.
+
+        :param reps: the angle representations of the directions
+        :param vectors: the directions
+        :return: a boolean mask of the directions
+        """
+        wedges = list(wedges)
+        within = np.zeros(len(reps), dtype=bool)
+        near_bound = np.zeros(len(reps), dtype=bool)
+        for start, end in wedges:
+            near_bound |= np.abs(reps - start) < RAY_WINDOW
+            near_bound |= np.abs(reps - end) < RAY_WINDOW
+            if start == end:
+                # a single ray: the whole circle (cf. ``in_closure()``)
+                within[:] = True
+            else:
+                within |= (reps - start) % 4.0 <= (end - start) % 4.0
+        # directions close to a bounding ray: the exact test
+        for i in np.flatnonzero(near_bound).tolist():
+            within[i] = self.in_wedges(float(reps[i]), vectors[i], wedges)
+        return within
+
+    def in_front_mask(self, reps: np.ndarray, vectors: np.ndarray) -> np.ndarray:
+        """whether each direction points "in front of" the extremity, like ``in_front()``, vectorised
+
+        Called with all other extremities when the visibility graph is built (#262).
+        Only the directions close to a bound of the front range are decided by ``in_front()``:
+        the directions exactly opposite of a bounding ray are among them.
+
+        :param reps: the angle representations of the directions
+        :param vectors: the directions
+        :return: a boolean mask of the directions
+        """
+        start, end = self.extremity_wedge
+        front_start = (end + 2.0) % 4.0
+        size = ((start + 2.0) % 4.0 - front_start) % 4.0
+        offsets = (reps - front_start) % 4.0
+        in_front = (offsets > 0.0) & (offsets < size)
+        near_start = (offsets < RAY_WINDOW) | (offsets > 4.0 - RAY_WINDOW)
+        near_bound = near_start | (np.abs(offsets - size) < RAY_WINDOW)
+        for i in np.flatnonzero(near_bound).tolist():
+            in_front[i] = self.in_front(float(reps[i]), vectors[i])
+        return in_front
+
     def passable(self, vector_in: np.ndarray, vector_out: np.ndarray) -> bool:
         """whether a line of sight may pass through the point (rule 3)
 

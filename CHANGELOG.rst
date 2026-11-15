@@ -124,6 +124,10 @@ other changes:
   and the test whether a vertex lies within the map only checks the holes whose bounding box contains it (#214).
   E.g. the 4,954 vertex world map (110m) of the benchmarks: 56 to 29 s with Numba, 163 to 50 s without Numba.
   Queries take as long as before.
+- much faster preparation of environments, identical visibility graphs and paths (#262):
+  when the visibility graph is built, the tests whether the other extremities lie within the free wedge
+  or in front of an extremity are done for all of them at once instead of one by one.
+  They took most of the preparation time.
 - the ``numba`` extra no longer installs SciPy (#185): a smaller installation (SciPy takes about 110 MB)
   and less memory per process with Numba (about 18 MiB less after import on Linux when SciPy is not installed).
   The test whether a vertex lies behind an edge solves its 2×2 system in closed form instead of with

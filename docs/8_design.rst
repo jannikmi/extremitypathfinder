@@ -306,6 +306,9 @@ Visibility from one origin
 during construction and for start and goal during queries:
 
 1. **Leaving the origin (rule 2)**: candidates outside of the allowed wedges of the origin are dropped.
+   All candidates are tested at once (``Point.in_wedges_mask()``), only the directions within ``RAY_WINDOW``
+   of a bounding ray are decided one by one (``Point.in_wedges()``): a Python call per candidate
+   would cost more than the edge checks.
    The edges incident to the origin are then excluded from the edge checks: their effect is fully described
    by the wedges.
 2. **Edges (AREA)**: the remaining edges are checked with ``find_visible()`` (below).
@@ -475,6 +478,8 @@ on a shortest path (and vice versa), so they are not connected.
 The front is the opposite range (rotated by 180 degree), excluding its bounding directions.
 A path arriving at :math:`e` from the front cannot wrap around :math:`e`, so it would go on more directly
 without visiting :math:`e`.
+Like the wedge test of rule 2, the extremities are tested at once (``Point.in_front_mask()``),
+those within ``RAY_WINDOW`` of a bound of the front one by one.
 
 .. code-block:: text
 
