@@ -609,7 +609,8 @@ def _find_visible_and_in_front(
     # do not consider points lying in front when looking for visible extremities,
     # even if they are actually visible.
     candidates = candidates.difference(candidates_in_front)
-    if point.extremity_wedge is None:
+    if point.extremity_wedge is None:  # pragma: no cover
+        # unreachable: only extremities are used as origin (narrows the type for mypy)
         raise ValueError(f"The origin {origin} is no extremity.")
     visible_idxs = find_visible_from(
         origin,
