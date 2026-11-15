@@ -87,6 +87,7 @@ source-include = [
     ".pre-commit-config.yaml",
     "CHANGELOG.rst",
     "CITATION.cff",
+    "CODE_OF_CONDUCT.md",
     "CONTRIBUTING.md",
     "Makefile",
     "tests/*.py",
