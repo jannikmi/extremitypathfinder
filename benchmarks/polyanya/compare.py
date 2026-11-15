@@ -100,7 +100,7 @@ def compare(size: str, nr_queries: int) -> dict:
         (
             abs(a - b) / max(a, 1.0)
             for a, b in zip(epf["lengths"], pa["lengths"])
-            if a and b
+            if a is not None and b is not None
         ),
         default=0.0,
     )
