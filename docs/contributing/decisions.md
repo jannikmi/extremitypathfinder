@@ -27,10 +27,11 @@ Earlier decisions are described in the {ref}`Design Decisions <design_decisions>
 
 ## Prepared environments are stored in a versioned `.npz` file, checked structurally on load (#245)
 
-- **Decided by:** a maintainer
-- **Rejected:** JSON (3 times larger, floats via text; a conversion on demand); a checksum of the coordinates
+- **Decided by:** a maintainer ([#245](https://github.com/jannikmi/extremitypathfinder/issues/245))
+- **Rejected:** JSON (larger, floats via text; a conversion on demand); a checksum of the coordinates
   (the zip CRC-32 detects corruption, a checksum in the same file does not detect tampering);
   pickle as the only format (version-bound, unsafe).
+- **Details:** [#245](https://github.com/jannikmi/extremitypathfinder/issues/245)
 
 ## The input is validated by default (#243)
 
@@ -46,7 +47,8 @@ Earlier decisions are described in the {ref}`Design Decisions <design_decisions>
 - **Rejected:** one Dijkstra search per start point (stopped when the graph nodes visible from all goals are settled).
   It gave identical lengths, but it is a second search algorithm to maintain, paths would need their own
   tie-breaking to equal those of `find_shortest_path()` (#237), and it was not consistently faster.
-  Time of `distance_matrix()` with Dijkstra / A* per pair (`prototypes/distance_matrix_profile.py`, random points, with Numba, without Numba the same pattern):
+  Measured on the environments of `prototypes/distance_matrix_profile.py` (random points, with Numba;
+  without Numba the same pattern), the time of `distance_matrix()` with Dijkstra / A* per pair:
 
   | vertices | 20 points | 100 points |
   | ---: | ---: | ---: |
