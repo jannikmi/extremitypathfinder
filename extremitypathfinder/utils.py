@@ -990,12 +990,16 @@ def convert_grid(size_x: int, size_y: int, obstacle_iter: iter) -> (list, list):
         # returns the lowest and leftmost unblocked grid cell from the start position
         # for which the detection function evaluates to True
         start_x, start_y = start_pos
-        # (the loops always find a cell: grids without free cells are rejected)
-        for y in range(start_y, size_y):  # pragma: no branch
+        for y in range(start_y, size_y):
             for x in range(start_x, size_x):
                 pos = np.array([x, y])
                 if boundary_detect_fct(pos, **kwargs):
                     return pos
+        # unreachable: grids without free cells and blocked cells outside of the grid are rejected above,
+        # so a free cell and (for holes) an obstacle inside the boundary always exist
+        raise RuntimeError(  # pragma: no cover
+            f"no matching grid cell found from {start_pos} (internal error)"
+        )
 
     # north, east, south, west
     directions = np.array([[0, 1], [1, 0], [0, -1], [-1, 0]], dtype=int)
