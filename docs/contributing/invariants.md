@@ -25,6 +25,14 @@ The [Engineering Design](../8_design.rst) page gives the full reasoning.
   source of truth for which points are graph nodes and where a line of sight may start, pass through and arrive.
   Do not add special cases for vertices elsewhere.
 
+## Input
+
+- **Malformed input is never accepted silently.** Input that violates the requirements raises an error that names
+  the problem and its location (`TypeError` or `ValueError`). It never gives a wrong result, a default or a silently
+  repaired value, and an unexpected internal state is no reason to return a plausible answer: fail loudly.
+  Cheap structural checks (polygon format, finite coordinates, point format) always run; only the geometric
+  checks can be skipped, with the explicit `validate=False`. A regression test covers every new check.
+
 ## Architecture
 
 - **Module layering.** A module only imports from the layers below it (cf. [Codebase map](codebase-map.md)).
