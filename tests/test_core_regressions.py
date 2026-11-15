@@ -423,3 +423,13 @@ def test_non_extremities_are_rejected_where_only_extremities_are_defined():
         environment.points.filter_visible(
             0, {candidate}, coords, representations, distances
         )
+
+
+def test_search_result_with_query_edges_requires_its_visibility_graph():
+    """no quiet fallback: a search graph cannot be built without the visibility graph"""
+    from extremitypathfinder.queries import SearchResult
+
+    result = SearchResult([], None, np.zeros((2, 2)), 0, 1, [(0, 1, 1.0)], None)
+    with pytest.raises(ValueError, match="no visibility graph"):
+        _ = result.graph
+    assert SearchResult([], None, np.zeros((2, 2))).graph is None

@@ -50,8 +50,12 @@ class SearchResult:
 
     @cached_property
     def graph(self) -> t.Graph | None:
-        if self.query_edges is None or self.visibility_graph is None:
+        if self.query_edges is None:
             return None
+        if self.visibility_graph is None:
+            raise ValueError(
+                "The search result has query edges, but no visibility graph."
+            )
         graph = self.visibility_graph.copy()
         graph.add_weighted_edges_from(self.query_edges)
         return graph

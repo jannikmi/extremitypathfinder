@@ -109,6 +109,19 @@ entry-points = ["CONTRIBUTING.md"]
 # max-words = 1200
 # reason = "why splitting or condensing it would make it worse"
 
+[tool.ruff.lint]
+# no quiet fallbacks, no assertions in the package (cf. docs/contributing/invariants.md and code-style.md):
+# assertions, blanket ``except`` clauses and swallowed broad exceptions
+extend-select = ["S101", "S110", "S112", "BLE001", "E722"]
+
+[tool.ruff.lint.per-file-ignores]
+# assertions are the idiom of tests and scripts, only the package must not use them
+"tests/**" = ["S101"]
+"scripts/**" = ["S101"]
+"benchmarks/**" = ["S101"]
+"prototypes/**" = ["S101"]
+"docs/**" = ["S101"]
+
 [tool.mypy]
 # static type checking of the package (pre-commit hook, cf. docs/contributing/code-style.md)
 strict = true

@@ -33,6 +33,11 @@ The [Engineering Design](../8_design.rst) page gives the full reasoning.
   Cheap structural checks (polygon format, finite coordinates, point format) always run; only the geometric
   checks can be skipped, with the explicit `validate=False`. A regression test covers every new check.
 
+- **No quiet fallbacks.** Never replace an unexpected state by a default, `None`, `False`, an empty result or a skipped
+  step: raise an error that names the problem. A documented, tested outcome is a result, not a fallback
+  (e.g. no path: `None` and an infinite distance). `except ...: pass` is only for an exception that is the expected
+  outcome (comment why). Ruff enforces the mechanical part (`assert`, blind and swallowed `except`, cf. `pyproject.toml`).
+
 ## Architecture
 
 - **Module layering.** A module only imports from the layers below it (cf. [Codebase map](codebase-map.md)).

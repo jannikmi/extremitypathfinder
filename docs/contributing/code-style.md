@@ -22,7 +22,7 @@ is tracked in [#173](https://github.com/jannikmi/extremitypathfinder/issues/173)
   configured in `pyproject.toml`, every exception is justified there): `uv run pre-commit run mypy --all-files`.
   Numba and Matplotlib are untyped imports, so `@njit` kernels are untyped for mypy.
   The package ships `py.typed` (PEP 561): its annotations are part of the public interface.
-- **No assertions in the package:** no `assert` statements in `extremitypathfinder/` (tests are exempt). They vanish
+- **No assertions in the package:** no `assert` statements in `extremitypathfinder/` (tests are exempt, ruff `S101`). They vanish
   with `python -O`, so they neither validate nor narrow types reliably. Handle the case (an explicit exception or result)
   or restructure the types. Raise an exception for invalid input, never use an assertion for it.
 - **No casts for the type checker:** do not wrap values in `float()`, `bool()`, `int()` or `typing.cast()` only to
