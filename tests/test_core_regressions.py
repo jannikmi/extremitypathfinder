@@ -383,3 +383,43 @@ def test_skipped_node_in_front_does_not_reveal_the_nodes_behind_it():
     # around the square via (1, 2), then directly to the goal (the line from (2, 1) cuts the triangle)
     expected = hypot(2.0, 1.0) + hypot(4.0, 5.0)
     assert result.length == pytest.approx(expected, rel=1e-12)
+
+
+def _square_with_hole() -> PolygonEnvironment:
+    boundary = [(0.0, 0.0), (10.0, 0.0), (10.0, 10.0), (0.0, 10.0)]
+    hole = [(4.0, 4.0), (6.0, 4.0), (6.0, 6.0), (4.0, 6.0)]
+    return PolygonEnvironment(boundary, [hole])
+
+
+def test_non_extremities_are_rejected_where_only_extremities_are_defined():
+    """no silent defaults for an unexpected internal state: the corners of a convex boundary are no extremities"""
+    environment = _square_with_hole()
+    corner = environment.points.by_idx[0]
+    assert not corner.is_extremity
+    coords = environment.coords
+    representations, distances = utils.cmp_reps_n_distances(0, coords)
+
+    with pytest.raises(ValueError, match="no extremity"):
+        corner.in_front(0.5, np.array([1.0, 1.0]))
+
+    with pytest.raises(ValueError, match="no extremity"):
+        utils._find_visible_and_in_front(
+            0,
+            set(),
+            set(),
+            coords,
+            representations,
+            distances,
+            environment.edge_vertex_idxs,
+            environment.points,
+        )
+
+    # a contact candidate without a wedge larger than 180 degree
+    candidate = 2
+    environment.points.by_idx[candidate] = wedges.Point(
+        candidate, 2, set(), [], None, []
+    )
+    with pytest.raises(ValueError, match="no extremity"):
+        environment.points.filter_visible(
+            0, {candidate}, coords, representations, distances
+        )

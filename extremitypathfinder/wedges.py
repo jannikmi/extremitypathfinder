@@ -213,8 +213,10 @@ class Point:
         :param vector: the direction, to compare it exactly with the bounding rays
         """
         if self.extremity_wedge is None:
-            # no wedge larger than 180 degree: nothing lies "in front"
-            return False
+            raise ValueError(
+                f"Point {self.idx} is no extremity (no free wedge larger than 180 degree): "
+                "only extremities have a front."
+            )
         start, end = self.extremity_wedge
         if any(
             _cross(ray, vector) == 0.0 and np.dot(ray, vector) < 0.0
@@ -514,10 +516,13 @@ class Points:
                 wedges = point.wedges
             else:
                 point = self.by_idx[candidate]
-                extremity_wedge = point.extremity_wedge
-                # (the candidates are extremities)
-                if extremity_wedge is None or not point.is_contact:
+                if not point.is_contact:
                     return True
+                extremity_wedge = point.extremity_wedge
+                if extremity_wedge is None:
+                    raise ValueError(
+                        f"The candidate {candidate} is no extremity: only extremities are candidates."
+                    )
                 wedges = [extremity_wedge]
             vector = origin_position - coords[candidate]
             return point.in_wedges(_rep(vector), vector, wedges)
