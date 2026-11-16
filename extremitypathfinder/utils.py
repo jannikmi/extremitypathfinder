@@ -335,7 +335,7 @@ def check_hole_data_requirements(
 def find_visible(
     origin: int,
     candidates: set[int],
-    edges_to_check: set[int],
+    edges_to_check: set[int] | np.ndarray,
     coords: np.ndarray,
     representations: np.ndarray,
     distances: np.ndarray,
@@ -353,6 +353,9 @@ def find_visible(
     so that every candidate is checked against few edges (cf. ``li_chao_tree.blocked_candidates()``).
     This bounds the worst case (the bound is stated in ``li_chao_tree``).
 
+    The setup runs once per extremity and query point: it is vectorised and only computes the terms
+    of the edges with candidates in their angle range (#259).
+
     A line of sight touching an edge only in one of its vertices (or running along it) is not blocked by the edge.
     Whether lines of sight may pass through the vertices is decided by their free wedges (cf. ``wedges.py``).
     Of candidates with identical angle representation only the closest one is returned.
@@ -360,7 +363,7 @@ def find_visible(
     :param origin: the index of the coordinates the visibility is checked from
     :param candidates: the indices of the coordinates to check.
         IMPORTANT: must not contain coordinates identical to the origin.
-    :param edges_to_check: the edges blocking the lines of sight.
+    :param edges_to_check: the edges blocking the lines of sight (a set or a 1D array of edge indices).
         IMPORTANT: no edge may touch the origin (cf. ``find_visible_from()``).
     :param representations: the angle representations of all coordinates seen from the origin
     :param distances: the distances of all coordinates to the origin
@@ -372,30 +375,36 @@ def find_visible(
     if len(candidates) == 0:
         return set()
     # only keep the closest of the candidates with identical angle representation
-    candidates_sorted = np.array(
-        _eliminate_eq_candidates(candidates, distances, representations), dtype=np.int64
-    )
-    candidate_reps = representations[candidates_sorted]
-    edges = np.fromiter(edges_to_check, dtype=np.int64, count=len(edges_to_check))
+    candidates_sorted = _eliminate_eq_candidates(candidates, distances, representations)
+    if isinstance(edges_to_check, np.ndarray):
+        edges = edges_to_check.astype(np.int64, copy=False)
+    else:
+        edges = np.fromiter(edges_to_check, dtype=np.int64, count=len(edges_to_check))
     edge_vertex_idxs = np.asarray(edge_vertex_idxs, dtype=np.int64)
-    edges_min_rep, edges_max_rep, edges_max_dist, edges_is_crossing = (
-        _edge_angle_ranges(edges, edge_vertex_idxs, representations, distances)
+    range_edges, range_first, range_last, range_max_dist = _candidate_ranges(
+        edges,
+        edge_vertex_idxs,
+        representations,
+        distances,
+        representations[candidates_sorted],
     )
-    vectors = coords - coords[origin]
+    # the terms of the ranges: one row per range (a crossing edge with two ranges has two identical rows)
+    origin_position = coords[origin]
+    range_vertices = edge_vertex_idxs[range_edges]
     blocked = blocked_candidates(
-        *_candidate_ranges(
-            edges,
-            edges_min_rep,
-            edges_max_rep,
-            edges_max_dist,
-            edges_is_crossing,
-            candidate_reps,
+        np.arange(len(range_edges), dtype=np.int64),
+        range_first,
+        range_last,
+        compute_edge_terms(
+            coords[range_vertices[:, 0]] - origin_position,
+            coords[range_vertices[:, 1]] - origin_position,
+            range_max_dist,
         ),
-        compute_edge_terms(vectors, edge_vertex_idxs, edges_max_dist),
         compute_candidate_terms(
-            vectors[candidates_sorted], distances[candidates_sorted]
+            coords[candidates_sorted] - origin_position,
+            distances[candidates_sorted],
         ),
-        *_own_edges(candidates, candidates_sorted, candidate_edges or {}),
+        *_own_edges(candidates, candidates_sorted, candidate_edges or {}, range_edges),
     )
     return set(candidates_sorted[~blocked].tolist())
 
@@ -404,47 +413,56 @@ def _own_edges(
     candidates: set[int],
     candidates_sorted: np.ndarray,
     candidate_edges: Mapping[int, set[int]],
+    range_edges: np.ndarray,
 ) -> tuple[np.ndarray, np.ndarray]:
-    """the edges touching the candidates, for ``li_chao_tree.blocked_candidates()``
+    """the ranges of the edges touching the candidates, for ``li_chao_tree.blocked_candidates()``
 
-    :return: per sorted candidate (and one more entry) where its edges start, and the edges of all candidates
+    :param range_edges: the edge of every range (cf. ``_candidate_ranges()``)
+    :return: per sorted candidate (and one more entry) where its ranges start, and the ranges of all candidates
     """
-    nr_edges = np.zeros(len(candidates_sorted) + 1, dtype=np.int64)
+    nr_ranges = np.zeros(len(candidates_sorted) + 1, dtype=np.int64)
     # Note: usually none or few of the candidates touch edges
     touching = candidate_edges.keys() & candidates
     if not touching:
-        return np.cumsum(nr_edges), np.zeros(0, dtype=np.int64)
+        return np.cumsum(nr_ranges), np.zeros(0, dtype=np.int64)
     # Note: a touching candidate is not among the sorted candidates when a closer one has the same direction
     positions = np.flatnonzero(np.isin(candidates_sorted, list(touching)))
-    edges: list[int] = []
+    ranges: list[np.ndarray] = []
     for position in positions.tolist():
-        own_edges = candidate_edges[int(candidates_sorted[position])]
-        nr_edges[position + 1] = len(own_edges)
-        edges.extend(own_edges)
-    return np.cumsum(nr_edges), np.array(edges, dtype=np.int64)
+        own_edges = list(candidate_edges[int(candidates_sorted[position])])
+        own_ranges = np.flatnonzero(np.isin(range_edges, own_edges))
+        nr_ranges[position + 1] = len(own_ranges)
+        ranges.append(own_ranges)
+    return np.cumsum(nr_ranges), np.concatenate([np.zeros(0, dtype=np.int64), *ranges])
 
 
 def _candidate_ranges(
     edges: np.ndarray,
-    edges_min_rep: np.ndarray,
-    edges_max_rep: np.ndarray,
-    edges_max_dist: np.ndarray,
-    edges_is_crossing: np.ndarray,
+    edge_vertex_idxs: np.ndarray,
+    representations: np.ndarray,
+    distances: np.ndarray,
     candidate_reps: np.ndarray,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """the candidates whose direction lies strictly within the angle range of an edge
 
+    The angle range of an edge seen from the origin: a single edge blocks less than 180 degree,
+    a difference of the representations > 2.0 means the range contains 0.0 ("crossing" edge).
     A line of sight in the direction of a vertex of an edge only touches the edge (or runs along it).
     The range of a crossing edge contains the representation 0.0 and gives two ranges of candidates.
     Edges without such candidates cannot block any (#217).
 
     :param candidate_reps: the representations of the candidates, sorted
-    :return: per range the edge and the positions of its first and its last candidate,
-        sorted by the maximum distance of the edges
+    :return: per range the edge, the positions of its first and its last candidate
+        and the maximum distance of the vertices of the edge, sorted by this distance
     """
-    min_rep = edges_min_rep[edges]
-    max_rep = edges_max_rep[edges]
-    crossing = edges_is_crossing[edges]
+    i1 = edge_vertex_idxs[edges, 0]
+    i2 = edge_vertex_idxs[edges, 1]
+    rep1 = representations[i1]
+    rep2 = representations[i2]
+    min_rep = np.minimum(rep1, rep2)
+    max_rep = np.maximum(rep1, rep2)
+    max_dist = np.maximum(distances[i1], distances[i2])
+    crossing = max_rep - min_rep > 2.0
     nr_candidates = len(candidate_reps)
     # regular edges: min_rep < rep < max_rep, crossing edges: rep > max_rep or rep < min_rep
     first = np.searchsorted(
@@ -455,56 +473,33 @@ def _candidate_ranges(
     )
     after_last_wrapped = np.searchsorted(candidate_reps, min_rep[crossing], side="left")
     range_edges = np.concatenate([edges, edges[crossing]])
+    range_max_dist = np.concatenate([max_dist, max_dist[crossing]])
     first = np.concatenate([first, np.zeros_like(after_last_wrapped)])
     after_last = np.concatenate([after_last, after_last_wrapped])
     selected = np.flatnonzero(after_last > first)
     # close edges first: most of the edges behind them are then dropped at once
-    selected = selected[
-        np.argsort(edges_max_dist[range_edges[selected]], kind="stable")
-    ]
-    return range_edges[selected], first[selected], after_last[selected] - 1
+    selected = selected[np.argsort(range_max_dist[selected], kind="stable")]
+    return (
+        range_edges[selected],
+        first[selected],
+        after_last[selected] - 1,
+        range_max_dist[selected],
+    )
 
 
 def _eliminate_eq_candidates(
     candidates: Iterable[int], distances: np.ndarray, representations: np.ndarray
-) -> list[int]:
-    """the candidates sorted after their angle representation, only the closest of identical representations"""
-    candidates_sorted = sorted(
-        candidates, key=lambda i: (representations[i], distances[i])
-    )
-    closest = candidates_sorted[:1]
-    for candidate in candidates_sorted[1:]:
-        if representations[candidate] != representations[closest[-1]]:
-            closest.append(candidate)
-    return closest
+) -> np.ndarray:
+    """the candidates sorted after their angle representation, only the closest of identical representations
 
-
-def _edge_angle_ranges(
-    edges: np.ndarray,
-    edge_vertex_idxs: np.ndarray,
-    representations: np.ndarray,
-    distances: np.ndarray,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """the angle range of the edges seen from the origin
-
-    a single edge blocks less than 180 degree:
-    a difference of the representations > 2.0 means the range contains 0.0 ("crossing" edge)
-
-    :return: per edge (indexed by the edge index): the minimum and maximum representation of its vertices,
-        the maximum distance of its vertices and whether it is crossing
+    Ties (identical representation and distance) keep the order of iteration (stable sort).
     """
-    nr_edges_total = len(edge_vertex_idxs)
-    edges_min_rep = np.zeros(nr_edges_total, dtype=float)
-    edges_max_rep = np.zeros(nr_edges_total, dtype=float)
-    edges_max_dist = np.zeros(nr_edges_total, dtype=float)
-    edges_is_crossing = np.zeros(nr_edges_total, dtype=bool)
-    i1 = edge_vertex_idxs[edges, 0]
-    i2 = edge_vertex_idxs[edges, 1]
-    edges_min_rep[edges] = np.minimum(representations[i1], representations[i2])
-    edges_max_rep[edges] = np.maximum(representations[i1], representations[i2])
-    edges_max_dist[edges] = np.maximum(distances[i1], distances[i2])
-    edges_is_crossing[edges] = edges_max_rep[edges] - edges_min_rep[edges] > 2.0
-    return edges_min_rep, edges_max_rep, edges_max_dist, edges_is_crossing
+    idxs = np.fromiter(candidates, dtype=np.int64)
+    candidates_sorted = idxs[np.lexsort((distances[idxs], representations[idxs]))]
+    reps = representations[candidates_sorted]
+    closest = np.ones(len(candidates_sorted), dtype=np.bool_)
+    closest[1:] = reps[1:] != reps[:-1]
+    return candidates_sorted[closest]
 
 
 def find_visible_from(
@@ -533,9 +528,10 @@ def find_visible_from(
     :param query_points: the points of the query points among the candidates (cf. ``Points.filter_visible()``)
     :return: the visible candidates
     """
-    edges = set(range(len(edge_vertex_idxs)))
+    # the edges at the origin are handled by its free wedges (rule 2)
+    checked = np.ones(len(edge_vertex_idxs), dtype=np.bool_)
     if point is not None:
-        edges.difference_update(point.incident_edges)
+        checked[list(point.incident_edges)] = False
         origin_position = coords[origin]
         idxs = np.fromiter(candidates, dtype=np.int64, count=len(candidates))
         leaving = point.in_wedges_mask(
@@ -553,7 +549,7 @@ def find_visible_from(
     visible = find_visible(
         origin,
         candidates,
-        edges,
+        np.flatnonzero(checked),
         coords,
         representations,
         distances,
@@ -565,52 +561,55 @@ def find_visible_from(
     )
 
 
-def _find_visible_and_in_front(
+def _find_graph_neighbours(
     origin: int,
     candidates: set[int],
-    candidates_in_front: set[int],
     coords: np.ndarray,
     representations: np.ndarray,
     distances: np.ndarray,
     edge_vertex_idxs: np.ndarray,
     points: Points,
-) -> tuple[set[int], set[int]]:
-    """finds the extremities visible from an extremity and the extremities lying "in front" of it
+    reduce: bool = True,
+) -> set[int]:
+    """finds the extremities visible from an extremity that are connected to it in the visibility graph
 
-    :param candidates: the extremities to check for visibility
-    :param candidates_in_front: the extremities to check whether they lie "in front"
-    :return: the extremities lying in front, the visible extremities (not lying in front)
+    :param candidates: the extremities to check
+    :param reduce: whether to skip the candidates lying "in front" of the origin and those the origin lies in front of
+        (the graph reduction, cf. ``compute_graph()``)
+    :return: the visible extremities, without those skipped
     """
     point = points.by_idx[origin]
-    # as shown in [1, Ch. II 4.4.2 "Property One"]: Starting from any point lying "in front of" an extremity e,
-    # such that both bounding rays of its wedge are visible, one will never visit e, because everything is
-    # reachable on a shorter path without e (except e itself).
-    # An extremity e1 lying in the area "in front of" extremity e hence is never the next vertex
-    # in the shortest path coming from e.
-    # And also in reverse: when coming from e1 everything else than e itself can be reached faster
-    # without visiting e.
-    # -> e1 and e do not have to be connected in the graph.
-    # The area "in front of" e: opposite of the angle range outside of the wedge of e (cf. ``Point.in_front()``),
-    # extremities exactly opposite of a bounding ray do not lie in front (those edges must not get deleted)
-    # IMPORTANT: for start and goal only one direction holds: they are endpoints of the path.
-    # A query point is not connected to the extremities it lies in front of (#222, cf. ``search()``),
-    # but when it happens to be an extremity, edges to the (visible) extremities in front of it MUST be added!
-    # IMPORTANT: check all extremities here, not just current candidates
-    origin_position = coords[origin]
-    idxs = np.fromiter(
-        candidates_in_front, dtype=np.int64, count=len(candidates_in_front)
-    )
-    in_front = point.in_front_mask(
-        representations[idxs], coords[idxs] - origin_position
-    )
-    candidates_in_front = set(idxs[in_front].tolist())
-    # do not consider points lying in front when looking for visible extremities,
-    # even if they are actually visible.
-    candidates = candidates.difference(candidates_in_front)
-    if point.extremity_wedge is None:  # pragma: no cover
-        # unreachable: only extremities are used as origin (narrows the type for mypy)
+    if point.extremity_wedge is None:
+        # only extremities are used as origin
         raise ValueError(f"The origin {origin} is no extremity.")
-    visible_idxs = find_visible_from(
+    if reduce:
+        # as shown in [1, Ch. II 4.4.2 "Property One"]: Starting from any point lying "in front of" an extremity e,
+        # such that both bounding rays of its wedge are visible, one will never visit e, because everything is
+        # reachable on a shorter path without e (except e itself).
+        # An extremity e1 lying in the area "in front of" extremity e hence is never the next vertex
+        # in the shortest path coming from e.
+        # And also in reverse: when coming from e1 everything else than e itself can be reached faster
+        # without visiting e.
+        # -> e1 and e do not have to be connected in the graph, whichever of them lies in front of the other.
+        # The area "in front of" e: opposite of the angle range outside of the wedge of e (cf. ``Point.in_front()``),
+        # extremities exactly opposite of a bounding ray do not lie in front (those edges must not get deleted)
+        # IMPORTANT: for start and goal only one direction holds: they are endpoints of the path.
+        # A query point is not connected to the extremities it lies in front of (#222, cf. ``search()``),
+        # but when it happens to be an extremity, edges to the (visible) extremities in front of it MUST be added!
+        # Both directions are tested before the visibility computation: fewer candidates make it faster (#263).
+        # Note: do not consider points lying in front when looking for visible extremities, even if they are visible.
+        # AREA keeps only the closest candidate per direction: skipping a candidate can make a farther one
+        # in the same direction the closest one. Whether its line of sight passes the skipped extremity
+        # is decided by the points (rule 3). As a candidate, the skipped extremity would hide it,
+        # although the edge to the skipped extremity itself is not kept (#263).
+        origin_position = coords[origin]
+        idxs = np.fromiter(candidates, dtype=np.int64, count=len(candidates))
+        in_front = point.in_front_mask(
+            representations[idxs], coords[idxs] - origin_position
+        )
+        in_front |= points.in_front_of(idxs, origin_position, coords, representations)
+        candidates = set(idxs[~in_front].tolist())
+    return find_visible_from(
         origin,
         point,
         [point.extremity_wedge],
@@ -621,7 +620,6 @@ def _find_visible_and_in_front(
         edge_vertex_idxs,
         points,
     )
-    return candidates_in_front, visible_idxs
 
 
 def edge_weight(
@@ -742,8 +740,6 @@ def compute_graph(
     # adding start and goal nodes at query time might connect them!
     graph: t.Graph = {node: {} for node in extremity_indices.tolist()}
 
-    # Note: also the last extremity has to be checked (without candidates left):
-    # its graph neighbours lying "in front" of it must be disconnected
     for extr_ptr, origin_idx in enumerate(extremity_indices.tolist()):
         vert_idx2repr, vert_idx2dist = cmp_reps_n_distances(origin_idx, coords)
         # optimisation: extremities are always visible to each other
@@ -752,26 +748,18 @@ def compute_graph(
         #  (must give the same result when algorithms are correct)
         # the origin extremity itself must also not be checked when looking for visible neighbours
         candidate_idxs = set(extremity_indices[extr_ptr + 1 :].tolist())
-        # Note: also the nodes previously connected to the current origin must be considered for removal
-        neighbours = graph[origin_idx]
-        candidates_in_front = candidate_idxs | set(neighbours)
-        idxs_in_front, visible_idxs = _find_visible_and_in_front(
+        # "thin out" the graph: both directions of the relation "in front" are tested here,
+        # so no edge has to be removed again when the other extremity becomes the origin (#263)
+        visible_idxs = _find_graph_neighbours(
             origin_idx,
             candidate_idxs,
-            candidates_in_front,
             coords,
             vert_idx2repr,
             vert_idx2dist,
             edge_vertex_idxs,
             points,
         )
-        # "thin out" the graph:
-        # remove already existing edges in the graph to the extremities in front
-        for i in idxs_in_front:
-            if i in neighbours:
-                del neighbours[i]
-                del graph[i][origin_idx]
-
+        neighbours = graph[origin_idx]
         for i in visible_idxs:
             weight = float(vert_idx2dist[i])
             neighbours[i] = weight
