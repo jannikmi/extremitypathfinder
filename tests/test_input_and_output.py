@@ -268,3 +268,66 @@ def test_extremities_of_a_concave_boundary():
     environment = PolygonEnvironment(boundary, [])
     assert set(environment.all_vertices) == set(boundary)
     assert set(environment.all_extremities) == {(5.0, 5.0)}
+
+
+# two holes touching at (4, 6), a third one touching an edge of the second one at (7, 5)
+DTYPE_BOUNDARY = [(0, 0), (12, 0), (12, 10), (0, 10)]
+DTYPE_HOLES = [
+    [(2, 4), (4, 6), (2, 8)],
+    [(4, 6), (7, 3), (7, 7)],
+    [(7, 5), (9, 4), (9, 6)],
+]
+DTYPE_QUERIES = [
+    ((1, 6), (11, 5)),
+    ((5, 2), (5, 9)),
+    ((3, 3), (8, 8)),
+    ((1, 1), (11, 9)),
+]
+
+
+def _environment_state(boundary, holes, queries):
+    environment = PolygonEnvironment(boundary, holes)
+    edges = sorted(environment.graph.edges(data="weight"))
+    paths = [environment.find_shortest_path(start, goal) for start, goal in queries]
+    return environment.all_vertices, edges, paths
+
+
+@pytest.mark.parametrize(
+    "dtype, scale",
+    [
+        (np.int32, 1),
+        (np.int64, 10**6),
+        (np.float32, 1.0),
+        (np.float32, 0.1),
+        (np.float32, 1e6 + 0.37),
+        (np.float16, 0.1),
+    ],
+)
+def test_numeric_types_give_the_float64_results(dtype, scale):
+    """input of other numeric types gives the results of the same values given as float64"""
+
+    def convert(points):
+        return (np.array(points) * scale).astype(dtype)
+
+    boundary = convert(DTYPE_BOUNDARY)
+    holes = [convert(hole) for hole in DTYPE_HOLES]
+    queries = [(convert(start), convert(goal)) for start, goal in DTYPE_QUERIES]
+    as_float64 = _environment_state(
+        boundary.astype(np.float64),
+        [hole.astype(np.float64) for hole in holes],
+        [
+            (start.astype(np.float64), goal.astype(np.float64))
+            for start, goal in queries
+        ],
+    )
+    assert _environment_state(boundary, holes, queries) == as_float64
+    # also as lists of Python numbers (numpy scalars as Python float or int)
+    assert (
+        _environment_state(
+            boundary.tolist(),
+            [hole.tolist() for hole in holes],
+            [(start.tolist(), goal.tolist()) for start, goal in queries],
+        )
+        == as_float64
+    )
+    assert all(path for path, _ in as_float64[2])

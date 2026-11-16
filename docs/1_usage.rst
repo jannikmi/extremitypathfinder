@@ -22,7 +22,8 @@ The environment is initialised in one step and allows fast consecutive shortest 
 **Required data format:**
 Ensure that all the following conditions on the polygons are fulfilled:
 
-- numpy or python array of coordinate tuples: ``[(x1,y1), (x2,y2,)...]``
+- numpy or python array of coordinate tuples: ``[(x1,y1), (x2,y2,)...]``.
+  The coordinates may be Python or numpy integers and floats (also ``float32`` and ``float16``)
 - the first point is NOT repeated at the end
 - must at least contain 3 vertices, with finite coordinates
 - no consequent vertices with identical coordinates in the polygons (same coordinates in general are allowed)
@@ -43,6 +44,16 @@ Ensure that all the following conditions on the polygons are fulfilled:
     (one degree of longitude is shorter than one degree of latitude, except at the equator).
     Project geographic data into a projected coordinate system first, e.g. UTM or another local
     projection with `pyproj <https://pyproj4.github.io/pyproj/>`__, and transform the path back afterwards.
+
+.. note::
+
+    All coordinates (also start and goal) are converted to ``float64`` and all computations use ``float64``.
+    The conversion does not change ``float32`` or ``float16`` values and integers up to 2^53 in magnitude,
+    so the results are those of the same values given as ``float64``.
+    Integer coordinates up to 2^20 in magnitude (polygons and query points, e.g. grids) make the decisions
+    on contacts and visibility exact
+    (cf. :ref:`touching obstacles <touching>`). There is no lower precision mode, cf. the Numerical Policy in the
+    :doc:`engineering design <8_design>`.
 
 .. note::
 

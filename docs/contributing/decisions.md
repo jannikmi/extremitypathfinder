@@ -25,6 +25,13 @@ the log states the current decisions (git keeps the history).
 Decisions about how we work on the project are in the [process decision log](decisions-process.md).
 Earlier decisions are described in the {ref}`Design Decisions <design_decisions>` and the issues linked there.
 
+## All computations use float64, other numeric input is converted (#274)
+
+- **Decided by:** an agent
+- **Rejected:** computing in `float32` (breaks the exact contacts, #3); in integers (distances and angles need floats);
+  either as an option (doubles the code paths kept identical with and without Numba)
+- **Details:** Numerical Policy in the [engineering design](../8_design.rst)
+
 ## The input is validated by default (#243)
 
 - **Decided by:** a maintainer
