@@ -249,13 +249,15 @@ def blocked_candidates(
 ) -> np.ndarray:
     """which candidates lie behind an edge (cf. the module docstring)
 
-    :param range_edges: the edges of the ranges. Close edges first (cf. ``utils._candidate_ranges()``).
+    :param range_edges: the edges of the ranges (rows of ``edge_terms``). Close edges first
+        (cf. ``utils._candidate_ranges()``).
     :param range_first: the position of the first candidate of every range (candidates sorted by direction)
     :param range_last: the position of the last candidate (inclusive) of every range.
         The candidates of a range lie strictly within the angle range of its edge.
-    :param edge_terms: per edge (row: the edge index), cf. ``utils_numba.compute_edge_terms()``
+    :param edge_terms: per edge, cf. ``utils_numba.compute_edge_terms()``
     :param candidate_terms: per candidate (in sorted order), cf. ``utils_numba.compute_candidate_terms()``
-    :param own_edges_start: the edges touching candidate i, which do not block it (e.g. a query point on an edge):
+    :param own_edges_start: the edges (rows of ``edge_terms``) touching candidate i, which do not block it
+        (e.g. a query point on an edge):
         ``own_edges[own_edges_start[i] : own_edges_start[i + 1]]``.
         IMPORTANT: the candidate must lie on these edges. An edge in front of it would be taken for the closest one
         in its direction, and the edges behind that edge would not be checked.

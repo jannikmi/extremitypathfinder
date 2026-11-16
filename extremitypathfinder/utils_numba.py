@@ -359,22 +359,30 @@ def _behind_edge(
 
 
 def compute_edge_terms(
-    vectors: np.ndarray, edge_vertex_idxs: np.ndarray, edges_max_dist: np.ndarray
+    p1: np.ndarray, p2: np.ndarray, max_dist: np.ndarray
 ) -> np.ndarray:
-    """the terms of all edges for ``_edge_distance()`` and ``_behind_edge()`` (columns ``EDGE_*``)
+    """the terms of edges for ``_edge_distance()`` and ``_behind_edge()`` (columns ``EDGE_*``, one row per edge)
 
-    :param vectors: all coordinates relative to the origin
-    :param edges_max_dist: per edge the maximum distance of its vertices to the origin
+    Only computed for the edges that are checked (cf. ``utils.find_visible()``).
+
+    :param p1: the first vertices of the edges relative to the origin
+    :param p2: the second vertices of the edges relative to the origin
+    :param max_dist: per edge the maximum distance of its vertices to the origin
     """
-    p1 = vectors[edge_vertex_idxs[:, 0]]
-    p2 = vectors[edge_vertex_idxs[:, 1]]
+    terms = np.empty((len(p1), 5), dtype=np.float64)
     a = p1[:, 0] - p2[:, 0]
     b = p1[:, 1] - p2[:, 1]
+    terms[:, EDGE_A] = a
+    terms[:, EDGE_B] = b
     numerator = a * p1[:, 1] - b * p1[:, 0]
+    terms[:, EDGE_NUMERATOR] = numerator
+    terms[:, EDGE_MAX_DIST] = max_dist
     # an edge is at least as far away as its line
     with np.errstate(invalid="ignore", divide="ignore"):
-        min_dist = np.abs(numerator) / np.hypot(a, b) * (1.0 - MIN_DIST_MARGIN)
-    return np.column_stack([a, b, numerator, edges_max_dist, min_dist])
+        terms[:, EDGE_MIN_DIST] = (
+            np.abs(numerator) / np.hypot(a, b) * (1.0 - MIN_DIST_MARGIN)
+        )
+    return terms
 
 
 def compute_candidate_terms(vectors: np.ndarray, distances: np.ndarray) -> np.ndarray:

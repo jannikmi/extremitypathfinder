@@ -150,7 +150,7 @@ def test_edge_parallel_to_the_ray_through_the_candidate_is_infinitely_far():
     vectors = np.array([[1.0, 2.0], [2.0, 3.0], [1.0, 1.0]])
     distances = np.hypot(*vectors.T)
     edge_terms = compute_edge_terms(
-        vectors, np.array([[0, 1]]), distances[:2].max(keepdims=True)
+        vectors[:1], vectors[1:2], distances[:2].max(keepdims=True)
     )
     candidate_terms = compute_candidate_terms(vectors[2:], distances[2:])
     assert edge_terms[0, 2] != 0.0

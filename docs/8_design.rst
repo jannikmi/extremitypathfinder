@@ -370,7 +370,8 @@ Details:
   is solved for the intersection of the line of sight :math:`v` with the edge (``_lies_behind_inner()``).
   The candidate is blocked when :math:`\mu < 1` (the edge is closer than the candidate).
   Within the angle range the system is regular. The terms that only depend on the edge are computed
-  for all edges at once.
+  at once for the edges with candidates in their angle range, not for all edges (#259):
+  this setup runs once per origin and took most of the time of the visibility computation on typical maps.
 - **Query points on edges**: the edges touching a candidate do not block it (its arrival is decided by rule 4).
   They are skipped in its check. The candidate must lie on them: an edge is only skipped for a candidate,
   not for the comparison of the edges in the tree.
