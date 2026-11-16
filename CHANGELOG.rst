@@ -169,6 +169,8 @@ bugfixes:
 
 internal:
 
+- tests: polygons and query points given as integers, ``float32`` or ``float16`` give the results of the same values
+  given as ``float64``. The documentation states the accepted numeric types and why all computations use ``float64``.
 - the query algorithms (start and goal visibility, graph search, distance matrix) moved from the root module
   ``extremitypathfinder.py`` into the new module ``queries.py``, together with ``SearchResult``
   (still importable from ``extremitypathfinder`` and ``extremitypathfinder.extremitypathfinder``).
