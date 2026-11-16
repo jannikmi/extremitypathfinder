@@ -78,12 +78,10 @@ other changes:
   returned unchanged (e.g. tuples of ints, lists or arrays). The values are equal to the previous ones.
 - faster queries (#222): start and goal (and the points of ``distance_matrix()``) are no longer connected to
   the graph nodes they lie "in front" of (they are never the next node of a shortest path, like in the visibility
-  graph). Same paths and lengths.
-  E.g. 200 queries on an environment with 400 extremities: 18 % faster with Numba, 11 % without.
+  graph). Same paths and lengths, somewhat faster with and without Numba.
 - shortest path lengths between many points (#175): ``PolygonEnvironment.distance_matrix(points_a, points_b=None)``
   returns the lengths between all start and goal points (``inf`` without a path), identical to a loop over
   ``find_shortest_path()`` but much faster: the visibility of every point is computed once instead of twice per pair.
-  E.g. 100 points in an environment with 904 vertices: 3.1 s instead of 115 s (with Numba).
   The usage page also documents the visibility graph ``environment.graph`` for own NetworkX algorithms.
 - license: the package is licensed under MIT only again (#157). The A* search (``utils.astar_path()``) is an own
   implementation instead of a port of ``networkx.astar_path()``, so the 3-clause BSD license of networkx
@@ -95,8 +93,8 @@ other changes:
   features with a null geometry are skipped.
   Shapely (2.0.6 or later) is an optional extra: ``pip install "extremitypathfinder[shapely]"``.
 - much faster input validation of large polygons (``validate=True``, #193): only edge pairs with overlapping
-  bounding boxes are tested for crossings, vectorised. E.g. the 4,954 vertex world map (110m) of the benchmarks:
-  10.5 s to 0.08 s, a 2,180 vertex polygon: 14.6 s to 0.06 s. The errors name the polygon (``boundary polygon``
+  bounding boxes are tested for crossings, vectorised: from seconds to a fraction of a second for maps with
+  thousands of vertices. The errors name the polygon (``boundary polygon``
   or ``hole <index>``) and the location of the violation (the crossing edges with their vertex indices,
   the crossing point). The crossing test solves its 2×2 system in closed form instead of with ``numpy.linalg.solve``
   and is exact for integer coordinates: valid polygons touching themselves with a vertex on an edge were rejected
@@ -129,19 +127,17 @@ other changes:
   lengths and compares the build and query times. Results and limitations on the performance and alternatives pages.
 - much lower memory use and smaller pickles of large environments: the angle representations and distances
   of all vertices seen from every extremity are no longer stored (``O(m n)`` floats for ``m`` extremities
-  and ``n`` vertices, about 1 GiB for 10,000 vertices).
+  and ``n`` vertices, gigabytes for maps with tens of thousands of vertices).
   They are computed per extremity while the visibility graph is built. Queries use the distances to the goal
   and the edge weights instead. Paths and lengths are identical, preparation and query times about the same.
   The undocumented attribute ``reprs_n_distances`` and the functions ``utils.cmp_reps_n_distance_dict()``
   and ``utils.get_distance()`` are removed.
 - lower peak memory when preparing some environments with a few thousand vertices: the test which edges pass
-  through vertices processes fewer vertex-edge pairs at once (e.g. 9.7 to 7.4 MiB for the 1,985-vertex world map
-  of the benchmarks). No change where the visibility graph dominates the peak memory.
+  through vertices processes fewer vertex-edge pairs at once. No change where the visibility graph dominates the peak memory.
 - faster preparation of large environments, identical visibility graphs and paths:
   the visibility computation skips the edges without candidates in their angle range (#217),
   and the test whether a vertex lies within the map only checks the holes whose bounding box contains it (#214).
-  E.g. the 4,954 vertex world map (110m) of the benchmarks: 56 to 29 s with Numba, 163 to 50 s without Numba.
-  Queries take as long as before.
+  Large world maps are prepared much faster, with and without Numba. Queries take as long as before.
 - much faster preparation of environments, identical visibility graphs and paths (#262):
   when the visibility graph is built, the tests whether the other extremities lie within the free wedge
   or in front of an extremity are done for all of them at once instead of one by one.
@@ -153,8 +149,8 @@ other changes:
   Both directions are now tested before the visibility is computed. Previously an edge to an extremity
   the other one lies in front of was computed, added and removed again. The visibility graphs are identical
   except in the case fixed below.
-- the ``numba`` extra no longer installs SciPy (#185): a smaller installation (SciPy takes about 110 MB)
-  and less memory per process with Numba (about 18 MiB less after import on Linux when SciPy is not installed).
+- the ``numba`` extra no longer installs SciPy (#185): a much smaller installation
+  and less memory per process with Numba.
   The test whether a vertex lies behind an edge solves its 2×2 system in closed form instead of with
   ``numpy.linalg.solve``, the same code with and without Numba. It is exact for integer coordinates
   (e.g. grids), where LAPACK misjudged some vertices lying exactly on an edge. No paths or visibility graphs
