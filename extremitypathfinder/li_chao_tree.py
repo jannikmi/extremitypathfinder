@@ -56,8 +56,8 @@ from extremitypathfinder.utils_numba import (
 
 # nodes of the tree up to this height above the leaves store no edge:
 # their (at most ``DIRECT_CHECK_SIZE``) candidates are checked right away.
-# Measured with ``prototypes/complexity_profile.py`` (grid and worst case maps): values from 2 to 7 make no measurable
-# difference, the setup per origin dominates (#259).
+# Measured on grid, world and worst case maps (``prototypes/complexity_profile.py``, with the setup of #259):
+# values from 2 to 7 make no consistent difference, the differences are within the noise of the measurement.
 DIRECT_CHECK_LEVEL = 4
 DIRECT_CHECK_SIZE = 2**DIRECT_CHECK_LEVEL
 
@@ -249,13 +249,15 @@ def blocked_candidates(
 ) -> np.ndarray:
     """which candidates lie behind an edge (cf. the module docstring)
 
-    :param range_edges: the edges of the ranges. Close edges first (cf. ``utils._candidate_ranges()``).
+    :param range_edges: the edges of the ranges (rows of ``edge_terms``). Close edges first
+        (cf. ``utils._candidate_ranges()``).
     :param range_first: the position of the first candidate of every range (candidates sorted by direction)
     :param range_last: the position of the last candidate (inclusive) of every range.
         The candidates of a range lie strictly within the angle range of its edge.
-    :param edge_terms: per edge (row: the edge index), cf. ``utils_numba.compute_edge_terms()``
+    :param edge_terms: per edge, cf. ``utils_numba.compute_edge_terms()``
     :param candidate_terms: per candidate (in sorted order), cf. ``utils_numba.compute_candidate_terms()``
-    :param own_edges_start: the edges touching candidate i, which do not block it (e.g. a query point on an edge):
+    :param own_edges_start: the edges (rows of ``edge_terms``) touching candidate i, which do not block it
+        (e.g. a query point on an edge):
         ``own_edges[own_edges_start[i] : own_edges_start[i + 1]]``.
         IMPORTANT: the candidate must lie on these edges. An edge in front of it would be taken for the closest one
         in its direction, and the edges behind that edge would not be checked.

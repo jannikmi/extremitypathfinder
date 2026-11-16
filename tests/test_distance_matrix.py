@@ -129,9 +129,7 @@ def test_the_environment_is_not_changed():
     assert after.keys() == before.keys()
     for name in ("coords", "extremity_indices", "edge_vertex_idxs", "vertex_edge_idxs"):
         assert np.array_equal(after[name], before[name])
-    graph, graph_before = environment.graph, before["graph"]
-    assert sorted(graph.nodes) == sorted(graph_before.nodes)
-    assert sorted(graph.edges(data=True)) == sorted(graph_before.edges(data=True))
+    assert environment.graph == before["graph"]
 
 
 @pytest.mark.parametrize("env_id", list(CONTACT_ENVIRONMENTS))

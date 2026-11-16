@@ -1,7 +1,6 @@
 from collections.abc import Iterable, Mapping
 from typing import TYPE_CHECKING, Any, Protocol
 
-import networkx as nx
 import numpy as np
 import numpy.typing as npt
 
@@ -17,11 +16,8 @@ InputCoord = tuple[InputNumerical, InputNumerical]
 InputCoordList = npt.NDArray[Any] | list[InputCoord]
 OptionalInputCoordList = InputCoordList | None
 ObstacleIterator = Iterable[InputCoord]
-if TYPE_CHECKING:
-    Graph = nx.Graph[int]
-else:
-    # not subscriptable at runtime in all supported NetworkX versions
-    Graph = nx.Graph
+# the visibility graph: node -> neighbour -> edge weight (Euclidean distance), every edge in both directions
+type Graph = dict[int, dict[int, float]]
 FloatArray = npt.NDArray[np.float64]
 IntArray = npt.NDArray[np.int64]
 # the state of a pickled environment: the attributes, and the ``__slots__`` of subclasses as a second dict

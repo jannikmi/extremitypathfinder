@@ -34,10 +34,10 @@ The Markdown files are read on GitHub and in the HTML documentation, so links mu
 - The Python examples (`code-block:: python`) of the README and the user pages run in `tests/test_documentation.py`,
   per page in order, as a reader copies them. A comment `# path: [...], length: 7.987...` or `# length: ...`
   in the last line of a block states its result and is compared. A new page with examples must be listed there.
-- No measured numbers in static pages (README, the pages under `docs/`, docstrings, comments): timings, speed-ups,
-  sizes, counts of tested inputs and the like go stale. Describe the result qualitatively (e.g. "within the noise",
-  "much faster") and refer to the issue or pull request with the measurements. The numbers belong there (cf.
-  [Performance](performance.md)), in the changelog entry of a release (a record of that release) and in the
+- No measured numbers in static pages (README, the pages under `docs/`, docstrings, comments) and in the changelog:
+  timings, speed-ups, sizes, counts of tested inputs and the like go stale or depend on the machine.
+  Describe the result qualitatively (e.g. "within the noise", "much faster") and refer to the issue or pull request
+  with the measurements. The numbers belong there (cf. [Performance](performance.md)) and in the
   rendered benchmark pages (tables and figures), which are generated again with every full run and carry exact numbers.
   The same holds for other exact figures (supported versions, ...): refer to their source (e.g. `pyproject.toml`).
   Mark text derived from the benchmark results, so that it is updated with them

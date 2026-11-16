@@ -25,7 +25,7 @@ Goals
   (cf. `Visibility graph reduction`_). A small graph makes the queries fast.
 - **Well defined behaviour at the edge cases**: touching obstacles, points on edges and collinear vertices
   are handled by one consistent set of rules (cf. :ref:`touching`), not by special cases spread over the code.
-- **Few dependencies**: ``numpy`` and ``networkx`` only. ``numba`` is an optional accelerator, the package
+- **Few dependencies**: ``numpy`` only. ``numba`` is an optional accelerator, the package
   produces the same results without it.
 
 Non-goals
@@ -140,9 +140,18 @@ They are not stored: for all extremities this would take ``2 m n`` floats, about
 The visibility graph
 --------------------
 
-``graph`` is a ``networkx.Graph`` with one node per extremity (the vertex index of its point) and
-undirected edges weighted with the Euclidean distance. Extremities without any edge are kept as nodes:
-start and goal might connect to them.
+``graph`` is a dict of dicts: one node per extremity (the vertex index of its point, a Python ``int``)
+-> neighbour -> the Euclidean distance (a Python ``float``). Every undirected edge is stored in both directions.
+Extremities without any edge are kept as nodes: start and goal might connect to them.
+The order of the nodes and neighbours is deterministic (it is the order of the file format and breaks the ties of the
+search), ``utils.graph_edges()`` lists every edge once in this order.
+
+Plain dicts instead of a ``networkx.Graph`` (#182): the visibility graph is most of the memory of a large
+environment, and plain dicts need a fraction of the memory of networkx' attribute dict per edge,
+while the search reads them as fast. ``networkx`` is no dependency: importing it took a large part of the
+import time of the package. ``to_networkx()`` converts the graphs for own networkx algorithms
+(extra ``networkx``). Arrays (CSR) would need even less memory, but the search would have to be rewritten for them
+(and compiled with Numba for speed, with identical results without it).
 
 Query data
 ----------
@@ -370,7 +379,8 @@ Details:
   is solved for the intersection of the line of sight :math:`v` with the edge (``_lies_behind_inner()``).
   The candidate is blocked when :math:`\mu < 1` (the edge is closer than the candidate).
   Within the angle range the system is regular. The terms that only depend on the edge are computed
-  for all edges at once.
+  at once for the edges with candidates in their angle range, not for all edges:
+  this setup runs once per origin (#259).
 - **Query points on edges**: the edges touching a candidate do not block it (its arrival is decided by rule 4).
   They are skipped in its check. The candidate must lie on them: an edge is only skipped for a candidate,
   not for the comparison of the edges in the tree.
@@ -486,14 +496,18 @@ those within ``RAY_WINDOW`` of a bound of the front one by one.
     add all extremities as nodes
     for each extremity e in index order:
       later = the extremities with a higher index
-      front = { x in later ∪ neighbours(e) : x lies in front of e }
-      remove the edges between e and front  # added from the other side
+      front = { x in later : x lies in front of e, or e lies in front of x }
       visible = find_visible_from(e, later - front, [extremity wedge])
       add the edges e - visible, weighted with their distance
 
 Visibility is symmetric, so each pair is checked once (from the extremity with the lower index).
-The front condition is not symmetric: an edge added from :math:`e_1`'s side is removed again when :math:`e_1`
-lies in front of :math:`e`. That is why the current neighbours are included in the front test.
+The front condition is not symmetric, so both directions are tested before the visibility is computed
+(the second one with ``Points.in_front_of()``, like for query points): an edge is never added and removed again,
+and the candidates skipped make the visibility computation faster.
+Skipping them before the visibility computation also matters for correctness (#263): AREA keeps only the closest
+candidate per direction, so an extremity in the same direction as a closer, skipped one becomes visible, if the
+line of sight may pass the skipped one (rule 3, cf. "Skipping the nodes in front" in the query section below).
+As a candidate, the skipped extremity would hide it although the edge to the skipped extremity itself is not kept.
 Extremities without edges remain in the graph, start and goal may connect to them.
 
 The same argument holds for the edges of start and goal: it is about the extremity :math:`e` being an
@@ -720,11 +734,8 @@ Ideas specific to visibility graphs were evaluated and not adopted, as they gave
   skipping it would need an extra check per neighbour instead.
 - **earlier termination**: the goal is only final when it is taken from the queue.
   Stopping earlier, e.g. when the goal is first reached, is not exact.
-- **a precomputed adjacency structure** (plain dicts or arrays): costs memory per environment and changes the pickled
-  state, the iteration over the networkx dicts is not the bottleneck (cf. #182).
 
-``networkx`` is kept as graph data structure because it is a familiar, inspectable public attribute
-(``environment.graph``).
+The search reads the plain dicts of the visibility graph (cf. `The visibility graph`_).
 
 Optional numba acceleration
 ---------------------------

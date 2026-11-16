@@ -287,9 +287,8 @@ DTYPE_QUERIES = [
 
 def _environment_state(boundary, holes, queries):
     environment = PolygonEnvironment(boundary, holes)
-    edges = sorted(environment.graph.edges(data="weight"))
     paths = [environment.find_shortest_path(start, goal) for start, goal in queries]
-    return environment.all_vertices, edges, paths
+    return environment.all_vertices, environment.graph, paths
 
 
 @pytest.mark.parametrize(

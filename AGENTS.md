@@ -7,7 +7,8 @@ This file is short on purpose. The details are in the contributing guide (`docs/
 
 `extremitypathfinder` is a Python package for exact Euclidean shortest paths in 2D polygon or grid environments,
 based on visibility graphs. Entry point: `PolygonEnvironment` (prepare an environment once, then query paths quickly).
-Runtime dependencies: numpy, networkx. Numba is an optional accelerator. Managed with uv, flat layout (no `src/`).
+Runtime dependency: numpy. Numba is an optional accelerator, networkx and shapely are
+optional extras. Managed with uv, flat layout (no `src/`).
 Supported Python versions: `requires-python` in `pyproject.toml`.
 
 ## Commands
@@ -45,7 +46,8 @@ make release-check                 # build and validate the release artifacts
    (`docs/contributing/workflow.md#pull-requests`). Never touch CI secrets.
 8. The package is licensed under MIT only: do not copy or adapt code from other projects (`docs/contributing/invariants.md`).
 9. Performance claims need before/after numbers in the issue or pull request (`docs/contributing/performance.md`).
-   Static pages, docstrings and comments state results qualitatively, without measured numbers (they go stale).
+   Static pages, docstrings, comments and the changelog state results qualitatively, without measured numbers
+   (they go stale).
 10. Stay in the scope of the task: no unrelated refactoring or reformatting. Never weaken or skip tests to pass.
 11. Before a larger change, present the trade-off with a recommendation. Unless one option is clearly better,
     a maintainer decides. Record and summarise it (`docs/contributing/workflow.md#trade-offs-and-decisions`).

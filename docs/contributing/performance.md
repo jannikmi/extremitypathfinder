@@ -102,7 +102,7 @@ Alternatives compared in #152 (with measurements) and rejected, mainly for maint
   changes shared state during a query (not thread-safe, edges of extremities merged with start or goal must be kept)
   and was considerably slower than the own search.
 - other graph libraries (scipy `csgraph`, igraph, rustworkx): an additional dependency
-  and a second graph representation (or `environment.graph` is no networkx graph anymore).
+  and a second graph representation (or `environment.graph` in the format of the library).
   Their Dijkstra searches were slower than the own search (no heuristic, adding the temporary edges is expensive),
   the A* of rustworkx saved only little time per query.
 - precomputed shortest paths between all extremities: memory grows quadratically

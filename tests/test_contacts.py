@@ -348,14 +348,14 @@ def test_contact_without_a_large_free_wedge_is_no_graph_node():
     assert (5.0, 5.0) not in environment.all_extremities
     # 8 square corners minus the 2 corners at the contact
     assert len(environment.all_extremities) == 6
-    assert environment.graph.number_of_nodes() == 6
+    assert len(environment.graph) == 6
 
 
 def test_contact_with_a_large_free_wedge_is_a_single_graph_node():
     environment = PolygonEnvironment(BOUNDARY, TOUCHING_TIPS_HOLES, validate=True)
     assert environment.all_extremities.count((5.0, 5.0)) == 1
     assert len(environment.all_extremities) == 5
-    assert environment.graph.number_of_nodes() == 5
+    assert len(environment.graph) == 5
 
 
 @pytest.mark.parametrize("boundary_polygon_idx", [0, None])

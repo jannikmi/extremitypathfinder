@@ -12,6 +12,7 @@ import itertools
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from functools import cached_property
+from typing import TYPE_CHECKING
 
 import numpy as np
 
@@ -19,6 +20,10 @@ from extremitypathfinder import configs, utils
 from extremitypathfinder import types as t
 from extremitypathfinder.types import InputCoord, Length, Path
 from extremitypathfinder.wedges import Point, Points
+
+if TYPE_CHECKING:
+    # optional dependency (extra "networkx"), only imported when used
+    import networkx as nx
 
 
 @dataclass
@@ -34,9 +39,10 @@ class SearchResult:
       e.g. when the goal is directly visible from the start.
     * ``query_edges``: the temporary edges ``(node, neighbour, length)``
       connecting start and goal to the visibility graph (``None`` without a graph search)
-    * ``graph``: the search graph (the visibility graph extended by the query edges).
+    * ``graph``: the search graph (the visibility graph extended by the query edges),
+      as dicts like :attr:`PolygonEnvironment.graph`: node -> neighbour -> edge length, every edge in both directions.
       Only built on first access (a copy of the visibility graph of the environment at that time).
-      ``None`` without a graph search.
+      ``None`` without a graph search. :meth:`edges` lists every edge once, :meth:`to_networkx` converts it.
     """
 
     path: Path
@@ -56,9 +62,36 @@ class SearchResult:
             raise ValueError(
                 "The search result has query edges, but no visibility graph."
             )
-        graph = self.visibility_graph.copy()
-        graph.add_weighted_edges_from(self.query_edges)
+        graph = {
+            node: dict(neighbours) for node, neighbours in self.visibility_graph.items()
+        }
+        for u, v, length in self.query_edges:
+            weight = float(length)
+            graph.setdefault(u, {})[v] = weight
+            graph.setdefault(v, {})[u] = weight
         return graph
+
+    def edges(self) -> list[tuple[int, int, float]] | None:
+        """the edges ``(node, neighbour, length)`` of the search graph, each edge once, ``None`` without a graph search
+
+        In the order of the nodes and their neighbours in ``graph`` (cf. :meth:`PolygonEnvironment.edges`).
+        """
+        graph = self.graph
+        if graph is None:
+            return None
+        return list(utils.graph_edges(graph))
+
+    def to_networkx(self) -> "nx.Graph[int] | None":
+        """the search graph as a new ``networkx.Graph`` (edge attribute ``weight``), ``None`` without a graph search
+
+        Requires networkx (``pip install "extremitypathfinder[networkx]"``).
+
+        :raises ImportError: when networkx is not installed
+        """
+        graph = self.graph
+        if graph is None:
+            return None
+        return utils.to_networkx(graph)
 
 
 def graph_node(point: Point | None) -> int | None:
@@ -230,14 +263,14 @@ def search(
     origin = goal
     # the visibility of only the graph nodes has to be checked (not all extremities!)
     # IMPORTANT: also check if the start node is visible from the goal node!
-    candidate_idxs: set[int] = set(graph.nodes)
+    candidate_idxs: set[int] = set(graph)
     candidate_idxs.add(start)
     # Note: the graph node at the start position must not hide the start
     #   (only the closest of candidates in the same direction is visible, cf. find_visible()):
     #   the start may leave its point through any free wedge, the graph node only through its own
     candidates_goal = candidate_idxs - {start_node}
     vert_idx2repr, vert_idx2dist = utils.cmp_reps_n_distances(origin, coords)
-    graph_nodes = np.fromiter(graph.nodes, dtype=int)
+    graph_nodes = np.fromiter(graph, dtype=int)
     candidates_goal -= nodes_in_front(
         origin, graph_nodes, coords, vert_idx2repr, points, goal_node
     )
@@ -366,7 +399,7 @@ def distance_matrix(
     # temporarily extend data structure (cf. search())
     coords = np.append(vertex_coords, np.array(unique_coords), axis=0)
     query_points = {i: points.at(coords[i], i) for i in unique_idx.values()}
-    graph_nodes = np.fromiter(graph.nodes, dtype=int)
+    graph_nodes = np.fromiter(graph, dtype=int)
     graph_node_at = {i: graph_node(point) for i, point in query_points.items()}
 
     # the visibility of every query point, from the point (cf. search(): the visibility is checked from the goal)

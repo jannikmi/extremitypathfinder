@@ -1,3 +1,4 @@
+import copy
 import json
 from os.path import abspath, join, pardir
 
@@ -150,7 +151,7 @@ def test_edge_parallel_to_the_ray_through_the_candidate_is_infinitely_far():
     vectors = np.array([[1.0, 2.0], [2.0, 3.0], [1.0, 1.0]])
     distances = np.hypot(*vectors.T)
     edge_terms = compute_edge_terms(
-        vectors, np.array([[0, 1]]), distances[:2].max(keepdims=True)
+        vectors[:1], vectors[1:2], distances[:2].max(keepdims=True)
     )
     candidate_terms = compute_candidate_terms(vectors[2:], distances[2:])
     assert edge_terms[0, 2] != 0.0
@@ -341,10 +342,17 @@ def test_angle_repr_quadrant(input, expected):
     assert res < expected + 1
 
 
+def _adjacency(graph):
+    """the visibility graph representation (node -> neighbour -> weight) of a networkx graph"""
+    return {
+        node: {neighbour: data["weight"] for neighbour, data in neighbours.items()}
+        for node, neighbours in graph.adj.items()
+    }
+
+
 def test_astar_path_uses_query_edges_without_changing_the_graph():
-    graph = nx.Graph()
-    graph.add_weighted_edges_from([(0, 1, 1.0), (1, 2, 1.0), (0, 2, 5.0)])
-    edges_before = sorted(graph.edges(data="weight"))
+    graph = {0: {1: 1.0, 2: 5.0}, 1: {0: 1.0, 2: 1.0}, 2: {1: 1.0, 0: 5.0}}
+    graph_before = copy.deepcopy(graph)
 
     def no_heuristic(n1, n2):
         return 0.0
@@ -359,8 +367,7 @@ def test_astar_path_uses_query_edges_without_changing_the_graph():
     # no path
     assert astar_path(graph, {}, 0, 6, no_heuristic) is None
     assert astar_path(graph, {6: {7: 1.0}, 7: {6: 1.0}}, 0, 7, no_heuristic) is None
-    assert sorted(graph.edges(data="weight")) == edges_before
-    assert 3 not in graph
+    assert graph == graph_before
 
 
 def test_astar_path_expands_a_node_again_with_an_inconsistent_heuristic():
@@ -368,8 +375,12 @@ def test_astar_path_expands_a_node_again_with_an_inconsistent_heuristic():
     # the shorter path through A (distance 2) is found only afterwards.
     # guards the decision of #157 against a closed set (it would return [s, b, g])
     s, a, b, g = range(4)
-    graph = nx.Graph()
-    graph.add_weighted_edges_from([(s, a, 1.0), (s, b, 3.0), (a, b, 1.0), (b, g, 3.0)])
+    graph = {
+        s: {a: 1.0, b: 3.0},
+        a: {s: 1.0, b: 1.0},
+        b: {s: 3.0, a: 1.0, g: 3.0},
+        g: {b: 3.0},
+    }
     estimates = {s: 0.0, a: 4.0, b: 0.0, g: 0.0}
 
     def heuristic(n1, n2):
@@ -412,6 +423,7 @@ def test_astar_path_matches_networkx(seed):
         expected = nx.astar_path(search_graph, source, target, heuristic=distance)
     except nx.NetworkXNoPath:
         expected = None
-    edges_before = sorted(graph.edges(data="weight"))
-    assert astar_path(graph, query_edges, source, target, distance) == expected
-    assert sorted(graph.edges(data="weight")) == edges_before
+    adjacency = _adjacency(graph)
+    adjacency_before = copy.deepcopy(adjacency)
+    assert astar_path(adjacency, query_edges, source, target, distance) == expected
+    assert adjacency == adjacency_before

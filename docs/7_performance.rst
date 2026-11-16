@@ -249,8 +249,8 @@ The free space is triangulated by the crate itself, inside a rectangle around al
 
 Limitations of this comparison:
 
-- It compares native code (Rust) with Python (+ Numba, NetworkX), not the algorithms alone:
-  a large part of the query gap is the language and the graph library.
+- It compares native code (Rust) with Python (+ Numba), not the algorithms alone:
+  a large part of the query gap is the language.
 - Polyanya computes in single precision and needs a triangulation of
   the free space; this package works in double precision and takes the polygons as they are
   (cf. :ref:`alternatives`).
