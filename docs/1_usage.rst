@@ -197,6 +197,13 @@ and goal. ``environment.edges()`` and ``result.edges()`` list every edge once as
     for node, neighbour, length in environment.edges():
         print(environment.coords[node], environment.coords[neighbour], length)
 
+.. note::
+
+    Do not modify ``environment.graph``: the queries rely on it. Nothing checks it, so a changed graph gives wrong paths
+    without an error, e.g. an edge removed in only one direction.
+    To experiment with the graph, modify a copy (``environment.to_networkx()`` or
+    ``{node: dict(neighbours) for node, neighbours in environment.graph.items()}``).
+
 To run your own NetworkX algorithms, convert the graphs with ``environment.to_networkx()``
 or ``result.to_networkx()``: a new ``networkx.Graph`` with the length of an edge as attribute ``weight``.
 NetworkX is an optional dependency:
