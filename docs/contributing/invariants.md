@@ -47,7 +47,8 @@ The [Engineering Design](../8_design.rst) page gives the full reasoning.
 - **The file format of `save()` changes only with the graph semantics.** The file stores the polygons and the visibility
   graph, everything else is recomputed (cf. the engineering design). A change that keeps other edges needs a new
   `configs.FILE_FORMAT_VERSION`: `test_file_format.py` fails for it.
-- **Few dependencies.** Runtime dependencies are numpy and networkx, Numba is an optional extra.
+- **Few dependencies.** The only runtime dependency is numpy (#182). Numba, networkx and Shapely are optional extras,
+  only imported where they are used.
   A new dependency must be justified (what it saves compared to the code it replaces) and accepted by a maintainer.
 
 ## Public API and licensing

@@ -1,6 +1,6 @@
 import os
 from collections.abc import Iterable
-from typing import Self, cast
+from typing import TYPE_CHECKING, Self, cast
 
 import numpy as np
 
@@ -17,6 +17,10 @@ from extremitypathfinder.types import (
 )
 from extremitypathfinder.utils_numba import is_within_map
 from extremitypathfinder.wedges import Point, Points
+
+if TYPE_CHECKING:
+    # optional dependency (extra "networkx"), only imported when used
+    import networkx as nx
 
 __all__ = ("PolygonEnvironment", "SearchResult")
 
@@ -42,7 +46,10 @@ class PolygonEnvironment:
     * ``holes``: the list of hole coordinates, clockwise numbering (reversed if given counter clockwise)
     * ``coords``: the coordinates of all polygon vertices (boundary first, then all holes)
     * ``extremity_indices``: the indices of all extremities in ``coords`` (at most one per vertex position)
-    * ``graph``: the precomputed visibility graph (:class:`networkx.Graph`) of the extremities
+    * ``graph``: the precomputed visibility graph of the extremities, as dicts:
+      node (the index of an extremity in ``coords``) -> neighbour -> edge length (Euclidean distance),
+      every edge in both directions. :meth:`edges` lists every edge once,
+      :meth:`to_networkx` converts it into a networkx graph.
     * ``points``: the vertex positions within the map and the free space around them
       (cf. :mod:`extremitypathfinder.wedges`)
 
@@ -285,6 +292,25 @@ class PolygonEnvironment:
         environment._store_polygons(stored.boundary, stored.holes)
         environment.graph = storage.build_graph(stored, environment.extremity_indices)
         return environment
+
+    def edges(self) -> list[tuple[int, int, float]]:
+        """the edges ``(node, neighbour, length)`` of the visibility graph ``graph``, each edge once
+
+        In a deterministic order: the order of the nodes and their neighbours in ``graph``.
+        """
+        return list(utils.graph_edges(self.graph))
+
+    def to_networkx(self) -> "nx.Graph[int]":
+        """the visibility graph as a new ``networkx.Graph``, e.g. to run own networkx algorithms
+
+        The nodes are the indices of the extremities in ``coords`` (also those without edges),
+        the edges have their length as attribute ``weight``.
+        Requires networkx (``pip install "extremitypathfinder[networkx]"``).
+        Changing the returned graph does not change the environment.
+
+        :raises ImportError: when networkx is not installed
+        """
+        return utils.to_networkx(self.graph)
 
     def __getstate__(self) -> t.PickleState:
         """adds the pickle format version to the state. Subclasses overriding this must call ``super()``"""

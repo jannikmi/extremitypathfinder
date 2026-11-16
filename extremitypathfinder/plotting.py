@@ -158,7 +158,7 @@ def draw(
     coords = environment.coords
     if graph:
         edges = LineCollection(
-            [(coords[i], coords[j]) for i, j in environment.graph.edges],
+            [(coords[i], coords[j]) for i, j, _ in environment.edges()],
             colors=style.graph_color,
             alpha=style.graph_alpha,
             linewidths=width,

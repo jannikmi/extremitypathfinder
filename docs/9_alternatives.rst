@@ -13,7 +13,7 @@ What sets this package apart
 
 Not the raw speed: compiled tools (cf. `Other packages`_) are faster. What no other package offers together:
 
-- **Python first**: installable with ``pip``, only NumPy and NetworkX as dependencies,
+- **Python first**: installable with ``pip``, only NumPy as dependency,
   optional Numba acceleration with identical results. The only other package on PyPI, pyvisgraph, has been inactive
   since June 2018 and returns wrong paths for some inputs (cf. `Other packages`_).
 - **Real-world input as it is**: polygons may touch, overlap and intersect, a boundary polygon is optional,

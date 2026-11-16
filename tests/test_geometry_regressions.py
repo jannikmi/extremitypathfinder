@@ -1,10 +1,10 @@
 """Regression coverage for documented polygon geometry edge cases."""
 
+import copy
 import itertools
 import re
 from math import hypot, sqrt
 
-import networkx as nx
 import numpy as np
 import pytest
 
@@ -20,14 +20,6 @@ RECTANGULAR_HOLE = [
     (7.0, 4.0),
 ]
 DETOUR_DISTANCE = 4.0 + 2.0 * sqrt(5.0)
-
-
-def _weighted_edges(graph):
-    """Return a stable snapshot without depending on NetworkX iteration order."""
-    return {
-        (min(int(node1), int(node2)), max(int(node1), int(node2)), data["weight"])
-        for node1, node2, data in graph.edges(data=True)
-    }
 
 
 def _orientation(point1, point2, point3):
@@ -389,8 +381,7 @@ def test_validation_errors_name_the_polygon_and_the_location(boundary, holes, me
 
 def test_repeated_queries_do_not_mutate_precomputed_graph():
     environment = PolygonEnvironment(BOUNDARY, [RECTANGULAR_HOLE], validate=True)
-    nodes_before = set(environment.graph.nodes)
-    edges_before = _weighted_edges(environment.graph)
+    graph_before = copy.deepcopy(environment.graph)
     queries = [
         ((1.0, 5.0), (9.0, 5.0), DETOUR_DISTANCE),
         ((1.0, 2.0), (9.0, 2.0), 8.0),
@@ -402,11 +393,7 @@ def test_repeated_queries_do_not_mutate_precomputed_graph():
             path, distance = environment.find_shortest_path(start, goal)
             assert distance == pytest.approx(expected_distance)
             _assert_valid_path(path, distance, [RECTANGULAR_HOLE])
-            assert set(environment.graph.nodes) == nodes_before
-            assert _weighted_edges(environment.graph) == edges_before
-            assert environment.idx_start not in environment.graph
-            assert environment.idx_goal not in environment.graph
-            assert nx.is_weighted(environment.graph)
+            assert environment.graph == graph_before
 
 
 @pytest.mark.parametrize("env_params", POLYGON_ENVS)

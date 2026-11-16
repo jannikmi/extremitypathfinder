@@ -75,7 +75,7 @@ def test_grid_env():
     nr_extremities = len(grid_env.all_extremities)
     # the two corners at the contact (7, 6) of the two holes are no extremities
     assert nr_extremities == 15, "extremities do not get detected correctly!"
-    nr_graph_nodes = len(grid_env.graph.nodes)
+    nr_graph_nodes = len(grid_env.graph)
     assert nr_graph_nodes == 15, "every extremity should be a graph node!"
 
     # test if points outside the map are being rejected
@@ -88,7 +88,7 @@ def test_grid_env():
 
     # even after many queries the internal graph should have the same structure as before
     # otherwise the temporarily added vertices during a query stay stored
-    nr_graph_nodes = len(grid_env.graph.nodes)
+    nr_graph_nodes = len(grid_env.graph)
     assert nr_graph_nodes == 15, (
         "the graph should stay unchanged by shortest path queries!"
     )
@@ -100,10 +100,10 @@ def test_poly_env():
     assert len(list(poly_env.all_extremities)) == nr_exp_extremities, (
         f"the environment should detect all {nr_exp_extremities} extremities!"
     )
-    nr_nodes_env2 = len(poly_env.graph.nodes)
+    nr_nodes_env2 = len(poly_env.graph)
     assert nr_nodes_env2 == nr_exp_extremities, (
         f"the visibility graph should store all {nr_exp_extremities} extremities {list(poly_env.all_extremities)}!"
-        f"\n found: {poly_env.graph.nodes}"
+        f"\n found: {list(poly_env.graph)}"
     )
 
     print("\ntesting polygon environment")
@@ -115,9 +115,9 @@ def test_graph_links_only_closest_node_per_direction(env_params):
     # when two nodes have the same angle representation there should only be an edge to the closer node
     environment = PolygonEnvironment(*env_params)
     graph = environment.graph
-    for node in graph.nodes:
+    for node, neighbours in graph.items():
         representations, _ = utils.cmp_reps_n_distances(node, environment.coords)
-        neighbour_reprs = [representations[n] for n in graph.neighbors(node)]
+        neighbour_reprs = [representations[n] for n in neighbours]
         assert len(neighbour_reprs) == len(set(neighbour_reprs))
 
 
@@ -187,8 +187,7 @@ def test_extremity_neighbour_connection(env_data):
         should_be_connected = not other_edge_intersects(
             i1, i2, edge_vertex_idxs, coords
         )
-        graph_neighbors_e = set(graph.neighbors(i1))
-        are_connected = i2 in graph_neighbors_e
+        are_connected = i2 in graph[i1]
         assert should_be_connected == are_connected
 
     for e in extremities:
@@ -270,10 +269,18 @@ def test_search_returns_search_graph_only_when_built():
 def test_search_does_not_copy_the_visibility_graph(monkeypatch):
     environment = PolygonEnvironment(*POLY_ENV_PARAMS)
 
-    def fail_copy(*args, **kwargs):
-        raise AssertionError("the visibility graph must not be copied by a query")
+    class NotCopyable(dict):
+        """a graph failing when a query iterates its items or copies it (it only looks up the neighbours)
 
-    monkeypatch.setattr(environment.graph, "copy", fail_copy)
+        Does not catch every way of copying (e.g. ``dict(graph)``), only the usual ones.
+        """
+
+        def fail(self, *args, **kwargs):
+            raise AssertionError("the visibility graph must not be copied by a query")
+
+        copy = items = values = __copy__ = __deepcopy__ = __reduce_ex__ = fail
+
+    monkeypatch.setattr(environment, "graph", NotCopyable(environment.graph))
     indirect_cases = [c for c in TEST_DATA_POLY_ENV if len(c[1][0]) > 2]
     for (start_coordinates, goal_coordinates), (path, length) in indirect_cases:
         result = environment.search(start_coordinates, goal_coordinates)
@@ -289,9 +296,11 @@ def test_search_graph_consists_of_visibility_graph_and_query_edges():
         result = environment.search(start_coordinates, goal_coordinates)
         graph = result.graph
         assert result.graph is graph, "the search graph is built only once"
-        assert graph.number_of_edges() >= environment.graph.number_of_edges()
-        for u, v in environment.graph.edges:
-            assert graph.has_edge(u, v)
+        assert graph is not environment.graph
+        for u, neighbours in environment.graph.items():
+            for v, d in neighbours.items():
+                assert graph[u][v] == d
+                assert graph[u] is not neighbours
         for u, v, d in result.query_edges:
-            assert graph.edges[u, v]["weight"] == d
+            assert graph[u][v] == graph[v][u] == d
             assert result.idx_start in (u, v) or result.idx_goal in (u, v)

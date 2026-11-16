@@ -31,9 +31,7 @@ OBSTACLE, OBSTACLE2 = SHARED_VERTEX_HOLES
 def _assert_same_environment(env, expected):
     np.testing.assert_array_equal(env.coords, expected.coords)
     np.testing.assert_array_equal(env.extremity_indices, expected.extremity_indices)
-    assert sorted(env.graph.edges(data="weight")) == sorted(
-        expected.graph.edges(data="weight")
-    )
+    assert env.graph == expected.graph
 
 
 class _GeoInterface:

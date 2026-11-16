@@ -87,17 +87,19 @@ def test_extremity_opposite_of_a_bounding_ray_stays_connected():
         [(0.0, 0.0), (20.0, 0.0), (20.0, 20.0), (0.0, 20.0)], holes, validate=True
     )
     node = {tuple(environment.coords[i]): i for i in environment.extremity_indices}
-    assert environment.graph.has_edge(node[(10.0, 10.0)], node[(12.0, 12.0)])
+    assert node[(12.0, 12.0)] in environment.graph[node[(10.0, 10.0)]]
 
 
 def test_queries_do_not_modify_the_environment():
     environment = PolygonEnvironment(*POLYGON_ENVS[2])
 
     def state():
-        # Note: not the pickled graph, networkx caches views (e.g. ``graph.nodes``) on first access
-        attributes = {k: v for k, v in environment.__dict__.items() if k != "graph"}
-        graph = environment.graph
-        return pickle.dumps(attributes), list(graph.nodes), list(graph.edges.data())
+        # the graph with the order of its nodes and neighbours (not compared by ``==``)
+        graph = [
+            (node, list(neighbours.items()))
+            for node, neighbours in environment.graph.items()
+        ]
+        return pickle.dumps(environment.__dict__), graph
 
     state_before = state()
     environment.find_shortest_path((4.0, 4.5), (6.0, 4.5))
@@ -118,7 +120,7 @@ def test_last_extremity_is_reduced_as_well():
     )
     node = {tuple(environment.coords[i]): i for i in environment.extremity_indices}
     assert node[(10.0, 10.0)] == environment.extremity_indices[-1]
-    assert not environment.graph.has_edge(node[(13.0, 14.0)], node[(10.0, 10.0)])
+    assert node[(10.0, 10.0)] not in environment.graph[node[(13.0, 14.0)]]
     # the shortest paths stay the same
     assert environment.find_shortest_path((14.0, 15.0), (9.0, 11.0))[
         1
@@ -133,7 +135,7 @@ def test_last_extremity_is_reduced_as_well():
 def test_graph_nodes_in_front_of_each_other_are_not_connected(environment):
     """the graph reduction ("Property One") applies to every extremity, the last one included"""
     coords = environment.coords
-    for u, v in environment.graph.edges:
+    for u, v, _ in utils.graph_edges(environment.graph):
         for origin, other in ((u, v), (v, u)):
             point = environment.points.by_idx[origin]
             representations, _ = utils.cmp_reps_n_distances(origin, coords)

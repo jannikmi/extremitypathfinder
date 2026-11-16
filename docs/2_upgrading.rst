@@ -95,6 +95,30 @@ Both functions are in ``extremitypathfinder.plotting``. Each exports one file an
 ``draw()`` and ``draw_search()`` draw onto Matplotlib axes instead (cf. :ref:`usage`).
 
 
+Visibility graph
+----------------
+
+``env.graph`` and ``result.graph`` are dicts instead of ``networkx.Graph`` objects, and NetworkX is no dependency anymore.
+Install it with ``pip install "extremitypathfinder[networkx]"`` to convert the graphs (cf. :ref:`usage`).
+
+.. list-table::
+   :header-rows: 1
+   :widths: 50 50
+
+   * - 2.x and 3.0
+     - 3.x
+   * - ``env.graph`` (a ``networkx.Graph``), e.g. ``nx.connected_components(env.graph)``
+     - ``env.to_networkx()``, e.g. ``nx.connected_components(env.to_networkx())``
+   * - ``result.graph`` (a ``networkx.Graph``)
+     - ``result.to_networkx()``
+   * - ``env.graph.nodes``
+     - ``env.graph`` (the keys)
+   * - ``env.graph.neighbors(node)``, ``env.graph[node][neighbour]["weight"]``
+     - ``env.graph[node]``, ``env.graph[node][neighbour]``
+   * - ``env.graph.edges(data="weight")``
+     - ``env.edges()``
+
+
 Pickled environments
 --------------------
 

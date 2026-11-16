@@ -3,6 +3,20 @@ Changelog
 Unreleased
 ----------
 
+BREAKING: the visibility graph is no ``networkx.Graph`` anymore, and networkx is no dependency anymore (#182):
+
+- ``environment.graph`` is a dict of dicts: node -> neighbour -> edge length, every edge in both directions.
+  It needs a fraction of the memory of the networkx graph, which was most of the memory of a large environment.
+  ``SearchResult.graph`` (the search graph of a query) has the same form. Paths and lengths stay the same.
+- new ``PolygonEnvironment.edges()`` and ``SearchResult.edges()`` list every edge once as ``(node, neighbour, length)``.
+- new ``PolygonEnvironment.to_networkx()`` and ``SearchResult.to_networkx()`` convert them into a new ``networkx.Graph``
+  (edge attribute ``weight``) for own networkx algorithms. They need the new extra ``networkx``:
+  ``pip install "extremitypathfinder[networkx]"``.
+- ``import extremitypathfinder`` no longer imports networkx, which took a large part of the import time.
+
+Migration: replace ``environment.graph`` with ``environment.to_networkx()`` where a networkx graph is needed
+and install the ``networkx`` extra, or use the dicts directly (cf. the upgrading page).
+
 BREAKING: the plotting module (``extremitypathfinder.plotting``) has one consistent drawing:
 
 - new ``draw()`` draws an environment and a path onto Matplotlib axes, ``draw_search()`` the result of a search
@@ -22,7 +36,7 @@ BREAKING: the plotting module (``extremitypathfinder.plotting``) has one consist
 - new look: obstacles filled grey, including the area outside of the boundary polygon,
   extremities and the visibility graph in blue, the path in orange.
 
-BREAKING: environments pickled with 3.0 cannot be loaded anymore (changed attributes, pickle format version 5):
+BREAKING: environments pickled with 3.0 cannot be loaded anymore (changed attributes, pickle format version 6):
 recreate them. Loading them raises a ``ValueError`` explaining this.
 
 BREAKING: the input is validated by default: ``PolygonEnvironment()``, ``from_grid()``, ``from_shapely()``

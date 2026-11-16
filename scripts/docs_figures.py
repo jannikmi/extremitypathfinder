@@ -192,7 +192,7 @@ def demo(output_dir: Path):
     print(
         f"demo: path with {len(path)} points, length {length:.2f}, {environment.nr_vertices} vertices,"
         f" {len(environment.extremity_indices)} extremities,"
-        f" {environment.graph.number_of_edges()} graph edges"
+        f" {sum(map(len, environment.graph.values())) // 2} graph edges"
     )
     fig, ax = plt.subplots(figsize=(10.0, 4.0))
     draw(environment, path, ax=ax, vertices=True, style=LIGHT)
@@ -471,7 +471,7 @@ def draw_graph_reduction(axes, marker_size: float = 3.5, path_width: float = 3.0
         f"complete visibility graph: {nr_points} vertices, {len(complete):,} edges",
         (
             f"reduced visibility graph: {len(environment.extremity_indices)} extremities,"
-            f" {environment.graph.number_of_edges()} edges"
+            f" {sum(map(len, environment.graph.values())) // 2} edges"
         ),
     )
     for ax, title in zip(axes, titles):

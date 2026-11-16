@@ -1,6 +1,6 @@
 # Decision log
 
-Decided trade-offs of the package, its benchmarks and releases, newest first, including the rejected options
+Decided trade-offs of the package, newest first, including the rejected options
 (cf. [Trade-offs and decisions](workflow.md#trade-offs-and-decisions)). Entry format:
 
 ```markdown
@@ -22,8 +22,16 @@ Keep the entries correct when the referenced content moves or changes.
 A maintainer confirms an agent decision by changing **Decided by**.
 Amend the entry of a revised decision instead of adding a new one:
 the log states the current decisions (git keeps the history).
-Decisions about how we work on the project are in the [process decision log](decisions-process.md).
+Decisions about the benchmarks and releases are in the [benchmark decision log](decisions-benchmarks.md),
+those about how we work on the project are in the [process decision log](decisions-process.md).
 Earlier decisions are described in the {ref}`Design Decisions <design_decisions>` and the issues linked there.
+
+## The visibility graph is plain dicts, networkx an optional extra (#182)
+
+- **Decided by:** a maintainer ([#182](https://github.com/jannikmi/extremitypathfinder/issues/182))
+- **Rejected:** keeping the `networkx.Graph` (most of the memory of large environments, a large part of the import
+  time); arrays (CSR, a rewrite of the search); `environment.graph` as networkx graph built on access.
+- **Details:** {ref}`Design Decisions <design_decisions>`
 
 ## All computations use float64, other numeric input is converted (#274)
 
@@ -66,8 +74,8 @@ Earlier decisions are described in the {ref}`Design Decisions <design_decisions>
 
 - **Decided by:** a maintainer ([#157](https://github.com/jannikmi/extremitypathfinder/issues/157): replacing the port, MIT only); an agent (no closed set, with #162 in mind)
 - **Rejected:** keeping the port (BSD-3-Clause next to MIT); a closed set (no measured gain, wrong paths with heuristics
-  that are only admissible, e.g. custom costs of #162); skipping neighbours, earlier termination and a precomputed
-  adjacency structure (no gain, or only valid for Euclidean costs).
+  that are only admissible, e.g. custom costs of #162); skipping neighbours and earlier termination
+  (no gain, or only valid for Euclidean costs).
 - **Details:** {ref}`Design Decisions <design_decisions>`, [Performance](performance.md#shortest-path-search)
 
 ## AREA stays the visibility algorithm, others are added next to it (#224)
@@ -81,22 +89,3 @@ Earlier decisions are described in the {ref}`Design Decisions <design_decisions>
   except that the edges whose angle range contains the direction (1, 0) compare directions without rotating them
   (differences in the last bit).
 - **Details:** {ref}`Design Decisions <design_decisions>`, `prototypes/sweep_tree_overhead.py` (#216)
-
-## A release requires up-to-date benchmark results, checked when it is prepared, on its pull request and when it is tagged (#191)
-
-- **Decided by:** a maintainer (the rule and closing the gap of manual version changes); an agent (how it is checked)
-- **Rejected:** running the benchmarks in CI (CI must not fail because of external packages, cf.
-  [Testing](testing.md#ci-and-external-packages); shared runners give noisy timings on changing hardware);
-  checking every pull request (code still changes until the release);
-  only checking when the release is prepared (misses manual version changes and later merges);
-  comparing `pyproject.toml` and `uv.lock` as files (they change with every release, the measured dependency
-  versions are compared instead).
-- **Details:** [Releasing](releasing.md#benchmark-results)
-
-## Published benchmark results come from one full run, whose raw results are committed (#165)
-
-- **Decided by:** a maintainer
-- **Rejected:** rerunning only the changed package (mixes two runs: conditions, commit);
-  committing only the tables and figures (the numbers cannot be checked or rendered again without a rerun
-  of hours on that machine); a release asset (separated from the commit that produced the docs).
-- **Details:** [Running the benchmarks](performance.md#running-the-benchmarks)
