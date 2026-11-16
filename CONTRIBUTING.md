@@ -2,6 +2,7 @@
 
 Contributions are welcome and greatly appreciated! Every little bit helps, and credit will always be given.
 This guide is for human contributors and coding agents alike.
+All participation is governed by the [Code of Conduct](https://github.com/jannikmi/extremitypathfinder/blob/master/CODE_OF_CONDUCT.md).
 Agents start at [`AGENTS.md`](https://github.com/jannikmi/extremitypathfinder/blob/master/AGENTS.md),
 which links back to the topics below.
 
