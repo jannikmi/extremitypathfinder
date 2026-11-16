@@ -58,8 +58,9 @@ The comparison with Polyanya (#170) is separate: `benchmarks/polyanya/compare.py
 
 ### After a full run
 
-The tables and figures are rendered from the results, the text derived from them is not
-(the take-aways of the performance page, the comparison with pyvisgraph, the claims about Numba).
+The results render the tables and figures, not the text derived from them
+(the performance page take-aways, the pyvisgraph comparison, the Numba claims)
+nor the figures and numbers of the [JOSS paper](paper.md).
 It is marked with `.. benchmark-derived:` comments, each covering the text up to the next heading.
 A full run lists the files with one (or `git grep -n '\.\. benchmark-derived:'`). Update every marked passage in the pull request of the results.
 Mark new derived text the same way, and keep it qualitative (cf. [Documentation](documentation.md#content)).

@@ -54,6 +54,7 @@ The Markdown files are read on GitHub and in the HTML documentation, so links mu
   ```sh
   uv run --group benchmark python scripts/world_demo.py
   ```
+- The figures of the JOSS paper reuse these drawings: regenerate them as well (cf. [JOSS paper](paper.md#figures)).
 - The benchmark documentation has three pages for three kinds of readers: the results (users),
   the method (reviewers of the numbers) and running them (contributors, in this guide).
   Speed and memory stay on one page, because they are read side by side,
