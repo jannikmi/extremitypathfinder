@@ -31,7 +31,9 @@ OPTIONAL_PACKAGES = ["shapely", "matplotlib"]
 
 DIRECTIVE = re.compile(r"^\.\. code-block:: python[ \t]*$")
 # e.g. "# path: [(4.5, 1.0), (3.0, 7.0), (4.0, 8.5)], length: 7.987..." or "# length: 11.908... (...)"
-RESULT_COMMENT = re.compile(r"^# (?:path: (?P<path>\[.*\]), )?length: (?P<length>\d+\.\d+)\.\.\.")
+RESULT_COMMENT = re.compile(
+    r"^# (?:path: (?P<path>\[.*\]), )?length: (?P<length>\d+\.\d+)\.\.\."
+)
 
 
 def python_blocks(page: str) -> list[str]:
@@ -48,14 +50,18 @@ def python_blocks(page: str) -> list[str]:
             content.append(following)
         text = textwrap.dedent("\n".join(content))
         # options of the directive (e.g. ":caption:") precede the code
-        code = "\n".join(line for line in text.splitlines() if not re.match(r"^:\w+:", line))
+        code = "\n".join(
+            line for line in text.splitlines() if not re.match(r"^:\w+:", line)
+        )
         blocks.append(code.strip())
     return blocks
 
 
 def test_every_page_with_examples_is_listed():
     """new pages with Python examples must be run or excluded with a reason"""
-    pages = ["README.rst"] + [str(p.relative_to(ROOT)) for p in sorted((ROOT / "docs").glob("*.rst"))]
+    pages = ["README.rst"] + [
+        p.relative_to(ROOT).as_posix() for p in sorted((ROOT / "docs").glob("*.rst"))
+    ]
     with_examples = {page for page in pages if python_blocks(page)}
     assert with_examples == set(PAGES) | set(NOT_RUN)
 
