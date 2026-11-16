@@ -38,7 +38,7 @@ Numba is optional. The choice is mainly speed against memory:
 - **Speed:** without Numba, building an environment takes about twice as long,
   and queries take moderately longer (cf. the speed-up by Numba on the :ref:`performance page <speed-tests>`).
 - **Memory:** Numba and the compiled functions are loaded when the package is imported, in every process using it,
-  even if it only loads a pickled environment. This adds tens of MiB to each process (more in the resident memory
+  even if it only loads a stored environment. This adds tens of MiB to each process (more in the resident memory
   on Linux than in the footprint on macOS, where the benchmarks ran) and roughly doubles the memory of the process
   after the imports. On small maps, it is a large part of the memory a process needs
   (cf. the memory composition on the :ref:`performance page <speed-tests>`).

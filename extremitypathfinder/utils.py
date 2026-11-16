@@ -1,6 +1,5 @@
 import json
 import os
-import pickle
 import warnings
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from functools import partial
@@ -17,7 +16,6 @@ from extremitypathfinder import configs
 from extremitypathfinder import types as t
 from extremitypathfinder.configs import (
     BOUNDARY_JSON_KEY,
-    DEFAULT_PICKLE_NAME,
     HOLES_JSON_KEY,
 )
 from extremitypathfinder.li_chao_tree import blocked_candidates
@@ -1191,17 +1189,3 @@ def compile_polygon_datastructs(
         ),
     )
     return coords, edge_vertex_idxs, vertex_edge_idxs, points
-
-
-def load_pickle(path: str | os.PathLike[str] = DEFAULT_PICKLE_NAME) -> Any:
-    """loads an environment exported with :meth:`PolygonEnvironment.export_pickle`
-
-    Returns ``Any``: a pickle holds objects of any class (also subclasses of ``PolygonEnvironment``), and this layer
-    cannot import the environment class.
-
-    :raises ValueError: when the environment was pickled with an incompatible version of this package (e.g. 2.x).
-        Recreate the environment from its polygons instead.
-    :raises AttributeError: when the pickled class no longer exists (e.g. ``PlottingEnvironment`` of 2.x)
-    """
-    with open(path, "rb") as f:
-        return pickle.load(f)
