@@ -25,7 +25,7 @@ the log states the current decisions (git keeps the history).
 Decisions about how we work on the project are in the [process decision log](decisions-process.md).
 Earlier decisions are described in the {ref}`Design Decisions <design_decisions>` and the issues linked there.
 
-## All computations use float64, other numeric input is converted (#269)
+## All computations use float64, other numeric input is converted (#274)
 
 - **Decided by:** an agent
 - **Rejected:** computing in `float32` or in integers, also as an option
