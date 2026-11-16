@@ -704,28 +704,24 @@ def graph_edges(graph: t.Graph) -> Iterator[tuple[int, int, float]]:
         seen.add(node)
 
 
-def to_networkx(
-    graph: t.Graph, query_edges: Iterable[tuple[int, int, float]] = ()
-) -> "nx.Graph[int]":
+def to_networkx(graph: t.Graph) -> "nx.Graph[int]":
     """a new ``networkx.Graph`` with the nodes and edges of the graph, the weights as edge attribute ``weight``
 
     networkx is an optional dependency (extra ``networkx``), only imported here.
 
-    :param query_edges: additional edges ``(node, neighbour, weight)``
     :raises ImportError: when networkx is not installed
     """
     try:
         import networkx as nx
     except ImportError as error:
         raise ImportError(
-            "Converting the visibility graph requires networkx: "
+            "Converting a graph to networkx requires networkx: "
             'pip install "extremitypathfinder[networkx]"'
         ) from error
     nx_graph: nx.Graph[int] = nx.Graph()
     # all nodes, also those without edges
     nx_graph.add_nodes_from(graph)
     nx_graph.add_weighted_edges_from(graph_edges(graph))
-    nx_graph.add_weighted_edges_from(query_edges)
     return nx_graph
 
 

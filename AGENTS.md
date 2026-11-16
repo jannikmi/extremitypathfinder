@@ -7,7 +7,8 @@ This file is short on purpose. The details are in the contributing guide (`docs/
 
 `extremitypathfinder` is a Python package for exact Euclidean shortest paths in 2D polygon or grid environments,
 based on visibility graphs. Entry point: `PolygonEnvironment` (prepare an environment once, then query paths quickly).
-Runtime dependency: numpy. Numba is an optional accelerator, networkx and shapely are optional extras. Managed with uv, flat layout (no `src/`).
+Runtime dependency: numpy. Numba is an optional accelerator, networkx and shapely are
+optional extras. Managed with uv, flat layout (no `src/`).
 Supported Python versions: `requires-python` in `pyproject.toml`.
 
 ## Commands

@@ -118,3 +118,15 @@ def test_search_result_edges():
         assert {frozenset((u, v)): w for u, v, w in edges} == expected
         assert len(edges) == len(expected)
         assert all(type(w) is float for _, _, w in edges)
+
+
+def test_conversion_without_networkx_names_the_extra(monkeypatch):
+    # in this process (measured by the coverage), cf. test_without_networkx
+    environment = PolygonEnvironment(*POLY_ENV_PARAMS)
+    indirect_cases = [c for c in TEST_DATA_POLY_ENV if len(c[1][0]) > 2]
+    result = environment.search(*indirect_cases[0][0])
+    assert result.graph is not None
+    monkeypatch.setitem(sys.modules, "networkx", None)
+    for convert in (environment.to_networkx, result.to_networkx):
+        with pytest.raises(ImportError, match=r"extremitypathfinder\[networkx\]"):
+            convert()

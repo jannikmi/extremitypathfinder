@@ -270,7 +270,10 @@ def test_search_does_not_copy_the_visibility_graph(monkeypatch):
     environment = PolygonEnvironment(*POLY_ENV_PARAMS)
 
     class NotCopyable(dict):
-        """a graph failing when a query iterates its items or copies it (it only looks up the neighbours)"""
+        """a graph failing when a query iterates its items or copies it (it only looks up the neighbours)
+
+        Does not catch every way of copying (e.g. ``dict(graph)``), only the usual ones.
+        """
 
         def fail(self, *args, **kwargs):
             raise AssertionError("the visibility graph must not be copied by a query")

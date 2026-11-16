@@ -45,7 +45,11 @@ def _run_in_threads(fct, nr_threads=NR_THREADS):
 
 
 def _graph_state(environment):
-    return environment.graph
+    # a snapshot with the order of the nodes and neighbours
+    return [
+        (node, list(neighbours.items()))
+        for node, neighbours in environment.graph.items()
+    ]
 
 
 def test_free_threading():

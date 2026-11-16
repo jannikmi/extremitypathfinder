@@ -77,7 +77,7 @@ def main():
     graph = env.graph
     print(
         f"{len(holes)} holes, {len(env.extremity_indices)} extremities, "
-        f"graph: {graph.number_of_nodes()} nodes, {graph.number_of_edges()} edges"
+        f"graph: {len(graph)} nodes, {len(env.edges())} edges"
     )
     print(f"preparation: {t_prep:.2f} s")
 
@@ -89,12 +89,12 @@ def main():
 
     t_start = time.perf_counter()
     for _ in range(args.queries):
-        graph.copy()
+        {node: dict(neighbours) for node, neighbours in graph.items()}
     t_copy = (time.perf_counter() - t_start) / args.queries
 
     print(f"query (avg. over {args.queries}): {t_query * 1e3:.1f} ms")
     print(
-        f"graph.copy() (not done by queries): {t_copy * 1e3:.1f} ms ({100 * t_copy / t_query:.0f}% of a query)"
+        f"copy of the graph (not done by queries): {t_copy * 1e3:.1f} ms ({100 * t_copy / t_query:.0f}% of a query)"
     )
 
     if args.profile:

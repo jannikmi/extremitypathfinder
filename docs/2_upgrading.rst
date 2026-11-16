@@ -105,7 +105,7 @@ Install it with ``pip install "extremitypathfinder[networkx]"`` to convert the g
    :header-rows: 1
    :widths: 50 50
 
-   * - 2.x
+   * - 2.x and 3.0
      - 3.x
    * - ``env.graph`` (a ``networkx.Graph``), e.g. ``nx.connected_components(env.graph)``
      - ``env.to_networkx()``, e.g. ``nx.connected_components(env.to_networkx())``
