@@ -190,7 +190,12 @@ The visibility graph ``environment.graph`` maps every node to its neighbours and
 (``{node: {neighbour: length}}``, every edge in both directions).
 The nodes are the indices of the extremities in ``environment.coords``. Start and goal points are not part of it.
 ``SearchResult.graph`` is the search graph of one query in the same form: the visibility graph and the edges of start
-and goal.
+and goal. ``environment.edges()`` and ``result.edges()`` list every edge once as ``(node, neighbour, length)``:
+
+.. code-block:: python
+
+    for node, neighbour, length in environment.edges():
+        print(environment.coords[node], environment.coords[neighbour], length)
 
 To run your own NetworkX algorithms, convert the graphs with ``environment.to_networkx()``
 or ``result.to_networkx()``: a new ``networkx.Graph`` with the length of an edge as attribute ``weight``.

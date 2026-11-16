@@ -8,6 +8,7 @@ BREAKING: the visibility graph is no ``networkx.Graph`` anymore, and networkx is
 - ``environment.graph`` is a dict of dicts: node -> neighbour -> edge length, every edge in both directions.
   It needs a fraction of the memory of the networkx graph, which was most of the memory of a large environment.
   ``SearchResult.graph`` (the search graph of a query) has the same form. Paths and lengths stay the same.
+- new ``PolygonEnvironment.edges()`` and ``SearchResult.edges()`` list every edge once as ``(node, neighbour, length)``.
 - new ``PolygonEnvironment.to_networkx()`` and ``SearchResult.to_networkx()`` convert them into a new ``networkx.Graph``
   (edge attribute ``weight``) for own networkx algorithms. They need the new extra ``networkx``:
   ``pip install "extremitypathfinder[networkx]"``.

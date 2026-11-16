@@ -61,7 +61,8 @@ def test_search_result_without_graph_search_to_networkx():
 
 def test_graph_edges_are_each_edge_once():
     environment = PolygonEnvironment(*POLY_ENV_PARAMS)
-    edges = list(graph_edges(environment.graph))
+    edges = environment.edges()
+    assert edges == list(graph_edges(environment.graph))
     # the order of networkx for the same dicts (the order of the file format)
     assert edges == list(environment.to_networkx().edges(data="weight"))
     assert len({frozenset((u, v)) for u, v, _ in edges}) == len(edges)
@@ -101,3 +102,19 @@ def test_without_networkx(tmp_path):
         "        raise AssertionError('no ImportError')\n"
     )
     subprocess.run([sys.executable, "-c", code], check=True)
+
+
+def test_search_result_edges():
+    environment = PolygonEnvironment(*POLY_ENV_PARAMS)
+    assert environment.search(*DIRECT_QUERY_POLY_ENV).edges() is None
+    indirect_cases = [c for c in TEST_DATA_POLY_ENV if len(c[1][0]) > 2]
+    for (start, goal), _ in indirect_cases:
+        result = environment.search(start, goal)
+        edges = result.edges()
+        assert edges == list(result.to_networkx().edges(data="weight"))
+        # the visibility graph and the query edges, each once, the lengths as Python floats
+        expected = {frozenset((u, v)): w for u, v, w in environment.edges()}
+        expected |= {frozenset((u, v)): w for u, v, w in result.query_edges}
+        assert {frozenset((u, v)): w for u, v, w in edges} == expected
+        assert len(edges) == len(expected)
+        assert all(type(w) is float for _, _, w in edges)

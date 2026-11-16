@@ -42,7 +42,7 @@ class SearchResult:
     * ``graph``: the search graph (the visibility graph extended by the query edges),
       as dicts like :attr:`PolygonEnvironment.graph`: node -> neighbour -> edge length, every edge in both directions.
       Only built on first access (a copy of the visibility graph of the environment at that time).
-      ``None`` without a graph search. :meth:`to_networkx` converts it.
+      ``None`` without a graph search. :meth:`edges` lists every edge once, :meth:`to_networkx` converts it.
     """
 
     path: Path
@@ -65,10 +65,21 @@ class SearchResult:
         graph = {
             node: dict(neighbours) for node, neighbours in self.visibility_graph.items()
         }
-        for u, v, weight in self.query_edges:
+        for u, v, length in self.query_edges:
+            weight = float(length)
             graph.setdefault(u, {})[v] = weight
             graph.setdefault(v, {})[u] = weight
         return graph
+
+    def edges(self) -> list[tuple[int, int, float]] | None:
+        """the edges ``(node, neighbour, length)`` of the search graph, each edge once, ``None`` without a graph search
+
+        In the order of the nodes and their neighbours in ``graph`` (cf. :meth:`PolygonEnvironment.edges`).
+        """
+        graph = self.graph
+        if graph is None:
+            return None
+        return list(utils.graph_edges(graph))
 
     def to_networkx(self) -> "nx.Graph[int] | None":
         """the search graph as a new ``networkx.Graph`` (edge attribute ``weight``), ``None`` without a graph search

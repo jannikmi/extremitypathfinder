@@ -116,7 +116,7 @@ Install it with ``pip install "extremitypathfinder[networkx]"`` to convert the g
    * - ``env.graph.neighbors(node)``, ``env.graph[node][neighbour]["weight"]``
      - ``env.graph[node]``, ``env.graph[node][neighbour]``
    * - ``env.graph.edges(data="weight")``
-     - ``env.to_networkx().edges(data="weight")``
+     - ``env.edges()``
 
 
 Pickled environments

@@ -48,7 +48,8 @@ class PolygonEnvironment:
     * ``extremity_indices``: the indices of all extremities in ``coords`` (at most one per vertex position)
     * ``graph``: the precomputed visibility graph of the extremities, as dicts:
       node (the index of an extremity in ``coords``) -> neighbour -> edge length (Euclidean distance),
-      every edge in both directions. :meth:`to_networkx` converts it into a networkx graph.
+      every edge in both directions. :meth:`edges` lists every edge once,
+      :meth:`to_networkx` converts it into a networkx graph.
     * ``points``: the vertex positions within the map and the free space around them
       (cf. :mod:`extremitypathfinder.wedges`)
 
@@ -291,6 +292,13 @@ class PolygonEnvironment:
         environment._store_polygons(stored.boundary, stored.holes)
         environment.graph = storage.build_graph(stored, environment.extremity_indices)
         return environment
+
+    def edges(self) -> list[tuple[int, int, float]]:
+        """the edges ``(node, neighbour, length)`` of the visibility graph ``graph``, each edge once
+
+        In a deterministic order: the order of the nodes and their neighbours in ``graph``.
+        """
+        return list(utils.graph_edges(self.graph))
 
     def to_networkx(self) -> "nx.Graph[int]":
         """the visibility graph as a new ``networkx.Graph``, e.g. to run own networkx algorithms
