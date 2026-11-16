@@ -313,7 +313,7 @@ def _environment_state(boundary, holes, queries):
     ],
 )
 def test_numeric_types_give_the_float64_results(dtype, scale):
-    """input of any numeric type is converted to float64 without loss and gives the results of these float64 values"""
+    """input of other numeric types gives the results of the same values given as float64"""
 
     def convert(points):
         return (np.array(points) * scale).astype(dtype)
@@ -333,7 +333,9 @@ def test_numeric_types_give_the_float64_results(dtype, scale):
     # also as lists of Python numbers (numpy scalars as Python float or int)
     assert (
         _environment_state(
-            boundary.tolist(), [hole.tolist() for hole in holes], queries
+            boundary.tolist(),
+            [hole.tolist() for hole in holes],
+            [(start.tolist(), goal.tolist()) for start, goal in queries],
         )
         == as_float64
     )

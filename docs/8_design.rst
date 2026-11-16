@@ -760,11 +760,11 @@ Numerical Policy
 ================
 
 - All coordinates are ``float64``. Any finite coordinate scale is supported. Input of other numeric types
-  (integers, ``float32``) is converted, without loss for ``float32`` and integers up to 2^53 in magnitude.
-  There is no computation in lower precision (e.g. ``float32``, as in some ports of Polyanya) or in integers:
+  (integers, ``float32``, ``float16``) is converted, without loss for ``float32``, ``float16`` and integers
+  up to 2^53 in magnitude. There is no computation in lower precision (e.g. ``float32``) or in integers:
   rounding errors of ``float32`` would make the exact contacts unreliable and cut obstacle corners (#3),
-  the coordinate arrays are not what limits the speed or memory, and a second numeric type would double the code
-  paths to keep identical with and without Numba. ``float32`` coordinates computed in ``float64`` lose nothing.
+  distances and angle representations need floats anyway, and a second numeric type would double the code
+  paths to keep identical with and without Numba.
 - **Contacts are exact**: polygons touch when coordinates are exactly equal or a vertex lies exactly on an edge
   (exact cross product test, or angle representations exactly 180 degree apart, ``_lies_on_edge()``).
   Near-contacts do not block. This makes the behaviour reproducible and independent of a tolerance parameter.
