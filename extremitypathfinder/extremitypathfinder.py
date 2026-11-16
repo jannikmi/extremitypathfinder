@@ -1,5 +1,4 @@
 import os
-import pickle
 from collections.abc import Iterable
 from typing import Self, cast
 
@@ -7,7 +6,6 @@ import numpy as np
 
 from extremitypathfinder import configs, queries, storage, utils
 from extremitypathfinder import types as t
-from extremitypathfinder.configs import DEFAULT_PICKLE_NAME
 from extremitypathfinder.queries import SearchResult
 from extremitypathfinder.types import (
     InputCoord,
@@ -249,7 +247,7 @@ class PolygonEnvironment:
 
         The recommended way to keep a prepared environment: a documented ``.npz`` file with only the polygons
         and the visibility graph (the extremities, the edges and their lengths).
-        Unlike a pickle (:meth:`export_pickle`) it can be loaded by later versions of this package
+        Unlike a pickle of the environment it can be loaded by later versions of this package
         (as long as the visibility graph does not change), and loading it never executes code.
         The path is used as given, a missing extension ``.npz`` is not added.
 
@@ -287,18 +285,6 @@ class PolygonEnvironment:
         environment._store_polygons(stored.boundary, stored.holes)
         environment.graph = storage.build_graph(stored, environment.extremity_indices)
         return environment
-
-    def export_pickle(self, path: str = DEFAULT_PICKLE_NAME) -> str:
-        """stores the environment with its visibility graph in a pickle file (cf. :func:`load_pickle`)
-
-        Pickles can only be loaded with the same version of this package and may execute code when loaded:
-        prefer :meth:`save` and :meth:`load`.
-
-        :return: the path of the file
-        """
-        with open(path, "wb") as f:
-            pickle.dump(self, f)
-        return path
 
     def __getstate__(self) -> t.PickleState:
         """adds the pickle format version to the state. Subclasses overriding this must call ``super()``"""

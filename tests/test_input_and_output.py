@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from extremitypathfinder import PolygonEnvironment, load_pickle
+from extremitypathfinder import PolygonEnvironment
 
 BOUNDARY = [(0, 0), (10, 0), (10, 10), (0, 10)]
 HOLE = [(4, 4), (6, 4), (6, 6), (4, 6)]
@@ -204,15 +204,6 @@ def test_grid_without_obstacles_accepts_a_generator():
     environment = PolygonEnvironment.from_grid(np.int64(3), 2, iter(()))
     assert environment.holes == []
     assert environment.boundary_polygon.tolist() == [[0, 0], [3, 0], [3, 2], [0, 2]]
-
-
-def test_pickle_export_and_import_do_not_print(environment, tmp_path, capsys):
-    path = str(tmp_path / "environment.pickle")
-    assert environment.export_pickle(path=path) == path
-    load_pickle(path=path)
-    captured = capsys.readouterr()
-    assert captured.out == ""
-    assert captured.err == ""
 
 
 def test_grid_with_narrow_integer_sizes():

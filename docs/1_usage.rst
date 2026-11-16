@@ -398,9 +398,9 @@ the environment). The loaded environment gives the same paths and lengths.
 Loading checks the structure of the file (``ValueError``), but neither validates the polygons again
 nor verifies that the graph is the visibility graph of the polygons: load files from sources you trust.
 
-Pickles (``export_pickle()`` and ``load_pickle()``) are still available, but can only be loaded with the same
-version of this package (e.g. environments pickled with 2.x raise a ``ValueError``) and may execute code when loaded:
-only load pickles you wrote yourself. Prefer ``save()`` and ``load()``.
+Environments can also be pickled (``pickle``, ``copy``, passing them to worker processes), which is faster to load
+but only meant for trusted data of the same version of this package: pickles of other versions raise a ``ValueError``
+(e.g. those of 2.x) and loading a pickle may execute code. Use ``save()`` and ``load()`` to keep environments.
 
 
 

@@ -40,11 +40,11 @@ numba | numba_replacements
 
 | Module | Change it to … |
 | --- | --- |
-| `__init__.py` | change the public API (`PolygonEnvironment`, `SearchResult`, `load_pickle`) |
+| `__init__.py` | change the public API (`PolygonEnvironment`, `SearchResult`) |
 | `extremitypathfinder.py` | change the public methods of `PolygonEnvironment` (it owns all state, checks the input and delegates) |
 | `queries.py` | change how a query is run: start and goal visibility, graph search, distance matrix, `SearchResult` |
 | `storage.py` | change the stable file format of `save()` and `load()` (a new `FILE_FORMAT_VERSION` if the graph semantics change) |
-| `utils.py` | change input validation and orientation, visibility (`find_visible()`), the graph, A* (`astar_path()`), grids, JSON and pickle I/O |
+| `utils.py` | change input validation and orientation, visibility (`find_visible()`), the graph, A* (`astar_path()`), grids, JSON I/O |
 | `wedges.py` | change what happens at vertices: points, free wedges, which vertices are extremities |
 | `li_chao_tree.py` | change how AREA finds the candidates behind an edge: the Li Chao tree (`blocked_candidates()`) |
 | `utils_numba.py` | change the innermost numerical loops (angle representations, intersection tests) |

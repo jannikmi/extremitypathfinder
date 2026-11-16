@@ -47,8 +47,11 @@ BREAKING: malformed input is always rejected with a clear error, also with ``val
   and grids without any free cell (``TypeError`` or ``ValueError`` instead of ``AssertionError``
   and ``AttributeError``). The blocked cells may be any iterable (e.g. a generator, previously a ``TypeError``).
 
-BREAKING: ``export_pickle()`` and ``load_pickle()`` no longer print to the standard output.
-``export_pickle()`` returns the path of the file.
+BREAKING: ``export_pickle()``, ``load_pickle()`` and the import ``from extremitypathfinder import load_pickle`` are removed
+(#245). Store environments with ``environment.save(path)`` and load them with ``PolygonEnvironment.load(path)``
+(a stable file format, cf. below) and recreate stored pickles from their polygons.
+Environments can still be pickled and copied (``pickle``, ``copy``, worker processes), but such pickles can only be loaded
+by the same version of this package.
 
 other changes:
 
@@ -60,7 +63,6 @@ other changes:
   edges and weights, ``ValueError``) and rebuilds the data structures computed from the polygons instead of computing the graph again
   (faster than the preparation, much faster with Numba).
   The loaded environment gives the same graph, paths and lengths.
-  ``export_pickle()`` and ``load_pickle()`` stay.
 - the package ships type information (``py.typed``, PEP 561) and is checked with ``mypy --strict``: type checkers now
   use its annotations. Corrected invalid and wrong annotations (e.g. ``utils.convert_grid()``).
 - the worst case of the visibility computation is bounded (#216): environments with many extremities in front of

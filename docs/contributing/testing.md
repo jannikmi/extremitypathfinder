@@ -107,7 +107,7 @@ when you change `utils_numba.py` or code calling it.
   | `test_input_and_output.py` | malformed input is always rejected, results are Python floats |
   | `test_acceleration.py` | the execution backend (Numba or not) |
   | `test_exact_decisions.py`, `exact.py` | floating point decisions exact on integer coordinates, exact references |
-  | `test_pickle.py`, `test_file_format.py` | pickle export, the stable file format (`save()`, `load()`, rejected files) |
+  | `test_pickle.py`, `test_file_format.py` | pickling and copying, the stable file format (`save()`, `load()`, rejected files) |
   | `test_plotting.py`, `cli_test.py` | plotting, command line interface |
   | `test_release.py`, `test_validate_release.py` | release tooling (`scripts/`) |
 

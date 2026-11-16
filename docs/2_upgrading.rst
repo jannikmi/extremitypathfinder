@@ -98,12 +98,12 @@ Both functions are in ``extremitypathfinder.plotting``. Each exports one file an
 Pickled environments
 --------------------
 
-Environments pickled with 2.x cannot be loaded anymore.
-``load_pickle()`` raises a ``ValueError`` for them; pickles of a 2.x ``PlottingEnvironment``
-fail earlier, because that class no longer exists.
-Recreate the environments from their polygons and store them again. Prefer ``save()`` and ``PolygonEnvironment.load()``
-over ``export_pickle()``: their file format does not depend on the internal attributes
-(cf. :ref:`usage <usage>`).
+``export_pickle()`` and ``load_pickle()`` are removed (also the import ``from extremitypathfinder import load_pickle``).
+Store environments with ``environment.save(path)`` and load them with ``PolygonEnvironment.load(path)``:
+the file format does not depend on the internal attributes (cf. :ref:`usage <usage>`).
+Environments pickled with 2.x cannot be loaded anymore: ``pickle.load()`` raises a ``ValueError`` for them;
+pickles of a 2.x ``PlottingEnvironment`` fail earlier, because that class no longer exists.
+Recreate the environments from their polygons and store them again with ``save()``.
 
 
 Different results: touching obstacles block paths

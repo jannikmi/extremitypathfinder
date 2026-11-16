@@ -769,7 +769,8 @@ stored: the zip format already detects corruption, and a checksum in the same fi
 The load does not verify that the graph is the visibility graph of the polygons (that needs the preparation),
 and does not validate the polygons again.
 
-Pickles (``export_pickle()``) store the internal attributes. Every pickle stores ``configs.PICKLE_FORMAT_VERSION``,
+Pickling an environment (``pickle``, ``copy``, passing it to worker processes) stores the internal attributes.
+There are no helper functions for pickle files: ``save()`` is the way to keep an environment. Every pickle stores ``configs.PICKLE_FORMAT_VERSION``,
 loading a pickle with a different version raises a ``ValueError`` with instructions instead of producing an
 environment with missing or outdated attributes. Increase the version whenever the stored attributes change
 incompatibly.

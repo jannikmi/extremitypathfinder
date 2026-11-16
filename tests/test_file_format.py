@@ -166,7 +166,7 @@ def test_file_does_not_exist(tmp_path):
 
 def test_pickle_file_is_rejected(tmp_path):
     environment = PolygonEnvironment(*POLY_ENV_PARAMS)
-    environment.export_pickle(path=str(tmp_path / "env.pickle"))
+    (tmp_path / "env.pickle").write_bytes(pickle.dumps(environment))
     with pytest.raises(ValueError, match="not an environment file.*pickle"):
         PolygonEnvironment.load(tmp_path / "env.pickle")
 
