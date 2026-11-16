@@ -27,7 +27,8 @@ Agents are contributors: the whole guide applies to them. The rules below are ad
   (cf. [Workflow](workflow.md#reviews)).
 - Run `make check` before declaring the work done. Report failing checks honestly, never weaken or skip a test
   to make it pass.
-- Never bump the version, push tags, publish releases, edit CI secrets or the release workflows, or merge pull requests.
+- Never bump the version, push tags, publish releases, edit CI secrets or merge pull requests.
+  Edits of `.github/workflows/` are allowed, but name them and their reasoning in the pull request.
 - Keep plans, notes and scratch files out of the repository. Lasting insights about how to work on this code belong
   in this guide (cf. [Workflow](workflow.md)).
 - Tool-specific configuration (e.g. `CLAUDE.md`, `.claude/`) only points to or automates this guide.

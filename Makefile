@@ -24,6 +24,10 @@ check:
 tox:
 	@uv run tox
 
+# coverage of the core algorithm in both modes (cf. docs/contributing/testing.md)
+coverage:
+	@uv run tox -e cov-jit-off,cov-no-numba,coverage
+
 hook:
 	@uv run pre-commit install
 	@uv run pre-commit run --all-files

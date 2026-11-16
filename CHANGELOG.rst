@@ -90,6 +90,8 @@ other changes:
   the crossing point). The crossing test solves its 2×2 system in closed form instead of with ``numpy.linalg.solve``
   and is exact for integer coordinates: valid polygons touching themselves with a vertex on an edge were rejected
   for one of the two vertex numberings.
+- documentation: the accepted numeric types of the coordinates (integers, ``float32``, ``float16``: converted to
+  ``float64``) and why all computations use ``float64`` (no ``float32`` or integer mode, #274).
 - documentation: ``verify=False`` does not help with query points within rounding error of an edge (#239):
   their path may be wrong and depend on the query direction. Move them onto the edge or away from it.
 - documentation: agent clearance (#167), a recipe for agents that keep a minimum distance to the obstacles:
@@ -172,6 +174,8 @@ bugfixes:
 
 internal:
 
+- tests: polygons and query points given as integers, ``float32`` or ``float16`` give the results of the same values
+  given as ``float64``.
 - the query algorithms (start and goal visibility, graph search, distance matrix) moved from the root module
   ``extremitypathfinder.py`` into the new module ``queries.py``, together with ``SearchResult``
   (still importable from ``extremitypathfinder`` and ``extremitypathfinder.extremitypathfinder``).

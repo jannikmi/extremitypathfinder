@@ -10,6 +10,7 @@ from matplotlib.colors import to_rgba
 from extremitypathfinder import PolygonEnvironment
 from extremitypathfinder.plotting import (
     PlotStyle,
+    _export,
     draw,
     draw_search,
     plot_environment,
@@ -141,6 +142,15 @@ def test_group_ids_in_svg_export(environment, tmp_path):
     svg = output.read_text(encoding="utf-8")
     for gid in ("boundary", "obstacles", "visibility-graph", "path", "start", "goal"):
         assert f'id="{gid}"' in svg
+
+
+def test_export_of_the_axes_of_a_sub_figure_is_rejected(tmp_path):
+    # a sub-figure cannot be saved on its own
+    ax = plt.figure().subfigures().subplots()
+    with pytest.raises(TypeError, match="SubFigure"):
+        _export(ax, tmp_path, None, "environment")
+    assert not list(tmp_path.iterdir())
+    plt.close("all")
 
 
 def test_draw_search(environment):
