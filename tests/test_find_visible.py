@@ -211,15 +211,15 @@ def _visibility_relation(boundary_data) -> set[tuple[tuple[float, float], ...]]:
     for origin in extremity_indices:
         representations, distances = utils.cmp_reps_n_distances(origin, coords)
         candidates = set(extremity_indices.tolist()) - {int(origin)}
-        _, visible_idxs = utils._find_visible_and_in_front(
+        visible_idxs = utils._find_graph_neighbours(
             origin,
             candidates,
-            set(),
             coords,
             representations,
             distances,
             edge_vertex_idxs,
             points,
+            reduce=False,
         )
         for i in visible_idxs:
             relation.add((tuple(coords[origin]), tuple(coords[i])))

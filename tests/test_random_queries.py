@@ -183,15 +183,15 @@ def _unpruned_graph(environment) -> nx.Graph:
     for origin in extremities:
         representations, distances = utils.cmp_reps_n_distances(origin, coords)
         candidates = set(extremities.tolist()) - {int(origin)}
-        _, visible = utils._find_visible_and_in_front(
+        visible = utils._find_graph_neighbours(
             origin,
             candidates,
-            set(),
             coords,
             representations,
             distances,
             environment.edge_vertex_idxs,
             environment.points,
+            reduce=False,
         )
         for i in visible:
             graph.add_edge(int(origin), int(i), weight=float(distances[i]))
@@ -257,6 +257,56 @@ def test_paths_between_extremities_match_the_unpruned_graph(environment):
             assert length is None, f"{start} - {goal}"
         else:
             assert length == pytest.approx(expected, rel=1e-12), f"{start} - {goal}"
+
+
+def _grid_rotated_slightly():
+    """a grid rotated by 1e-9 rad: many extremities lie almost, but not exactly, on one line (#263)
+
+    E.g. the extremities near (6.1, 5.07), (3.1, 5.07) and (2.1, 5.07): the first lies in front of the second.
+    AREA keeps only the closest candidate per direction, so the second hid the third (same angle representation)
+    as long as it stayed a candidate, although the line of sight passes it on its bounding ray (rule 3).
+    """
+    cells = [
+        (0, 4),
+        (0, 5),
+        (1, 2),
+        (1, 3),
+        (2, 5),
+        (2, 6),
+        (3, 1),
+        (3, 2),
+        (5, 5),
+        (6, 0),
+    ]
+    cells += [
+        (6, 2),
+        (6, 6),
+        (7, 3),
+        (7, 5),
+        (8, 5),
+        (8, 6),
+        (9, 5),
+        (10, 0),
+        (10, 1),
+        (10, 6),
+    ]
+    grid = PolygonEnvironment.from_grid(11, 7, cells)
+    c, s = cos(1e-9), sin(1e-9)
+
+    def transform(p):
+        return (c * p[0] - s * p[1] + 0.1, s * p[0] + c * p[1] + 0.07)
+
+    boundary = [transform(p) for p in grid.boundary_polygon.tolist()]
+    holes = [[transform(p) for p in hole] for hole in grid.holes]
+    return PolygonEnvironment(boundary, holes)
+
+
+def test_extremities_in_front_do_not_hide_the_ones_behind_them():
+    """#263: the extremities the origin lies in front of are skipped before AREA, like those lying in front of it.
+    As a candidate, such an extremity hid the farther extremities in the same direction, and its own edge was removed
+    afterwards: shortest paths through them were lost (e.g. 7.06 instead of 4.41)."""
+    environment = _grid_rotated_slightly()
+    test_paths_between_extremities_match_the_unpruned_graph(environment)
 
 
 def _transformed(env_params, transform):

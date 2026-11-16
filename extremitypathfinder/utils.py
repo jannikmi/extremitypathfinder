@@ -8,7 +8,6 @@ from itertools import count
 from math import inf
 from typing import TYPE_CHECKING, Any, cast
 
-import networkx as nx
 import numpy as np
 import numpy.typing as npt
 
@@ -565,52 +564,55 @@ def find_visible_from(
     )
 
 
-def _find_visible_and_in_front(
+def _find_graph_neighbours(
     origin: int,
     candidates: set[int],
-    candidates_in_front: set[int],
     coords: np.ndarray,
     representations: np.ndarray,
     distances: np.ndarray,
     edge_vertex_idxs: np.ndarray,
     points: Points,
-) -> tuple[set[int], set[int]]:
-    """finds the extremities visible from an extremity and the extremities lying "in front" of it
+    reduce: bool = True,
+) -> set[int]:
+    """finds the extremities visible from an extremity that are connected to it in the visibility graph
 
-    :param candidates: the extremities to check for visibility
-    :param candidates_in_front: the extremities to check whether they lie "in front"
-    :return: the extremities lying in front, the visible extremities (not lying in front)
+    :param candidates: the extremities to check
+    :param reduce: whether to skip the candidates lying "in front" of the origin and those the origin lies in front of
+        (the graph reduction, cf. ``compute_graph()``)
+    :return: the visible extremities, without those skipped
     """
     point = points.by_idx[origin]
-    # as shown in [1, Ch. II 4.4.2 "Property One"]: Starting from any point lying "in front of" an extremity e,
-    # such that both bounding rays of its wedge are visible, one will never visit e, because everything is
-    # reachable on a shorter path without e (except e itself).
-    # An extremity e1 lying in the area "in front of" extremity e hence is never the next vertex
-    # in the shortest path coming from e.
-    # And also in reverse: when coming from e1 everything else than e itself can be reached faster
-    # without visiting e.
-    # -> e1 and e do not have to be connected in the graph.
-    # The area "in front of" e: opposite of the angle range outside of the wedge of e (cf. ``Point.in_front()``),
-    # extremities exactly opposite of a bounding ray do not lie in front (those edges must not get deleted)
-    # IMPORTANT: for start and goal only one direction holds: they are endpoints of the path.
-    # A query point is not connected to the extremities it lies in front of (#222, cf. ``search()``),
-    # but when it happens to be an extremity, edges to the (visible) extremities in front of it MUST be added!
-    # IMPORTANT: check all extremities here, not just current candidates
-    origin_position = coords[origin]
-    idxs = np.fromiter(
-        candidates_in_front, dtype=np.int64, count=len(candidates_in_front)
-    )
-    in_front = point.in_front_mask(
-        representations[idxs], coords[idxs] - origin_position
-    )
-    candidates_in_front = set(idxs[in_front].tolist())
-    # do not consider points lying in front when looking for visible extremities,
-    # even if they are actually visible.
-    candidates = candidates.difference(candidates_in_front)
-    if point.extremity_wedge is None:  # pragma: no cover
-        # unreachable: only extremities are used as origin (narrows the type for mypy)
+    if point.extremity_wedge is None:
+        # only extremities are used as origin
         raise ValueError(f"The origin {origin} is no extremity.")
-    visible_idxs = find_visible_from(
+    if reduce:
+        # as shown in [1, Ch. II 4.4.2 "Property One"]: Starting from any point lying "in front of" an extremity e,
+        # such that both bounding rays of its wedge are visible, one will never visit e, because everything is
+        # reachable on a shorter path without e (except e itself).
+        # An extremity e1 lying in the area "in front of" extremity e hence is never the next vertex
+        # in the shortest path coming from e.
+        # And also in reverse: when coming from e1 everything else than e itself can be reached faster
+        # without visiting e.
+        # -> e1 and e do not have to be connected in the graph, whichever of them lies in front of the other.
+        # The area "in front of" e: opposite of the angle range outside of the wedge of e (cf. ``Point.in_front()``),
+        # extremities exactly opposite of a bounding ray do not lie in front (those edges must not get deleted)
+        # IMPORTANT: for start and goal only one direction holds: they are endpoints of the path.
+        # A query point is not connected to the extremities it lies in front of (#222, cf. ``search()``),
+        # but when it happens to be an extremity, edges to the (visible) extremities in front of it MUST be added!
+        # Both directions are tested before the visibility computation: fewer candidates make it faster (#263).
+        # Note: do not consider points lying in front when looking for visible extremities, even if they are visible.
+        # AREA keeps only the closest candidate per direction: skipping a candidate can make a farther one
+        # in the same direction the closest one. Whether its line of sight passes the skipped extremity
+        # is decided by the points (rule 3). As a candidate, the skipped extremity would hide it,
+        # although the edge to the skipped extremity itself is not kept (#263).
+        origin_position = coords[origin]
+        idxs = np.fromiter(candidates, dtype=np.int64, count=len(candidates))
+        in_front = point.in_front_mask(
+            representations[idxs], coords[idxs] - origin_position
+        )
+        in_front |= points.in_front_of(idxs, origin_position, coords, representations)
+        candidates = set(idxs[~in_front].tolist())
+    return find_visible_from(
         origin,
         point,
         [point.extremity_wedge],
@@ -621,7 +623,6 @@ def _find_visible_and_in_front(
         edge_vertex_idxs,
         points,
     )
-    return candidates_in_front, visible_idxs
 
 
 def edge_weight(
@@ -718,8 +719,6 @@ def compute_graph(
     # adding start and goal nodes at query time might connect them!
     graph.add_nodes_from(extremity_indices)
 
-    # Note: also the last extremity has to be checked (without candidates left):
-    # its graph neighbours lying "in front" of it must be disconnected
     for extr_ptr, origin_idx in enumerate(extremity_indices):
         vert_idx2repr, vert_idx2dist = cmp_reps_n_distances(origin_idx, coords)
         # optimisation: extremities are always visible to each other
@@ -728,26 +727,17 @@ def compute_graph(
         #  (must give the same result when algorithms are correct)
         # the origin extremity itself must also not be checked when looking for visible neighbours
         candidate_idxs = set(extremity_indices[extr_ptr + 1 :])
-        # Note: also the nodes previously connected to the current origin must be considered for removal
-        candidates_in_front = candidate_idxs | set(graph.neighbors(origin_idx))
-        idxs_in_front, visible_idxs = _find_visible_and_in_front(
+        # "thin out" the graph: both directions of the relation "in front" are tested here,
+        # so no edge has to be removed again when the other extremity becomes the origin (#263)
+        visible_idxs = _find_graph_neighbours(
             origin_idx,
             candidate_idxs,
-            candidates_in_front,
             coords,
             vert_idx2repr,
             vert_idx2dist,
             edge_vertex_idxs,
             points,
         )
-        # "thin out" the graph:
-        # remove already existing edges in the graph to the extremities in front
-        for i in idxs_in_front:
-            try:
-                graph.remove_edge(origin_idx, i)
-            except nx.exception.NetworkXError:
-                pass
-
         for i in visible_idxs:
             graph.add_edge(origin_idx, i, weight=vert_idx2dist[i])
 
