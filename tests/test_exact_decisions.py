@@ -221,6 +221,20 @@ def test_in_wedges_collinear_last_bit(ray, same):
         assert point.in_wedges_mask(np.array([same_rep]), same[None, :], [wedge]).all()
 
 
+def test_in_wedges_mask_of_a_single_ray_is_the_whole_circle():
+    """a wedge consisting of one ray (start == end) contains every direction, like ``in_closure()``"""
+    ray = np.array([1.0, 1.0])
+    rep = _rep(ray)
+    point = Point(0, 2, set(), [], None, [(ray, rep)])
+    vectors = np.array([[1.0, 0.0], [-1.0, 0.5], [0.0, -2.0], [-3.0, -3.0], [1.0, 1.0]])
+    reps = np.array([_rep(v) for v in vectors])
+    mask = point.in_wedges_mask(reps, vectors, [(rep, rep)])
+    assert mask.all()
+    assert [
+        point.in_wedges(float(r), v, [(rep, rep)]) for r, v in zip(reps, vectors)
+    ] == [True] * 5
+
+
 def test_in_front_mask_exactly_opposite_of_a_bounding_ray():
     """a direction exactly opposite of a bounding ray does not lie in front, even if its representation
     lies within the front range by a difference in the last bit: the vectorised test decides it like

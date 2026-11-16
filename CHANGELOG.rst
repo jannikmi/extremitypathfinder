@@ -52,6 +52,8 @@ BREAKING: ``export_pickle()`` and ``load_pickle()`` no longer print to the stand
 
 other changes:
 
+- the package ships type information (``py.typed``, PEP 561) and is checked with ``mypy --strict``: type checkers now
+  use its annotations. Corrected invalid and wrong annotations (e.g. ``utils.convert_grid()``).
 - the worst case of the visibility computation is bounded (#216): environments with many extremities in front of
   many long edges (e.g. small obstacles in front of long walls) took ``O(n m²)`` to prepare and ``O(n m)`` per query
   point (``n`` vertices, ``m`` extremities), now ``O(m n log² n)`` and ``O(n log² n)``.
@@ -88,6 +90,8 @@ other changes:
   the crossing point). The crossing test solves its 2×2 system in closed form instead of with ``numpy.linalg.solve``
   and is exact for integer coordinates: valid polygons touching themselves with a vertex on an edge were rejected
   for one of the two vertex numberings.
+- documentation: the accepted numeric types of the coordinates (integers, ``float32``, ``float16``: converted to
+  ``float64``) and why all computations use ``float64`` (no ``float32`` or integer mode, #274).
 - documentation: ``verify=False`` does not help with query points within rounding error of an edge (#239):
   their path may be wrong and depend on the query direction. Move them onto the edge or away from it.
 - documentation: agent clearance (#167), a recipe for agents that keep a minimum distance to the obstacles:
@@ -167,6 +171,8 @@ bugfixes:
 
 internal:
 
+- tests: polygons and query points given as integers, ``float32`` or ``float16`` give the results of the same values
+  given as ``float64``.
 - the query algorithms (start and goal visibility, graph search, distance matrix) moved from the root module
   ``extremitypathfinder.py`` into the new module ``queries.py``, together with ``SearchResult``
   (still importable from ``extremitypathfinder`` and ``extremitypathfinder.extremitypathfinder``).

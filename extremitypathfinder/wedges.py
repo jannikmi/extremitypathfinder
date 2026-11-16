@@ -60,11 +60,13 @@ RAY_WINDOW = 1e-12
 
 
 def _rep(vector: np.ndarray) -> float:
-    return _compute_repr_n_dist(vector)[0]
+    rep: float = _compute_repr_n_dist(vector)[0]
+    return rep
 
 
 def _cross(vector1: np.ndarray, vector2: np.ndarray) -> float:
-    return vector1[0] * vector2[1] - vector1[1] * vector2[0]
+    cross: float = vector1[0] * vector2[1] - vector1[1] * vector2[0]
+    return cross
 
 
 def in_closure(rep: float, wedge: Wedge) -> bool:
@@ -136,7 +138,7 @@ def free_wedges(
                 counts[incidence[0]] += 1
         arc_counts.append(counts)
 
-    blocking_counts = {}
+    blocking_counts: dict[int, set[int]] = {}
     for polygon_idx in polygon_idxs:
         polygon_counts = {counts[polygon_idx] for counts in arc_counts}
         if len(polygon_counts) == 1:
@@ -181,6 +183,15 @@ class Point:
     def is_extremity(self) -> bool:
         return self.extremity_wedge is not None
 
+    def _front_wedge(self) -> Wedge:
+        """the extremity wedge, which defines the "front": an error for a point that is no extremity"""
+        if self.extremity_wedge is None:
+            raise ValueError(
+                f"Point {self.idx} is no extremity (no free wedge larger than 180 degree): "
+                "only extremities have a front."
+            )
+        return self.extremity_wedge
+
     def rep(self, vector: np.ndarray) -> float:
         """the angle representation of the direction, identical to a ray with exactly the same direction"""
         rep = _ray_rep(vector, self.rays)
@@ -210,7 +221,7 @@ class Point:
         :param rep: the angle representation of the direction
         :param vector: the direction, to compare it exactly with the bounding rays
         """
-        start, end = self.extremity_wedge
+        start, end = self._front_wedge()
         if any(
             _cross(ray, vector) == 0.0 and np.dot(ray, vector) < 0.0
             for ray, ray_rep in self.rays
@@ -263,7 +274,7 @@ class Point:
         :param vectors: the directions
         :return: a boolean mask of the directions
         """
-        start, end = self.extremity_wedge
+        start, end = self._front_wedge()
         front_start = (end + 2.0) % 4.0
         size = ((start + 2.0) % 4.0 - front_start) % 4.0
         offsets = (reps - front_start) % 4.0
@@ -377,7 +388,9 @@ def _incidences(
     pairs = [
         get_neighbour_idxs(i, vertex_edge_idxs, edge_vertex_idxs) for i in vertex_idxs
     ]
-    pairs += [tuple(int(i) for i in edge_vertex_idxs[e]) for e in edge_idxs]
+    pairs += [
+        (int(edge_vertex_idxs[e, 0]), int(edge_vertex_idxs[e, 1])) for e in edge_idxs
+    ]
     return [
         (
             int(vertex_polygon_idxs[i_a]),
@@ -433,7 +446,7 @@ class Points:
         self.front_starts = np.full(len(coords), np.nan)
         self.front_sizes = np.full(len(coords), np.nan)
         for idx, point in self.by_idx.items():
-            if point.is_extremity:
+            if point.extremity_wedge is not None:
                 start, end = point.extremity_wedge
                 front_start = (end + 2.0) % 4.0
                 self.front_starts[idx] = front_start
@@ -520,7 +533,7 @@ class Points:
         reps = (representations[candidates] + 2.0) % 4.0
         sizes = self.front_sizes[candidates]
         offsets = (reps - self.front_starts[candidates]) % 4.0
-        in_front = (offsets > 0.0) & (offsets < sizes)
+        in_front: np.ndarray = (offsets > 0.0) & (offsets < sizes)
         # directions close to a bounding ray: the exact test
         near_start = (offsets < RAY_WINDOW) | (offsets > 4.0 - RAY_WINDOW)
         near_bound = near_start | (np.abs(offsets - sizes) < RAY_WINDOW)
@@ -560,7 +573,12 @@ class Points:
                 point = self.by_idx[candidate]
                 if not point.is_contact:
                     return True
-                wedges = [point.extremity_wedge]
+                extremity_wedge = point.extremity_wedge
+                if extremity_wedge is None:
+                    raise ValueError(
+                        f"The candidate {candidate} is no extremity: only extremities are candidates."
+                    )
+                wedges = [extremity_wedge]
             vector = origin_position - coords[candidate]
             return point.in_wedges(_rep(vector), vector, wedges)
 
@@ -618,7 +636,7 @@ def _resolvable(reps: list[float]) -> bool:
     return True
 
 
-def check_polygon_contacts(coords: np.ndarray):
+def check_polygon_contacts(coords: np.ndarray) -> None:
     """ensures that a polygon touching itself does not cross itself and has no overlapping edges
 
     * crossing at a vertex: a vertex lying on another edge with its neighbours on opposite sides

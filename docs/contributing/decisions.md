@@ -13,10 +13,10 @@ Decided trade-offs of the package, its benchmarks and releases, newest first, in
 
 Record only decisions that outlive their pull request and whose rejected options are likely to be proposed again,
 in the final state of the pull request. Leave out details fully explained on the page they affect.
-Leave out decisions whose outcome is documented elsewhere and that are not important enough to be remembered,
+Leave out decisions documented elsewhere that are not important enough to be remembered,
 e.g. the scope of a feature (a documentation recipe now, a parameter later on demand): the issue records them.
 An improvement (an optimisation, a fix, a feature) is no decision to record, even if a maintainer approved it:
-explain its reasoning where it is implemented, in the code or the documentation of the affected part.
+explain its reasoning in the code or the documentation of the affected part.
 
 Keep the entries correct when the referenced content moves or changes.
 A maintainer confirms an agent decision by changing **Decided by**.
@@ -25,13 +25,19 @@ the log states the current decisions (git keeps the history).
 Decisions about how we work on the project are in the [process decision log](decisions-process.md).
 Earlier decisions are described in the {ref}`Design Decisions <design_decisions>` and the issues linked there.
 
-## Prepared environments are stored in a versioned `.npz` file, checked structurally on load (#245)
+## All computations use float64, other numeric input is converted (#274)
+
+- **Decided by:** an agent
+- **Rejected:** computing in `float32` (breaks the exact contacts, #3); in integers (distances and angles need floats);
+  either as an option (doubles the code paths kept identical with and without Numba)
+- **Details:** Numerical Policy in the [engineering design](../8_design.rst)
+
+## Prepared environments are stored in a versioned `.npz` file (#245)
 
 - **Decided by:** a maintainer ([#245](https://github.com/jannikmi/extremitypathfinder/issues/245))
-- **Rejected:** JSON (larger, floats via text); a checksum of the coordinates
-  (the zip CRC-32 detects corruption, a checksum in the same file not tampering); keeping `export_pickle()` and
-  `load_pickle()` (a second, version-bound and unsafe way to store environments;
-  the major release breaks stored pickles anyway).
+- **Rejected:** JSON (larger, floats via text); a coordinate checksum (the zip CRC-32 detects corruption,
+  a checksum in the same file not tampering); `export_pickle()` and `load_pickle()` (a second, version-bound,
+  unsafe storage format; this major release breaks stored pickles anyway).
 
 ## The input is validated by default (#243)
 
@@ -47,8 +53,8 @@ Earlier decisions are described in the {ref}`Design Decisions <design_decisions>
 - **Rejected:** one Dijkstra search per start point (stopped when the graph nodes visible from all goals are settled).
   It gave identical lengths, but it is a second search algorithm to maintain, paths would need their own
   tie-breaking to equal those of `find_shortest_path()` (#237), and it was not consistently faster.
-  Measured on the environments of `prototypes/distance_matrix_profile.py` (random points, with Numba;
-  without Numba the same pattern), the time of `distance_matrix()` with Dijkstra / A* per pair:
+  Time of `distance_matrix()` with Dijkstra / A* per pair (`prototypes/distance_matrix_profile.py`, random points,
+  with Numba, without the same pattern):
 
   | vertices | 20 points | 100 points |
   | ---: | ---: | ---: |
@@ -56,7 +62,7 @@ Earlier decisions are described in the {ref}`Design Decisions <design_decisions>
   | 328 | 109 / 66 ms | 715 / 1,036 ms |
   | 904 | 554 / 173 ms | 2,932 / 2,895 ms |
 
-  Dijkstra settles most of the graph to reach goals all over the environment, A* only searches towards one goal.
+  Dijkstra settles most of the graph to reach goals all over the environment, A* searches towards one goal.
   A* is slower only for many points in small environments (up to 1.8 times).
 - **Consequences:** `distance_matrix()` and `search()` share the graph search (`queries.search_graph()`),
   so their paths and lengths are identical by construction, and returning paths (#237) needs no new search.
@@ -75,29 +81,27 @@ Earlier decisions are described in the {ref}`Design Decisions <design_decisions>
 
 - **Decided by:** a maintainer
 - **Rejected:** triangular expansion, Polyanya or continuous Dijkstra instead; an angular sweep, also only for
-  the worst case of AREA (#216: slower on the measured maps, no fitting package, none works with Numba,
+  the worst case (#216: slower on the measured maps, no fitting package, none works with Numba,
   needs edges that do not cross).
 - **Consequences:** the worst case of AREA is bounded within AREA instead: a tree over the candidates keeps
   the closest edges (#216), `O(m n log² n)` instead of `O(n m²)`, faster on the measured maps. Same results,
-  except that the edges whose angle range contains the direction (1, 0) compare directions without rotating them
-  (differences in the last bit).
+  except in the last bit for edges whose angle range contains the direction (1, 0).
 - **Details:** {ref}`Design Decisions <design_decisions>`, `prototypes/sweep_tree_overhead.py` (#216)
 
-## A release requires up-to-date benchmark results, checked when it is prepared, on its pull request and when it is tagged (#191)
+## A release requires up-to-date benchmark results, checked at preparation, on its pull request and at tagging (#191)
 
 - **Decided by:** a maintainer (the rule and closing the gap of manual version changes); an agent (how it is checked)
-- **Rejected:** running the benchmarks in CI (CI must not fail because of external packages, cf.
-  [Testing](testing.md#ci-and-external-packages); shared runners give noisy timings on changing hardware);
+- **Rejected:** running the benchmarks in CI (external packages must not fail CI, cf.
+  [Testing](testing.md#ci-and-external-packages); shared runners are noisy);
   checking every pull request (code still changes until the release);
   only checking when the release is prepared (misses manual version changes and later merges);
-  comparing `pyproject.toml` and `uv.lock` as files (they change with every release, the measured dependency
-  versions are compared instead).
+  comparing `pyproject.toml` and `uv.lock` as files (they change with every release: the measured
+  dependency versions are compared).
 - **Details:** [Releasing](releasing.md#benchmark-results)
 
 ## Published benchmark results come from one full run, whose raw results are committed (#165)
 
 - **Decided by:** a maintainer
 - **Rejected:** rerunning only the changed package (mixes two runs: conditions, commit);
-  committing only the tables and figures (the numbers cannot be checked or rendered again without a rerun
-  of hours on that machine); a release asset (separated from the commit that produced the docs).
+  committing only the tables and figures (not checkable or renderable again without a rerun of hours); a release asset (separated from the commit that produced the docs).
 - **Details:** [Running the benchmarks](performance.md#running-the-benchmarks)

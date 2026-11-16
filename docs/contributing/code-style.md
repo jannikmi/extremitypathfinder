@@ -18,9 +18,17 @@ is tracked in [#173](https://github.com/jannikmi/extremitypathfinder/issues/173)
   as possible: e.g. `list[int]` instead of `list`, `npt.NDArray[np.float64]` (`types.FloatArray`) instead of `np.ndarray`,
   `X | None` for optional values, `Self` for alternative constructors. Use `Any` only for untyped data at the boundaries
   (JSON, GeoJSON mappings). Optional dependencies (e.g. Shapely) are imported for annotations under `TYPE_CHECKING`.
-  New code must pass `mypy --strict` (until #226 is done, check that the reported lines are not yours:
-  `uv run --with mypy --with types-networkx --with types-shapely mypy --strict extremitypathfinder`).
-  Enforcing it for the whole package is tracked in [#226](https://github.com/jannikmi/extremitypathfinder/issues/226).
+  The package must pass `mypy --strict` (pre-commit hook `mypy`, so also `make check` and CI;
+  configured in `pyproject.toml`, every exception is justified there): `uv run pre-commit run mypy --all-files`.
+  Numba and Matplotlib are untyped imports, so `@njit` kernels are untyped for mypy.
+  The package ships `py.typed` (PEP 561): its annotations are part of the public interface.
+- **No assertions in the package:** no `assert` statements in `extremitypathfinder/` (tests are exempt, ruff `S101`). They vanish
+  with `python -O`, so they neither validate nor narrow types reliably. Handle the case (an explicit exception or result)
+  or restructure the types. Raise an exception for invalid input, never use an assertion for it.
+- **No casts for the type checker:** do not wrap values in `float()`, `bool()`, `int()` or `typing.cast()` only to
+  satisfy mypy: they run on every call, in the innermost loops too. Annotate a local variable instead
+  (`rep: float = _compute_repr_n_dist(v)[0]`). Convert only to change the value (e.g. NumPy scalars to Python floats
+  in results), and cast only untyped data at the boundaries (JSON).
 - Shared type aliases live in `types.py`, constants in `configs.py`.
 - **Modular code:** algorithms are functions in the module of their layer, not methods of `PolygonEnvironment`,
   which only checks the input and delegates (cf. [Codebase map](codebase-map.md#package-modules)).
