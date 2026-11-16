@@ -225,6 +225,7 @@ internal:
   (documented in the Numerical Policy of the design document).
 - tests: the Python examples of the README and the documentation run and give the results their comments state (#246).
   The plotting examples of the usage page query points of the grid environment defined before them.
+- CI also tests on Windows and macOS, with and without Numba (#246).
 
 
 3.0.0 (2026-10-29)
