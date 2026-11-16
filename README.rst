@@ -63,7 +63,7 @@ Features
 - **Well-defined edge cases**: touching obstacles, points on edges and collinear vertices follow one set of rules.
   The floating point decisions are audited against exact arithmetic, the results are identical with and without Numba.
 - **Few dependencies**: NumPy and NetworkX. Optional `Numba <https://numba.pydata.org/>`__ acceleration.
-- **Extras**: input validation, plotting (Matplotlib), caching environments with pickle,
+- **Extras**: input validation, plotting (Matplotlib), saving prepared environments to a file,
   and a command line interface.
 
 
