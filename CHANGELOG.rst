@@ -124,6 +124,9 @@ other changes:
   It measures time, peak and retained memory, with and without Numba.
   ``scripts/speed_benchmarks.py`` uses the same harness. The validation found pyvisgraph 0.2.1 paths
   through obstacles; the cause is described in the documentation.
+- comparison with Polyanya, the state of the art (#170): ``python -m benchmarks.polyanya.compare``
+  (``benchmarks/polyanya/``, a Rust harness, needs ``cargo``, not run in CI) checks that both find the same path
+  lengths and compares the build and query times. Results and limitations on the performance and alternatives pages.
 - much lower memory use and smaller pickles of large environments: the angle representations and distances
   of all vertices seen from every extremity are no longer stored (``O(m n)`` floats for ``m`` extremities
   and ``n`` vertices, about 1 GiB for 10,000 vertices).
