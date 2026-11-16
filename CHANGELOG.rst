@@ -223,6 +223,8 @@ internal:
   no misdecisions when all coordinates are integers (tested in ``tests/test_exact_decisions.py``),
   the remaining ones lie within about one unit in the last place of a decision boundary
   (documented in the Numerical Policy of the design document).
+- tests: the Python examples of the README and the documentation run and give the results their comments state (#246).
+  The plotting examples of the usage page query points of the grid environment defined before them.
 
 
 3.0.0 (2026-10-29)

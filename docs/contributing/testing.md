@@ -109,6 +109,7 @@ when you change `utils_numba.py` or code calling it.
   | `test_exact_decisions.py`, `exact.py` | floating point decisions exact on integer coordinates, exact references |
   | `test_pickle.py`, `test_file_format.py` | pickling and copying, the stable file format (`save()`, `load()`, rejected files) |
   | `test_plotting.py`, `cli_test.py` | plotting, command line interface |
+| `test_documentation.py` | the Python examples of the documentation run and give the stated results |
   | `test_release.py`, `test_validate_release.py` | release tooling (`scripts/`) |
 
 - Expected paths must be exact shortest paths. Derive them by hand or from geometry, not from the output of the code
