@@ -494,7 +494,7 @@ Visibility is symmetric, so each pair is checked once (from the extremity with t
 The front condition is not symmetric, so both directions are tested before the visibility is computed
 (the second one with ``Points.in_front_of()``, like for query points): an edge is never added and removed again,
 and the candidates skipped make the visibility computation faster (#263).
-Skipping a candidate does not change the visibility of the others (cf. "Skipping the nodes in front" in `Query`_).
+Skipping a candidate does not change the visibility of the others (cf. "Skipping the nodes in front" in the query section below).
 Extremities without edges remain in the graph, start and goal may connect to them.
 
 The same argument holds for the edges of start and goal: it is about the extremity :math:`e` being an
