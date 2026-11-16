@@ -493,8 +493,11 @@ those within ``RAY_WINDOW`` of a bound of the front one by one.
 Visibility is symmetric, so each pair is checked once (from the extremity with the lower index).
 The front condition is not symmetric, so both directions are tested before the visibility is computed
 (the second one with ``Points.in_front_of()``, like for query points): an edge is never added and removed again,
-and the candidates skipped make the visibility computation faster (#263).
-Skipping a candidate does not change the visibility of the others (cf. "Skipping the nodes in front" in the query section below).
+and the candidates skipped make the visibility computation faster.
+Skipping them before the visibility computation also matters for correctness (#263): AREA keeps only the closest
+candidate per direction, so an extremity in the same direction as a closer, skipped one becomes visible, if the
+line of sight may pass the skipped one (rule 3, cf. "Skipping the nodes in front" in the query section below).
+As a candidate, the skipped extremity would hide it although the edge to the skipped extremity itself is not kept.
 Extremities without edges remain in the graph, start and goal may connect to them.
 
 The same argument holds for the edges of start and goal: it is about the extremity :math:`e` being an

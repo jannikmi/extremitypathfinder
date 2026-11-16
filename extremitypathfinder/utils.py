@@ -601,8 +601,10 @@ def _find_graph_neighbours(
         # but when it happens to be an extremity, edges to the (visible) extremities in front of it MUST be added!
         # Both directions are tested before the visibility computation: fewer candidates make it faster (#263).
         # Note: do not consider points lying in front when looking for visible extremities, even if they are visible.
-        # Skipping a candidate does not change the visibility of the others: AREA keeps only the closest candidate
-        # per direction, but the lines of sight through a skipped extremity are decided by the points (rule 3).
+        # AREA keeps only the closest candidate per direction: skipping a candidate can make a farther one
+        # in the same direction the closest one. Whether its line of sight passes the skipped extremity
+        # is decided by the points (rule 3). As a candidate, the skipped extremity would hide it,
+        # although the edge to the skipped extremity itself is not kept (#263).
         origin_position = coords[origin]
         idxs = np.fromiter(candidates, dtype=np.int64, count=len(candidates))
         in_front = point.in_front_mask(
