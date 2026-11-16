@@ -182,6 +182,9 @@ bugfixes:
   precision (e.g. 1e-17 wide, from Shapely unions): their free side cannot be decided.
 - a vertex in a direction nearly parallel to an edge, whose determinant rounds to 0, raised a ``ZeroDivisionError``
   with Numba and was decided by the sign of an infinite value without (#3). It is now not behind the edge in both modes.
+- distances without Numba could differ by one unit in the last place from those with Numba on macOS (#257):
+  the squares used the C library ``pow()``, which is not correctly rounded there. They are now products,
+  so the results are identical in both modes on all platforms.
 
 internal:
 

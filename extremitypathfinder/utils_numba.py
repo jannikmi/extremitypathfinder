@@ -37,7 +37,8 @@ def _compute_repr_n_dist(np_vector: np.ndarray) -> tuple[float, float]:
     :return:
     """
     dx, dy = np_vector
-    distance = math.sqrt(dx**2 + dy**2)  # l-2 norm
+    # products, not dx**2: pow() of the C library is not correctly rounded on all platforms (#257)
+    distance = math.sqrt(dx * dx + dy * dy)  # l-2 norm
     if distance == 0.0:
         angle_measure = np.nan
     else:
@@ -79,7 +80,7 @@ def reps_n_distances(vectors: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     """
     dx = vectors[:, 0]
     dy = vectors[:, 1]
-    distances = np.sqrt(dx**2 + dy**2)
+    distances = np.sqrt(dx * dx + dy * dy)
     dx_positive = dx >= 0
     dy_positive = dy >= 0
     quadrants = [
