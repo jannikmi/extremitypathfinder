@@ -375,9 +375,7 @@ def find_visible(
     if len(candidates) == 0:
         return set()
     # only keep the closest of the candidates with identical angle representation
-    candidates_sorted = _eliminate_eq_candidates(
-        candidates, distances, representations
-    )
+    candidates_sorted = _eliminate_eq_candidates(candidates, distances, representations)
     if isinstance(edges_to_check, np.ndarray):
         edges = edges_to_check.astype(np.int64, copy=False)
     else:
