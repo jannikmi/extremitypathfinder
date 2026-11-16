@@ -83,7 +83,7 @@ The plotting directory is an argument of these functions instead of a global set
    * - ``env = PlottingEnvironment(plotting_dir="plots")``
 
        ``env.store(boundary, holes)``
-     - ``env = PolygonEnvironment(boundary, holes)``
+     - ``env = PolygonEnvironment(boundary, holes)`` (validates the input by default, cf. below)
 
        ``plot_environment(env, plotting_dir="plots")``
    * - ``env.find_shortest_path(start, goal)``
@@ -120,6 +120,9 @@ A path can therefore be longer than before, or not exist at all (``([], None)``)
 Only exact contacts block, tiny gaps between obstacles do not.
 To keep a passage open, leave a gap between the obstacles.
 
-Inputs that were accepted before may be rejected with ``validate=True``:
+Inputs that were accepted before may be rejected, because the input is validated by default
+(``validate=True``, also in ``from_grid()``, ``from_shapely()`` and the command line interface;
+in 2.x the default was ``validate=False``). Repair the input (cf. the ``shapely.make_valid()`` recipe of the usage page)
+or pass ``validate=False`` to skip the validation:
 polygons crossing themselves at a vertex and collinear overlapping edges within a polygon
 (zero-width spikes or slits) are invalid.

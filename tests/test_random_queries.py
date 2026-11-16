@@ -23,7 +23,7 @@ import networkx as nx
 import numpy as np
 import pytest
 
-from extremitypathfinder import PolygonEnvironment, utils
+from extremitypathfinder import PolygonEnvironment, utils, wedges
 from tests.test_cases import GRID_ENV_PARAMS, POLYGON_ENVS
 from tests.test_contacts import BOUNDARY, SELF_TOUCHING_HOLE
 from tests.test_find_visible import find_visible_reference
@@ -340,3 +340,91 @@ def test_inexact_transforms_keep_reachability_and_lengths(
         assert transformed_length == pytest.approx(
             length, rel=TRANSFORM_REL_TOLERANCE
         ), f"{start} - {goal}"
+
+
+def _search_without_skipping(environment, monkeypatch, start, goal):
+    """the search connecting the query points also to the graph nodes they lie "in front" of"""
+    with monkeypatch.context() as m:
+        m.setattr(
+            environment.points,
+            "in_front_of",
+            lambda candidates, *_: np.zeros(len(candidates), dtype=bool),
+        )
+        return environment.search(start, goal, verify=False)
+
+
+def test_skipping_the_nodes_in_front_of_query_points_keeps_the_paths(
+    environment, query_points, monkeypatch
+):
+    """#222: query points on edges, at vertices and at extremities included"""
+    points = query_points + _vertex_and_edge_points(environment)
+    rng = np.random.default_rng(222)
+    pairs = [
+        (points[i], points[j])
+        for i, j in rng.choice(len(points), size=(150, 2))
+        if i != j
+    ]
+    pairs += list(itertools.combinations(query_points, 2))
+    nr_edges, nr_edges_unskipped = 0, 0
+    for start, goal in pairs:
+        result = environment.search(start, goal, verify=False)
+        expected = _search_without_skipping(environment, monkeypatch, start, goal)
+        if expected.length is None:
+            assert result.length is None, f"{start} - {goal}"
+            continue
+        assert result.length == pytest.approx(expected.length, rel=1e-12), (
+            f"{start} - {goal}"
+        )
+        nr_edges += len(result.query_edges or [])
+        nr_edges_unskipped += len(expected.query_edges or [])
+    # Note: not strictly fewer in every environment (e.g. the goal first shortcut).
+    # test_core_regressions.py checks that a node is skipped.
+    assert nr_edges <= nr_edges_unskipped
+
+
+def test_in_front_of_matches_point_in_front(environment, query_points):
+    """the vectorised test gives the same result as ``Point.in_front()``"""
+    points = environment.points
+    extremities = environment.extremity_indices
+    for position in query_points + _vertex_and_edge_points(environment):
+        coords = np.append(environment.coords, [position], axis=0)
+        origin = len(coords) - 1
+        representations, distances = utils.cmp_reps_n_distances(origin, coords)
+        candidates = extremities[distances[extremities] != 0.0]
+        found = points.in_front_of(candidates, coords[origin], coords, representations)
+        expected = [
+            points.by_idx[i].in_front(
+                wedges._rep(coords[origin] - coords[i]), coords[origin] - coords[i]
+            )
+            for i in candidates
+        ]
+        assert found.tolist() == expected, f"from {position}"
+
+
+def test_wedge_masks_match_the_scalar_tests(environment, query_points):
+    """the vectorised tests give the same results as ``Point.in_wedges()`` and ``Point.in_front()`` (#262)
+
+    seen from every point of the environment, for the directions to all vertices and query points,
+    which include directions exactly on, opposite of and next to the bounding rays
+    """
+    coords = np.append(environment.coords, query_points, axis=0)
+    for origin, point in environment.points.by_idx.items():
+        representations, distances = utils.cmp_reps_n_distances(origin, coords)
+        others = np.flatnonzero(distances != 0.0)
+        reps = representations[others]
+        vectors = coords[others] - coords[origin]
+        wedge_sets = [point.wedges, *([wedge] for wedge in point.wedges)]
+        for wedge_set in wedge_sets:
+            found = point.in_wedges_mask(reps, vectors, wedge_set)
+            expected = [
+                point.in_wedges(rep, vector, wedge_set)
+                for rep, vector in zip(reps.tolist(), vectors)
+            ]
+            assert found.tolist() == expected, f"from {coords[origin]}"
+        if point.is_extremity:
+            found = point.in_front_mask(reps, vectors)
+            expected = [
+                point.in_front(rep, vector)
+                for rep, vector in zip(reps.tolist(), vectors)
+            ]
+            assert found.tolist() == expected, f"from {coords[origin]}"

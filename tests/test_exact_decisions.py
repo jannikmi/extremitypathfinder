@@ -162,7 +162,7 @@ def test_find_crossing_exactly(rng, monkeypatch, scale, max_pairs):
 
 
 def test_in_wedges_exactly_near_the_bounding_rays(rng):
-    """directions near a bounding ray are compared exactly (``RAY_TOLERANCE``)"""
+    """directions near a bounding ray are compared exactly (``RAY_WINDOW``)"""
     start, end = rng.integers(-LARGE, LARGE + 1, size=(2, NR_CASES, 2))
     factors = rng.integers(1, 100, size=NR_CASES)
     units = rng.integers(-1, 2, size=(NR_CASES, 2))
@@ -181,3 +181,86 @@ def test_in_wedges_exactly_near_the_bounding_rays(rng):
                     point.in_wedges(_rep(direction), direction, [(rep_a, rep_b)])
                     == expected
                 )
+                mask = point.in_wedges_mask(
+                    np.array([_rep(direction)]), direction[None, :], [(rep_a, rep_b)]
+                )
+                assert mask.tolist() == [expected]
+
+
+# exactly collinear float vectors (cross product 0.0) whose representations differ in the last bit
+# (found by a search over random ray directions and integer factors, full precision)
+LAST_BIT_RAYS = [
+    (
+        np.array([2.9437902314850017, 2.307702229625077]),
+        np.array([100.08886787049006, 78.46187580725262]),
+    ),
+    (
+        np.array([7.798711114410413, 6.44747655086141]),
+        np.array([374.3381334916998, 309.47887444134767]),
+    ),
+    (
+        np.array([0.25517446524156107, 8.582084415940123]),
+        np.array([3.572442513381855, 120.14918182316173]),
+    ),
+]
+
+
+@pytest.mark.parametrize(("ray", "same"), LAST_BIT_RAYS)
+def test_in_wedges_collinear_last_bit(ray, same):
+    """a direction exactly on a bounding ray lies in the closure of its wedge, even if its own representation
+    differs from the ray's in the last bit (``RAY_WINDOW``, ``Point.rep()``)"""
+    assert ray[0] * same[1] - ray[1] * same[0] == 0.0
+    rep = _rep(ray)
+    assert _rep(same) != rep
+    point = Point(0, 2, set(), [], None, [(ray, rep)])
+    same_rep = _rep(same)
+    # the ray is the end of the first wedge and the start of the second
+    assert point.in_wedges(same_rep, same, [(rep - 0.25, rep)])
+    assert point.in_wedges(same_rep, same, [(rep, rep + 0.25)])
+    for wedge in ((rep - 0.25, rep), (rep, rep + 0.25)):
+        assert point.in_wedges_mask(np.array([same_rep]), same[None, :], [wedge]).all()
+
+
+def test_in_wedges_mask_of_a_single_ray_is_the_whole_circle():
+    """a wedge consisting of one ray (start == end) contains every direction, like ``in_closure()``"""
+    ray = np.array([1.0, 1.0])
+    rep = _rep(ray)
+    point = Point(0, 2, set(), [], None, [(ray, rep)])
+    vectors = np.array([[1.0, 0.0], [-1.0, 0.5], [0.0, -2.0], [-3.0, -3.0], [1.0, 1.0]])
+    reps = np.array([_rep(v) for v in vectors])
+    mask = point.in_wedges_mask(reps, vectors, [(rep, rep)])
+    assert mask.all()
+    assert [
+        point.in_wedges(float(r), v, [(rep, rep)]) for r, v in zip(reps, vectors)
+    ] == [True] * 5
+
+
+def test_in_front_mask_exactly_opposite_of_a_bounding_ray():
+    """a direction exactly opposite of a bounding ray does not lie in front, even if its representation
+    lies within the front range by a difference in the last bit: the vectorised test decides it like
+    ``Point.in_front()`` (#262)"""
+    within_range = []
+    for ray, same in LAST_BIT_RAYS:
+        rep = _rep(ray)
+        opposite = -same
+        opposite_rep = _rep(opposite)
+        normal = np.array([-ray[1], ray[0]])
+        # the ray as the end and as the start of an extremity wedge (larger than 180 degree)
+        for wedge, side in (
+            (((rep - 2.5) % 4.0, rep), 0.1),
+            ((rep, (rep + 2.5) % 4.0), -0.1),
+        ):
+            point = Point(0, 1, set(), [wedge], wedge, [(ray, rep)])
+            assert not point.in_front(opposite_rep, opposite)
+            mask = point.in_front_mask(np.array([opposite_rep]), opposite[None, :])
+            assert mask.tolist() == [False]
+            start, end = wedge
+            front_start = (end + 2.0) % 4.0
+            size = ((start + 2.0) % 4.0 - front_start) % 4.0
+            within_range.append(0.0 < (opposite_rep - front_start) % 4.0 < size)
+            # a direction clearly within the front range lies in front
+            inside = -(ray + side * normal)
+            assert point.in_front(_rep(inside), inside)
+            assert point.in_front_mask(np.array([_rep(inside)]), inside[None, :]).all()
+    # the comparison of the representations alone would be wrong for some of these cases
+    assert any(within_range)

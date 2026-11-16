@@ -20,8 +20,8 @@ Measure before and after optimising, and include the numbers in the pull request
   ```
 
 - `prototypes/complexity_profile.py` reports per environment size the time of the wedges and of the visibility graph
-  and how often AREA checks a candidate against an edge (constant in its typical case):
-  `uv run --all-extras --group benchmark python prototypes/complexity_profile.py world 1k 2k`.
+  (`uv run --all-extras --group benchmark python prototypes/complexity_profile.py world 1k 2k`),
+  also for a worst case of AREA with many candidates in front of long edges (`... complexity_profile.py worst 100 200`).
 
 `prototypes/` contains such development scripts. They are not part of the package and not run by the tests.
 
@@ -54,12 +54,13 @@ The tables are written to `benchmarks/results/` and the figures to `docs/_static
 `--baselines benchmarks/results/benchmark.json` measures the baselines without input data
 (cf. {ref}`benchmark-measurements`) and adds them to the raw results of a run on the same machine,
 without repeating the run.
+The comparison with Polyanya (#170) is separate: `benchmarks/polyanya/compare.py`.
 
 ### After a full run
 
-The tables and figures are rendered from the results, the text derived from them is not
-(the take-aways of the performance page, the comparison with pyvisgraph, the claims about Numba),
-nor the [JOSS paper](paper.md): its figures and the numbers in its text and captions.
+The results render the tables and figures, not the text derived from them
+(the performance page take-aways, the pyvisgraph comparison, the Numba claims)
+nor the figures and numbers of the [JOSS paper](paper.md).
 It is marked with `.. benchmark-derived:` comments, each covering the text up to the next heading.
 A full run lists the files with one (or `git grep -n '\.\. benchmark-derived:'`). Update every marked passage in the pull request of the results.
 Mark new derived text the same way, and keep it qualitative (cf. [Documentation](documentation.md#content)).
@@ -91,17 +92,18 @@ The A* search takes only a small part of the query time.
 
 ## Shortest path search
 
-`utils.astar_path()` is a port of `networkx.astar_path()` that also follows the temporary edges of start and goal,
+`utils.astar_path()` is an own A* search that also follows the temporary edges of start and goal,
 so queries neither copy nor change the visibility graph (#136).
-It is under the 3-clause BSD license of networkx (`LICENSES/networkx.txt`): keep its copyright notice above the function.
+It replaced a port of `networkx.astar_path()` and is as fast (measurements in #157).
+A closed set and separate loops for graph and query edges gave no gain.
 Alternatives compared in #152 (with measurements) and rejected, mainly for maintainability:
 
 - `networkx.astar_path()` on the visibility graph with the temporary edges added and removed again:
   changes shared state during a query (not thread-safe, edges of extremities merged with start or goal must be kept)
-  and was considerably slower than the port.
+  and was considerably slower than the own search.
 - other graph libraries (scipy `csgraph`, igraph, rustworkx): an additional dependency
   and a second graph representation (or `environment.graph` is no networkx graph anymore).
-  Their Dijkstra searches were slower than the port (no heuristic, adding the temporary edges is expensive),
+  Their Dijkstra searches were slower than the own search (no heuristic, adding the temporary edges is expensive),
   the A* of rustworkx saved only little time per query.
 - precomputed shortest paths between all extremities: memory grows quadratically
   with the number of extremities.

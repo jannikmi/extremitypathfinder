@@ -15,6 +15,8 @@ Record only decisions that outlive their pull request and whose rejected options
 in the final state of the pull request. Leave out details fully explained on the page they affect.
 Leave out decisions whose outcome is documented elsewhere and that are not important enough to be remembered,
 e.g. the scope of a feature (a documentation recipe now, a parameter later on demand): the issue records them.
+An improvement (an optimisation, a fix, a feature) is no decision to record, even if a maintainer approved it:
+explain its reasoning where it is implemented, in the code or the documentation of the affected part.
 
 Keep the entries correct when the referenced content moves or changes.
 A maintainer confirms an agent decision by changing **Decided by**.
@@ -23,11 +25,61 @@ the log states the current decisions (git keeps the history).
 Decisions about how we work on the project are in the [process decision log](decisions-process.md).
 Earlier decisions are described in the {ref}`Design Decisions <design_decisions>` and the issues linked there.
 
+## All computations use float64, other numeric input is converted (#274)
+
+- **Decided by:** an agent
+- **Rejected:** computing in `float32` (breaks the exact contacts, #3); in integers (distances and angles need floats);
+  either as an option (doubles the code paths kept identical with and without Numba)
+- **Details:** Numerical Policy in the [engineering design](../8_design.rst)
+
+## The input is validated by default (#243)
+
+- **Decided by:** a maintainer
+- **Rejected:** keeping `validate=False` (invalid input silently gives wrong paths, the validation costs
+  within the noise of the preparation); a warning instead of an error (needs the validation to run anyway and is easy
+  to miss)
+- **Details:** [Validation by default](../8_design.rst) in the engineering design
+
+## The distance matrix searches the graph with A* per pair, like single queries (#175)
+
+- **Decided by:** a maintainer
+- **Rejected:** one Dijkstra search per start point (stopped when the graph nodes visible from all goals are settled).
+  It gave identical lengths, but it is a second search algorithm to maintain, paths would need their own
+  tie-breaking to equal those of `find_shortest_path()` (#237), and it was not consistently faster.
+  Measured on the environments of `prototypes/distance_matrix_profile.py` (random points, with Numba;
+  without Numba the same pattern), the time of `distance_matrix()` with Dijkstra / A* per pair:
+
+  | vertices | 20 points | 100 points |
+  | ---: | ---: | ---: |
+  | 104 | 27 / 27 ms | 209 / 373 ms |
+  | 328 | 109 / 66 ms | 715 / 1,036 ms |
+  | 904 | 554 / 173 ms | 2,932 / 2,895 ms |
+
+  Dijkstra settles most of the graph to reach goals all over the environment, A* only searches towards one goal.
+  A* is slower only for many points in small environments (up to 1.8 times).
+- **Consequences:** `distance_matrix()` and `search()` share the graph search (`queries.search_graph()`),
+  so their paths and lengths are identical by construction, and returning paths (#237) needs no new search.
+  The speed-up comes from computing the visibility once per point. Revisit Dijkstra only if many-to-many queries
+  with many points in small environments become a bottleneck for users.
+
+## Own A* search instead of the networkx port, expanding a node again when its distance improves (#157)
+
+- **Decided by:** a maintainer ([#157](https://github.com/jannikmi/extremitypathfinder/issues/157): replacing the port, MIT only); an agent (no closed set, with #162 in mind)
+- **Rejected:** keeping the port (BSD-3-Clause next to MIT); a closed set (no measured gain, wrong paths with heuristics
+  that are only admissible, e.g. custom costs of #162); skipping neighbours, earlier termination and a precomputed
+  adjacency structure (no gain, or only valid for Euclidean costs).
+- **Details:** {ref}`Design Decisions <design_decisions>`, [Performance](performance.md#shortest-path-search)
+
 ## AREA stays the visibility algorithm, others are added next to it (#224)
 
 - **Decided by:** a maintainer
 - **Rejected:** triangular expansion, Polyanya or continuous Dijkstra instead; an angular sweep, also only for
-  the worst case of AREA (#216: slower on the measured maps, no fitting package, none works with Numba).
+  the worst case of AREA (#216: slower on the measured maps, no fitting package, none works with Numba,
+  needs edges that do not cross).
+- **Consequences:** the worst case of AREA is bounded within AREA instead: a tree over the candidates keeps
+  the closest edges (#216), `O(m n log² n)` instead of `O(n m²)`, faster on the measured maps. Same results,
+  except that the edges whose angle range contains the direction (1, 0) compare directions without rotating them
+  (differences in the last bit).
 - **Details:** {ref}`Design Decisions <design_decisions>`, `prototypes/sweep_tree_overhead.py` (#216)
 
 ## A release requires up-to-date benchmark results, checked when it is prepared, on its pull request and when it is tagged (#191)

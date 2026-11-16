@@ -3,6 +3,14 @@
 Decided trade-offs about how we work on the project (contributing guide, issues, pull requests), newest first.
 Entry format and rules: [Decision log](decisions.md).
 
+## Static typing is checked with mypy `--strict` in pre-commit and CI (#226)
+
+- **Decided by:** a maintainer
+- **Rejected:** pyright (needs Node in the pre-commit hook, less common in scientific Python packages);
+  checking with both mypy and pyright (double maintenance for little gain);
+  priority low (wrong annotations go unnoticed meanwhile, users get no type information).
+- **Details:** [Code style](code-style.md#conventions)
+
 ## The next issue is implemented by a guide page and the `/implement-next` skill, claimed by a comment (#195)
 
 - **Decided by:** a maintainer (bundling related issues, claims for concurrent work); an agent (comment claims

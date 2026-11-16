@@ -14,7 +14,9 @@ The tests use [pytest](https://docs.pytest.org/). A bare `pytest` only collects 
 ## Full matrix
 
 The tox configuration in `pyproject.toml` tests all supported Python versions with the minimum and the latest
-dependencies, with and without Numba. CI runs all of these environments.
+dependencies, with and without Numba, and free-threaded CPython 3.14 (`py314t`, `py314t-numba`) with the latest
+dependencies. There, `tests/test_threads.py` fails if an imported extension module re-enables the GIL.
+CI runs all of these environments.
 
 ```sh
 make tox                  # all environments (needs all Python versions)
@@ -38,7 +40,7 @@ uv run python prototypes/real_world_geometry.py --seeds 40 --queries 15
 ## Floating point decisions
 
 The core floating point decisions (angle representations, edge, point in polygon and orientation tests,
-the `RAY_TOLERANCE` selection, `_lies_behind_inner()`) are exact on integer coordinates (#3).
+the `RAY_WINDOW` selection, `_lies_behind_inner()`) are exact on integer coordinates (#3).
 `tests/test_exact_decisions.py` asserts this against the exact references of `tests/exact.py` (`fractions.Fraction`).
 Use these references for new exact checks instead of writing new ones.
 `prototypes/float_audit.py` uses them too and reports the misdecisions per function on all kinds of inputs
@@ -49,6 +51,22 @@ Run it in both modes when you change one of these functions:
 uv run python prototypes/float_audit.py -n 100000
 uv run python prototypes/float_audit.py -n 100000 --no-numba
 ```
+
+## Coverage
+
+The core algorithm (all modules of the package except `command_line.py`, which the tests only run in a subprocess)
+is tested completely: every line and every branch. Check it after a change:
+
+```sh
+make coverage    # the tox environments cov-jit-off, cov-no-numba and coverage
+```
+
+Numba compiled code is invisible to coverage, so the code is measured as plain Python in two runs
+(`NUMBA_DISABLE_JIT=1` with Numba installed, and without Numba, which covers `numba_replacements.py`),
+and the results are combined. The report lists the missing lines and fails below 100%.
+New code needs tests that assert its behaviour (not only run it). Exclude a line with `# pragma: no cover`
+or `# pragma: no branch` only if it cannot be reached, and say why in a comment.
+The CI job `coverage` runs the same environments and is required by `ci-passed`.
 
 ## CI and external packages
 
@@ -84,7 +102,9 @@ when you change `utils_numba.py` or code calling it.
   | `test_geometry_regressions.py` | documented polygon edge cases |
   | `test_find_visible.py` | visibility detection against a reference implementation |
   | `test_random_queries.py` | random query points: visibility, paths, graph reduction, transforms |
+  | `test_distance_matrix.py` | `distance_matrix()`: identical to a loop over `find_shortest_path()` |
   | `helper_fcts_test.py` | helper functions in `utils.py` |
+  | `test_input_and_output.py` | malformed input is always rejected, results are Python floats |
   | `test_acceleration.py` | the execution backend (Numba or not) |
   | `test_exact_decisions.py`, `exact.py` | floating point decisions exact on integer coordinates, exact references |
   | `test_pickle.py`, `test_plotting.py`, `cli_test.py` | pickle export, plotting, command line interface |

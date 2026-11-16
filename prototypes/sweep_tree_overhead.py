@@ -12,7 +12,7 @@ the closest active edge. This script measures
   (``compute_graph()`` divided by the origins times the edges), on the grid environment of
   ``complexity_profile.py``. A sweep needs about two sweep steps per origin and edge.
 
-FINDINGS (November 2026, decision in #216: no angular sweep for the worst case of AREA):
+FINDINGS (November 2026, #216: no angular sweep for the worst case of AREA):
 a sweep with the active edges in a balanced tree would lower the worst case per origin
 from O(n log n + n k) to O((n + k) log n), but
 
@@ -27,9 +27,10 @@ from O(n log n + n k) to O((n + k) log n), but
   with Numba and 4-6 µs without (build benchmark on the world maps, this script on the hole grid).
 * AREA only loses on adversarial maps, with more than about 10 checks per candidate (measured: 1.5 to 2.3).
 
-Revisit when a user reports a map that hits the worst case: then use a sweep only above a threshold of checks
-per candidate (option C of #216). ``bisect`` suffices up to about 10,000 active edges, only the O((n + k) log n)
-bound needs a balanced tree. A sweep compiled with Numba (own sorted arrays) was not measured.
+The worst case was bounded differently, within AREA: a tree over the candidates keeps the closest edges
+(``li_chao_tree.blocked_candidates()``, measurements in ``complexity_profile.py``). It needs no order of the edges
+along a ray, so crossing edges are no problem, and it is compiled by Numba.
+The times of AREA above were measured before that change, which only made AREA faster on the measured maps.
 
 usage:
     uv run --with sortedcontainers python prototypes/sweep_tree_overhead.py

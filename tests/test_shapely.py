@@ -373,3 +373,30 @@ def test_clearance_start_where_the_agent_does_not_fit(start):
     assert not environment.within_map(np.array(start))
     with pytest.raises(ValueError, match="start point does not lie within the map"):
         environment.find_shortest_path(start, CLEARANCE_QUERY[1])
+
+
+BOUNDARY_BOW_TIE = [(0, 0), (10, 0), (10, 10), (0, 10)]
+HOLE_BOW_TIE = [(4, 4), (6, 6), (6, 4), (4, 6)]  # self-intersecting
+
+
+def test_validation_is_the_default_of_all_constructors(monkeypatch):
+    calls = []
+    original = PolygonEnvironment.__init__
+
+    def spy(self, boundary, holes, validate=True):
+        calls.append(validate)
+        original(self, boundary, holes, validate)
+
+    monkeypatch.setattr(PolygonEnvironment, "__init__", spy)
+    PolygonEnvironment.from_grid(3, 3, [(1, 1)])
+    PolygonEnvironment.from_shapely(shapely.box(0, 0, 3, 3), [shapely.box(1, 1, 2, 2)])
+    assert calls == [True, True]
+    with pytest.raises(ValueError, match="self intersections"):
+        PolygonEnvironment.from_shapely(
+            shapely.Polygon(BOUNDARY_BOW_TIE), [shapely.Polygon(HOLE_BOW_TIE)]
+        )
+    PolygonEnvironment.from_shapely(
+        shapely.Polygon(BOUNDARY_BOW_TIE),
+        [shapely.Polygon(HOLE_BOW_TIE)],
+        validate=False,
+    )

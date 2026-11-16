@@ -22,12 +22,25 @@ repos:
       - id: detect-private-key
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.17.3
+    rev: v0.17.4
     hooks:
       # linter.
       - id: ruff-check
         args: [ --fix ]
       - id: ruff-format
+
+  # strict static type checking, configured in pyproject.toml (cf. docs/contributing/code-style.md)
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.20.0
+    hooks:
+      - id: mypy
+        # the files are configured in pyproject.toml
+        pass_filenames: false
+        additional_dependencies:
+          - numpy
+          - networkx
+          - types-networkx
+          - types-shapely
 
   - repo: https://github.com/asottile/blacken-docs
     rev: 1.20.0
@@ -53,8 +66,8 @@ repos:
     rev: "0.51"
     hooks:
       - id: check-manifest
-        args: [ "--no-build-isolation", "--ignore",  "*.png,*.svg,docs/*,docs/contributing/*,paper/*,paper/references/*,paper/references/*/*,AGENTS.md,CLAUDE.md,.claude/*,.claude/skills/*/*,publish.py,readthedocs.yml,uv.lock,pyproject.toml.orig,setup.py,scripts/*,prototypes/*,benchmarks/*,benchmarks/results/*" ]
-        additional_dependencies: [ numpy, "uv_build>=0.13.6,<0.14" ]
+        args: [ "--no-build-isolation", "--ignore",  "*.png,*.svg,docs/*,docs/contributing/*,paper/*,paper/references/*,paper/references/*/*,AGENTS.md,CLAUDE.md,.claude/*,.claude/skills/*/*,publish.py,readthedocs.yml,uv.lock,pyproject.toml.orig,setup.py,scripts/*,prototypes/*,benchmarks/*,benchmarks/results/*,benchmarks/polyanya/*,benchmarks/polyanya/src/*" ]
+        additional_dependencies: [ numpy, "uv_build>=0.13.7,<0.14" ]
 
   - repo: https://github.com/asottile/pyupgrade
     rev: v3.22.0

@@ -1,15 +1,13 @@
-import itertools
 import pickle
 from collections.abc import Iterable
-from dataclasses import dataclass, field
-from functools import cached_property
-from typing import Self
+from typing import Self, cast
 
 import numpy as np
 
-from extremitypathfinder import configs, utils
+from extremitypathfinder import configs, queries, utils
 from extremitypathfinder import types as t
 from extremitypathfinder.configs import DEFAULT_PICKLE_NAME
+from extremitypathfinder.queries import SearchResult
 from extremitypathfinder.types import (
     InputCoord,
     InputCoordList,
@@ -18,45 +16,12 @@ from extremitypathfinder.types import (
     OptionalInputCoordList,
     Path,
 )
+from extremitypathfinder.utils_numba import is_within_map
 from extremitypathfinder.wedges import Point, Points
 
+__all__ = ("PolygonEnvironment", "SearchResult")
+
 _PICKLE_FORMAT_KEY = "_pickle_format_version"
-
-
-@dataclass
-class SearchResult:
-    """The result of a shortest path search with :meth:`PolygonEnvironment.search`.
-
-    * ``path``: the shortest path from start to goal, ``[]`` if there is no possible path
-    * ``length``: the length of the path, ``None`` if there is no possible path
-    * ``coords``: the coordinates of all polygon vertices followed by the start and the goal coordinates
-    * ``idx_start``, ``idx_goal``: the nodes of start and goal in the search graph (indices in ``coords``).
-      Start and goal are merged with graph nodes with identical coordinates.
-      ``None`` when the search terminated without a graph search,
-      e.g. when the goal is directly visible from the start.
-    * ``query_edges``: the temporary edges ``(node, neighbour, length)``
-      connecting start and goal to the visibility graph (``None`` without a graph search)
-    * ``graph``: the search graph (the visibility graph extended by the query edges).
-      Only built on first access (a copy of the visibility graph of the environment at that time).
-      ``None`` without a graph search.
-    """
-
-    path: Path
-    length: Length
-    coords: np.ndarray
-    idx_start: int | None = None
-    idx_goal: int | None = None
-    query_edges: list[tuple[int, int, float]] | None = None
-    # the precomputed visibility graph of the environment (not changed by the search)
-    visibility_graph: t.Graph | None = field(default=None, repr=False, compare=False)
-
-    @cached_property
-    def graph(self) -> t.Graph | None:
-        if self.query_edges is None:
-            return None
-        graph = self.visibility_graph.copy()
-        graph.add_weighted_edges_from(self.query_edges)
-        return graph
 
 
 class PolygonEnvironment:
@@ -88,6 +53,8 @@ class PolygonEnvironment:
     an obstacle touches itself. Paths may run along obstacle edges and through the vertices of a single obstacle.
     A contact means exactly equal coordinates or a vertex exactly on an edge, near-contacts (tiny gaps) do not block.
     Overlapping polygons act as their union.
+
+    Queries do not change the environment: they may run in several threads at once (cf. the usage page).
     """
 
     nr_vertices: int
@@ -104,7 +71,7 @@ class PolygonEnvironment:
         self,
         boundary_coordinates: OptionalInputCoordList,
         list_of_hole_coordinates: Iterable[InputCoordList],
-        validate: bool = False,
+        validate: bool = True,
     ):
         """stores the passed input polygons in the environment and computes the visibility graph
 
@@ -127,60 +94,59 @@ class PolygonEnvironment:
             When ``None``, the environment is unbounded and at least one hole must
             be supplied.
         :param list_of_hole_coordinates: arrays of coordinates (clockwise or counter clockwise numbering)
-        :param validate: whether the requirements of the data should be tested
+        :param validate: whether the requirements of the data should be tested (default). Pass ``False`` to skip
+            the validation for trusted input. Invalid input without validation leads to undefined results.
 
-        :raises TypeError: when validate=True and the input has an invalid shape.
-        :raises ValueError: when validate=True and the input violates the requirements above,
+        :raises TypeError: when a polygon is no list of at least 3 coordinate pairs (always checked).
+        :raises ValueError: when a coordinate is not finite (always checked),
+            when validate=True and the input violates the requirements above,
             and when ``boundary_coordinates`` is ``None`` and no holes are given.
         """
         # loading the map
-        list_of_hole_coordinates = [
-            np.array(hole_coords, dtype=configs.DTYPE_FLOAT)
-            for hole_coords in list_of_hole_coordinates
+        expected = "a list of (x,y) coordinate pairs"
+        hole_arrays = [
+            utils.to_float_array(hole_coords, f"hole {hole_idx}", expected)
+            for hole_idx, hole_coords in enumerate(list_of_hole_coordinates)
         ]
+        boundary_array: t.FloatArray | None = None
         if boundary_coordinates is not None:
-            boundary_coordinates = np.array(
-                boundary_coordinates, dtype=configs.DTYPE_FLOAT
+            boundary_array = utils.to_float_array(
+                boundary_coordinates, "boundary polygon", expected
             )
-        elif not list_of_hole_coordinates:
+        elif not hole_arrays:
             raise ValueError(
                 "At least one hole is required when boundary_coordinates is None."
             )
+        utils.check_polygon_formats(boundary_array, hole_arrays)
         # accept both vertex numberings: reverse polygons with the opposite numbering
-        input_boundary, input_holes = boundary_coordinates, list_of_hole_coordinates
-        boundary_coordinates, list_of_hole_coordinates = utils.orient_polygons(
-            boundary_coordinates, list_of_hole_coordinates
-        )
+        input_boundary, input_holes = boundary_array, hole_arrays
+        boundary_array, hole_arrays = utils.orient_polygons(boundary_array, hole_arrays)
         if validate:
             # the error messages give the vertex indices of the input
             holes_reversed = [
                 hole is not input_hole
-                for hole, input_hole in zip(list_of_hole_coordinates, input_holes)
+                for hole, input_hole in zip(hole_arrays, input_holes)
             ]
-            if boundary_coordinates is None:
-                utils.check_hole_data_requirements(
-                    list_of_hole_coordinates, holes_reversed
-                )
+            if boundary_array is None:
+                utils.check_hole_data_requirements(hole_arrays, holes_reversed)
             else:
                 utils.check_data_requirements(
-                    boundary_coordinates,
-                    list_of_hole_coordinates,
-                    boundary_coordinates is not input_boundary,
+                    boundary_array,
+                    hole_arrays,
+                    boundary_array is not input_boundary,
                     holes_reversed,
                 )
 
         # Note: independent copy!
-        self.holes = list_of_hole_coordinates
-        self.boundary_polygon = boundary_coordinates
+        self.holes = hole_arrays
+        self.boundary_polygon = boundary_array
 
         (
             self.coords,
             self.edge_vertex_idxs,
             self.vertex_edge_idxs,
             self.points,
-        ) = utils.compile_polygon_datastructs(
-            boundary_coordinates, list_of_hole_coordinates
-        )
+        ) = utils.compile_polygon_datastructs(boundary_array, hole_arrays)
         self.extremity_indices = self.points.extremity_idxs
 
         self.nr_vertices = len(self.coords)
@@ -197,7 +163,7 @@ class PolygonEnvironment:
         size_x: int,
         size_y: int,
         obstacle_iter: ObstacleIterator,
-        validate: bool = False,
+        validate: bool = True,
     ) -> "PolygonEnvironment":
         """Convert a grid with blocked cells (obstacles) into a polygon environment
 
@@ -209,7 +175,10 @@ class PolygonEnvironment:
         :param size_x: the horizontal grid size
         :param size_y: the vertical grid size
         :param obstacle_iter: an iterable of coordinate pairs (x,y) representing blocked grid cells (obstacles)
-        :param validate: whether the input should be validated
+        :param validate: whether the input should be validated (default), cf. the constructor
+        :raises TypeError: when a size is no integer or a blocked cell is no pair of integers
+        :raises ValueError: when a size is not positive, a blocked cell lies outside of the grid
+            or all cells are blocked
         """
         boundary_coordinates, list_of_hole_coordinates = utils.convert_grid(
             size_x, size_y, obstacle_iter
@@ -221,7 +190,7 @@ class PolygonEnvironment:
         cls,
         boundary: t.GeometryInput,
         obstacles: t.GeometryInput = None,
-        validate: bool = False,
+        validate: bool = True,
     ) -> Self:
         """Create an environment from `Shapely <https://shapely.readthedocs.io/>`__ or GeoJSON-like geometries
 
@@ -243,7 +212,7 @@ class PolygonEnvironment:
             and at least one obstacle must be supplied.
         :param obstacles: the obstacles: a polygon, a multi-polygon, a geometry collection of polygons
             or an iterable of these. Empty geometries are skipped.
-        :param validate: whether the converted input should be validated,
+        :param validate: whether the converted input should be validated (default),
             with the same validation as the coordinate input of the constructor
         :raises ImportError: when Shapely is not installed
         :raises TypeError: when a geometry is not a polygon (or a collection of polygons)
@@ -260,32 +229,39 @@ class PolygonEnvironment:
         return self.nr_vertices
 
     @property
-    def all_extremities(self) -> list[tuple]:
+    def all_extremities(self) -> list[tuple[float, ...]]:
         coords = self.coords
         return [tuple(coords[i]) for i in self.extremity_indices]
 
     @property
-    def all_vertices(self) -> list[tuple]:
+    def all_vertices(self) -> list[tuple[float, ...]]:
         coords = self.coords
         return [tuple(coords[i]) for i in range(self.nr_vertices)]
 
-    def export_pickle(self, path: str = DEFAULT_PICKLE_NAME):
-        print("storing map class in:", path)
+    def export_pickle(self, path: str = DEFAULT_PICKLE_NAME) -> str:
+        """stores the environment with its visibility graph in a pickle file (cf. :func:`load_pickle`)
+
+        :return: the path of the file
+        """
         with open(path, "wb") as f:
             pickle.dump(self, f)
-        print("done.\n")
+        return path
 
-    def __getstate__(self):
+    def __getstate__(self) -> t.PickleState:
         """adds the pickle format version to the state. Subclasses overriding this must call ``super()``"""
-        state = super().__getstate__()
+        full_state = cast(t.PickleState, super().__getstate__())
         # (dict, slots) for subclasses with ``__slots__``
-        state, slots = state if isinstance(state, tuple) else (state, None)
+        state, slots = (
+            full_state if isinstance(full_state, tuple) else (full_state, None)
+        )
         state = {**state, _PICKLE_FORMAT_KEY: configs.PICKLE_FORMAT_VERSION}
         return state if slots is None else (state, slots)
 
-    def __setstate__(self, state):
-        state, slots = state if isinstance(state, tuple) else (state, None)
-        state = dict(state)
+    def __setstate__(self, full_state: t.PickleState) -> None:
+        loaded, slots = (
+            full_state if isinstance(full_state, tuple) else (full_state, None)
+        )
+        state = dict(loaded)
         pickle_format = state.pop(_PICKLE_FORMAT_KEY, None)
         if pickle_format != configs.PICKLE_FORMAT_VERSION:
             found = (
@@ -302,7 +278,7 @@ class PolygonEnvironment:
         for name, value in (slots or {}).items():
             setattr(self, name, value)
 
-    def _compute_graph(self):
+    def _compute_graph(self) -> None:
         """Computes a visibility graph optimized (=reduced) for path planning and stores it
 
         Computes all directly reachable extremities based on visibility and their distance to each other
@@ -335,7 +311,7 @@ class PolygonEnvironment:
         :param coords: numerical tuple representing coordinates
         :return: whether the given coordinate is a valid query point
         """
-        return utils.is_within_map(coords, self.boundary_polygon, self.holes)
+        return is_within_map(coords, self.boundary_polygon, self.holes)
 
     def get_visible_idxs(
         self,
@@ -353,17 +329,8 @@ class PolygonEnvironment:
         :param query_points: the points at the query points (``None``: no polygon passes the query point).
             Looked up when not given.
         """
-        if query_points is not None and origin in query_points:
-            point = query_points[origin]
-        else:
-            point = self.points.at(coords[origin], origin)
-        wedges = [] if point is None else point.wedges
-        # Note: candidates with identical coordinates are not visible (they get merged)
-        candidates = {i for i in candidates if vert_idx2dist[i] != 0.0}
-        return utils.find_visible_from(
+        return queries.find_visible_from_query(
             origin,
-            point,
-            wedges,
             candidates,
             coords,
             vert_idx2repr,
@@ -384,11 +351,18 @@ class PolygonEnvironment:
 
         :param start_coordinates: a (x,y) coordinate tuple representing the start node
         :param goal_coordinates:  a (x,y) coordinate tuple representing the goal node
-        :param verify: whether it should be checked if start and goal points really lie inside the environment.
-         if points close to or on polygon edges should be accepted as valid input, set this to ``False``.
+        :param verify: whether it should be checked if start and goal points really lie inside the environment
+         (polygon edges included). ``False`` skips the check. A point within rounding error of an edge,
+         but not exactly on it, may then get a wrong path, whose length can depend on the query direction
+         (cf. the numerical policy of the engineering design): move such a point onto the edge or away from it.
          Start and goal may lie on a contact point of touching obstacles, the path may leave through
          any free space next to it. On an edge shared by two touching obstacles (inside a wall) there is no path.
         :return: a tuple of shortest path and its length. ([], None) if there is no possible path.
+         The path is a list of ``(x, y)`` tuples of Python floats (also start and goal,
+         whatever type was passed), the length a Python float.
+        :raises TypeError: when start or goal do not consist of two values
+        :raises ValueError: when a coordinate of start or goal is not finite,
+         and when ``verify=True`` and start or goal do not lie within the map
         """
         result = self.search(start_coordinates, goal_coordinates, verify=verify)
         return result.path, result.length
@@ -408,136 +382,71 @@ class PolygonEnvironment:
 
         :param start_coordinates: a (x,y) coordinate tuple representing the start node
         :param goal_coordinates:  a (x,y) coordinate tuple representing the goal node
-        :param verify: whether it should be checked if start and goal points really lie inside the environment.
-         if points close to or on polygon edges should be accepted as valid input, set this to ``False``.
+        :param verify: whether it should be checked if start and goal points really lie inside the environment
+         (cf. :meth:`find_shortest_path`)
         :return: the result of the search
+        :raises TypeError: when start or goal do not consist of two values
+        :raises ValueError: when a coordinate of start or goal is not finite,
+         and when ``verify=True`` and start or goal do not lie within the map
         """
-        coords_start = np.array(start_coordinates, dtype=float)
-        coords_goal = np.array(goal_coordinates, dtype=float)
+        expected = "two values (x,y)"
+        coords_start = utils.to_float_array(start_coordinates, "start point", expected)
+        coords_goal = utils.to_float_array(goal_coordinates, "goal point", expected)
+        utils.check_query_point(coords_start, "start")
+        utils.check_query_point(coords_goal, "goal")
         if verify and not self.within_map(coords_start):
             raise ValueError("start point does not lie within the map")
         if verify and not self.within_map(coords_goal):
             raise ValueError("goal point does not lie within the map")
-
-        start = self.idx_start
-        goal = self.idx_goal
-        # temporarily extend data structure
-        coords = np.append(self.coords, (coords_start, coords_goal), axis=0)
-
-        def no_graph_result(path: Path, length: Length) -> SearchResult:
-            return SearchResult(path, length, coords)
-
-        if np.array_equal(coords_start, coords_goal):
-            # start and goal are identical and can be reached instantly
-            return no_graph_result([start_coordinates, goal_coordinates], 0.0)
-
-        # the points at start and goal, and the graph nodes at their positions (merged with them)
-        query_points = {
-            start: self.points.at(coords_start, start),
-            goal: self.points.at(coords_goal, goal),
-        }
-        start_node, goal_node = (_graph_node(query_points[i]) for i in (start, goal))
-
-        # check the goal node first (earlier termination possible)
-        origin = goal
-        # the visibility of only the graph nodes has to be checked (not all extremities!)
-        # IMPORTANT: also check if the start node is visible from the goal node!
-        candidate_idxs: set[int] = set(self.graph.nodes)
-        candidate_idxs.add(start)
-        # Note: the graph node at the start position must not hide the start
-        #   (only the closest of candidates in the same direction is visible, cf. find_visible()):
-        #   the start may leave its point through any free wedge, the graph node only through its own
-        candidates_goal = candidate_idxs - {start_node}
-        vert_idx2repr, vert_idx2dist = utils.cmp_reps_n_distances(origin, coords)
-        # the distances to the goal: the A* heuristic
-        # (also for a graph node merged with the goal: identical coordinates, identical distances)
-        goal_distances = vert_idx2dist
-        visibles_goal = self.get_visible_idxs(
-            origin,
-            candidates_goal,
-            coords,
-            vert_idx2repr,
-            vert_idx2dist,
-            query_points,
-        )
-        if len(visibles_goal) == 0:
-            # The goal node does not have any neighbours. Hence there is not possible path to the goal.
-            return no_graph_result([], None)
-
-        # IMPORTANT geometrical property of this problem: it is always shortest to directly reach a node
-        #   instead of visiting other nodes first (there is never an advantage through reduced edge weight)
-        # -> when goal is directly reachable, there can be no other shorter path to it. Terminate
-        if start in visibles_goal:
-            d = vert_idx2dist[start]
-            return no_graph_result([start_coordinates, goal_coordinates], d)
-
-        # merge start and goal with the graph nodes at their positions
-        start_mapped = start if start_node is None else start_node
-        goal_mapped = goal if goal_node is None else goal_node
-
-        # the temporary edges connecting start and goal to the graph
-        # Note: the precomputed self.graph is neither changed nor copied (copying is expensive for large graphs)
-        #   https://github.com/jannikmi/extremitypathfinder/issues/136
-        # Note: also here unnecessary edges in the graph could be deleted
-        # optimising the graph here however is more expensive than beneficial,
-        # as the graph is only being used for a single query
-        query_edges = [(i, goal_mapped, vert_idx2dist[i]) for i in visibles_goal]
-
-        origin = start
-        # the visibility of only the graphs nodes have to be checked
-        # the goal node does not have to be considered, because of the earlier check
-        vert_idx2repr, vert_idx2dist = utils.cmp_reps_n_distances(origin, coords)
-        visibles_start = self.get_visible_idxs(
-            origin,
-            candidate_idxs,
-            coords,
-            vert_idx2repr,
-            vert_idx2dist,
-            query_points,
+        return queries.search(
+            coords_start,
+            coords_goal,
+            self.graph,
+            self.coords,
+            self.edge_vertex_idxs,
+            self.points,
         )
 
-        if len(visibles_start) == 0:
-            # The start node does not have any neighbours. Hence there is no possible path to the goal.
-            return no_graph_result([], None)
+    def distance_matrix(
+        self,
+        points_a: Iterable[InputCoord],
+        points_b: Iterable[InputCoord] | None = None,
+        *,
+        verify: bool = True,
+    ) -> np.ndarray:
+        """computes the shortest path lengths between many points (a distance matrix)
 
-        query_edges += [(start_mapped, i, vert_idx2dist[i]) for i in visibles_start]
-        query_adjacency: dict[int, dict[int, float]] = {}
-        for i, j, d in query_edges:
-            query_adjacency.setdefault(i, {})[j] = d
-            query_adjacency.setdefault(j, {})[i] = d
+        Gives the same lengths as :meth:`find_shortest_path` for every pair, but faster:
+        the visibility of every point is computed once (instead of twice per pair)
+        and the visibility graph is searched with A* for every pair, like :meth:`find_shortest_path`.
+        The environment and its visibility graph are not changed.
 
-        def graph_result(path: Path, length: Length) -> SearchResult:
-            return SearchResult(
-                path,
-                length,
-                coords,
-                start_mapped,
-                goal_mapped,
-                query_edges,
-                self.graph,
-            )
-
-        def distance_to_goal(node: int, _goal: int) -> float:
-            return goal_distances[node]
-
-        id_path = utils.astar_path(
-            self.graph, query_adjacency, start_mapped, goal_mapped, distance_to_goal
+        :param points_a: the start points, (x,y) coordinate tuples
+        :param points_b: the goal points, (x,y) coordinate tuples. ``None``: the points of ``points_a``
+        :param verify: whether it should be checked if the points really lie inside the environment
+            (cf. :meth:`find_shortest_path`)
+        :return: the lengths of the shortest paths, a float array of shape ``(len(points_a), len(points_b))``:
+            entry ``[i, j]`` is the length from ``points_a[i]`` to ``points_b[j]``, ``inf`` if there is no path
+        :raises ValueError: when the points are no (x,y) coordinate pairs or not finite,
+            and when ``verify=True`` and a point does not lie within the map
+        """
+        coords_a = queries.as_coord_array(points_a)
+        coords_b = coords_a if points_b is None else queries.as_coord_array(points_b)
+        if verify:
+            checked = [("points_a", coords_a)]
+            if points_b is not None:
+                checked.append(("points_b", coords_b))
+            for name, query_coords in checked:
+                for i, point in enumerate(query_coords):
+                    if not self.within_map(point):
+                        raise ValueError(
+                            f"{name}[{i}] {tuple(point.tolist())} does not lie within the map"
+                        )
+        return queries.distance_matrix(
+            coords_a,
+            coords_b,
+            self.graph,
+            self.coords,
+            self.edge_vertex_idxs,
+            self.points,
         )
-        if id_path is None:
-            return graph_result([], None)
-
-        # the length of the path: the sum of the weights of its edges (Euclidean distances)
-        distance = 0.0
-        for v1, v2 in itertools.pairwise(id_path):
-            distance += utils.edge_weight(self.graph, query_adjacency, v1, v2)
-
-        # extract the coordinates from the path
-        path = [tuple(coords[i]) for i in id_path]
-        return graph_result(path, distance)
-
-
-def _graph_node(point: Point | None) -> int | None:
-    """the graph node of a point (an extremity), ``None`` if the point is no extremity"""
-    if point is None or not point.is_extremity:
-        return None
-    return point.idx

@@ -24,8 +24,8 @@ make release-check                 # build and validate the release artifacts
 ## Repository map
 
 - `extremitypathfinder/`: the package. Layers, each importing only from below:
-  `command_line`, `plotting` → `extremitypathfinder` (PolygonEnvironment) → `utils` → `wedges` → `utils_numba` →
-  `numba` | `numba_replacements`
+  `command_line`, `plotting` → `extremitypathfinder` (PolygonEnvironment) → `queries` → `utils` → `wedges` →
+  `utils_numba` → `numba` | `numba_replacements`
 - `tests/`: pytest suite. `scripts/`: release tooling, docs figures, benchmarks. `benchmarks/`: comparison with pyvisgraph.
   `prototypes/`: untested dev scripts
 - `docs/`: Sphinx (reStructuredText), contributing guide in Markdown (`docs/contributing/`)
@@ -35,14 +35,17 @@ make release-check                 # build and validate the release artifacts
 1. Read `docs/contributing/invariants.md` before changing the package. Do not change an invariant without an issue
    that decides it.
 2. Results must be identical with and without Numba. Run affected tests in both modes.
-3. Keep the module layering. New dependencies only if justified and accepted by a maintainer.
+3. Keep the module layering and the root module lean: `PolygonEnvironment` only checks the input and delegates,
+   algorithms go into the modules below. New dependencies only if justified and accepted by a maintainer.
 4. Queries never modify the environment or its visibility graph.
 5. Every bugfix comes with a regression test that fails before the fix.
 6. User-facing changes get an entry in the `Unreleased` section of `CHANGELOG.rst`.
-7. Never edit `uv.lock` by hand (`make lock`). Never bump the version, push tags, publish releases,
-   or edit `.github/workflows/` unless explicitly asked.
-8. Keep the networkx copyright notice above `utils.astar_path()`.
-9. Performance claims need before/after numbers (`docs/contributing/performance.md`).
+7. Never edit `uv.lock` by hand (`make lock`). Never bump the version, push tags or publish releases unless explicitly asked.
+   Editing `.github/workflows/` is allowed, but point out every edit and its reasoning in the pull request
+   (`docs/contributing/workflow.md#pull-requests`). Never touch CI secrets.
+8. The package is licensed under MIT only: do not copy or adapt code from other projects (`docs/contributing/invariants.md`).
+9. Performance claims need before/after numbers in the issue or pull request (`docs/contributing/performance.md`).
+   Static pages, docstrings and comments state results qualitatively, without measured numbers (they go stale).
 10. Stay in the scope of the task: no unrelated refactoring or reformatting. Never weaken or skip tests to pass.
 11. Before a larger change, present the trade-off with a recommendation. Unless one option is clearly better,
     a maintainer decides. Record and summarise it (`docs/contributing/workflow.md#trade-offs-and-decisions`).

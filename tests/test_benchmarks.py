@@ -1,6 +1,9 @@
 """Tests of the benchmark harness (``benchmarks/``), skipped without the benchmark dependencies."""
 
+import json
+import math
 import sys
+from dataclasses import asdict
 from pathlib import Path
 
 import pytest
@@ -8,7 +11,7 @@ import pytest
 pytest.importorskip("shapely")
 pytest.importorskip("pyvisgraph")
 
-from shapely.geometry import Point
+from shapely.geometry import Point, Polygon
 
 from benchmarks import measure, run, validate, workloads, world_map
 from benchmarks.adapters import NO_NUMBA, get_adapter
@@ -106,9 +109,42 @@ def test_measure_subprocess_and_budget():
 
 
 def test_parse_size():
-    assert workloads.parse_size("5k").resolution == "110m"
+    assert workloads.parse_size("5k").target_vertices == 5000
     assert workloads.parse_size("2000").name == "world_2k"
     assert workloads.parse_size("world_250").target_vertices == 250
+
+
+def test_downsample_reaches_at_least_the_target():
+    """a map of n vertices has at least n vertices (e.g. world_6k: not 5,952)"""
+    polygons = [
+        Polygon(
+            [
+                (10 * i + 4 * math.cos(a), 4 * math.sin(a))
+                for a in (2 * math.pi * k / 400 for k in range(400))
+            ]
+        )
+        for i in range(5)
+    ]
+    for target in (100, 250, 1000):
+        _, stats = world_map.downsample(polygons, target)
+        assert target <= stats["vertices"] <= (1 + world_map.TARGET_RTOL) * target
+    with pytest.raises(ValueError):
+        world_map.downsample(polygons, 2001)
+    # unreachable within the tolerance: a larger simplification drops all polygons
+    with pytest.warns(UserWarning, match="above the target"):
+        _, stats = world_map.downsample(polygons, 5)
+    assert stats["vertices"] >= 5
+
+
+def test_load_world_rebuilds_maps_of_another_map_version(monkeypatch, tmp_path):
+    """cached maps of an earlier map generation (e.g. at most the target) are not reused"""
+    spec = workloads.SWEEP_BY_NAME["world_5k"]
+    old = {"spec": asdict(spec), "ne_release": world_map.NE_RELEASE, "vertices": 4954}
+    (tmp_path / f"{spec.name}.json").write_text(json.dumps(old))
+    monkeypatch.setattr(world_map, "build_map", lambda *_a, **_k: {"vertices": 5081})
+    assert workloads.load_world(spec, tmp_path)["vertices"] == 5081
+    monkeypatch.setattr(world_map, "build_map", lambda *_a, **_k: pytest.fail("cached"))
+    assert workloads.load_world(spec, tmp_path)["vertices"] == 5081
 
 
 def test_quick_run_tolerates_download_failure(monkeypatch, tmp_path):
@@ -593,3 +629,196 @@ def test_rendering_a_full_run_lists_the_derived_text(tmp_path, capsys):
     out = ["--tables-dir", str(tmp_path), "--figures-dir", str(tmp_path)]
     assert run.main(["--render-only", str(results), *out]) == 0
     assert "docs/7_performance.rst" in capsys.readouterr().err
+
+
+def test_correctness_table_omits_maps_which_no_package_built():
+    """over budget for every package: no information on correctness; over budget for one: shown"""
+    meta = {
+        "quick": False,
+        "budget": 600,
+        "query_limit": None,
+        "nr_queries": 1,
+        **_system_meta(),
+    }
+
+    def entry(name, statuses):
+        return {
+            "map": {
+                "name": name,
+                "resolution": "110m",
+                "polygons": 1,
+                "vertices": 4,
+                "tolerance": 0.0,
+                "dropped_intersecting": 0,
+            },
+            "results": {
+                package: {"status": status, "budget": 600, **built}
+                if status == measure.OK
+                else {"status": status, "budget": 600}
+                for package, status in statuses.items()
+            },
+        }
+
+    stats = dict.fromkeys(("p5", "p50", "p95", "p99", "mean"), 1e-3)
+    built = {
+        "build_time": 2.0,
+        "graph_nodes": 4,
+        "graph_edges": 6,
+        "memory_peak": 3 * 2**20,
+        "memory_baseline": 10 * 2**20,
+        "query_stats": {**stats, "queries_per_s": 1000.0, "n": 1},
+    }
+    world = [
+        entry(
+            "both_over",
+            {
+                "extremitypathfinder": measure.OVER_BUDGET,
+                "pyvisgraph": measure.OVER_BUDGET,
+            },
+        ),
+        entry(
+            "one_over",
+            {
+                "extremitypathfinder": measure.OK,
+                "pyvisgraph": measure.OVER_BUDGET,
+            },
+        ),
+    ]
+    table = run.render_tables({"meta": meta, "world": world, "examples": []})[
+        "benchmark_correctness.rst"
+    ]
+    assert "both_over" not in table
+    assert "one_over" in table
+
+
+def _complexity_results():
+    stats = dict.fromkeys(("p5", "p50", "p95", "p99", "mean"), 1e-3)
+
+    def result(status, build_time, edges):
+        return {
+            "status": status,
+            "build_time": build_time,
+            "graph_nodes": 8,
+            "graph_edges": edges,
+            "query_stats": {**stats, "queries_per_s": 1.0, "n": 1},
+        }
+
+    def entry(vertices, **results):
+        return {"map": {"vertices": vertices}, "results": results}
+
+    return {
+        "world": [
+            entry(
+                16,
+                extremitypathfinder=result("ok", 1.0, 20),
+                pyvisgraph=result("ok", 4.0, 60),
+            ),
+            entry(
+                32,
+                extremitypathfinder=result("ok", 2.0, 40),
+                pyvisgraph=result("invalid", 16.0, 90),
+            ),
+            entry(64, extremitypathfinder=result("ok", 4.0, 80)),
+        ]
+    }
+
+
+def test_complexity_terms():
+    from benchmarks import complexity
+
+    results = _complexity_results()
+    epf = complexity.rows(results, "build", complexity.EPF)
+    assert [r["vertices"] for r in epf] == [16, 32, 64]
+    # m n log n + n^2 with m = 8
+    assert epf[0]["term"] == 8 * 16 * 4 + 16 * 16
+    # the constant makes the term equal the measured time at the smallest map
+    data, c = complexity.series(results, "build", complexity.EPF)
+    assert c * data[0]["term"] == data[0]["time"]
+    # the build of an invalid run counts, its query does not (the edges of its graph are wrong)
+    assert [
+        r["vertices"] for r in complexity.rows(results, "build", complexity.PVG)
+    ] == [16, 32]
+    assert [
+        r["vertices"] for r in complexity.rows(results, "query", complexity.PVG)
+    ] == [16]
+    # ratios only where both have rows
+    ratios = complexity.ratios(results, "build")
+    assert [r["vertices"] for r in ratios] == [16, 32]
+    assert ratios[0]["time"] == 4.0
+    assert complexity.ratios(results, "query")[0]["time"] == 1.0
+
+
+def test_complexity_table_and_figures(tmp_path):
+    from benchmarks import plot
+
+    results = _complexity_results()
+    meta = {
+        "quick": True,
+        "seed": 0,
+        "budget": 600,
+        "query_limit": None,
+        "nr_queries": 1,
+        **_system_meta(),
+    }
+    table = run._complexity_table(results)
+    assert "Build term ratio pyvisgraph / extremitypathfinder" in table
+    # the map without a pyvisgraph result has no ratios
+    assert table.rstrip().endswith("- 898\n     - –\n     - –\n     - –")
+    plot.complexity_build(
+        {"meta": meta, "examples": [], **results}, tmp_path / "build.svg"
+    )
+    plot.complexity_query(
+        {"meta": meta, "examples": [], **results}, tmp_path / "query.svg"
+    )
+    assert (tmp_path / "build.svg").stat().st_size > 0
+    assert (tmp_path / "query.svg").stat().st_size > 0
+
+
+def test_complexity_rows_robustness():
+    from benchmarks import complexity
+
+    results = _complexity_results()
+    world = results["world"]
+    # unsorted maps: ascending rows, so the constant is fitted at the smallest map
+    unsorted = {"world": world[::-1]}
+    data, c = complexity.series(unsorted, "build", complexity.EPF)
+    assert [r["vertices"] for r in data] == [16, 32, 64]
+    assert c * data[0]["term"] == data[0]["time"]
+    # the build term of pyvisgraph needs neither the extremities nor the edges
+    pvg = world[0]["results"]["pyvisgraph"]
+    del pvg["graph_edges"], world[0]["results"]["extremitypathfinder"]["graph_nodes"]
+    assert [
+        r["vertices"] for r in complexity.rows(results, "build", complexity.PVG)
+    ] == [16, 32]
+    # a query term without them, or without query statistics, is skipped
+    assert complexity.rows(results, "query", complexity.PVG) == []
+    del world[2]["results"]["extremitypathfinder"]["query_stats"]
+    assert [
+        r["vertices"] for r in complexity.rows(results, "query", complexity.EPF)
+    ] == [32]
+    # a package without data
+    assert complexity.series({"world": []}, "build", complexity.EPF) == ([], 1.0)
+    # a query needs a valid extremitypathfinder result too
+    results = _complexity_results()
+    results["world"][0]["results"]["extremitypathfinder"]["status"] = "invalid"
+    assert complexity.rows(results, "query", complexity.PVG) == []
+
+
+def test_complexity_worst_case_references():
+    import math
+
+    from benchmarks import complexity
+
+    # the documented worst cases: m n log^2 n + n^2 (build) and n log^2 n + m + E log E (query) of extremitypathfinder
+    _, build = complexity.WORST_CASE["build"][complexity.EPF]
+    assert build(16, 8, 20) == 8 * 16 * math.log2(16) ** 2 + 16 * 16
+    _, query = complexity.WORST_CASE["query"][complexity.EPF]
+    assert query(16, 8, 20) == 16 * math.log2(16) ** 2 + 8 + 20 * math.log2(20)
+    # the worst case is never below the typical case
+    for kind in ("build", "query"):
+        typical = complexity.TERMS[kind][complexity.EPF][1]
+        worst = complexity.WORST_CASE[kind][complexity.EPF][1]
+        assert worst(100, 50, 200) >= typical(100, 50, 200)
+    # pyvisgraph: n^3 for the build, no documented worst case for the query
+    assert complexity.WORST_CASE["build"][complexity.PVG][1](10, 0, 0) == 1000
+    assert complexity.PVG not in complexity.WORST_CASE["query"]

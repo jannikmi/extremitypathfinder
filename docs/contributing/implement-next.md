@@ -31,7 +31,8 @@ Run it on request (e.g. `/implement-next` in Claude Code), optionally for a give
    (as in steps 4 and 6 of [Unblock and re-rank](unblock-and-rerank.md)), release its claim and continue without it;
    with an empty bundle, go back to step 2.
 6. **Implement** with the rules of this guide: tests (a regression test that fails before each fix),
-   results identical with and without Numba, changelog, documentation and decision log.
+   results identical with and without Numba, changelog, documentation (the reasoning of an improvement in the code
+   or the documentation it affects) and the decision log for decisions meeting its criteria.
    Commit per issue where the changes allow it, so that reviewers can follow them.
    Read the claims again, then open a draft pull request after the first commit, with "closes #…" for every issue
    of the bundle. Release and drop an issue someone else took over.

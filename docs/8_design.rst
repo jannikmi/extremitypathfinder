@@ -52,8 +52,10 @@ The package is a small library with a single entry point, the class ``PolygonEnv
 
     extremitypathfinder/
     ├── __init__.py              public API
-    ├── extremitypathfinder.py   PolygonEnvironment, SearchResult
+    ├── extremitypathfinder.py   PolygonEnvironment: the public API, delegating to the modules below
+    ├── queries.py               queries: start and goal visibility, graph search, distance matrix
     ├── wedges.py                points and free wedges
+    ├── li_chao_tree.py          Li Chao tree of edges over the candidates (AREA)
     ├── utils.py                 visibility (AREA), graph, A*, validation, grids, I/O
     ├── utils_numba.py           numerical kernels (optionally compiled)
     ├── numba_replacements.py    stand-ins for numba decorators and types
@@ -68,17 +70,22 @@ The modules form layers, each one only imports from the layers below it:
 
     command_line, plotting       user interfaces
             │
-    extremitypathfinder          PolygonEnvironment, SearchResult
+    extremitypathfinder          PolygonEnvironment
+            │
+    queries                      search, distance matrix, SearchResult
             │
     utils                        visibility, graph, A*, validation
             │
     wedges                       points and free wedges
             │
+    li_chao_tree                 Li Chao tree of edges over the candidates
+            │
     utils_numba                  numerical kernels
             │
     numba | numba_replacements
 
-``PolygonEnvironment`` orchestrates the computation and owns all state.
+``PolygonEnvironment`` owns all state and is the public API: it checks the input and delegates the algorithms
+to the modules below (``utils.compute_graph()`` for the preparation, ``queries`` for the queries).
 ``utils`` and ``wedges`` contain stateless functions and the immutable ``Points`` structure,
 ``utils_numba`` contains the innermost numerical loops.
 
@@ -159,7 +166,7 @@ so an environment object is always complete and ready for queries.
 2. **Orientation** (``orient_polygons()``): polygons with the opposite vertex numbering are reversed
    (boundary counter clockwise, holes clockwise). The test is cheap (linear in the number of vertices),
    so it always runs. Input which is no polygon (shape, fewer than 3 vertices) is left to the validation.
-3. **Validation** (optional, ``validate=True``): shapes, minimum vertex count, finite coordinates,
+3. **Validation** (on by default, skipped with ``validate=False``): shapes, minimum vertex count, finite coordinates,
    no repeated consecutive vertices, no self intersections, non-zero area,
    no crossings or overlapping edges at self contacts
    (``check_data_requirements()``, ``check_polygon_contacts()``).
@@ -288,8 +295,9 @@ The rules applied with the wedges (``wedges.py``):
    for a line of sight that did not cross the polygon, so it is only checked at contacts)
 
 The bounding rays belong to the wedges (closed angle ranges, ``in_closure()``): paths may run along edges.
-Directions within ``RAY_TOLERANCE`` of a bounding ray are compared with the exact ray directions instead of their
-representations (``Point.rep()``), so that collinear edges of different length behave consistently.
+Directions exactly on a bounding ray (zero cross product, same direction) take the representation of that ray
+(``Point.rep()``), so that collinear edges of different length behave consistently. The check only runs for directions
+within ``RAY_WINDOW`` of a bound (cf. `Numerical Policy`_).
 
 Visibility from one origin
 --------------------------
@@ -298,6 +306,9 @@ Visibility from one origin
 during construction and for start and goal during queries:
 
 1. **Leaving the origin (rule 2)**: candidates outside of the allowed wedges of the origin are dropped.
+   All candidates are tested at once (``Point.in_wedges_mask()``), only the directions within ``RAY_WINDOW``
+   of a bounding ray are decided one by one (``Point.in_wedges()``): a Python call per candidate
+   would cost more than the edge checks.
    The edges incident to the origin are then excluded from the edge checks: their effect is fully described
    by the wedges.
 2. **Edges (AREA)**: the remaining edges are checked with ``find_visible()`` (below).
@@ -321,98 +332,122 @@ A line of sight only touching an edge in one of its vertices, or running along i
     keep only the closest candidate per angle representation
     sort the candidates by angle representation
     per edge: range [min_rep, max_rep] and max_dist of its two vertices
-    crossing edges: max_rep - min_rep > 2 (the range contains 0)
+    per edge: the candidates with min_rep < rep < max_rep (binary searches)
+      crossing edges (max_rep - min_rep > 2, the range contains 0):
+      the candidates with rep > max_rep and those with rep < min_rep
+    keep only the edges with candidates, sort them by max_dist
 
-    check(regular edges)
-    shift all representations: no crossing edge contains 0 anymore
-    check(crossing edges)
+    for edge in edges:
+      few candidates (at most 16):
+        check(edge, candidate) for each of them not yet removed
+      many candidates:
+        enter the edge into the tree over the candidates
+    for candidate in candidates not yet removed:
+      check(edge, candidate) for the edges stored between its leaf and the root
 
-    check(edges):
-      keep only the edges with a candidate in [min_rep, max_rep]
-      sort the edges by min_rep
-      ptr = 0                   # first candidate possibly in a range
-      for edge in edges:
-        stop if no candidates are left
-          or the last candidate lies before min_rep
-        move ptr past the candidates with rep < min_rep
-        for candidate from ptr while rep <= max_rep:
-          rep == min_rep or max_rep  -> keep   (touches a vertex)
-          candidate lies on edge     -> keep   (query point)
-          distance > max_dist        -> remove (behind both vertices)
-          lies_behind(edge, cand.)   -> remove (2x2 linear system)
-          otherwise                  -> keep
+    check(edge, candidate):
+      distance > max_dist          -> remove (behind both vertices)
+      lies_behind(edge, cand.)     -> remove (2x2 linear system)
+      otherwise                    -> keep
 
 Details:
 
 - **Identical directions**: of candidates with exactly the same representation only the closest is kept.
   A path to a farther one passes through the closer one at no extra cost (and the vertex rules decide
   whether it may pass at all).
-- **Sweep**: since the edges are sorted by ``min_rep`` and the candidates by representation,
-  candidates before the current edge's range can never be blocked by a following edge.
-  The pointer only moves forward, removed candidates shrink the list.
-- **Edges without candidates**: an edge whose angle range contains no candidate cannot block one,
-  candidates are only removed during the sweep. Two vectorised binary searches (``np.searchsorted()``)
-  select the other edges before sorting (``_edges_with_candidates()``), so the Python loop only runs over
-  the few edges that can block a candidate, not over all edges of every origin.
+- **Angle ranges**: the candidates are sorted by representation, so the candidates an edge can block are
+  one contiguous range of the sorted candidates, found with vectorised binary searches (``np.searchsorted()``,
+  ``_candidate_ranges()``). The range is open: a candidate in the direction of a vertex of the edge is not blocked
+  by it (touches a vertex).
+- **Edges without candidates**: an edge whose angle range contains no candidate cannot block one and is skipped.
+  The loop only runs over the few edges that can block a candidate, not over all edges of every origin.
 - **Crossing edges**: an edge spans less than 180 degree, so a representation difference larger than ``2.0``
-  means the range wraps around ``0``. Instead of handling the wrap in the sweep, all representations are shifted
-  (modulo ``4.0``) so that the smallest upper end of the crossing edges moves to ``0``, which turns the crossing edges
-  into regular ones. The same sweep is reused.
+  means the range wraps around ``0``. Its candidates are the two ends of the sorted candidates.
 - **Distance shortcut**: a segment lies within the disk around the origin with the radius of its farther vertex.
   A candidate within the angle range but farther away than both edge vertices therefore lies behind the edge.
   Only the remaining candidates need an intersection computation.
-- **Lies behind**: with all vectors relative to the origin, ``_lies_behind_inner()`` solves
-  :math:`p_1 + \lambda (p_2 - p_1) = \mu v` for the intersection of the line of sight :math:`v` with the edge.
+- **Lies behind**: with all vectors relative to the origin, :math:`p_1 + \lambda (p_2 - p_1) = \mu v`
+  is solved for the intersection of the line of sight :math:`v` with the edge (``_lies_behind_inner()``).
   The candidate is blocked when :math:`\mu < 1` (the edge is closer than the candidate).
-  Within the angle range the system is regular.
+  Within the angle range the system is regular. The terms that only depend on the edge are computed
+  for all edges at once.
+- **Query points on edges**: the edges touching a candidate do not block it (its arrival is decided by rule 4).
+  They are skipped in its check. The candidate must lie on them: an edge is only skipped for a candidate,
+  not for the comparison of the edges in the tree.
+
+**The tree over the candidates.** Checking every edge against every candidate in its angle range takes :math:`O(n k)` per origin
+when many edges span the directions of many candidates, e.g. long walls behind many small obstacles.
+A candidate is however already decided by the closest edge in its direction.
+``li_chao_tree.blocked_candidates()`` (``li_chao_tree.py``) finds it without comparing all edges:
+
+- A segment tree over the sorted candidates: every node stands for a contiguous range of candidates,
+  the root for all of them, its children for the two halves. The candidates of an edge are covered exactly by
+  at most :math:`2 \log k` nodes.
+- A node stores at most one edge: of the edges spanning all its directions, the closest one in its middle direction.
+  Seen from the origin, two edges swap their order at most once (two lines cross at most once).
+  The edge losing in the middle can therefore only be closer on one side of the middle, and is passed on
+  to that child, where the same happens again (a "Li Chao tree").
+- The closest edge in the direction of a candidate is then stored in one of the :math:`\log k` nodes
+  between its leaf and the root. Only these edges are checked against the candidate, with the same check as above.
+- Close edges first, and no work for hidden edges: an edge whose line is farther away than both vertices
+  of the stored edge lies behind it in all directions of the node and is dropped (and the other way round).
+  Sorted by distance, most hidden edges are dropped at the first node they reach.
+- The nodes at the bottom (up to 16 candidates, ``DIRECT_CHECK_SIZE``) store no edge:
+  their candidates are checked right away. On typical maps most edges have few candidates
+  and never reach the tree.
+
+Edges are only compared in the directions of candidates, with the intersection formula of the check.
+No crossings between edges are computed and no order of the edges along a rotating ray is maintained:
+overlapping polygons, whose edges cross, need no special treatment, and a candidate is only removed by the check
+of a single edge, which keeps the exact contact semantics.
+The tree is a plain array, compiled by Numba (``li_chao_tree.py``, the module docstring describes it in detail).
 
 Properties:
 
-- every edge is checked at most once
 - only a subset of the vertices has to be checked (the candidates, e.g. the extremities, not all vertices)
 - the number of candidates decreases with every origin: visibility is symmetric, each pair is checked once
 - no trigonometric functions
 - intersections (solving a linear system) are only computed for a fraction of the candidates
 - it would also work with line segments instead of polygons (the package however only accepts polygons)
 
-Cost per origin with :math:`k \leq m` candidates: selecting the edges with candidates, :math:`O(n \log k)`
-(vectorised), sorting them, :math:`O(n \log n)`, and the candidates, :math:`O(k \log k)`,
-plus one check per edge and candidate within its angle range.
+Cost per origin with :math:`k \leq m` candidates: the angle ranges, :math:`O(n \log k)` (vectorised),
+sorting the edges with candidates, :math:`O(n \log n)`, and the candidates, :math:`O(k \log k)`,
+plus the checks.
 
 - **Typical case**: the angle ranges of the edges overlap little, so every candidate is only checked against
   a few edges. This gives :math:`O(n \log n + m)` per origin and :math:`O(m \, n \log n)`
   for all extremities.
-- **Worst case**: a candidate in front of an edge is kept and checked again by every following edge
-  whose angle range contains it, e.g. many long edges behind many candidates, all spanning the same angle range.
-  This gives :math:`O(n \log n + n k)` per origin and :math:`O(m \, n \log n + n \, m^2)` for all extremities
-  (the number of candidates decreases from :math:`m` with every origin), i.e. :math:`O(n^3)` for :math:`m \sim n`.
-  In such an environment, doubling both the number of edges and of candidates quadruples
-  the time of ``find_visible()``.
-  An angular sweep would avoid this worst case, but is slower on the measured maps
+- **Worst case**: every edge is entered into :math:`O(\log k)` nodes and passed down :math:`O(\log k)` levels,
+  and every candidate is checked against :math:`O(\log k)` edges.
+  This gives :math:`O(n \log^2 n)` per origin and :math:`O(m \, n \log^2 n)` for all extremities.
+  Without the tree it was :math:`O(n \log n + n k)` per origin, i.e. :math:`O(n^3)` for :math:`m \sim n`
   (`#216 <https://github.com/jannikmi/extremitypathfinder/issues/216>`__).
+  ``prototypes/complexity_profile.py worst`` measures an environment of this kind.
 
 AREA builds on known techniques: sorting by angle around the origin (as Lee's algorithm),
-a trigonometry-free angle representation (the "diamond angle") and culling by angle range and distance.
-Its own part is the edge-centric sweep: every edge eliminates the candidates behind it,
+a trigonometry-free angle representation (the "diamond angle"), culling by angle range and distance,
+and a segment tree storing one line per node (Li Chao tree).
+Its own part is the edge-centric elimination: every edge eliminates the candidates behind it,
 instead of a rotating ray keeping the edges in a balanced tree.
 
 Comparison with `Lee's visibility graph algorithm <https://dav.ee/papers/Visibility_Graph_Algorithm.pdf>`__,
 which `pyvisgraph <https://github.com/TaipanRex/pyvisgraph>`__ uses.
 Lee's algorithm takes :math:`O(n^2 \log n)` in the worst case when it keeps the edges crossing the sweep ray
-in a balanced search tree. The implementation of pyvisgraph (0.2.1, ``visible_vertices.py``) takes :math:`O(n^3)`
-in the worst case, like AREA for :math:`m \sim n`, for two reasons: it keeps the edges in a sorted Python list
+in a balanced search tree, AREA :math:`O(m \, n \log^2 n)`.
+The implementation of pyvisgraph (0.2.1, ``visible_vertices.py``) takes :math:`O(n^3)`
+in the worst case, for two reasons: it keeps the edges in a sorted Python list
 (``insort()`` and ``del``, :math:`O(n)` per insertion and removal), and for every visible vertex of the same polygon
 it tests whether the line of sight runs through the polygon with a crossing test over all edges of that polygon
 (``edge_in_polygon()``), :math:`O(n)` per pair.
-The list operations are fast memory moves, and the measured maps keep AREA in its typical case (#215).
 The differences:
 
 - Lee checks all edges for intersection initially, AREA only the edges whose angle range contains candidates
 - Lee computes the visibility of all vertices in every run, AREA only of the candidates
 - Lee needs an intersection computation for most vertices (whenever its edge tree is not empty),
   AREA avoids most of them with the angle range and distance tests
-- Lee sorts all vertices by angle on startup and keeps the edges in a binary tree (pyvisgraph: a sorted list),
-  AREA sorts edges and candidates
+- Lee sorts all vertices by angle on startup and keeps the edges crossing the sweep ray in a binary tree
+  (pyvisgraph: a sorted list), ordered along the ray, which requires edges that do not cross.
+  AREA sorts the candidates and keeps the closest edges in a tree over them, crossing edges included
 - both work with line segments, not only polygons
 
 Passing through and arriving at points
@@ -424,7 +459,7 @@ Passing through and arriving at points
   (for a query point candidate: in any of its wedges).
 - **Passing (rule 3)**: the points are sorted by their representation seen from the origin. For each candidate,
   a binary search (``np.searchsorted``) finds the points with nearly the same representation
-  (within ``RAY_TOLERANCE``). Those closer than the candidate and exactly on the line of sight
+  (within ``RAY_WINDOW``). Those closer than the candidate and exactly on the line of sight
   (identical representation or zero cross product) must be passable: the directions back to the origin and on to
   the candidate must lie in the same wedge.
 
@@ -443,6 +478,8 @@ on a shortest path (and vice versa), so they are not connected.
 The front is the opposite range (rotated by 180 degree), excluding its bounding directions.
 A path arriving at :math:`e` from the front cannot wrap around :math:`e`, so it would go on more directly
 without visiting :math:`e`.
+Like the wedge test of rule 2, the extremities are tested at once (``Point.in_front_mask()``),
+those within ``RAY_WINDOW`` of a bound of the front one by one.
 
 .. code-block:: text
 
@@ -459,30 +496,78 @@ The front condition is not symmetric: an edge added from :math:`e_1`'s side is r
 lies in front of :math:`e`. That is why the current neighbours are included in the front test.
 Extremities without edges remain in the graph, start and goal may connect to them.
 
-The reduction does not apply to start and goal: they are endpoints of the path, not intermediate nodes.
-A query point connects to all visible graph nodes, including those in front of it.
+The same argument holds for the edges of start and goal: it is about the extremity :math:`e` being an
+intermediate node, whether the path comes from a query point or from another extremity
+(the "taut path" pruning of `Oh and Leong (2017) <https://arxiv.org/abs/1702.01524>`__ is the same).
+A query point is therefore not connected to the graph nodes it lies in front of (#222).
+The reverse does not hold: start and goal are endpoints of the path, so a query point connects to the visible graph
+nodes lying in front of *it*, also when it is merged with an extremity.
 
 Query
 -----
 
-``search()`` computes the visibility of start and goal with the same routine and then searches the graph:
+``search()`` (``queries.search()``) computes the visibility of start and goal with the same routine and then searches the graph:
 
 - **Merging**: a query point at the position of an extremity is mapped to that graph node.
   When the start is merged, its graph node is excluded from the candidates visible from the goal:
   it has the same direction and distance as the start and would hide it (only one candidate per direction is kept),
   although the start may leave through any of its wedges and the graph node only through its extremity wedge.
+- **Skipping the nodes in front**: before the visibility of a query point is computed, the graph nodes it lies
+  in front of are removed from the candidates (cf. `Visibility graph reduction`_). The visibility of start and goal
+  takes most of the query time: fewer candidates make it faster, and A* gets fewer temporary edges.
+  The test must be cheaper than what it saves, so it is vectorised (``Points.in_front_of()``):
+  the front range of every extremity is precomputed, and the direction from an extremity to the query point is the
+  opposite of the one seen from the query point (its angle representation plus 2). Directions within
+  ``RAY_WINDOW`` of a bound of the range are decided by ``Point.in_front()``, like in the graph
+  (it excludes the directions exactly opposite of a bounding ray). The graph node merged with the query point is not
+  skipped (it is the query point). The one merged with the other query point need not be kept: the edge to it is the
+  straight segment between start and goal, found by the "goal first" check. So the skipped nodes depend only on the
+  query point, and ``distance_matrix()`` skips the same ones.
+  AREA keeps only the closest candidate per direction, so skipping a node can make a farther candidate in the same
+  direction the closest one. Whether its line of sight passes through the skipped node is decided by the points
+  (rule 3, ``Points.filter_visible()``), not by the candidates.
 - **Goal first**: when nothing is visible from the goal there is no path. When the start is visible from the goal,
   the straight segment is the shortest path (no path can be shorter than the Euclidean distance) and the graph is
   not searched.
 - **A***: ``astar_path()`` uses the Euclidean distance to the goal as heuristic. Edge weights are Euclidean distances,
   so the heuristic is admissible and consistent (triangle inequality): the first time the goal is taken from the
   priority queue, its path is a shortest one.
-  The implementation follows ``networkx.astar_path()``: a binary heap with lazy deletion
-  (outdated queue entries are skipped when popped), a counter as tie breaker (nodes are never compared),
-  and caching of the heuristic per enqueued node. The neighbours of a node are those in the precomputed graph
-  followed by the temporary edges of start and goal.
+  The search is an own implementation (#157): a binary heap with lazy deletion
+  (a node whose distance improves is inserted again, outdated queue entries are skipped when popped)
+  and an insertion counter as tie breaker (nodes are never compared).
+  A node is expanded again if a shorter path to it is found after its expansion. With the consistent heuristic
+  this does not happen, but the search also stays exact with a heuristic that is only admissible
+  (e.g. for custom costs, #162) and when rounding violates the triangle inequality.
+  The neighbours of a node are those in the precomputed graph followed by the temporary edges of start and goal.
 - **Distances**: the heuristic uses the distances seen from the goal (computed for the query; a graph node merged
   with the goal has the same coordinates). The length of the path is the sum of its edge weights (``edge_weight()``).
+
+Distance matrix
+---------------
+
+``distance_matrix()`` (``queries.distance_matrix()``) gives the same lengths as ``search()`` for every pair of points,
+bit for bit (#175),
+but computes the visibility of every point only once instead of twice per pair:
+
+- The query points are appended to the coordinates (identical positions once) and merged with graph nodes
+  as in ``search()``.
+- From every point the visible graph nodes are computed, from every goal point additionally the visible start points.
+  The graph nodes a point lies in front of are skipped as in ``search()``.
+  This reproduces the visibility of ``search()`` with that point as goal: a start point is hidden by a closer graph
+  node in the same direction (the path then passes through that node and has the same sum of edge weights),
+  but not by the graph node at its own position or by other query points. Query points sharing a direction with
+  another candidate are therefore checked in separate calls of ``find_visible_from()``,
+  so that no query point hides a graph node or another query point.
+- A start visible from a goal gives the straight segment. For the other pairs, the graph is searched with A*
+  exactly as in ``search()`` (``queries.search_graph()``, shared by both): the temporary edges of start and goal
+  and the distances seen from the goal as heuristic. The heuristic is computed once per goal.
+  Paths and lengths are therefore those of ``search()`` by construction.
+- Neither the environment nor its graph is changed: the temporary edges are passed to the search.
+
+The visibility takes most of the query time (cf. :doc:`7_performance`), the A* searches only a small part.
+Computing the visibility once per point gives most of the speed-up, so the graph search was not replaced:
+one Dijkstra search per start point instead of A* per pair gave identical lengths but was not consistently faster
+(cf. the :doc:`decision log <contributing/decisions>`).
 
 Point in polygon
 ----------------
@@ -513,7 +598,7 @@ The bounding box test compares all positions with all edges, :math:`O(n^2)` vect
 Input validation
 ----------------
 
-With ``validate=True`` every polygon is checked (``_check_polygon()``):
+By default (``validate=True``) every polygon is checked (``_check_polygon()``):
 
 - shape, at least 3 vertices, finite coordinates, no identical consecutive vertices
 - **proper self intersections** (``_find_crossing()``): only pairs of non-neighbouring edges whose bounding boxes
@@ -580,7 +665,9 @@ The visibility stays computed with AREA, other algorithms are not used as a repl
 The cost of the package is the visibility from many points, one at a time: from every extremity during the
 construction, from start and goal per query. Any algorithm of this kind costs at least linear time per point,
 so replacing AREA would mainly change constant factors. A rotational sweep with a tree of edges (Lee) is slower
-in Python on the measured maps (#216). Triangular expansion, a navigation mesh (Polyanya) or continuous Dijkstra
+in Python on the measured maps and needs edges that do not cross
+(#216: AREA got a tree over the candidates instead,
+cf. `Angle Range Elimination Algorithm (AREA)`_). Triangular expansion, a navigation mesh (Polyanya) or continuous Dijkstra
 need a triangulation of the free space: the polygons would have to be merged first (they may touch and overlap),
 the exact contact semantics re-established, and either a dependency added or a lot of code written.
 AREA carries the tested behaviour at the edge cases, the audit against exact arithmetic
@@ -596,7 +683,7 @@ Angle representations instead of angles
 Directions are compared with a monotone representation in ``[0, 4)`` (one unit per quadrant,
 ``_compute_repr_n_dist()``) instead of ``atan2``. It needs one division, keeps the
 ordering of the angles and is computed without trigonometric functions.
-Everything that sorts or compares directions uses it: the AREA sweep, the free wedges and the "in front" test.
+Everything that sorts or compares directions uses it: AREA, the free wedges and the "in front" test.
 
 One concept for vertices: free wedges
 -------------------------------------
@@ -616,13 +703,26 @@ adjacency dictionary. The precomputed graph is never copied, which made up most 
 environments before (#136). As a consequence queries have no side effects, environments can be reused
 and pickled at any time, and ``SearchResult`` is independent of later queries.
 
-Own port of ``networkx.astar_path()``
--------------------------------------
+Own A* search
+-------------
 
-``utils.astar_path()`` is a port of the ``networkx`` A* search that additionally follows the temporary query edges.
+``utils.astar_path()`` is an own A* search that additionally follows the temporary query edges.
 Adding and removing the edges on the shared graph, other graph libraries and Dijkstra searches were compared
 and rejected (#152, details in the :ref:`contribution guidelines <contributing>`).
-The port is under the 3-clause BSD license of ``networkx`` (``LICENSES/networkx.txt``).
+It replaced a port of ``networkx.astar_path()`` (#157), so the package is licensed under MIT only.
+Ideas specific to visibility graphs were evaluated and not adopted, as they gave no measurable gain
+(the search takes a few percent of the query time) or would only hold for Euclidean costs:
+
+- **a closed set** (never expanding a node twice): with the consistent heuristic the distance check already
+  prevents expanding a node again, and expanding again keeps the search exact with admissible heuristics.
+- **skipping neighbours** (not measured): a neighbour of the current node that is also a neighbour of its predecessor
+  cannot be reached shorter through the current node (triangle inequality). The distance check already rejects it,
+  skipping it would need an extra check per neighbour instead.
+- **earlier termination**: the goal is only final when it is taken from the queue.
+  Stopping earlier, e.g. when the goal is first reached, is not exact.
+- **a precomputed adjacency structure** (plain dicts or arrays): costs memory per environment and changes the pickled
+  state, the iteration over the networkx dicts is not the bottleneck (cf. #182).
+
 ``networkx`` is kept as graph data structure because it is a familiar, inspectable public attribute
 (``environment.graph``).
 
@@ -636,12 +736,16 @@ Code paths that operate on whole arrays use vectorised numpy instead
 (e.g. ``reps_n_distances()``, which performs the same floating point operations as its scalar counterpart).
 CI runs the tests with and without numba (``tests/test_acceleration.py`` checks which backend is active).
 
-Optional validation
--------------------
+Validation by default
+---------------------
 
-Validating the input (self intersections, crossings at self contacts) is costly and skipped by default
-(``validate=False``). Callers with trusted or generated input do not pay for it, callers with external input
-should enable it. Invalid input without validation leads to undefined results.
+The input (self intersections, crossings at self contacts) is validated by default (``validate=True``), because invalid
+input without validation silently leads to undefined results, e.g. no path although start and goal are in the free space.
+The validation is cheap compared to the preparation of the environment: on the benchmark world maps, with and without
+Numba, the difference in preparation time is within the noise of the measurement (numbers in #243). The validation accepted every benchmark world map and all but one of the real-world-like environments of
+``prototypes/real_world_geometry.py``. The rejected one has a zero-width slit (a Shapely union artefact) whose free side
+cannot be decided in floating point: without validation, random paths ran through an obstacle.
+Callers with trusted or generated input can skip the validation with ``validate=False``.
 
 Versioned pickles
 -----------------
@@ -655,14 +759,24 @@ incompatibly.
 Numerical Policy
 ================
 
-- All coordinates are ``float64``. Any finite coordinate scale is supported.
+- All coordinates are ``float64``. Any finite coordinate scale is supported. Input of other numeric types
+  (integers, ``float32``, ``float16``) is converted, without loss for ``float32``, ``float16`` and integers
+  up to 2^53 in magnitude. There is no computation in lower precision (e.g. ``float32``) or in integers:
+  rounding errors of ``float32`` would make the exact contacts unreliable and cut obstacle corners (#3),
+  distances and angle representations need floats anyway, and a second numeric type would double the code
+  paths to keep identical with and without Numba.
 - **Contacts are exact**: polygons touch when coordinates are exactly equal or a vertex lies exactly on an edge
   (exact cross product test, or angle representations exactly 180 degree apart, ``_lies_on_edge()``).
   Near-contacts do not block. This makes the behaviour reproducible and independent of a tolerance parameter.
   For integer coordinates (e.g. grids) the tests are exact.
-- **Rays are exact**: directions that are exactly the same (zero cross product) share one angle representation,
-  even when the representations computed from vectors of different length differ in the last bit
-  (``Point.rep()``). A tiny tolerance (``RAY_TOLERANCE``) only selects which directions are compared exactly.
+- **Rays are exact**: directions that are exactly the same (zero cross product, same direction) share one angle
+  representation, even when the representations computed from vectors of different length differ in the last bit
+  (``Point.rep()``). ``RAY_WINDOW`` (1e-12) is the only numeric constant in the decisions. It is not a tolerance on any
+  decision: it only limits the check for exactly collinear directions to those within 1e-12 of a bounding ray, far above
+  the last-bit differences of their representations. The regression test ``test_in_wedges_collinear_last_bit`` covers
+  directions whose representations differ from the ray's in the last bit. Directions that are not exactly collinear
+  with a ray are decided by their representations, as everywhere else. The 1e-16 bound of the audit
+  (**Audit against exact arithmetic**, below) concerns these non-collinear comparisons.
 - **Lines of sight touching edges**: a line of sight touching an edge only in one of its vertices, or running along it,
   is not blocked by the edge. What happens at the vertex is decided by its wedges.
 - Intersections are only computed (a 2x2 linear system, ``_lies_behind_inner()``) when cheaper tests
@@ -679,6 +793,11 @@ Numerical Policy
   last place next to an edge may count as on the edge (by the 180 degree rule of ``_lies_on_edge()``) or fall on the
   wrong side of it in the point in polygon test. Such inputs are within the rounding errors of the coordinates
   themselves; exact predicates everywhere would be a large and slower change to the core and are not used.
+- **Query points next to an edge**: a query point within rounding error of an edge, but not exactly on it, may be
+  rejected by ``within_map()``. With ``verify=False`` the visibility from it can also be wrong, so its path and length
+  are undefined and can depend on the query direction (#239).
+  Points exactly on an edge are exact (``_lies_on_edge()``): move such a point onto the edge or away from it.
+  A tolerance snapping near points onto edges is not used: it would contradict "near-contacts do not block".
 
 
 Complexity and Memory
@@ -691,9 +810,9 @@ Step                               Time                        Notes
 =================================  ==========================  =====================================================
 points and wedges                  ``O(n²)``                   vectorised bounding box test: edges through vertices
 visibility graph                   ``O(m n log n)``            AREA for every extremity (typical case;
-                                                               worst case ``O(n m²)``), cf. `Algorithms`_
+                                                               worst case ``O(m n log² n)``), cf. `Algorithms`_
 query: visibility of start, goal   ``O(n log n + m)``          dominates the query time (typical case;
-                                                               worst case ``O(n m)``)
+                                                               worst case ``O(n log² n)``)
 query: A*                          ``O(E log E)``              ``E``: graph and temporary edges
 =================================  ==========================  =====================================================
 
@@ -704,8 +823,8 @@ A query uses ``O(n + m)`` additional memory.
 
 Profiling large environments shows that the A* search takes about 5% of the query time,
 most of the time is spent on the visibility of start and goal. Optimisations should target ``find_visible()``.
-``prototypes/complexity_profile.py`` measures the steps of the preparation and how often AREA checks a candidate
-(the measured maps stay in its typical case, #215).
+``prototypes/complexity_profile.py`` measures the steps of the preparation on maps of growing size,
+also on a worst case of AREA (#215, #216).
 Benchmarks: :ref:`speed-tests`, ``scripts/speed_benchmarks.py`` and ``prototypes/large_env_query_profile.py``.
 
 
@@ -744,10 +863,11 @@ Constructing visibility graphs
     :math:`O(n \log n + E)` for :math:`E` visibility edges, and
     `Chen and Wang (2015) <https://doaj.org/article/83ae71cdf1754c2d838667b17b0f2432>`__ to
     :math:`O(n + h \log h + E)` for :math:`h` obstacles, given a triangulation of the free space.
-    AREA does not improve these bounds, its worst case, :math:`O(n^3)` for :math:`m \sim n`, is worse than Lee's
+    AREA does not improve these bounds: its worst case, :math:`O(m \, n \log^2 n)` for :math:`m` extremities,
+    is a logarithmic factor above Lee's for :math:`m \sim n`
     (cf. `Angle Range Elimination Algorithm (AREA)`_, which also names the techniques it builds on).
-    It trades the worst case guarantee for fewer and simpler operations on typical maps.
-    We are not aware of a published description of its edge-centric sweep.
+    It aims at few and simple operations on typical maps, and at edges that may cross.
+    We are not aware of a published description of its edge-centric elimination.
 
 Shortest paths without a visibility graph
     The continuous Dijkstra method computes a single shortest path in :math:`O(n \log n)` time
@@ -794,10 +914,6 @@ Limitations and Possible Extensions
   (the symmetry optimisation would have to be given up or the results merged), which would parallelise well.
 - **Query speed**: the visibility of start and goal is computed from scratch for every query.
   Spatial indices over the edges could reduce the number of edges checked per query.
-- **A* specialised for visibility graphs**: in the visibility graph it is always shortest to reach a node directly
-  instead of visiting other nodes first (triangle inequality). A custom A* could exploit this to terminate earlier
-  than for general graphs: nodes never have to be revisited (the path only gets longer),
-  and not all neighbours of the current node have to be checked before continuing with the next node.
 - **Dense grids**: environments with many small obstacles have many extremities. A grid based search can be
   faster there (cf. :ref:`usage`).
 

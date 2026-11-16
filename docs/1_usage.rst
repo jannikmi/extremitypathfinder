@@ -22,9 +22,10 @@ The environment is initialised in one step and allows fast consecutive shortest 
 **Required data format:**
 Ensure that all the following conditions on the polygons are fulfilled:
 
-- numpy or python array of coordinate tuples: ``[(x1,y1), (x2,y2,)...]``
+- numpy or python array of coordinate tuples: ``[(x1,y1), (x2,y2,)...]``.
+  The coordinates may be Python or numpy integers and floats (also ``float32`` and ``float16``)
 - the first point is NOT repeated at the end
-- must at least contain 3 vertices
+- must at least contain 3 vertices, with finite coordinates
 - no consequent vertices with identical coordinates in the polygons (same coordinates in general are allowed)
 - a polygon must NOT have self intersections. It may touch itself (identical vertices, a vertex on an edge),
   but must not cross itself there
@@ -43,6 +44,16 @@ Ensure that all the following conditions on the polygons are fulfilled:
     (one degree of longitude is shorter than one degree of latitude, except at the equator).
     Project geographic data into a projected coordinate system first, e.g. UTM or another local
     projection with `pyproj <https://pyproj4.github.io/pyproj/>`__, and transform the path back afterwards.
+
+.. note::
+
+    All coordinates (also start and goal) are converted to ``float64`` and all computations use ``float64``.
+    The conversion does not change ``float32`` or ``float16`` values and integers up to 2^53 in magnitude,
+    so the results are those of the same values given as ``float64``.
+    Integer coordinates up to 2^20 in magnitude (polygons and query points, e.g. grids) make the decisions
+    on contacts and visibility exact
+    (cf. :ref:`touching obstacles <touching>`). There is no lower precision mode, cf. the Numerical Policy in the
+    :doc:`engineering design <8_design>`.
 
 .. note::
 
@@ -68,7 +79,7 @@ Ensure that all the following conditions on the polygons are fulfilled:
     ]
     from extremitypathfinder import PolygonEnvironment
 
-    environment = PolygonEnvironment(boundary_coordinates, list_of_holes, validate=False)
+    environment = PolygonEnvironment(boundary_coordinates, list_of_holes)
 
 
 If there is no explicit boundary polygon, pass ``None`` instead. The environment
@@ -77,12 +88,15 @@ hole must be supplied.
 
 .. code-block:: python
 
-    environment = PolygonEnvironment(None, list_of_holes, validate=False)
+    environment = PolygonEnvironment(None, list_of_holes)
 
 
 .. note::
 
-    Pass ``validate=True`` in order to check the condition on the data.
+    The format of the polygons (at least 3 coordinate pairs, finite) is always checked.
+    The other conditions on the data (e.g. no self intersections) are checked by default, too.
+    Pass ``validate=False`` to skip these checks for trusted input: invalid input then leads to undefined results,
+    e.g. no path although start and goal are in the free space.
     Raises ``TypeError`` if the input has the wrong type and ``ValueError`` if the input is invalid.
     The message names the polygon (``boundary polygon`` or ``hole <index>``) and the location of the violation,
     e.g. ``hole 1: The given polygon has self intersections: the edges from vertex 0 to 1 and from vertex 2 to 3
@@ -123,11 +137,18 @@ Query
     start_coordinates = (4.5, 1.0)
     goal_coordinates = (4.0, 8.5)
     path, length = environment.find_shortest_path(start_coordinates, goal_coordinates)
+    # path: [(4.5, 1.0), (3.0, 7.0), (4.0, 8.5)], length: 7.987...
 
+The path is a list of ``(x, y)`` tuples of Python floats including start and goal, the length a Python float.
+If there is no path, ``([], None)`` is returned.
+Start and goal must consist of two finite values (``TypeError``, ``ValueError``)
+and lie within the map (``ValueError``).
 
-If any start and goal point should be accepted without checking if they lie within the map, set ``verify=False``.
-This is required if points lie really close to polygon edges and
-"point in polygon" algorithms might return an unexpected result due to rounding errors.
+Points on polygon edges lie within the map. To accept start and goal points without checking whether they lie
+within the map, set ``verify=False``.
+This does not help with points within rounding error of an edge (but not exactly on it): the check may reject them,
+and without the check they may get a wrong path, whose length can depend on the query direction
+(cf. the numerical policy in :doc:`8_design`). Move such points exactly onto the edge or away from it.
 
 .. code-block:: python
 
@@ -139,6 +160,57 @@ This is required if points lie really close to polygon edges and
 .. figure:: _static/search.svg
 
     the search: the temporary edges connecting start and goal to the visibility graph dashed in green, the shortest path in orange
+
+
+Distance matrix
+---------------
+
+Routing, assignment and TSP-style applications need the shortest path lengths between many points.
+``distance_matrix()`` computes them at once, much faster than calling ``find_shortest_path()`` for every pair:
+the visibility of every point is computed once instead of twice per pair. Only the search in the visibility graph
+(A*, a small part of the query time) runs for every pair.
+
+.. code-block:: python
+
+    waypoints = [(4.5, 1.0), (4.0, 8.5), (1.0, 1.0)]
+    # the lengths between all pairs of the waypoints: shape (3, 3)
+    lengths = environment.distance_matrix(waypoints)
+    # from every start to every goal: shape (number of starts, number of goals) = (1, 2)
+    lengths = environment.distance_matrix(waypoints[:1], waypoints[1:])
+
+Entry ``[i, j]`` is the length of the shortest path from the ``i``-th start to the ``j``-th goal,
+identical to the length returned by ``find_shortest_path()``. It is ``inf`` when there is no path.
+``verify=False`` accepts the points without checking whether they lie within the map, like ``find_shortest_path()``.
+Only the lengths are returned: to get a path, call ``find_shortest_path()`` for that pair.
+
+E.g. 100 random points (9,900 pairs) in an environment with 904 vertices: 3.1 s instead of 115 s with a loop over
+``find_shortest_path()`` (with Numba, ``prototypes/distance_matrix_profile.py``).
+
+To run your own NetworkX algorithms, use the visibility graph ``environment.graph``:
+its nodes are the indices of the extremities in ``environment.coords``, the edge attribute ``weight``
+is the Euclidean length of the edge. Start and goal points are not part of it.
+
+
+
+Threads
+-------
+
+Queries do not change the environment: ``find_shortest_path()``, ``search()`` and ``distance_matrix()``
+can be called from several threads on the same environment at once.
+On free-threaded CPython (``python3.14t``) the threads run in parallel, also with Numba:
+
+.. code-block:: python
+
+    from concurrent.futures import ThreadPoolExecutor
+
+    pairs = [((4.5, 1.0), (4.0, 8.5)), ((1.0, 1.0), (4.0, 8.5))]
+    with ThreadPoolExecutor() as executor:
+        results = list(
+            executor.map(lambda pair: environment.find_shortest_path(*pair), pairs)
+        )
+
+Do not modify its attributes (e.g. ``environment.graph``) while it is queried.
+Separate environments can be created in parallel threads.
 
 
 
@@ -178,11 +250,11 @@ which gives the same environment as the equivalent coordinate lists:
             shapely.Polygon([(6, 6), (8, 6), (8, 8), (6, 8)]),
         ]
     )
-    environment = PolygonEnvironment.from_shapely(boundary, obstacles, validate=True)
+    environment = PolygonEnvironment.from_shapely(boundary, obstacles)
     path, length = environment.find_shortest_path((1, 1), (9, 9))
     line = shapely.LineString(path)  # the path as a Shapely geometry
 
-With ``validate=True``, the converted coordinates are checked with the same validation as the coordinate input.
+By default (``validate=True``), the converted coordinates are checked with the same validation as the coordinate input.
 Shapely's own validity rules differ (e.g. a polygon touching itself at a vertex is valid here, but not in Shapely).
 Geometries rejected by the validation can often be repaired with Shapely before passing them,
 e.g. with ``shapely.make_valid()``, which splits a self-intersecting polygon into valid parts:
@@ -191,7 +263,7 @@ e.g. with ``shapely.make_valid()``, which splits a self-intersecting polygon int
 
     obstacle = shapely.Polygon([(2, 2), (4, 4), (4, 2), (2, 4)])  # crosses itself
     obstacles = shapely.make_valid(obstacle)  # two touching triangles
-    environment = PolygonEnvironment.from_shapely(boundary, obstacles, validate=True)
+    environment = PolygonEnvironment.from_shapely(boundary, obstacles)
 
 The repaired geometry may contain lines or points (e.g. from a zero-width spike):
 keep only the polygons, e.g. with ``shapely.make_valid(obstacle, method="structure")``, and check the result.
@@ -227,7 +299,7 @@ with Shapely, then find the shortest path for a point, which keeps the clearance
             for hole in list_of_hole_coordinates
         ]
     )
-    environment = PolygonEnvironment.from_shapely(boundary, obstacles, validate=True)
+    environment = PolygonEnvironment.from_shapely(boundary, obstacles)
     path, length = environment.find_shortest_path((1.0, 3.0), (11.0, 4.0))
     # length: 11.908... (without clearance: 10.236...)
 
@@ -277,6 +349,8 @@ A grid of ``size_x`` times ``size_y`` cells with blocked cells (obstacles) can b
 Coordinates refer to the corners of the grid cells, i.e. cell ``(x, y)`` spans ``[x, x+1] x [y, y+1]``.
 The polygons follow the borders of the blocked cells, they are not simplified (no diagonal edges).
 Diagonally adjacent blocked cells touch at a corner: paths cannot pass between them (no corner cutting).
+The sizes must be positive integers and the blocked cells integer pairs within the grid,
+with at least one free cell (``TypeError``, ``ValueError``).
 
 
 .. code-block:: python
@@ -367,6 +441,17 @@ The image at the top of this documentation and all other figures are made this w
 
     the image made with ``draw()``: obstacles in grey, vertices in grey, extremities and the visibility graph in blue,
     the shortest path in orange
+
+The same drawing works for real geometry: land masses are the obstacles, the sea is the free space.
+The environment below consists of simplified Natural Earth land polygons (the world map of the benchmarks),
+the path leads from the North Atlantic around Africa through the Strait of Malacca to Japan
+(longitude/latitude are used as planar coordinates).
+``scripts/world_demo.py`` generates the image.
+
+.. figure:: _static/demo_world.svg
+    :alt: shortest path through a simplified world map
+
+    shortest path between two points in the sea, around the land masses
 
 ``environment.search()`` performs the same search as ``find_shortest_path()``,
 but returns a ``SearchResult`` with the data of the search (e.g. the temporary edges of start and goal and the search graph)

@@ -48,8 +48,8 @@ Weaknesses and limitations:
 
 - **The preprocessing limits the map size.** The build time grows steeply with the map,
   and the sweep ends where it exceeds the build budget (cf. the build table).
-  Going from the raw 110m data to the finer source data adds many polygons, and the visibility graph
-  grows much faster than the number of vertices there.
+  Going from the coarse 110m data (up to 2k vertices) to the finer source data adds many polygons,
+  and the visibility graph grows much faster than the number of vertices there.
 - **Memory on small maps.** Its peak above the baseline is close to pyvisgraph's on small maps, despite the lower
   retained memory: the build needs temporary data. On large maps the peak is much lower than pyvisgraph's.
   Its baseline is much larger, so its process needs several times as much memory in total on the smallest maps.
@@ -82,6 +82,27 @@ Speed
 
 .. include:: ../benchmarks/results/benchmark_build.rst
 
+.. figure:: _static/benchmark_graph_size.svg
+   :width: 100%
+   :alt: edges of the visibility graph over the number of vertices, log-log, one line per package
+
+   Amount of work: edges of the visibility graph. ``extremitypathfinder`` keeps only the extremities as nodes and
+   only the edges between them; ``pyvisgraph`` connects every vertex. The dotted lines show linear and quadratic growth.
+
+.. benchmark-derived: the comparison of the cost per edge. Update this text with every full benchmark run
+   (docs/contributing/performance.md, "After a full run").
+
+.. figure:: _static/benchmark_build_time_edges.svg
+   :width: 100%
+   :alt: build time over the edges of the visibility graph, log-log, one line per package
+
+   Build time over the edges of the graph (see the table below for the time per edge).
+   Graphs with invalid edges are left out. Where both graphs are valid (up to 2,000 vertices),
+   the build time per edge of the two packages is about the same:
+   the lower build time of ``extremitypathfinder`` comes from the smaller graph, not from a cheaper edge.
+
+.. include:: ../benchmarks/results/benchmark_graph.rst
+
 .. figure:: _static/benchmark_query_time.svg
    :width: 100%
    :alt: query latency over the number of vertices, log-log, median and 5th to 95th percentile band
@@ -110,6 +131,69 @@ Speed
 
    Speed-up of ``extremitypathfinder`` by Numba: time without Numba / with Numba.
 
+Complexity terms
+~~~~~~~~~~~~~~~~
+
+.. benchmark-derived: the comparison of the complexity terms with the measured times. Update this text with every
+   full benchmark run and with every change of the complexities
+   (docs/contributing/performance.md, "After a full run"; the terms are defined in ``benchmarks/complexity.py``).
+
+The ``O(...)`` terms of the two packages, evaluated for the vertices ``n``, extremities ``m`` and graph edges ``E``
+of every map (without constant factors), and compared with the measured times.
+In the figures, a line is the term times one constant per package, fitted at the smallest map:
+if a line follows its markers, the measured time grows like the term.
+
+- ``extremitypathfinder`` (typical case, :ref:`design <design>`): build ``m n log n + n²``,
+  query ``n log n + m + E log E``. The worst case (many edges spanning the directions of many extremities,
+  dotted line) is ``m n log² n + n²`` for the build and ``n log² n + m + E log E`` for a query.
+- ``pyvisgraph``: build ``n² log n`` (Lee's algorithm; the implementation takes ``n³`` in the worst case, dotted line),
+  query ``2 n log n + E log n`` (two visibility sweeps and a Dijkstra search with a heap).
+  The documentation states no worst case for its query.
+
+.. figure:: _static/benchmark_complexity_build.svg
+   :width: 100%
+   :alt: build time and the fitted complexity terms over the number of vertices, log-log, one color per package
+
+   Build time (markers) and complexity term times a constant (lines).
+
+.. figure:: _static/benchmark_complexity_query.svg
+   :width: 100%
+   :alt: median query time and the fitted complexity terms over the number of vertices, log-log, one color per package
+
+   Median query time (markers) and complexity term times a constant (lines).
+
+.. include:: ../benchmarks/results/benchmark_complexity.rst
+
+What this shows:
+
+- The shapes agree: the measured times grow about like the terms. The build of ``pyvisgraph`` has the slope
+  of ``n² log n``, not that of its ``n³`` worst case. The dotted worst cases start at the first measured point:
+  only the slopes can be compared. The measured maps stay close to the typical case of ``extremitypathfinder``.
+  The build of ``extremitypathfinder`` grows slightly slower than its term
+  (the term is the typical case, an upper estimate here).
+  Its query worst case is close to the typical case on these maps: the search term ``E log E`` dominates.
+- The terms alone do not explain the difference between the packages. They predict a build advantage of
+  ``extremitypathfinder`` of 1.2 to 1.5 and a query advantage of 2.4 to 4.4, the measured ratios are
+  4.6 to 7.2 for the build and 6.6 to 8.4 for queries. The constant factors are not part of ``O(...)``:
+  most of the practical difference comes from the implementation (vectorised, optionally compiled code
+  against pure Python), the rest from the smaller graph.
+
+Limitations:
+
+- The terms are models without constants. The constant per package is fitted at its smallest map,
+  so the lines say how the work grows, not how fast an implementation is.
+- Build: the maps where the package completed the build (also with invalid paths, the time is valid).
+  Query: only the maps with valid paths, because the edges of an invalid graph are wrong:
+  ``pyvisgraph`` has no valid query result above 2,000 vertices.
+- The terms of ``pyvisgraph`` are derived from its algorithm and its source (version 0.2.1),
+  the query term (a heap based Dijkstra search and two single-point sweeps) is not stated by its authors.
+- The terms of ``extremitypathfinder`` are the typical case, its worst case is a reference line.
+  They are defined in ``benchmarks/complexity.py`` and have to be updated when the complexities change.
+  The measured times are those of the run stated above: a later change of the visibility computation
+  (e.g. the bounded worst case, #216, which also made typical maps somewhat faster) shows only in the next full run.
+- The map with 9,952 vertices comes from a different data set (50 m) than the smaller ones (110 m):
+  its point is not a continuation of the others.
+
 Memory
 ~~~~~~
 
@@ -137,6 +221,41 @@ Memory
    Numba is the difference of ``extremitypathfinder``'s baselines with and without Numba (without input data),
    the rest of the baseline is the interpreter, the imports and the input.
    The data parts are measured with Numba: a build without Numba may peak differently.
+
+
+.. _polyanya-comparison:
+
+Comparison with Polyanya
+------------------------
+
+.. polyanya-derived: the comparison with Polyanya (``benchmarks/polyanya/compare.py``, measurements in #170 and
+   pull request #271). Update this text when the comparison is run again (``benchmarks/polyanya/compare.py``).
+
+`Polyanya <https://docs.rs/polyanya>`__ is the state of the art for this problem (see :ref:`alternatives`):
+it searches a navigation mesh of the free space and needs no visibility graph.
+It was compared on the same world maps and query pairs as above, up to the 6k map,
+using the Rust implementation (a separate harness, not part of the package or its CI).
+The free space is triangulated by the crate itself, inside a rectangle around all obstacles and query points
+(the maps are unbounded). This does not change the shortest paths.
+
+- **Same paths.** All path lengths agree; the remaining differences are rounding (Polyanya computes in single
+  precision).
+- **Much faster preprocessing.** Building the navigation mesh (triangulation, merging of the triangles, baking)
+  is two to three orders of magnitude faster than building the visibility graph, and the gap grows with the map:
+  the visibility graph grows about quadratically, the mesh about linearly.
+- **Much faster queries.** Polyanya answers queries about two orders of magnitude faster (median).
+- **No break-even.** Polyanya is faster at both steps, so this package does not catch up with it
+  at any number of queries per environment.
+
+Limitations of this comparison:
+
+- It compares native code (Rust) with Python (+ Numba, NetworkX), not the algorithms alone:
+  a large part of the query gap is the language and the graph library.
+- Polyanya computes in single precision and needs a triangulation of
+  the free space; this package works in double precision and takes the polygons as they are
+  (cf. :ref:`alternatives`).
+- One run on one machine and no memory measurement, without the separate processes, warm-up and budgets
+  of the main benchmark.
 
 
 .. _benchmark-correctness:

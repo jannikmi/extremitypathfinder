@@ -12,7 +12,7 @@ Decisions:
 * ``_lies_on_edge()``: contacts and query points on edges
 * ``_inside_polygon()``: the ray casting point in polygon test (and the edge test above)
 * ``_has_clockwise_numbering()``: the orientation of the input polygons
-* ``Point.in_wedges()``: directions near a bounding ray, compared exactly within ``RAY_TOLERANCE``
+* ``Point.in_wedges()``: directions near a bounding ray, compared exactly within ``RAY_WINDOW``
 * ``_lies_behind_inner()``: whether a vertex lies behind an edge (Cramer's rule, #185)
 * the validation (#193): ``utils._crossing_parameters()``, whether two edges cross in their interiors
   (Cramer's rule without division). Its bounding box prefilter compares coordinates only (exact).
@@ -283,7 +283,7 @@ def audit_clockwise():
 
 
 def audit_in_wedges():
-    """Point.in_wedges(): the RAY_TOLERANCE selection of exact comparisons with the bounding rays"""
+    """Point.in_wedges(): the RAY_WINDOW selection of exact comparisons with the bounding rays"""
     gens = {
         "integers (±20)": lambda n: ints(n, 3)[:, :, :],
         "integers (±2^20)": lambda n: large_ints(n, 3),
@@ -320,7 +320,7 @@ def audit_in_wedges():
                 er = exact.rep(d)
                 diff = min(abs(er - exact.rep(a)), abs(er - exact.rep(b)))
                 c["max |exact diff|"] = max(c["max |exact diff|"], float(diff))
-        report("Point.in_wedges() (RAY_TOLERANCE)", name, c, n)
+        report("Point.in_wedges() (RAY_WINDOW)", name, c, n)
 
 
 def audit_lies_behind():

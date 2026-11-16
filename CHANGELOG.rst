@@ -1,6 +1,5 @@
 Changelog
-=========
-
+==
 Unreleased
 ----------
 
@@ -23,11 +22,61 @@ BREAKING: the plotting module (``extremitypathfinder.plotting``) has one consist
 - new look: obstacles filled grey, including the area outside of the boundary polygon,
   extremities and the visibility graph in blue, the path in orange.
 
-BREAKING: environments pickled with 3.0 cannot be loaded anymore (changed attributes, pickle format version 4):
+BREAKING: environments pickled with 3.0 cannot be loaded anymore (changed attributes, pickle format version 5):
 recreate them. Loading them raises a ``ValueError`` explaining this.
+
+BREAKING: the input is validated by default: ``PolygonEnvironment()``, ``from_grid()``, ``from_shapely()``
+and the command line interface use ``validate=True``. Input that violates the requirements
+(e.g. self intersecting polygons, collinear overlapping edges) previously gave wrong results without an error
+(e.g. no path although start and goal are in the free space) and now raises a ``ValueError`` naming the polygon
+and the location. The validation costs little compared to the preparation of the environment.
+Migration: repair the input (cf. the ``shapely.make_valid()`` recipe of the usage page)
+or pass ``validate=False`` to skip the validation for trusted input.
+
+BREAKING: malformed input is always rejected with a clear error, also with ``validate=False`` and with ``verify=False``:
+
+- polygons that are no list of at least 3 coordinate pairs (``TypeError``, also for ragged lists)
+  or have non-finite coordinates (``ValueError``). The message names the polygon.
+  Previously e.g. an empty boundary raised an ``IndexError`` and a boundary with 2 vertices was accepted.
+  The geometric requirements (e.g. no self intersections) are checked by default and skipped with ``validate=False``.
+- start and goal points that do not consist of two values (``TypeError``) or are not finite (``ValueError``).
+  Previously a point with three values raised an internal error and a ``nan`` coordinate with ``verify=False``
+  gave a path of length ``nan``. ``distance_matrix()`` rejects non-finite points too.
+- ``from_grid()``: sizes that are no positive integers (also ``True``), blocked cells that are no integer pairs,
+  blocked cells outside of the grid (previously ignored: remove them from the input)
+  and grids without any free cell (``TypeError`` or ``ValueError`` instead of ``AssertionError``
+  and ``AttributeError``). The blocked cells may be any iterable (e.g. a generator, previously a ``TypeError``).
+
+BREAKING: ``export_pickle()`` and ``load_pickle()`` no longer print to the standard output.
+``export_pickle()`` returns the path of the file.
 
 other changes:
 
+- the package ships type information (``py.typed``, PEP 561) and is checked with ``mypy --strict``: type checkers now
+  use its annotations. Corrected invalid and wrong annotations (e.g. ``utils.convert_grid()``).
+- the worst case of the visibility computation is bounded (#216): environments with many extremities in front of
+  many long edges (e.g. small obstacles in front of long walls) took ``O(n m²)`` to prepare and ``O(n m)`` per query
+  point (``n`` vertices, ``m`` extremities), now ``O(m n log² n)`` and ``O(n log² n)``.
+  AREA keeps only the closest edges per range of directions in a tree over the candidates
+  (cf. the engineering design). Same results, except for directions differing in the last bit at edges
+  whose angle range contains the direction (1, 0): they are now compared like at all other edges.
+  Such environments are prepared and queried much faster, typical maps somewhat faster (with and without Numba).
+- ``find_shortest_path()`` and ``search()`` always return the path as a list of ``(x, y)`` tuples of Python floats
+  and the length as a Python float. Previously the coordinates and the length were ``numpy.float64``
+  (printed as ``np.float64(1.0)``), and when the goal was directly visible from the start the passed objects were
+  returned unchanged (e.g. tuples of ints, lists or arrays). The values are equal to the previous ones.
+- faster queries (#222): start and goal (and the points of ``distance_matrix()``) are no longer connected to
+  the graph nodes they lie "in front" of (they are never the next node of a shortest path, like in the visibility
+  graph). Same paths and lengths.
+  E.g. 200 queries on an environment with 400 extremities: 18 % faster with Numba, 11 % without.
+- shortest path lengths between many points (#175): ``PolygonEnvironment.distance_matrix(points_a, points_b=None)``
+  returns the lengths between all start and goal points (``inf`` without a path), identical to a loop over
+  ``find_shortest_path()`` but much faster: the visibility of every point is computed once instead of twice per pair.
+  E.g. 100 points in an environment with 904 vertices: 3.1 s instead of 115 s (with Numba).
+  The usage page also documents the visibility graph ``environment.graph`` for own NetworkX algorithms.
+- license: the package is licensed under MIT only again (#157). The A* search (``utils.astar_path()``) is an own
+  implementation instead of a port of ``networkx.astar_path()``, so the 3-clause BSD license of networkx
+  (``LICENSES/networkx.txt``) no longer applies. Same paths and lengths, same speed.
 - Shapely and GeoJSON input (#166): ``PolygonEnvironment.from_shapely(boundary, obstacles, validate=False)``
   accepts Shapely polygons, multi-polygons and collections, GeoJSON-like mappings and objects with a
   ``__geo_interface__`` (e.g. GeoPandas), and gives the same environment as the equivalent coordinate lists.
@@ -35,12 +84,16 @@ other changes:
   features with a null geometry are skipped.
   Shapely (2.0.6 or later) is an optional extra: ``pip install "extremitypathfinder[shapely]"``.
 - much faster input validation of large polygons (``validate=True``, #193): only edge pairs with overlapping
-  bounding boxes are tested for crossings, vectorised. E.g. the 5k vertex world map of the benchmarks:
+  bounding boxes are tested for crossings, vectorised. E.g. the 4,954 vertex world map (110m) of the benchmarks:
   10.5 s to 0.08 s, a 2,180 vertex polygon: 14.6 s to 0.06 s. The errors name the polygon (``boundary polygon``
   or ``hole <index>``) and the location of the violation (the crossing edges with their vertex indices,
   the crossing point). The crossing test solves its 2×2 system in closed form instead of with ``numpy.linalg.solve``
   and is exact for integer coordinates: valid polygons touching themselves with a vertex on an edge were rejected
   for one of the two vertex numberings.
+- documentation: the accepted numeric types of the coordinates (integers, ``float32``, ``float16``: converted to
+  ``float64``) and why all computations use ``float64`` (no ``float32`` or integer mode, #274).
+- documentation: ``verify=False`` does not help with query points within rounding error of an edge (#239):
+  their path may be wrong and depend on the query direction. Move them onto the edge or away from it.
 - documentation: agent clearance (#167), a recipe for agents that keep a minimum distance to the obstacles:
   shrink the boundary and inflate the obstacles with Shapely, then pass them to ``from_shapely()``.
   Compares the join styles (vertex count, kept clearance, path length).
@@ -54,11 +107,15 @@ other changes:
   Once this release has its DOI, it is added to ``CITATION.cff`` and the badges (#199).
 - reproducible benchmarks against pyvisgraph (#111): ``python -m benchmarks.run`` (``benchmarks/``,
   ``make benchmark``: quick smoke test, not run in CI) runs a size sweep
-  on cleaned Natural Earth world maps with a build time budget, validates every path independently with Shapely
+  on cleaned Natural Earth world maps with a build time budget (each map has at least its nominal number of
+  vertices, e.g. 10,081 for 10k), validates every path independently with Shapely
   and renders the tables and figures of the performance section of the documentation.
   It measures time, peak and retained memory, with and without Numba.
   ``scripts/speed_benchmarks.py`` uses the same harness. The validation found pyvisgraph 0.2.1 paths
   through obstacles; the cause is described in the documentation.
+- comparison with Polyanya, the state of the art (#170): ``python -m benchmarks.polyanya.compare``
+  (``benchmarks/polyanya/``, a Rust harness, needs ``cargo``, not run in CI) checks that both find the same path
+  lengths and compares the build and query times. Results and limitations on the performance and alternatives pages.
 - much lower memory use and smaller pickles of large environments: the angle representations and distances
   of all vertices seen from every extremity are no longer stored (``O(m n)`` floats for ``m`` extremities
   and ``n`` vertices, about 1 GiB for 10,000 vertices).
@@ -72,8 +129,12 @@ other changes:
 - faster preparation of large environments, identical visibility graphs and paths:
   the visibility computation skips the edges without candidates in their angle range (#217),
   and the test whether a vertex lies within the map only checks the holes whose bounding box contains it (#214).
-  E.g. the 5k vertex world map of the benchmarks: 56 to 29 s with Numba, 163 to 50 s without Numba.
+  E.g. the 4,954 vertex world map (110m) of the benchmarks: 56 to 29 s with Numba, 163 to 50 s without Numba.
   Queries take as long as before.
+- much faster preparation of environments, identical visibility graphs and paths (#262):
+  when the visibility graph is built, the tests whether the other extremities lie within the free wedge
+  or in front of an extremity are done for all of them at once instead of one by one.
+  They took most of the preparation time.
 - the ``numba`` extra no longer installs SciPy (#185): a smaller installation (SciPy takes about 110 MB)
   and less memory per process with Numba (about 18 MiB less after import on Linux when SciPy is not installed).
   The test whether a vertex lies behind an edge solves its 2×2 system in closed form instead of with
@@ -84,6 +145,10 @@ other changes:
   Polygons with the opposite numbering are reversed into the internal convention (boundary counter clockwise,
   holes clockwise), also in ``boundary_polygon`` and ``holes``. Previously wrongly numbered polygons
   raised a ``ValueError`` with ``validate=True`` and gave wrong results without validation.
+- official support of free-threaded CPython 3.14 (``python3.14t``, #254), with and without Numba:
+  queries on one environment can run in parallel threads, without the GIL. CI tests it and checks that no
+  dependency re-enables the GIL. A new test checks that queries from several threads on one environment
+  give the same results as sequential ones (also with the GIL).
 - documentation: new demo image (SVG, adapts to dark mode) and all figures regenerated with the new plotting functions
   (SVG instead of PNG). ``scripts/docs_figures.py`` generates them.
 - documentation: improved README and documentation landing page (features, quick start, navigation).
@@ -109,6 +174,12 @@ bugfixes:
 
 internal:
 
+- tests: polygons and query points given as integers, ``float32`` or ``float16`` give the results of the same values
+  given as ``float64``.
+- the query algorithms (start and goal visibility, graph search, distance matrix) moved from the root module
+  ``extremitypathfinder.py`` into the new module ``queries.py``, together with ``SearchResult``
+  (still importable from ``extremitypathfinder`` and ``extremitypathfinder.extremitypathfinder``).
+  ``PolygonEnvironment`` only checks the input and delegates.
 - text derived from the benchmark results is marked (``benchmark-derived`` comments), and a full benchmark run
   lists the files to update with the new results (#183).
 - documentation: the API documentation lists the plotting functions
@@ -134,7 +205,7 @@ internal:
   (the elimination of extremities "in front"), and transforms of the environments (scaling by powers of two gives
   identical results, shifts, scaling by 1/3 and rotations the same reachability and lengths within 1e-9).
 - audit of the core floating point decisions (angle representations, edge, point in polygon and orientation tests,
-  ``RAY_TOLERANCE``, ``_lies_behind_inner()``) against exact rational arithmetic (``prototypes/float_audit.py``, #3):
+  ``RAY_WINDOW``, ``_lies_behind_inner()``) against exact rational arithmetic (``prototypes/float_audit.py``, #3):
   no misdecisions when all coordinates are integers (tested in ``tests/test_exact_decisions.py``),
   the remaining ones lie within about one unit in the last place of a decision boundary
   (documented in the Numerical Policy of the design document).

@@ -1,10 +1,13 @@
 import json
+import os
 import pickle
 import warnings
-from collections.abc import Callable, Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping, Sequence
+from functools import partial
 from heapq import heappop, heappush
 from itertools import count
-from typing import TYPE_CHECKING
+from math import inf
+from typing import TYPE_CHECKING, Any, cast
 
 import networkx as nx
 import numpy as np
@@ -17,11 +20,13 @@ from extremitypathfinder.configs import (
     DEFAULT_PICKLE_NAME,
     HOLES_JSON_KEY,
 )
+from extremitypathfinder.li_chao_tree import blocked_candidates
 from extremitypathfinder.utils_numba import (
     _has_clockwise_numbering,
     _inside_polygon,
-    _lies_behind,
     _no_identical_consequent_vertices,
+    compute_candidate_terms,
+    compute_edge_terms,
     edge_vertex_mappings,
     is_within_map,
     reps_n_distances,
@@ -169,14 +174,7 @@ def _check_polygon(
         raise type(error)(f"{name}: {error}") from None
 
 
-def _check_polygon_inner(polygon: t.FloatArray, is_reversed: bool) -> None:
-    """ensures that all the following conditions on the polygons are fulfilled:
-    - must at least contain 3 vertices
-    - no consequent vertices with identical coordinates in the polygons! In general might have the same coordinates
-    - a polygon must not have self intersections (intersections with other polygons are allowed).
-      A polygon may touch itself (identical vertices, a vertex on an edge), but must not cross itself there
-    - no collinear overlapping edges (zero-width spikes or slits)
-    """
+def _check_polygon_format_inner(polygon: t.FloatArray) -> None:
     if polygon.size == 0:
         raise TypeError("Given polygons must at least contain 3 vertices.")
     if polygon.ndim != 2:
@@ -187,6 +185,65 @@ def _check_polygon_inner(polygon: t.FloatArray, is_reversed: bool) -> None:
         raise TypeError("Each point of a polygon must consist of two values (x,y).")
     if not np.all(np.isfinite(polygon)):
         raise ValueError("Polygon coordinates must be finite.")
+
+
+def to_float_array(data: object, name: str, expected: str) -> t.FloatArray:
+    """converts input into a float array, with a clear error for input numpy cannot convert (e.g. ragged lists)
+
+    :param name: the input in the error message, e.g. "hole 2"
+    :param expected: the expected input in the error message
+    :raises TypeError: when the input cannot be converted
+    """
+    try:
+        return np.array(data, dtype=configs.DTYPE_FLOAT)
+    except (TypeError, ValueError, OverflowError) as error:
+        raise TypeError(f"{name}: expected {expected} ({error})") from None
+
+
+def check_polygon_formats(
+    boundary_coords: t.FloatArray | None, list_hole_coords: list[t.FloatArray]
+) -> None:
+    """ensures that every polygon is an array of at least 3 finite (x,y) coordinates
+
+    Always checked (cheap), unlike the geometric requirements (cf. ``check_data_requirements()``):
+    the data structures of the environment cannot be built from other input.
+
+    :raises TypeError, ValueError: naming the polygon
+    """
+    polygons: list[tuple[str, t.FloatArray]] = [
+        (f"hole {hole_idx}", hole) for hole_idx, hole in enumerate(list_hole_coords)
+    ]
+    if boundary_coords is not None:
+        polygons.insert(0, ("boundary polygon", boundary_coords))
+    for name, polygon in polygons:
+        try:
+            _check_polygon_format_inner(polygon)
+        except (TypeError, ValueError) as error:
+            raise type(error)(f"{name}: {error}") from None
+
+
+def check_query_point(point: t.FloatArray, name: str) -> None:
+    """ensures that a query point consists of two finite values
+
+    :param name: the point in the error messages, e.g. "start"
+    :raises TypeError: when the point does not consist of two values
+    :raises ValueError: when a coordinate is not finite
+    """
+    if point.shape != (2,):
+        raise TypeError(f"The {name} point must consist of two values (x,y).")
+    if not np.all(np.isfinite(point)):
+        raise ValueError(f"The coordinates of the {name} point must be finite.")
+
+
+def _check_polygon_inner(polygon: t.FloatArray, is_reversed: bool) -> None:
+    """ensures that all the following conditions on the polygons are fulfilled:
+    - must at least contain 3 vertices
+    - no consequent vertices with identical coordinates in the polygons! In general might have the same coordinates
+    - a polygon must not have self intersections (intersections with other polygons are allowed).
+      A polygon may touch itself (identical vertices, a vertex on an edge), but must not cross itself there
+    - no collinear overlapping edges (zero-width spikes or slits)
+    """
+    _check_polygon_format_inner(polygon)
     if not _no_identical_consequent_vertices(polygon):
         raise ValueError("Consequent vertices of a polynomial must not be identical.")
     crossing = _find_crossing(polygon)
@@ -290,12 +347,13 @@ def find_visible(
     """finds the candidates whose lines of sight from the origin are not blocked by any of the edges
 
     "Angle Range Elimination Algorithm" (AREA):
-    the edges are sorted after the minimum angle representation of their vertices,
-    the candidates after their angle representation.
+    the candidates are sorted after their angle representation.
     Only the candidates within the angle range of an edge have to be checked against it:
     such a candidate is blocked when it lies behind the edge.
-    Edges whose angle range contains the representation 0.0 ("crossing" the direction (1, 0))
-    are checked separately in a rotated coordinate system.
+    An edge with a few candidates in its range is checked against each of them. An edge with many is entered
+    into a tree over the candidates, which only keeps the closest edges per range of directions,
+    so that every candidate is checked against few edges (cf. ``li_chao_tree.blocked_candidates()``).
+    This bounds the worst case (the bound is stated in ``li_chao_tree``).
 
     A line of sight touching an edge only in one of its vertices (or running along it) is not blocked by the edge.
     Whether lines of sight may pass through the vertices is decided by their free wedges (cf. ``wedges.py``).
@@ -309,93 +367,104 @@ def find_visible(
     :param representations: the angle representations of all coordinates seen from the origin
     :param distances: the distances of all coordinates to the origin
     :param candidate_edges: the edges touching a candidate (e.g. a query point on an edge),
-        they do not block it
+        they do not block it.
+        IMPORTANT: the candidate must lie on these edges (cf. ``li_chao_tree.blocked_candidates()``).
     :return: the visible candidates
     """
     if len(candidates) == 0:
         return set()
     # only keep the closest of the candidates with identical angle representation
-    candidates_sorted = _eliminate_eq_candidates(candidates, distances, representations)
-    edges = np.fromiter(edges_to_check, dtype=int, count=len(edges_to_check))
+    candidates_sorted = np.array(
+        _eliminate_eq_candidates(candidates, distances, representations), dtype=np.int64
+    )
+    candidate_reps = representations[candidates_sorted]
+    edges = np.fromiter(edges_to_check, dtype=np.int64, count=len(edges_to_check))
+    edge_vertex_idxs = np.asarray(edge_vertex_idxs, dtype=np.int64)
     edges_min_rep, edges_max_rep, edges_max_dist, edges_is_crossing = (
         _edge_angle_ranges(edges, edge_vertex_idxs, representations, distances)
     )
-
-    def check(edges_sorted, edges_min_rep, edges_max_rep, representations):
-        _check_candidates(
-            candidates_sorted,
-            edges_sorted,
-            edges_max_rep,
+    vectors = coords - coords[origin]
+    blocked = blocked_candidates(
+        *_candidate_ranges(
+            edges,
             edges_min_rep,
-            origin,
-            distances,
-            representations,
-            coords,
-            edge_vertex_idxs,
+            edges_max_rep,
             edges_max_dist,
-            candidate_edges or {},
-        )
-
-    regular_edges = edges[~edges_is_crossing[edges]]
-    check(
-        _edges_with_candidates(
-            regular_edges,
-            edges_min_rep,
-            edges_max_rep,
-            candidates_sorted,
-            representations,
+            edges_is_crossing,
+            candidate_reps,
         ),
-        edges_min_rep,
-        edges_max_rep,
-        representations,
-    )
-
-    crossing_edges = edges[edges_is_crossing[edges]]
-    if len(crossing_edges) == 0 or len(candidates_sorted) == 0:
-        return set(candidates_sorted)
-
-    candidates_sorted, edges_max_rep, edges_min_rep, representations = rotate_crossing(
-        candidates_sorted,
-        edges_is_crossing,
-        edges_max_rep,
-        edges_min_rep,
-        representations,
-    )
-    check(
-        _edges_with_candidates(
-            crossing_edges,
-            edges_min_rep,
-            edges_max_rep,
-            candidates_sorted,
-            representations,
+        compute_edge_terms(vectors, edge_vertex_idxs, edges_max_dist),
+        compute_candidate_terms(
+            vectors[candidates_sorted], distances[candidates_sorted]
         ),
-        edges_min_rep,
-        edges_max_rep,
-        representations,
+        *_own_edges(candidates, candidates_sorted, candidate_edges or {}),
     )
-    return set(candidates_sorted)
+    return set(candidates_sorted[~blocked].tolist())
 
 
-def _edges_with_candidates(
+def _own_edges(
+    candidates: set[int],
+    candidates_sorted: np.ndarray,
+    candidate_edges: Mapping[int, set[int]],
+) -> tuple[np.ndarray, np.ndarray]:
+    """the edges touching the candidates, for ``li_chao_tree.blocked_candidates()``
+
+    :return: per sorted candidate (and one more entry) where its edges start, and the edges of all candidates
+    """
+    nr_edges = np.zeros(len(candidates_sorted) + 1, dtype=np.int64)
+    # Note: usually none or few of the candidates touch edges
+    touching = candidate_edges.keys() & candidates
+    if not touching:
+        return np.cumsum(nr_edges), np.zeros(0, dtype=np.int64)
+    # Note: a touching candidate is not among the sorted candidates when a closer one has the same direction
+    positions = np.flatnonzero(np.isin(candidates_sorted, list(touching)))
+    edges: list[int] = []
+    for position in positions.tolist():
+        own_edges = candidate_edges[int(candidates_sorted[position])]
+        nr_edges[position + 1] = len(own_edges)
+        edges.extend(own_edges)
+    return np.cumsum(nr_edges), np.array(edges, dtype=np.int64)
+
+
+def _candidate_ranges(
     edges: np.ndarray,
     edges_min_rep: np.ndarray,
     edges_max_rep: np.ndarray,
-    candidates_sorted: list[int],
-    representations: np.ndarray,
-) -> list[int]:
-    """the edges whose closed angle range contains a candidate, sorted by their minimum representation
+    edges_max_dist: np.ndarray,
+    edges_is_crossing: np.ndarray,
+    candidate_reps: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """the candidates whose direction lies strictly within the angle range of an edge
 
-    The other edges cannot block any candidate: candidates are only removed during the sweep, never added.
-    Skipping them changes neither the result nor the order of the remaining edges (stable sort),
-    but saves the Python loop over most of the edges (#217).
+    A line of sight in the direction of a vertex of an edge only touches the edge (or runs along it).
+    The range of a crossing edge contains the representation 0.0 and gives two ranges of candidates.
+    Edges without such candidates cannot block any (#217).
 
-    :param candidates_sorted: the candidates sorted by their representation
+    :param candidate_reps: the representations of the candidates, sorted
+    :return: per range the edge and the positions of its first and its last candidate,
+        sorted by the maximum distance of the edges
     """
-    candidate_reps = representations[np.asarray(candidates_sorted, dtype=int)]
-    first = np.searchsorted(candidate_reps, edges_min_rep[edges], side="left")
-    after_last = np.searchsorted(candidate_reps, edges_max_rep[edges], side="right")
-    edges = edges[after_last > first]
-    return edges[np.argsort(edges_min_rep[edges], kind="stable")].tolist()
+    min_rep = edges_min_rep[edges]
+    max_rep = edges_max_rep[edges]
+    crossing = edges_is_crossing[edges]
+    nr_candidates = len(candidate_reps)
+    # regular edges: min_rep < rep < max_rep, crossing edges: rep > max_rep or rep < min_rep
+    first = np.searchsorted(
+        candidate_reps, np.where(crossing, max_rep, min_rep), side="right"
+    )
+    after_last = np.where(
+        crossing, nr_candidates, np.searchsorted(candidate_reps, max_rep, side="left")
+    )
+    after_last_wrapped = np.searchsorted(candidate_reps, min_rep[crossing], side="left")
+    range_edges = np.concatenate([edges, edges[crossing]])
+    first = np.concatenate([first, np.zeros_like(after_last_wrapped)])
+    after_last = np.concatenate([after_last, after_last_wrapped])
+    selected = np.flatnonzero(after_last > first)
+    # close edges first: most of the edges behind them are then dropped at once
+    selected = selected[
+        np.argsort(edges_max_dist[range_edges[selected]], kind="stable")
+    ]
+    return range_edges[selected], first[selected], after_last[selected] - 1
 
 
 def _eliminate_eq_candidates(
@@ -440,145 +509,6 @@ def _edge_angle_ranges(
     return edges_min_rep, edges_max_rep, edges_max_dist, edges_is_crossing
 
 
-def rotate_crossing(
-    candidate_idxs, edges_is_crossing, edges_max_rep, edges_min_rep, representations
-):
-    if not np.all(edges_min_rep >= 0.0):
-        raise ValueError
-
-    # special case: edges cross the origin
-    # trick: rotate coordinate system to avoid dealing with origin crossings
-    # -> implementation for regular edges can be reused!
-    # bring the minimum maximal angle representation ("supremum") of all crossing edges to 0
-    supremum_cross_edge_rep = np.min(edges_max_rep[edges_is_crossing])
-    infimum_to_0 = 4.0 - supremum_cross_edge_rep
-    # Note: adding an angle < 180deg to the minimum edge_idx representations (quadrant 1 & 2) cannot lead to "overflow"
-    edges_min_rep[edges_is_crossing] = edges_min_rep[edges_is_crossing] + infimum_to_0
-    edges_max_rep[edges_is_crossing] = (
-        edges_max_rep[edges_is_crossing] + infimum_to_0
-    ) % 4.0
-    # Note: all maximum representations were moved to 1. or 2. quadrant
-    # -> became the smaller that the previously min rep! -> swap
-    tmp = edges_min_rep
-    edges_min_rep = edges_max_rep
-    edges_max_rep = tmp
-    # apply same transformation also to the representations of the candidates (and of all other vertices)
-    # IMPORTANT: work on independent copy
-    representations = (representations + infimum_to_0) % 4.0
-    # Note: new sorting is required
-    candidate_idxs = sorted(candidate_idxs, key=lambda i: representations[i])
-    return candidate_idxs, edges_max_rep, edges_min_rep, representations
-
-
-def check_candidates_one_edge(
-    edge_min_rep: float,
-    edge_max_rep: float,
-    edge_max_dist: float,
-    p1: int,
-    p2: int,
-    candidate_ptr: int,
-    origin: int,
-    candidate_indices: list[int],
-    coords: np.ndarray,
-    distances: np.ndarray,
-    representations: np.ndarray,
-    edge_idx: int,
-    candidate_edges: dict[int, set[int]],
-):
-    """removes the candidates blocked by a single edge
-
-    :param candidate_edges: the edges touching a candidate, they do not block it
-    :param candidate_ptr: the first candidate which might lie within the angle range of the edge
-    :return: the first candidate which might lie within the angle range of the following edges
-    """
-    # the candidates with a representation smaller than the minimum representation of the edge
-    # are not blocked by this edge and the following edges (larger or equal minimum representation)
-    for candidate_idx in candidate_indices[candidate_ptr:]:
-        if representations[candidate_idx] >= edge_min_rep:
-            break
-        candidate_ptr += 1
-
-    candidate_ptr_curr = candidate_ptr
-    # Note: the candidate list shrinks during the iteration
-    while candidate_ptr_curr < len(candidate_indices):
-        candidate_idx = candidate_indices[candidate_ptr_curr]
-        candidate_rep = representations[candidate_idx]
-        if candidate_rep > edge_max_rep:
-            # the remaining candidates lie outside of the angle range of the edge
-            break
-        if candidate_rep == edge_min_rep or candidate_rep == edge_max_rep:
-            # the line of sight touches the edge only in one of its vertices (or runs along the edge)
-            visibility_is_blocked = False
-        elif edge_idx in candidate_edges.get(candidate_idx, ()):
-            # the candidate lies on the edge
-            visibility_is_blocked = False
-        else:
-            # optimisation: a candidate farther away than both vertices of the edge surely lies behind it
-            # ATTENTION: a candidate closer than both vertices still needs to be checked!
-            visibility_is_blocked = distances[
-                candidate_idx
-            ] > edge_max_dist or _lies_behind(p1, p2, candidate_idx, origin, coords)
-
-        if visibility_is_blocked:
-            # Note: keep the pointer at the same position (the list shrank)
-            candidate_indices.pop(candidate_ptr_curr)
-        else:
-            candidate_ptr_curr += 1
-
-    return candidate_ptr
-
-
-def _check_candidates(
-    candidate_idxs: list[int],
-    edge_idxs_sorted: list[int],
-    edges_max_rep: np.ndarray,
-    edges_min_rep: np.ndarray,
-    origin: int,
-    distances: np.ndarray,
-    representations: np.ndarray,
-    coords: np.ndarray,
-    edge_vertex_idxs: np.ndarray,
-    edges_max_dist: np.ndarray,
-    candidate_edges: dict[int, set[int]],
-):
-    candidate_ptr = 0
-    for edge_idx in edge_idxs_sorted:
-        if len(candidate_idxs) == 0:
-            # Note: length is decreasing
-            break
-
-        edge_min_rep = edges_min_rep[edge_idx]
-        if candidate_ptr == len(candidate_idxs) - 1:
-            # pointing to the last candidate (w/ highest representation)
-            candidate_idx = candidate_idxs[candidate_ptr]
-            candidate_rep = representations[candidate_idx]
-            if edge_min_rep > candidate_rep:
-                # optimisation: the edge has a higher minimum representation that the last candidate
-                # all following edges have higher minimum representation and hence can't block the visibility
-                # -> visibility computation is finished
-                break
-
-        edge_max_rep = edges_max_rep[edge_idx]
-        edge_max_dist = edges_max_dist[edge_idx]
-        i1, i2 = edge_vertex_idxs[edge_idx]
-
-        candidate_ptr = check_candidates_one_edge(
-            edge_min_rep,
-            edge_max_rep,
-            edge_max_dist,
-            i1,
-            i2,
-            candidate_ptr,
-            origin,
-            candidate_idxs,
-            coords,
-            distances,
-            representations,
-            edge_idx,
-            candidate_edges,
-        )
-
-
 def find_visible_from(
     origin: int,
     point: Point | None,
@@ -609,11 +539,11 @@ def find_visible_from(
     if point is not None:
         edges.difference_update(point.incident_edges)
         origin_position = coords[origin]
-        candidates = {
-            i
-            for i in candidates
-            if point.in_wedges(representations[i], coords[i] - origin_position, wedges)
-        }
+        idxs = np.fromiter(candidates, dtype=np.int64, count=len(candidates))
+        leaving = point.in_wedges_mask(
+            representations[idxs], coords[idxs] - origin_position, wedges
+        )
+        candidates = set(idxs[leaving].tolist())
 
     # the edges at a query candidate do not block it (its arrival is decided by rule 4), like at the origin.
     # Note: a query point inside an edge might not lie exactly on it in the floating point computations
@@ -664,19 +594,24 @@ def _find_visible_and_in_front(
     # -> e1 and e do not have to be connected in the graph.
     # The area "in front of" e: opposite of the angle range outside of the wedge of e (cf. ``Point.in_front()``),
     # extremities exactly opposite of a bounding ray do not lie in front (those edges must not get deleted)
-    # IMPORTANT: this condition only holds for building the basic visibility graph without start and goal node!
-    # When a query point (start/goal) happens to be an extremity, edges to the (visible) extremities in front
-    # MUST be added to the graph!
+    # IMPORTANT: for start and goal only one direction holds: they are endpoints of the path.
+    # A query point is not connected to the extremities it lies in front of (#222, cf. ``search()``),
+    # but when it happens to be an extremity, edges to the (visible) extremities in front of it MUST be added!
     # IMPORTANT: check all extremities here, not just current candidates
     origin_position = coords[origin]
-    candidates_in_front = {
-        i
-        for i in candidates_in_front
-        if point.in_front(representations[i], coords[i] - origin_position)
-    }
+    idxs = np.fromiter(
+        candidates_in_front, dtype=np.int64, count=len(candidates_in_front)
+    )
+    in_front = point.in_front_mask(
+        representations[idxs], coords[idxs] - origin_position
+    )
+    candidates_in_front = set(idxs[in_front].tolist())
     # do not consider points lying in front when looking for visible extremities,
     # even if they are actually visible.
     candidates = candidates.difference(candidates_in_front)
+    if point.extremity_wedge is None:  # pragma: no cover
+        # unreachable: only extremities are used as origin (narrows the type for mypy)
+        raise ValueError(f"The origin {origin} is no extremity.")
     visible_idxs = find_visible_from(
         origin,
         point,
@@ -701,14 +636,10 @@ def edge_weight(
     try:
         return query_edges[n1][n2]
     except KeyError:
-        return graph[n1][n2]["weight"]
+        weight: float = graph[n1][n2]["weight"]
+        return weight
 
 
-# adapted from networkx.astar_path() (networkx 3.7), 3-clause BSD license:
-#   Copyright (c) 2004-2026, NetworkX Developers
-#   Aric Hagberg, Dan Schult, Pieter Swart
-#   All rights reserved.
-# the conditions and the disclaimer of the license: LICENSES/networkx.txt
 def astar_path(
     graph: t.Graph,
     query_edges: dict[int, dict[int, float]],
@@ -719,56 +650,55 @@ def astar_path(
     """the shortest path from source to target with A*, ``None`` if there is no path
 
     Searches the graph extended by the query edges without modifying (or copying) the graph.
-    Same algorithm as ``networkx.astar_path()``.
+
+    A node is expanded again when a shorter path to it is found after its expansion.
+    With a consistent heuristic (such as the Euclidean distance in a visibility graph with Euclidean edge weights)
+    this never happens, but the search also stays exact with a heuristic that is only admissible.
 
     :param graph: the weighted graph (edge attribute ``weight``)
     :param query_edges: additional (temporary) edges: node -> neighbour -> weight, in both directions
-    :param heuristic: an admissible estimate of the distance between two nodes
+    :param heuristic: an admissible estimate of the distance between two nodes (never larger than the true distance)
     """
-    adjacency = graph._adj  # for speed-up (cf. networkx.astar_path())
-    no_neighbours: dict = {}
-
-    def neighbours(node: int) -> Iterable[tuple[int, float]]:
-        for neighbour, attributes in adjacency.get(node, no_neighbours).items():
-            yield neighbour, attributes["weight"]
-        yield from query_edges.get(node, no_neighbours).items()
-
-    # the counter breaks ties in the priority (the nodes are never compared)
-    c = count()
-    queue = [(0.0, next(c), source, 0.0, None)]
-    # enqueued node -> (cost to reach, heuristic), explored node -> parent closest to the source
-    enqueued: dict[int, tuple[float, float]] = {}
-    explored: dict[int, int | None] = {}
+    # the dict of dicts of the networkx graph: node -> neighbour -> edge attributes
+    # (private, but the public views are slower and this is the innermost loop)
+    adjacency: Mapping[int, Mapping[int, Mapping[str, float]]] = graph._adj  # type: ignore[attr-defined]
+    # the attributes of an edge of the graph, or the weight of a query edge
+    empty: dict[int, Any] = {}
+    # the shortest distance from the source found so far and the predecessor on that path
+    distances: dict[int, float] = {source: 0.0}
+    predecessors: dict[int, int] = {}
+    # priority queue of (estimated path length, insertion number, node, distance from the source)
+    # the insertion number breaks ties in the order of insertion (nodes are never compared).
+    # a node whose distance improves is inserted again, the outdated entry is skipped when it is taken.
+    insertions = count()
+    # the source is the only entry at first: its priority does not matter
+    queue = [(0.0, next(insertions), source, 0.0)]
     while queue:
-        _, _, node, dist, parent = heappop(queue)
+        _, _, node, distance = heappop(queue)
+        if distance > distances[node]:
+            continue
         if node == target:
             path = [node]
-            node = parent
-            while node is not None:
+            while node != source:
+                node = predecessors[node]
                 path.append(node)
-                node = explored[node]
             path.reverse()
             return path
-
-        if node in explored:
-            # do not override the parent of the source
-            if explored[node] is None:
-                continue
-            # skip paths that were enqueued before a better one was found
-            if enqueued[node][0] < dist:
-                continue
-
-        explored[node] = parent
-        for neighbour, weight in neighbours(node):
-            cost = dist + weight
-            if neighbour in enqueued:
-                enqueued_cost, h = enqueued[neighbour]
-                if enqueued_cost <= cost:
+        # the neighbours in the graph, then those connected by query edges
+        for neighbours, in_graph in (
+            (adjacency.get(node, empty), True),
+            (query_edges.get(node, empty), False),
+        ):
+            for neighbour, weight in neighbours.items():
+                if in_graph:
+                    weight = weight["weight"]
+                new_distance = distance + weight
+                if new_distance >= distances.get(neighbour, inf):
                     continue
-            else:
-                h = heuristic(neighbour, target)
-            enqueued[neighbour] = cost, h
-            heappush(queue, (cost + h, next(c), neighbour, cost, node))
+                distances[neighbour] = new_distance
+                predecessors[neighbour] = node
+                estimate = new_distance + heuristic(neighbour, target)
+                heappush(queue, (estimate, next(insertions), neighbour, new_distance))
     return None
 
 
@@ -826,7 +756,7 @@ def compute_graph(
     return graph
 
 
-def _try_extraction(json_data, key):
+def _try_extraction(json_data: Mapping[str, Any], key: str) -> Any:
     try:
         extracted_data = json_data[key]
     except KeyError as e:
@@ -834,11 +764,14 @@ def _try_extraction(json_data, key):
     return extracted_data
 
 
-def _convert2polygon(json_list):
-    return [tuple(coord_pair_list) for coord_pair_list in json_list]
+def _convert2polygon(json_list: Iterable[Iterable[float]]) -> list[t.InputCoord]:
+    # the JSON data is not validated here (cf. ``to_float_array()``)
+    return [cast(t.InputCoord, tuple(coord_pair_list)) for coord_pair_list in json_list]
 
 
-def read_json(path2json_file):
+def read_json(
+    path2json_file: str | os.PathLike[str],
+) -> tuple[list[t.InputCoord], list[list[t.InputCoord]]]:
     """
     Parse data from a JSON file and save as lists of tuples for both boundary and holes.
     NOTE: The format of the JSON file is explained in the command line script (argparse definition)
@@ -985,7 +918,9 @@ def convert_shapely(
     return boundary_coordinates, holes
 
 
-def convert_grid(size_x: int, size_y: int, obstacle_iter: iter) -> (list, list):
+def convert_grid(
+    size_x: int, size_y: int, obstacle_iter: Iterable[Iterable[float]]
+) -> tuple[npt.NDArray[np.float64], list[npt.NDArray[np.float64]]]:
     """
     prerequisites: the grid must not have non-obstacle cells which are surrounded by obstacles
     ("single white cell in black surrounding" = useless for path planning)
@@ -998,9 +933,17 @@ def convert_grid(size_x: int, size_y: int, obstacle_iter: iter) -> (list, list):
         the origin of the polygon coordinate system is (-0.5,-0.5) in the grid cell system (= corners of the grid)
     """
 
-    assert size_x > 0 and size_y > 0
+    for name, size in (("size_x", size_x), ("size_y", size_y)):
+        if isinstance(size, bool) or not isinstance(size, (int, np.integer)):
+            raise TypeError(f"{name} must be an integer, got {size!r}.")
+        if size <= 0:
+            raise ValueError(f"{name} must be positive, got {int(size)}.")
+    # Python integers: narrow numpy integers overflow when multiplied
+    size_x, size_y = int(size_x), int(size_y)
 
-    if len(obstacle_iter) == 0:
+    # any iterable (e.g. a generator)
+    obstacle_list = list(obstacle_iter)
+    if len(obstacle_list) == 0:
         # there are no obstacles. return just the simple boundary rectangle
         boundary = np.array(
             [(0, 0), (size_x, 0), (size_x, size_y), (0, size_y)], dtype=float
@@ -1008,46 +951,82 @@ def convert_grid(size_x: int, size_y: int, obstacle_iter: iter) -> (list, list):
         return boundary, []
 
     # convert (x,y) into np.arrays
-    # obstacle_iter = [np.array(o) for o in obstacle_iter]
-    obstacle_iter = np.array(obstacle_iter)
+    try:
+        obstacles = np.array(obstacle_list)
+    except ValueError:  # ragged
+        raise TypeError("Each blocked cell must consist of two values (x,y).") from None
+    if obstacles.ndim != 2 or obstacles.shape[1] != 2:
+        raise TypeError("Each blocked cell must consist of two values (x,y).")
+    # integral floats (e.g. 2.0) are unambiguous, 2.5 is no cell
+    is_numeric = obstacles.dtype.kind in "iuf"
+    # Note: an infinite value equals its rounded value
+    is_integral = is_numeric and bool(
+        np.all(np.isfinite(obstacles) & (obstacles == np.rint(obstacles)))
+    )
+    if not is_integral:
+        raise TypeError("The coordinates of the blocked cells must be integers.")
+    # Note: tested before converting to integers (large values would overflow)
+    outside = (obstacles < 0).any(axis=1) | (obstacles >= (size_x, size_y)).any(axis=1)
+    if outside.any():
+        cell = obstacles[np.flatnonzero(outside)[0]]
+        raise ValueError(
+            f"The blocked cell ({int(cell[0])}, {int(cell[1])}) lies outside of the grid "
+            f"({size_x} x {size_y} cells)."
+        )
+    obstacles = obstacles.astype(np.int64)
+    if len(np.unique(obstacles, axis=0)) == size_x * size_y:
+        raise ValueError("All cells of the grid are blocked: there is no free space.")
 
-    def within_grid(pos):
-        return 0 <= pos[0] < size_x and 0 <= pos[1] < size_y
+    def within_grid(pos: t.IntArray) -> bool:
+        inside: bool = 0 <= pos[0] < size_x and 0 <= pos[1] < size_y
+        return inside
 
-    def is_equal(pos1, pos2):
+    def is_equal(pos1: t.IntArray, pos2: t.IntArray) -> np.bool_:
         return np.all(pos1 == pos2)
 
-    def pos_in_iter(pos, iter):
+    def pos_in_iter(pos: t.IntArray, iter: Iterable[t.IntArray]) -> bool:
         for i in iter:
             if is_equal(pos, i):
                 return True
         return False
 
-    def is_obstacle(pos):
-        return pos_in_iter(pos, obstacle_iter)
+    def is_obstacle(pos: t.IntArray) -> bool:
+        return pos_in_iter(pos, obstacles)
 
-    def is_blocked(pos):
+    def is_blocked(pos: t.IntArray) -> bool:
         return not within_grid(pos) or is_obstacle(pos)
 
-    def is_unblocked(pos):
+    def is_unblocked(pos: t.IntArray) -> bool:
         return within_grid(pos) and not is_obstacle(pos)
 
-    def find_start(start_pos, boundary_detect_fct, **kwargs):
+    def find_start(
+        start_pos: tuple[int, int],
+        boundary_detect_fct: Callable[[t.IntArray], bool],
+    ) -> t.IntArray:
         # returns the lowest and leftmost unblocked grid cell from the start position
         # for which the detection function evaluates to True
         start_x, start_y = start_pos
         for y in range(start_y, size_y):
             for x in range(start_x, size_x):
                 pos = np.array([x, y])
-                if boundary_detect_fct(pos, **kwargs):
+                if boundary_detect_fct(pos):
                     return pos
+        # unreachable: grids without free cells and blocked cells outside of the grid are rejected above,
+        # so a free cell and (for holes) an obstacle inside the boundary always exist
+        raise RuntimeError(  # pragma: no cover
+            "no cell found: the grid has free cells and obstacles"
+        )
 
     # north, east, south, west
     directions = np.array([[0, 1], [1, 0], [0, -1], [-1, 0]], dtype=int)
     # the correct offset to determine where nodes should be added.
     offsets = np.array([[0, 1], [1, 1], [1, 0], [0, 0]], dtype=int)
 
-    def construct_polygon(start_pos, boundary_detect_fct, cntr_clockwise_wanted: bool):
+    def construct_polygon(
+        start_pos: t.IntArray,
+        boundary_detect_fct: Callable[[t.IntArray], bool],
+        cntr_clockwise_wanted: bool,
+    ) -> npt.NDArray[np.float64]:
         current_pos = start_pos.copy()
         # (at least) the west and south are blocked
         #   -> there has to be a polygon node at the current position (bottom left corner of the cell)
@@ -1121,22 +1100,23 @@ def convert_grid(size_x: int, size_y: int, obstacle_iter: iter) -> (list, list):
     # the border value does not matter here
 
     def get_unchecked_obstacles(
-        obstacles: Iterable, poly: np.ndarray, required_val: bool = True
-    ) -> list:
-        unchecked_obstacles = []
-        for o in obstacles:
+        cells: Iterable[t.IntArray], poly: np.ndarray, required_val: bool = True
+    ) -> list[t.IntArray]:
+        unchecked_obstacles: list[t.IntArray] = []
+        for o in cells:
             p = o + 0.5
             if _inside_polygon(p, poly, border_value=True) == required_val:
                 unchecked_obstacles.append(o)
 
         return unchecked_obstacles
 
-    unchecked_obstacles = get_unchecked_obstacles(obstacle_iter, boundary_edges)
+    unchecked_obstacles = get_unchecked_obstacles(obstacles, boundary_edges)
 
-    hole_list = []
+    hole_list: list[npt.NDArray[np.float64]] = []
     while len(unchecked_obstacles) > 0:
         start_pos = find_start(
-            start_pos=(0, 0), boundary_detect_fct=pos_in_iter, iter=unchecked_obstacles
+            start_pos=(0, 0),
+            boundary_detect_fct=partial(pos_in_iter, iter=unchecked_obstacles),
         )
         hole = construct_polygon(
             start_pos, boundary_detect_fct=is_unblocked, cntr_clockwise_wanted=False
@@ -1153,7 +1133,9 @@ def convert_grid(size_x: int, size_y: int, obstacle_iter: iter) -> (list, list):
     return boundary_edges, hole_list
 
 
-def _cmp_edge_and_vertex_idxs(list_of_polygons):
+def _cmp_edge_and_vertex_idxs(
+    list_of_polygons: Sequence[np.ndarray],
+) -> tuple[np.ndarray, np.ndarray]:
     # compute edge and vertex indices from polygon data structure
     edge_and_vertex_indices = [
         edge_vertex_mappings(len(coords_poly)) for coords_poly in list_of_polygons
@@ -1211,13 +1193,15 @@ def compile_polygon_datastructs(
     return coords, edge_vertex_idxs, vertex_edge_idxs, points
 
 
-def load_pickle(path=DEFAULT_PICKLE_NAME):
+def load_pickle(path: str | os.PathLike[str] = DEFAULT_PICKLE_NAME) -> Any:
     """loads an environment exported with :meth:`PolygonEnvironment.export_pickle`
+
+    Returns ``Any``: a pickle holds objects of any class (also subclasses of ``PolygonEnvironment``), and this layer
+    cannot import the environment class.
 
     :raises ValueError: when the environment was pickled with an incompatible version of this package (e.g. 2.x).
         Recreate the environment from its polygons instead.
     :raises AttributeError: when the pickled class no longer exists (e.g. ``PlottingEnvironment`` of 2.x)
     """
-    print("loading map from:", path)
     with open(path, "rb") as f:
         return pickle.load(f)

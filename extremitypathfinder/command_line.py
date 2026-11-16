@@ -18,7 +18,7 @@ JSON_HELP_MSG = (
 )
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description="parse extremitypathfinder parameters")
     parser.add_argument("path2json_file", type=str, help=JSON_HELP_MSG)
     parser.add_argument(
@@ -47,8 +47,6 @@ def main():
     goal_coordinates = tuple(parsed_args.goal)
 
     # Execute search for the given parameters
-    environment = PolygonEnvironment(
-        boundary_coordinates, list_of_holes, validate=False
-    )
+    environment = PolygonEnvironment(boundary_coordinates, list_of_holes)
     path, distance = environment.find_shortest_path(start_coordinates, goal_coordinates)
     print(path, distance)

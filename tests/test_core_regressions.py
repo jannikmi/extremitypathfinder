@@ -361,3 +361,77 @@ def test_spikes_too_narrow_for_floating_point_are_rejected():
             PolygonEnvironment(
                 [(-1, -1), (1, -1), (1, 2), (-1, 2)], [hole], validate=True
             )
+
+
+def test_skipped_node_in_front_does_not_reveal_the_nodes_behind_it():
+    """#222: AREA keeps only the closest candidate per direction. Skipping the extremity (2, 2), which the start
+    lies in front of, makes (-1, -1) behind it the closest candidate in that direction. Whether the line of sight
+    passes through (2, 2) is decided by the points (rule 3), not by the candidates: it is blocked.
+    """
+    square = [(1.0, 1.0), (2.0, 1.0), (2.0, 2.0), (1.0, 2.0)]
+    # its vertex (-1, -1) is an extremity the start does not lie in front of
+    triangle = [(-1.0, -1.0), (-1.0, -3.0), (1.0, -3.0)]
+    environment = PolygonEnvironment(None, [square, triangle], validate=True)
+    start, goal = (3.0, 3.0), (-3.0, -3.0)
+    nodes = {
+        tuple(environment.coords[i]): int(i) for i in environment.extremity_indices
+    }
+    result = environment.search(start, goal)
+    start_neighbours = {j for i, j, _ in result.query_edges if i == result.idx_start}
+    assert nodes[(2.0, 2.0)] not in start_neighbours
+    assert nodes[(-1.0, -1.0)] not in start_neighbours
+    # around the square via (1, 2), then directly to the goal (the line from (2, 1) cuts the triangle)
+    expected = hypot(2.0, 1.0) + hypot(4.0, 5.0)
+    assert result.length == pytest.approx(expected, rel=1e-12)
+
+
+def _square_with_hole() -> PolygonEnvironment:
+    boundary = [(0.0, 0.0), (10.0, 0.0), (10.0, 10.0), (0.0, 10.0)]
+    hole = [(4.0, 4.0), (6.0, 4.0), (6.0, 6.0), (4.0, 6.0)]
+    return PolygonEnvironment(boundary, [hole])
+
+
+def test_non_extremities_are_rejected_where_only_extremities_are_defined():
+    """no silent defaults for an unexpected internal state: the corners of a convex boundary are no extremities"""
+    environment = _square_with_hole()
+    corner = environment.points.by_idx[0]
+    assert not corner.is_extremity
+    coords = environment.coords
+    representations, distances = utils.cmp_reps_n_distances(0, coords)
+
+    with pytest.raises(ValueError, match="no extremity"):
+        corner.in_front(0.5, np.array([1.0, 1.0]))
+    with pytest.raises(ValueError, match="no extremity"):
+        corner.in_front_mask(np.array([0.5]), np.array([[1.0, 1.0]]))
+
+    with pytest.raises(ValueError, match="no extremity"):
+        utils._find_visible_and_in_front(
+            0,
+            set(),
+            set(),
+            coords,
+            representations,
+            distances,
+            environment.edge_vertex_idxs,
+            environment.points,
+        )
+
+    # a contact candidate without a wedge larger than 180 degree
+    candidate = 2
+    environment.points.by_idx[candidate] = wedges.Point(
+        candidate, 2, set(), [], None, []
+    )
+    with pytest.raises(ValueError, match="no extremity"):
+        environment.points.filter_visible(
+            0, {candidate}, coords, representations, distances
+        )
+
+
+def test_search_result_with_query_edges_requires_its_visibility_graph():
+    """no quiet fallback: a search graph cannot be built without the visibility graph"""
+    from extremitypathfinder.queries import SearchResult
+
+    result = SearchResult([], None, np.zeros((2, 2)), 0, 1, [(0, 1, 1.0)], None)
+    with pytest.raises(ValueError, match="no visibility graph"):
+        _ = result.graph
+    assert SearchResult([], None, np.zeros((2, 2))).graph is None

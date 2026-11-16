@@ -25,6 +25,19 @@ The [Engineering Design](../8_design.rst) page gives the full reasoning.
   source of truth for which points are graph nodes and where a line of sight may start, pass through and arrive.
   Do not add special cases for vertices elsewhere.
 
+## Input
+
+- **Malformed input is never accepted silently.** Input that violates the requirements raises an error that names
+  the problem and its location (`TypeError` or `ValueError`). It never gives a wrong result, a default or a silently
+  repaired value, and an unexpected internal state is no reason to return a plausible answer: fail loudly.
+  Cheap structural checks (polygon format, finite coordinates, point format) always run; only the geometric
+  checks can be skipped, with the explicit `validate=False`. A regression test covers every new check.
+
+- **No quiet fallbacks.** Never replace an unexpected state by a default, `None`, `False`, an empty result or a skipped
+  step: raise an error that names the problem. A documented, tested outcome is a result, not a fallback
+  (e.g. no path: `None` and an infinite distance). `except ...: pass` is only for an exception that is the expected
+  outcome (comment why). Ruff enforces the mechanical part (`assert`, blind and swallowed `except`, cf. `pyproject.toml`).
+
 ## Architecture
 
 - **Module layering.** A module only imports from the layers below it (cf. [Codebase map](codebase-map.md)).
@@ -39,5 +52,4 @@ The [Engineering Design](../8_design.rst) page gives the full reasoning.
 - The public API is what `__init__.py` exports, the documented methods and attributes of `PolygonEnvironment` and
   `SearchResult`, the plotting functions and the console command. Mark breaking changes with `BREAKING` in the changelog
   and describe the migration (cf. [Changelog](changelog.md)).
-- `utils.astar_path()` is adapted from networkx and under its 3-clause BSD license (`LICENSES/networkx.txt`):
-  keep its copyright notice above the function.
+- The package is licensed under MIT only: do not copy or adapt code from other projects (#157).
