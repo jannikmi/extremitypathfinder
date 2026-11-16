@@ -183,15 +183,15 @@ def _unpruned_graph(environment) -> nx.Graph:
     for origin in extremities:
         representations, distances = utils.cmp_reps_n_distances(origin, coords)
         candidates = set(extremities.tolist()) - {int(origin)}
-        _, visible = utils._find_visible_and_in_front(
+        visible = utils._find_graph_neighbours(
             origin,
             candidates,
-            set(),
             coords,
             representations,
             distances,
             environment.edge_vertex_idxs,
             environment.points,
+            reduce=False,
         )
         for i in visible:
             graph.add_edge(int(origin), int(i), weight=float(distances[i]))

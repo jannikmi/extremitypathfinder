@@ -141,6 +141,44 @@ def test_graph_nodes_in_front_of_each_other_are_not_connected(environment):
             assert not point.in_front(representations[other], vector)
 
 
+@pytest.mark.parametrize(
+    "environment",
+    [PolygonEnvironment(*env) for env in POLYGON_ENVS]
+    + [PolygonEnvironment.from_grid(*GRID_ENV_PARAMS)],
+)
+def test_graph_equals_the_reduction_applied_afterwards(environment):
+    """skipping both directions of "in front" before the visibility computation (#263) gives the graph
+    of computing the visibility first (each pair from the extremity with the lower index)
+    and removing every edge whose extremities lie in front of each other afterwards"""
+    coords = environment.coords
+    extremities = environment.extremity_indices
+    expected = set()
+    for ptr, origin in enumerate(extremities):
+        representations, distances = utils.cmp_reps_n_distances(origin, coords)
+        visible = utils._find_graph_neighbours(
+            origin,
+            set(extremities[ptr + 1 :].tolist()),
+            coords,
+            representations,
+            distances,
+            environment.edge_vertex_idxs,
+            environment.points,
+            reduce=False,
+        )
+        for other in visible:
+            in_front = False
+            for u, v in ((origin, other), (other, origin)):
+                reps, _ = utils.cmp_reps_n_distances(u, coords)
+                vector = coords[v] - coords[u]
+                in_front |= environment.points.by_idx[u].in_front(reps[v], vector)
+            if not in_front:
+                expected.add((min(origin, other), max(origin, other), distances[other]))
+    found = {
+        (min(u, v), max(u, v), w) for u, v, w in environment.graph.edges(data="weight")
+    }
+    assert found == expected
+
+
 def test_vectorised_representations_are_identical():
     rng = np.random.default_rng(0)
     vectors = np.concatenate(
@@ -405,9 +443,8 @@ def test_non_extremities_are_rejected_where_only_extremities_are_defined():
         corner.in_front_mask(np.array([0.5]), np.array([[1.0, 1.0]]))
 
     with pytest.raises(ValueError, match="no extremity"):
-        utils._find_visible_and_in_front(
+        utils._find_graph_neighbours(
             0,
-            set(),
             set(),
             coords,
             representations,
