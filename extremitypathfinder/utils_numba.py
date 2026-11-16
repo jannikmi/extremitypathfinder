@@ -361,9 +361,10 @@ def _behind_edge(
 def compute_edge_terms(
     p1: np.ndarray, p2: np.ndarray, max_dist: np.ndarray
 ) -> np.ndarray:
-    """the terms of edges for ``_edge_distance()`` and ``_behind_edge()`` (columns ``EDGE_*``, one row per edge)
+    """the terms of edges for ``_edge_distance()`` and ``_behind_edge()`` (columns ``EDGE_*``, one row per given edge)
 
-    Only computed for the edges that are checked (cf. ``utils.find_visible()``).
+    ``utils.find_visible()`` passes one edge per range of candidates: only the edges with candidates
+    in their angle range, a crossing edge with two ranges twice.
 
     :param p1: the first vertices of the edges relative to the origin
     :param p2: the second vertices of the edges relative to the origin

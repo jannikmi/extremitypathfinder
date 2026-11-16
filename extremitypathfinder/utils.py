@@ -353,8 +353,8 @@ def find_visible(
     so that every candidate is checked against few edges (cf. ``li_chao_tree.blocked_candidates()``).
     This bounds the worst case (the bound is stated in ``li_chao_tree``).
 
-    The setup is vectorised and only computes the terms of the edges with candidates in their angle range:
-    it runs once per extremity and query point, and on typical maps it took most of the time (#259).
+    The setup runs once per extremity and query point: it is vectorised and only computes the terms
+    of the edges with candidates in their angle range (#259).
 
     A line of sight touching an edge only in one of its vertices (or running along it) is not blocked by the edge.
     Whether lines of sight may pass through the vertices is decided by their free wedges (cf. ``wedges.py``).
@@ -363,7 +363,7 @@ def find_visible(
     :param origin: the index of the coordinates the visibility is checked from
     :param candidates: the indices of the coordinates to check.
         IMPORTANT: must not contain coordinates identical to the origin.
-    :param edges_to_check: the edges blocking the lines of sight.
+    :param edges_to_check: the edges blocking the lines of sight (a set or a 1D array of edge indices).
         IMPORTANT: no edge may touch the origin (cf. ``find_visible_from()``).
     :param representations: the angle representations of all coordinates seen from the origin
     :param distances: the distances of all coordinates to the origin
@@ -380,9 +380,10 @@ def find_visible(
         edges = edges_to_check.astype(np.int64, copy=False)
     else:
         edges = np.fromiter(edges_to_check, dtype=np.int64, count=len(edges_to_check))
+    edge_vertex_idxs = np.asarray(edge_vertex_idxs, dtype=np.int64)
     range_edges, range_first, range_last, range_max_dist = _candidate_ranges(
         edges,
-        np.asarray(edge_vertex_idxs, dtype=np.int64),
+        edge_vertex_idxs,
         representations,
         distances,
         representations[candidates_sorted],
