@@ -405,9 +405,8 @@ def test_non_extremities_are_rejected_where_only_extremities_are_defined():
         corner.in_front_mask(np.array([0.5]), np.array([[1.0, 1.0]]))
 
     with pytest.raises(ValueError, match="no extremity"):
-        utils._find_visible_and_in_front(
+        utils._find_graph_neighbours(
             0,
-            set(),
             set(),
             coords,
             representations,

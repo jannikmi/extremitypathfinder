@@ -487,14 +487,18 @@ those within ``RAY_WINDOW`` of a bound of the front one by one.
     add all extremities as nodes
     for each extremity e in index order:
       later = the extremities with a higher index
-      front = { x in later ∪ neighbours(e) : x lies in front of e }
-      remove the edges between e and front  # added from the other side
+      front = { x in later : x lies in front of e, or e lies in front of x }
       visible = find_visible_from(e, later - front, [extremity wedge])
       add the edges e - visible, weighted with their distance
 
 Visibility is symmetric, so each pair is checked once (from the extremity with the lower index).
-The front condition is not symmetric: an edge added from :math:`e_1`'s side is removed again when :math:`e_1`
-lies in front of :math:`e`. That is why the current neighbours are included in the front test.
+The front condition is not symmetric, so both directions are tested before the visibility is computed
+(the second one with ``Points.in_front_of()``, like for query points): an edge is never added and removed again,
+and the candidates skipped make the visibility computation faster.
+Skipping them before the visibility computation also matters for correctness (#263): AREA keeps only the closest
+candidate per direction, so an extremity in the same direction as a closer, skipped one becomes visible, if the
+line of sight may pass the skipped one (rule 3, cf. "Skipping the nodes in front" in the query section below).
+As a candidate, the skipped extremity would hide it although the edge to the skipped extremity itself is not kept.
 Extremities without edges remain in the graph, start and goal may connect to them.
 
 The same argument holds for the edges of start and goal: it is about the extremity :math:`e` being an
