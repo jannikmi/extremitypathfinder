@@ -6,6 +6,7 @@ The ``code-block:: python`` directives of a page are executed in order in one na
 import ast
 import importlib.util
 import re
+import sys
 import textwrap
 from pathlib import Path
 
@@ -26,10 +27,16 @@ NOT_RUN = {
     # examples of errors in pyvisgraph: CI must not depend on external packages (docs/contributing/testing.md)
     "docs/7_benchmark_method.rst": "pyvisgraph",
 }
-# optional packages: blocks using them are skipped when they are not installed
-OPTIONAL_PACKAGES = ["shapely", "matplotlib"]
+# optional packages and how blocks use them: these blocks are skipped when the package is not installed
+OPTIONAL_PACKAGES = {
+    "shapely": r"\bshapely\b",
+    # the plotting module imports Matplotlib
+    "matplotlib": r"\bmatplotlib\b|\bextremitypathfinder\.plotting\b",
+}
 
-DIRECTIVE = re.compile(r"^\.\. code-block:: python[ \t]*$")
+DIRECTIVE = re.compile(
+    r"^(?P<indent>[ \t]*)\.\. (?:code-block|code|sourcecode):: python[ \t]*$"
+)
 # e.g. "# path: [(4.5, 1.0), (3.0, 7.0), (4.0, 8.5)], length: 7.987..." or "# length: 11.908... (...)"
 RESULT_COMMENT = re.compile(
     r"^# (?:path: (?P<path>\[.*\]), )?length: (?P<length>\d+\.\d+)\.\.\."
@@ -37,15 +44,20 @@ RESULT_COMMENT = re.compile(
 
 
 def python_blocks(page: str) -> list[str]:
-    """the contents of the ``code-block:: python`` directives of a page, dedented"""
+    """the contents of the Python code directives of a page, dedented (also nested ones, e.g. in a list)"""
     lines = (ROOT / page).read_text(encoding="utf-8").splitlines()
     blocks = []
     for i, line in enumerate(lines):
-        if not DIRECTIVE.match(line):
+        match = DIRECTIVE.match(line)
+        if match is None:
             continue
+        indent = len(match["indent"].expandtabs())
         content = []
         for following in lines[i + 1 :]:
-            if following.strip() and not following.startswith((" ", "\t")):
+            following_indent = len(following.expandtabs()) - len(
+                following.expandtabs().lstrip()
+            )
+            if following.strip() and following_indent <= indent:
                 break
             content.append(following)
         text = textwrap.dedent("\n".join(content))
@@ -67,10 +79,20 @@ def test_every_page_with_examples_is_listed():
 
 
 def check_result_comment(code: str, namespace: dict) -> bool:
-    """compare the result stated in the last line of a block, if any, with the variables ``path`` and ``length``"""
-    match = RESULT_COMMENT.match(code.splitlines()[-1].strip())
-    if match is None:
+    """compare the result stated in the last line of a block, if any, with the variables ``path`` and ``length``
+
+    Further values in the comment (e.g. "(without clearance: ...)") are not compared.
+    """
+    lines = code.splitlines()
+    stating = [i for i, line in enumerate(lines) if re.match(r"\s*#.*\blength:", line)]
+    if not stating:
         return False
+    # a result comment the pattern does not recognise would not be compared silently
+    assert stating == [len(lines) - 1], (
+        "a result comment must be the last line of its block"
+    )
+    match = RESULT_COMMENT.match(lines[-1].strip())
+    assert match is not None, f"unrecognised result comment: {lines[-1]}"
     stated = match["length"]
     decimals = len(stated.split(".")[1])
     # the digits are truncated, not rounded
@@ -83,8 +105,8 @@ def check_result_comment(code: str, namespace: dict) -> bool:
 def missing_packages(code: str) -> list[str]:
     return [
         name
-        for name in OPTIONAL_PACKAGES
-        if re.search(rf"\b{name}\b", code) and importlib.util.find_spec(name) is None
+        for name, usage in OPTIONAL_PACKAGES.items()
+        if re.search(usage, code) and importlib.util.find_spec(name) is None
     ]
 
 
@@ -92,7 +114,20 @@ def missing_packages(code: str) -> list[str]:
 def test_examples_run(page, tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)  # examples write files (saved environments, plots)
     monkeypatch.setenv("MPLBACKEND", "Agg")
-    namespace: dict = {}
+    try:
+        skipped, checked = run_examples(page, {})
+    finally:
+        if "matplotlib.pyplot" in sys.modules:
+            sys.modules["matplotlib.pyplot"].close("all")
+    if page in ("README.rst", "docs/1_usage.rst"):
+        # the pages stating results
+        assert checked > 0
+    if skipped:
+        pytest.skip(f"blocks need packages not installed: {skipped}")
+
+
+def run_examples(page: str, namespace: dict) -> tuple[list, int]:
+    """run the examples of a page after those of its preludes, the skipped blocks and the number of checked results"""
     for prelude in PAGES[page]:
         for code in python_blocks(prelude):
             if not missing_packages(code):
@@ -106,10 +141,4 @@ def test_examples_run(page, tmp_path, monkeypatch):
             continue
         exec(compile(code, page, "exec"), namespace)  # noqa: S102 (the documentation of this repository)
         checked += check_result_comment(code, namespace)
-    if "matplotlib" in namespace or "plt" in namespace:
-        namespace["plt"].close("all")
-    if page in ("README.rst", "docs/1_usage.rst"):
-        # the pages stating results: a broken pattern would skip the comparison silently
-        assert checked > 0
-    if skipped:
-        pytest.skip(f"blocks need packages not installed: {skipped}")
+    return skipped, checked
