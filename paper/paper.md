@@ -117,7 +117,7 @@ are exactly equal or a vertex lies exactly on an edge. Every floating point deci
 rational arithmetic. With integer coordinates up to $2^{20}$, such as grids,
 no decision differed. Otherwise, differences occurred only within about one unit in the last place of
 a decision boundary, which is within the rounding of the coordinates themselves.
-The A\* search is adapted from NetworkX to follow the temporary edges of start and goal,
+An own A\* search also follows the temporary edges of start and goal,
 so the shared graph is neither changed nor copied.
 
 # Research impact statement
