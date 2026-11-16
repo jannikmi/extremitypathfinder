@@ -148,7 +148,8 @@ other changes:
   They took most of the preparation time.
 - faster visibility computation, identical visibility graphs and paths (#259): the setup before the compiled check
   only computes the terms of the edges with candidates in their angle range and sorts the candidates vectorised.
-  It runs once per extremity and per query point.
+  It runs once per extremity and per query point. E.g. the 5,020 vertex world map of the benchmarks with Numba:
+  preparation 11.1 to 7.6 s, queries 14.3 to 9.6 ms. Without Numba the gain is smaller.
 - the ``numba`` extra no longer installs SciPy (#185): a smaller installation (SciPy takes about 110 MB)
   and less memory per process with Numba (about 18 MiB less after import on Linux when SciPy is not installed).
   The test whether a vertex lies behind an edge solves its 2×2 system in closed form instead of with
