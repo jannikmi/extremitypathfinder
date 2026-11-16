@@ -609,7 +609,8 @@ def _find_visible_and_in_front(
     # do not consider points lying in front when looking for visible extremities,
     # even if they are actually visible.
     candidates = candidates.difference(candidates_in_front)
-    if point.extremity_wedge is None:
+    if point.extremity_wedge is None:  # pragma: no cover
+        # unreachable: only extremities are used as origin (narrows the type for mypy)
         raise ValueError(f"The origin {origin} is no extremity.")
     visible_idxs = find_visible_from(
         origin,
@@ -1010,7 +1011,11 @@ def convert_grid(
                 pos = np.array([x, y])
                 if boundary_detect_fct(pos):
                     return pos
-        raise RuntimeError("no cell found: the grid has free cells and obstacles")
+        # unreachable: grids without free cells and blocked cells outside of the grid are rejected above,
+        # so a free cell and (for holes) an obstacle inside the boundary always exist
+        raise RuntimeError(  # pragma: no cover
+            "no cell found: the grid has free cells and obstacles"
+        )
 
     # north, east, south, west
     directions = np.array([[0, 1], [1, 0], [0, -1], [-1, 0]], dtype=int)

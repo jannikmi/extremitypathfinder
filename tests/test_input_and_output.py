@@ -262,3 +262,18 @@ def test_validation_is_the_default():
     # validate=False stays available to skip the validation
     env = PolygonEnvironment(BOW_TIE_BOUNDARY, [BOW_TIE_HOLE], validate=False)
     assert env.find_shortest_path((1, 5), (9, 5)) == ([], None)
+
+
+def test_all_vertices_and_extremities(environment):
+    # the order of the vertices is not part of the API (polygons are reversed when stored)
+    assert set(environment.all_vertices) == set(BOUNDARY + HOLE)
+    assert len(environment.all_vertices) == len(BOUNDARY + HOLE)
+    assert set(environment.all_extremities) == set(HOLE)
+
+
+def test_extremities_of_a_concave_boundary():
+    # only the reflex corner (5, 5) of the L shape is an extremity
+    boundary = [(0, 0), (10, 0), (10, 5), (5, 5), (5, 10), (0, 10)]
+    environment = PolygonEnvironment(boundary, [])
+    assert set(environment.all_vertices) == set(boundary)
+    assert set(environment.all_extremities) == {(5.0, 5.0)}

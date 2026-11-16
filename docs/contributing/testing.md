@@ -52,6 +52,22 @@ uv run python prototypes/float_audit.py -n 100000
 uv run python prototypes/float_audit.py -n 100000 --no-numba
 ```
 
+## Coverage
+
+The core algorithm (all modules of the package except `command_line.py`, which the tests only run in a subprocess)
+is tested completely: every line and every branch. Check it after a change:
+
+```sh
+make coverage    # the tox environments cov-jit-off, cov-no-numba and coverage
+```
+
+Numba compiled code is invisible to coverage, so the code is measured as plain Python in two runs
+(`NUMBA_DISABLE_JIT=1` with Numba installed, and without Numba, which covers `numba_replacements.py`),
+and the results are combined. The report lists the missing lines and fails below 100%.
+New code needs tests that assert its behaviour (not only run it). Exclude a line with `# pragma: no cover`
+or `# pragma: no branch` only if it cannot be reached, and say why in a comment.
+The CI job `coverage` runs the same environments and is required by `ci-passed`.
+
 ## CI and external packages
 
 CI must not fail because of errors in pyvisgraph or other external packages and services,
