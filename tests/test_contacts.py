@@ -169,6 +169,58 @@ def test_hole_touching_two_boundary_edges_separates_the_map():
     assert environment.find_shortest_path((0.0, 0.0), (0.0, 4.0)) == ([], None)
 
 
+# two squares of free space touching at (5, 5), each with a hole: the graph has nodes on both sides,
+# but is not connected
+TOUCHING_SQUARES_BOUNDARY = [
+    (0.0, 0.0),
+    (5.0, 0.0),
+    (5.0, 5.0),
+    (10.0, 5.0),
+    (10.0, 10.0),
+    (5.0, 10.0),
+    (5.0, 5.0),
+    (0.0, 5.0),
+]
+TOUCHING_SQUARES_HOLES = [
+    [(1.0, 1.0), (2.0, 1.0), (2.0, 2.0), (1.0, 2.0)],
+    [(8.0, 8.0), (9.0, 8.0), (9.0, 9.0), (8.0, 9.0)],
+]
+
+
+@pytest.fixture(scope="module")
+def touching_squares():
+    return PolygonEnvironment(
+        TOUCHING_SQUARES_BOUNDARY, TOUCHING_SQUARES_HOLES, validate=True
+    )
+
+
+@pytest.mark.parametrize(
+    "start, goal", [((0.5, 0.5), (9.5, 9.5)), ((3.0, 1.5), (7.0, 8.5))]
+)
+def test_no_path_between_the_squares_despite_graph_nodes(touching_squares, start, goal):
+    assert touching_squares.find_shortest_path(start, goal) == ([], None)
+    assert touching_squares.find_shortest_path(goal, start) == ([], None)
+
+
+def test_path_within_one_square_around_a_hole(touching_squares):
+    # two equally long detours (via (1, 2) or (2, 1))
+    path, length = touching_squares.find_shortest_path((0.5, 0.5), (4.0, 4.0))
+    assert path in (
+        [(0.5, 0.5), (1.0, 2.0), (4.0, 4.0)],
+        [(0.5, 0.5), (2.0, 1.0), (4.0, 4.0)],
+    )
+    assert length == pytest.approx(hypot(0.5, 1.5) + hypot(3.0, 2.0))
+
+
+def test_distance_matrix_between_the_squares_is_infinite(touching_squares):
+    points = [(0.5, 0.5), (4.0, 4.0), (9.5, 9.5)]
+    matrix = touching_squares.distance_matrix(points)
+    expected_inside = hypot(0.5, 1.5) + hypot(3.0, 2.0)
+    assert matrix[0, 1] == matrix[1, 0] == pytest.approx(expected_inside)
+    assert np.isinf(matrix[[0, 2, 1, 2], [2, 0, 2, 1]]).all()
+    assert (np.diag(matrix) == 0.0).all()
+
+
 def test_boundary_touching_itself_separates_the_map():
     # two squares of free space touching at (5, 5)
     boundary = [

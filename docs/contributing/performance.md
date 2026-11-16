@@ -54,6 +54,7 @@ The tables are written to `benchmarks/results/` and the figures to `docs/_static
 `--baselines benchmarks/results/benchmark.json` measures the baselines without input data
 (cf. {ref}`benchmark-measurements`) and adds them to the raw results of a run on the same machine,
 without repeating the run.
+The comparison with Polyanya (#170) is separate: `benchmarks/polyanya/compare.py`.
 
 ### After a full run
 

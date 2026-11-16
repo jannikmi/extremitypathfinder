@@ -90,6 +90,8 @@ other changes:
   the crossing point). The crossing test solves its 2×2 system in closed form instead of with ``numpy.linalg.solve``
   and is exact for integer coordinates: valid polygons touching themselves with a vertex on an edge were rejected
   for one of the two vertex numberings.
+- documentation: the accepted numeric types of the coordinates (integers, ``float32``, ``float16``: converted to
+  ``float64``) and why all computations use ``float64`` (no ``float32`` or integer mode, #274).
 - documentation: ``verify=False`` does not help with query points within rounding error of an edge (#239):
   their path may be wrong and depend on the query direction. Move them onto the edge or away from it.
 - documentation: agent clearance (#167), a recipe for agents that keep a minimum distance to the obstacles:
@@ -111,6 +113,9 @@ other changes:
   It measures time, peak and retained memory, with and without Numba.
   ``scripts/speed_benchmarks.py`` uses the same harness. The validation found pyvisgraph 0.2.1 paths
   through obstacles; the cause is described in the documentation.
+- comparison with Polyanya, the state of the art (#170): ``python -m benchmarks.polyanya.compare``
+  (``benchmarks/polyanya/``, a Rust harness, needs ``cargo``, not run in CI) checks that both find the same path
+  lengths and compares the build and query times. Results and limitations on the performance and alternatives pages.
 - much lower memory use and smaller pickles of large environments: the angle representations and distances
   of all vertices seen from every extremity are no longer stored (``O(m n)`` floats for ``m`` extremities
   and ``n`` vertices, about 1 GiB for 10,000 vertices).
@@ -169,6 +174,8 @@ bugfixes:
 
 internal:
 
+- tests: polygons and query points given as integers, ``float32`` or ``float16`` give the results of the same values
+  given as ``float64``.
 - the query algorithms (start and goal visibility, graph search, distance matrix) moved from the root module
   ``extremitypathfinder.py`` into the new module ``queries.py``, together with ``SearchResult``
   (still importable from ``extremitypathfinder`` and ``extremitypathfinder.extremitypathfinder``).
