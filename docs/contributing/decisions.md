@@ -28,10 +28,10 @@ Earlier decisions are described in the {ref}`Design Decisions <design_decisions>
 ## Prepared environments are stored in a versioned `.npz` file, checked structurally on load (#245)
 
 - **Decided by:** a maintainer ([#245](https://github.com/jannikmi/extremitypathfinder/issues/245))
-- **Rejected:** JSON (larger, floats via text; a conversion on demand); a checksum of the coordinates
-  (the zip CRC-32 detects corruption, a checksum in the same file does not detect tampering);
-  pickle as the only format (version-bound, unsafe).
-- **Details:** [#245](https://github.com/jannikmi/extremitypathfinder/issues/245)
+- **Rejected:** JSON (larger, floats via text); a checksum of the coordinates
+  (the zip CRC-32 detects corruption, a checksum in the same file not tampering); keeping `export_pickle()` and
+  `load_pickle()` (a second, version-bound and unsafe way to store environments;
+  the major release breaks stored pickles anyway).
 
 ## The input is validated by default (#243)
 
