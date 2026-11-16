@@ -62,7 +62,8 @@ Features
   Agents with a size keep a clearance to the obstacles when these are inflated with Shapely (documented recipe).
 - **Well-defined edge cases**: touching obstacles, points on edges and collinear vertices follow one set of rules.
   The floating point decisions are audited against exact arithmetic, the results are identical with and without Numba.
-- **Few dependencies**: NumPy and NetworkX. Optional `Numba <https://numba.pydata.org/>`__ acceleration.
+- **Few dependencies**: only NumPy. Optional `Numba <https://numba.pydata.org/>`__ acceleration,
+  export of the visibility graph to NetworkX.
 - **Extras**: input validation, plotting (Matplotlib), saving prepared environments to a file,
   and a command line interface.
 
@@ -85,7 +86,7 @@ With the optional Numba extra for a significant speedup
     pip install "extremitypathfinder[numba]"
 
 Python 3.12 or newer is required (CI tests CPython 3.12–3.15).
-Dependencies: NumPy >=2.3.3,<3 and NetworkX 3.x.
+Dependencies: NumPy >=2.3.3,<3 (NetworkX 3.x with the optional ``networkx`` extra).
 Cf. `supported versions and dependencies
 <https://extremitypathfinder.readthedocs.io/en/latest/0_getting_started.html#supported-versions-and-dependencies>`__
 for the support policy.

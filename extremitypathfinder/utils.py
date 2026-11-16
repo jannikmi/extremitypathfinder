@@ -1,14 +1,13 @@
 import json
 import os
 import warnings
-from collections.abc import Callable, Iterable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from functools import partial
 from heapq import heappop, heappush
 from itertools import count
 from math import inf
 from typing import TYPE_CHECKING, Any, cast
 
-import networkx as nx
 import numpy as np
 import numpy.typing as npt
 
@@ -32,7 +31,8 @@ from extremitypathfinder.utils_numba import (
 from extremitypathfinder.wedges import Point, Points, Wedge, check_polygon_contacts
 
 if TYPE_CHECKING:
-    # optional dependency (extra "shapely"), only imported when used
+    # optional dependencies (extras "networkx" and "shapely"), only imported when used
+    import networkx as nx
     import shapely
     from shapely.geometry.base import BaseGeometry
 
@@ -634,8 +634,7 @@ def edge_weight(
     try:
         return query_edges[n1][n2]
     except KeyError:
-        weight: float = graph[n1][n2]["weight"]
-        return weight
+        return graph[n1][n2]
 
 
 def astar_path(
@@ -653,15 +652,11 @@ def astar_path(
     With a consistent heuristic (such as the Euclidean distance in a visibility graph with Euclidean edge weights)
     this never happens, but the search also stays exact with a heuristic that is only admissible.
 
-    :param graph: the weighted graph (edge attribute ``weight``)
+    :param graph: the weighted graph: node -> neighbour -> weight, in both directions
     :param query_edges: additional (temporary) edges: node -> neighbour -> weight, in both directions
     :param heuristic: an admissible estimate of the distance between two nodes (never larger than the true distance)
     """
-    # the dict of dicts of the networkx graph: node -> neighbour -> edge attributes
-    # (private, but the public views are slower and this is the innermost loop)
-    adjacency: Mapping[int, Mapping[int, Mapping[str, float]]] = graph._adj  # type: ignore[attr-defined]
-    # the attributes of an edge of the graph, or the weight of a query edge
-    empty: dict[int, Any] = {}
+    empty: dict[int, float] = {}
     # the shortest distance from the source found so far and the predecessor on that path
     distances: dict[int, float] = {source: 0.0}
     predecessors: dict[int, int] = {}
@@ -683,13 +678,8 @@ def astar_path(
             path.reverse()
             return path
         # the neighbours in the graph, then those connected by query edges
-        for neighbours, in_graph in (
-            (adjacency.get(node, empty), True),
-            (query_edges.get(node, empty), False),
-        ):
+        for neighbours in (graph.get(node, empty), query_edges.get(node, empty)):
             for neighbour, weight in neighbours.items():
-                if in_graph:
-                    weight = weight["weight"]
                 new_distance = distance + weight
                 if new_distance >= distances.get(neighbour, inf):
                     continue
@@ -698,6 +688,45 @@ def astar_path(
                 estimate = new_distance + heuristic(neighbour, target)
                 heappush(queue, (estimate, next(insertions), neighbour, new_distance))
     return None
+
+
+def graph_edges(graph: t.Graph) -> Iterator[tuple[int, int, float]]:
+    """the edges ``(node, neighbour, weight)`` of the graph, each once
+
+    In the order of the nodes and their neighbours (the order ``networkx.Graph.edges`` has for the same dicts):
+    the order of the file format (cf. ``storage.py``).
+    """
+    seen: set[int] = set()
+    for node, neighbours in graph.items():
+        for neighbour, weight in neighbours.items():
+            if neighbour not in seen:
+                yield node, neighbour, weight
+        seen.add(node)
+
+
+def to_networkx(
+    graph: t.Graph, query_edges: Iterable[tuple[int, int, float]] = ()
+) -> "nx.Graph[int]":
+    """a new ``networkx.Graph`` with the nodes and edges of the graph, the weights as edge attribute ``weight``
+
+    networkx is an optional dependency (extra ``networkx``), only imported here.
+
+    :param query_edges: additional edges ``(node, neighbour, weight)``
+    :raises ImportError: when networkx is not installed
+    """
+    try:
+        import networkx as nx
+    except ImportError as error:
+        raise ImportError(
+            "Converting the visibility graph requires networkx: "
+            'pip install "extremitypathfinder[networkx]"'
+        ) from error
+    nx_graph: nx.Graph[int] = nx.Graph()
+    # all nodes, also those without edges
+    nx_graph.add_nodes_from(graph)
+    nx_graph.add_weighted_edges_from(graph_edges(graph))
+    nx_graph.add_weighted_edges_from(query_edges)
+    return nx_graph
 
 
 def compute_graph(
@@ -713,23 +742,23 @@ def compute_graph(
     Note: the angle representations and distances seen from an extremity are computed when it is processed
     and not kept: storing them for all extremities would take ``O(m n)`` memory.
     """
-    graph = t.Graph()
     # IMPORTANT: add all extremities (even if they turn out to be dangling in the end),
     # adding start and goal nodes at query time might connect them!
-    graph.add_nodes_from(extremity_indices)
+    graph: t.Graph = {node: {} for node in extremity_indices.tolist()}
 
     # Note: also the last extremity has to be checked (without candidates left):
     # its graph neighbours lying "in front" of it must be disconnected
-    for extr_ptr, origin_idx in enumerate(extremity_indices):
+    for extr_ptr, origin_idx in enumerate(extremity_indices.tolist()):
         vert_idx2repr, vert_idx2dist = cmp_reps_n_distances(origin_idx, coords)
         # optimisation: extremities are always visible to each other
         # (bidirectional relation -> undirected edges in the graph)
         #  -> do not check extremities which have been checked already
         #  (must give the same result when algorithms are correct)
         # the origin extremity itself must also not be checked when looking for visible neighbours
-        candidate_idxs = set(extremity_indices[extr_ptr + 1 :])
+        candidate_idxs = set(extremity_indices[extr_ptr + 1 :].tolist())
         # Note: also the nodes previously connected to the current origin must be considered for removal
-        candidates_in_front = candidate_idxs | set(graph.neighbors(origin_idx))
+        neighbours = graph[origin_idx]
+        candidates_in_front = candidate_idxs | set(neighbours)
         idxs_in_front, visible_idxs = _find_visible_and_in_front(
             origin_idx,
             candidate_idxs,
@@ -743,13 +772,14 @@ def compute_graph(
         # "thin out" the graph:
         # remove already existing edges in the graph to the extremities in front
         for i in idxs_in_front:
-            try:
-                graph.remove_edge(origin_idx, i)
-            except nx.exception.NetworkXError:
-                pass
+            if i in neighbours:
+                del neighbours[i]
+                del graph[i][origin_idx]
 
         for i in visible_idxs:
-            graph.add_edge(origin_idx, i, weight=vert_idx2dist[i])
+            weight = float(vert_idx2dist[i])
+            neighbours[i] = weight
+            graph[i][origin_idx] = weight
 
     return graph
 

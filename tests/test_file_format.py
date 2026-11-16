@@ -14,8 +14,8 @@ START, GOAL = (1.0, 1.0), (9.0, 9.0)
 def graph_data(environment):
     """the nodes, and the neighbours with their weights in iteration order: equal for identical graphs"""
     graph = environment.graph
-    return list(graph.nodes), {
-        node: list(graph.adj[node].items()) for node in graph.nodes
+    return list(graph), {
+        node: list(neighbours.items()) for node, neighbours in graph.items()
     }
 
 
@@ -74,7 +74,7 @@ def test_environment_without_edges(tmp_path):
     # a graph without edges: a single extremity per obstacle and no visibility between them is not required,
     # a convex boundary alone has no extremities at all
     original = PolygonEnvironment([(0.0, 0.0), (4.0, 0.0), (4.0, 4.0), (0.0, 4.0)], [])
-    assert original.graph.number_of_edges() == 0
+    assert not any(original.graph.values())
     original.save(tmp_path / "convex.npz")
     loaded = PolygonEnvironment.load(tmp_path / "convex.npz")
 
@@ -143,7 +143,7 @@ def arrays(tmp_path):
     """the arrays of a saved environment with an unbounded boundary polygon and holes: to be modified"""
     environment = PolygonEnvironment(*POLY_ENV_PARAMS)
     environment.save(tmp_path / "valid.npz")
-    assert environment.graph.number_of_edges() > 0
+    assert any(environment.graph.values())
     with np.load(tmp_path / "valid.npz", allow_pickle=False) as file:
         return {key: file[key] for key in file.files}
 

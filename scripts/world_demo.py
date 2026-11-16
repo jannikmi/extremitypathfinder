@@ -61,7 +61,7 @@ def demo(output: Path, nr_vertices: int = DEFAULT_NR_VERTICES):
     print(
         f"world demo: path with {len(path)} points, length {length:.2f} degrees,"
         f" {environment.nr_vertices} vertices, {len(environment.extremity_indices)} extremities,"
-        f" {environment.graph.number_of_edges()} graph edges"
+        f" {sum(map(len, environment.graph.values())) // 2} graph edges"
     )
     fig, ax = plt.subplots(figsize=(10.0, 5.0))
     draw(environment, path, ax=ax, style=STYLE)

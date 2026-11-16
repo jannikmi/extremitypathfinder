@@ -186,9 +186,26 @@ Only the lengths are returned: to get a path, call ``find_shortest_path()`` for 
 E.g. 100 random points (9,900 pairs) in an environment with 904 vertices: 3.1 s instead of 115 s with a loop over
 ``find_shortest_path()`` (with Numba, ``prototypes/distance_matrix_profile.py``).
 
-To run your own NetworkX algorithms, use the visibility graph ``environment.graph``:
-its nodes are the indices of the extremities in ``environment.coords``, the edge attribute ``weight``
-is the Euclidean length of the edge. Start and goal points are not part of it.
+The visibility graph ``environment.graph`` maps every node to its neighbours and the Euclidean lengths of the edges
+(``{node: {neighbour: length}}``, every edge in both directions).
+The nodes are the indices of the extremities in ``environment.coords``. Start and goal points are not part of it.
+``SearchResult.graph`` is the search graph of one query in the same form: the visibility graph and the edges of start
+and goal.
+
+To run your own NetworkX algorithms, convert the graphs with ``environment.to_networkx()``
+or ``result.to_networkx()``: a new ``networkx.Graph`` with the length of an edge as attribute ``weight``.
+NetworkX is an optional dependency:
+
+.. code-block:: console
+
+    pip install "extremitypathfinder[networkx]"
+
+.. code-block:: python
+
+    import networkx as nx
+
+    graph = environment.to_networkx()
+    components = list(nx.connected_components(graph))
 
 
 

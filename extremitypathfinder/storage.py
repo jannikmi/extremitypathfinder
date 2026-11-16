@@ -19,7 +19,7 @@ Everything else (the coordinates of all vertices, the mappings between vertices 
 wedges) is computed from the polygons when loading (much faster than computing the visibility graph with Numba),
 so the file survives changes of the internal data structures. Only a change of the graph semantics
 (which edges the visibility graph keeps) needs a new ``configs.FILE_FORMAT_VERSION``.
-The edges are stored in the order of the graph (``graph.edges``),
+The edges are stored in the order of the graph (``utils.graph_edges()``),
 so that the loaded graph iterates its neighbours in the same order and the search breaks ties the same way.
 
 Loading checks the structure of the file (cf. :func:`read` and :func:`build_graph`), but not that the graph is the
@@ -67,7 +67,7 @@ def write(
 ) -> None:
     """stores the polygons (as stored by the environment) and the visibility graph of their extremities"""
     # in the order of the graph, so that loading gives the same order of the neighbours
-    edge_data: list[tuple[int, int, float]] = list(graph.edges(data="weight"))
+    edge_data = list(utils.graph_edges(graph))
     edges = np.array([(u, v) for u, v, _ in edge_data], dtype=np.int64).reshape(-1, 2)
     weights = np.array([weight for _, _, weight in edge_data], dtype=np.float64)
     boundary_array = (
@@ -233,10 +233,11 @@ def build_graph(stored: StoredEnvironment, extremity_indices: t.IntArray) -> t.G
             raise ValueError("'edges' must not contain an edge twice.")
         if not np.all(np.isfinite(stored.weights) & (stored.weights > 0.0)):
             raise ValueError("'weights' must be finite and positive.")
-    graph = t.Graph()
     # all extremities, also those without edges
-    graph.add_nodes_from(extremity_indices.tolist())
-    graph.add_weighted_edges_from(
-        zip(edges[:, 0].tolist(), edges[:, 1].tolist(), stored.weights.tolist())
-    )
+    graph: t.Graph = {node: {} for node in extremity_indices.tolist()}
+    for u, v, weight in zip(
+        edges[:, 0].tolist(), edges[:, 1].tolist(), stored.weights.tolist()
+    ):
+        graph[u][v] = weight
+        graph[v][u] = weight
     return graph

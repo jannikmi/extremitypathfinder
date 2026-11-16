@@ -44,9 +44,10 @@ with the same shortest path.\label{fig:reduction}](graph_reduction.svg)
 
 The package is meant for researchers and engineers in robotics, simulation, geographic information systems and
 game development who need exact shortest paths in Python. It is installed with `pip` and requires only
-NumPy [@harris2020numpy] and NetworkX [@hagberg2008networkx]. Numba [@lam2015numba] is an optional accelerator
+NumPy [@harris2020numpy]. Numba [@lam2015numba] is an optional accelerator
 with identical results, which the test suite checks in continuous integration. Shapely and GeoJSON geometries,
-for example from GeoPandas, are accepted directly with an optional extra.
+for example from GeoPandas, are accepted directly, and the visibility graph converts to NetworkX
+[@hagberg2008networkx], both with optional extras.
 
 Typical use cases ask many queries in one static environment: reference paths for trajectory planners,
 distance matrices for task allocation, oracle planners in reinforcement learning, simulations that move many agents

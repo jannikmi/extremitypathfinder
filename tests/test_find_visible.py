@@ -315,8 +315,7 @@ def test_graph_equals_brute_force(env, monkeypatch):
     graph = PolygonEnvironment(boundary, holes).graph
     monkeypatch.setattr(utils, "find_visible", find_visible_brute_force)
     expected = PolygonEnvironment(boundary, holes).graph
-    assert sorted(graph.edges(data="weight")) == sorted(expected.edges(data="weight"))
-    assert sorted(graph.nodes) == sorted(expected.nodes)
+    assert graph == expected
 
 
 def _crossing_segments(seed: int):

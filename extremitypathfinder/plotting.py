@@ -20,6 +20,7 @@ from matplotlib.path import Path as DrawingPath
 
 from extremitypathfinder.extremitypathfinder import PolygonEnvironment, SearchResult
 from extremitypathfinder.types import InputCoord
+from extremitypathfinder.utils import graph_edges
 
 PLOTTING_DIR = "all_plots"
 PLOT_FILE_ENDING = ".svg"
@@ -158,7 +159,7 @@ def draw(
     coords = environment.coords
     if graph:
         edges = LineCollection(
-            [(coords[i], coords[j]) for i, j in environment.graph.edges],
+            [(coords[i], coords[j]) for i, j, _ in graph_edges(environment.graph)],
             colors=style.graph_color,
             alpha=style.graph_alpha,
             linewidths=width,

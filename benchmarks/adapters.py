@@ -67,7 +67,7 @@ class ExtremityPathfinder(Adapter):
         return [(float(x), float(y)) for x, y in path]
 
     def graph_size(self, env):
-        return env.graph.number_of_nodes(), env.graph.number_of_edges()
+        return len(env.graph), sum(map(len, env.graph.values())) // 2
 
 
 class ExtremityPathfinderNoNumba(ExtremityPathfinder):

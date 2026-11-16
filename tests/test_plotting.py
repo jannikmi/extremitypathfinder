@@ -16,6 +16,7 @@ from extremitypathfinder.plotting import (
     plot_environment,
     plot_search,
 )
+from extremitypathfinder.utils import graph_edges
 from scripts.docs_figures import main as generate_figures
 from tests.test_cases import POLY_ENV_PARAMS, SEPARATED_ENV, TEST_DATA_SEPARATE_ENV
 
@@ -63,9 +64,8 @@ def test_draws_all_elements(environment):
         "goal",
     }
     assert len(drawn["obstacles"].get_paths()) == len(environment.holes)
-    assert (
-        len(drawn["visibility-graph"].get_segments())
-        == environment.graph.number_of_edges()
+    assert len(drawn["visibility-graph"].get_segments()) == len(
+        list(graph_edges(environment.graph))
     )
     assert len(drawn["extremities"].get_offsets()) == len(environment.extremity_indices)
     assert len(drawn["vertices"].get_offsets()) == environment.nr_vertices
@@ -271,5 +271,7 @@ def test_complete_visibility_graph():
     assert len(complete) == len(edges)
     assert all(len(edge) == 2 for edge in complete)
     coords = [tuple(c) for c in environment.coords]
-    reduced = {frozenset((coords[i], coords[j])) for i, j in environment.graph.edges}
+    reduced = {
+        frozenset((coords[i], coords[j])) for i, j, _ in graph_edges(environment.graph)
+    }
     assert reduced and reduced < complete

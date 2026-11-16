@@ -25,7 +25,7 @@ Goals
   (cf. `Visibility graph reduction`_). A small graph makes the queries fast.
 - **Well defined behaviour at the edge cases**: touching obstacles, points on edges and collinear vertices
   are handled by one consistent set of rules (cf. :ref:`touching`), not by special cases spread over the code.
-- **Few dependencies**: ``numpy`` and ``networkx`` only. ``numba`` is an optional accelerator, the package
+- **Few dependencies**: ``numpy`` only. ``numba`` is an optional accelerator, the package
   produces the same results without it.
 
 Non-goals
@@ -140,9 +140,18 @@ They are not stored: for all extremities this would take ``2 m n`` floats, about
 The visibility graph
 --------------------
 
-``graph`` is a ``networkx.Graph`` with one node per extremity (the vertex index of its point) and
-undirected edges weighted with the Euclidean distance. Extremities without any edge are kept as nodes:
-start and goal might connect to them.
+``graph`` is a dict of dicts: one node per extremity (the vertex index of its point, a Python ``int``)
+-> neighbour -> the Euclidean distance (a Python ``float``). Every undirected edge is stored in both directions.
+Extremities without any edge are kept as nodes: start and goal might connect to them.
+The order of the nodes and neighbours is deterministic (it is the order of the file format and breaks the ties of the
+search), ``utils.graph_edges()`` lists every edge once in this order.
+
+Plain dicts instead of a ``networkx.Graph`` (#182): the visibility graph is most of the memory of a large
+environment, and plain dicts need a fraction of the memory of networkx' attribute dict per edge,
+while the search reads them as fast. ``networkx`` is no dependency: importing it took a large part of the
+import time of the package. ``to_networkx()`` converts the graphs for own networkx algorithms
+(extra ``networkx``). Arrays (CSR) would need even less memory, but the search would have to be rewritten for them
+(and compiled with Numba for speed, with identical results without it).
 
 Query data
 ----------
@@ -720,11 +729,8 @@ Ideas specific to visibility graphs were evaluated and not adopted, as they gave
   skipping it would need an extra check per neighbour instead.
 - **earlier termination**: the goal is only final when it is taken from the queue.
   Stopping earlier, e.g. when the goal is first reached, is not exact.
-- **a precomputed adjacency structure** (plain dicts or arrays): costs memory per environment and changes the pickled
-  state, the iteration over the networkx dicts is not the bottleneck (cf. #182).
 
-``networkx`` is kept as graph data structure because it is a familiar, inspectable public attribute
-(``environment.graph``).
+The search reads the plain dicts of the visibility graph (cf. `The visibility graph`_).
 
 Optional numba acceleration
 ---------------------------

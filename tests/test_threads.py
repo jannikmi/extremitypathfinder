@@ -45,10 +45,7 @@ def _run_in_threads(fct, nr_threads=NR_THREADS):
 
 
 def _graph_state(environment):
-    graph = environment.graph
-    return sorted(graph.nodes), sorted(
-        (min(u, v), max(u, v), w) for u, v, w in graph.edges(data="weight")
-    )
+    return environment.graph
 
 
 def test_free_threading():

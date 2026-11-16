@@ -57,7 +57,8 @@ Supported versions and dependencies
 -----------------------------------
 
 Python >=3.12,<4 is accepted; CI currently tests CPython 3.12–3.15.
-Dependencies are NetworkX 3.x and NumPy >=2.3.3,<3.
+The only dependency is NumPy >=2.3.3,<3. The optional extras ``numba``, ``networkx`` (NetworkX 3.x, cf. :ref:`usage`)
+and ``shapely`` add their packages.
 Python <3.12 and NumPy <2.3.3 are no longer supported.
 
 The Python and NumPy floors stay within the September 2026 downstream support

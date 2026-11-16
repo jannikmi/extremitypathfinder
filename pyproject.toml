@@ -27,11 +27,14 @@ classifiers = [
     "Topic :: Games/Entertainment"
 ]
 dependencies = [
-    "networkx>=3,<4",
     "numpy>=2.3.3,<3",
 ]
 
 [project.optional-dependencies]
+# PolygonEnvironment.to_networkx(), SearchResult.to_networkx()
+networkx = [
+    "networkx>=3,<4",
+]
 numba = [
     "numba>=0.63,<1",
 ]
@@ -173,7 +176,9 @@ envlist =
 
 [testenv]
 package = wheel
+# networkx: also the independent reference of the tests (shortest paths), tests/test_networkx.py blocks it
 extras =
+    networkx
     shapely
     numba: numba
 deps =
@@ -205,6 +210,7 @@ commands =
 # (`NUMBA_DISABLE_JIT` with Numba installed, and the stand-ins without Numba), then combined
 [testenv:cov-jit-off]
 extras =
+    networkx
     shapely
     numba
 deps =
@@ -220,6 +226,7 @@ commands =
 
 [testenv:cov-no-numba]
 extras =
+    networkx
     shapely
 deps =
     pytest
