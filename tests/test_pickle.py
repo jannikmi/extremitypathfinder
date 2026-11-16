@@ -1,11 +1,11 @@
-"""Exporting and loading environments with pickle."""
+"""Pickling and copying environments."""
 
 import copy
 import pickle
 
 import pytest
 
-from extremitypathfinder import PolygonEnvironment, configs, load_pickle
+from extremitypathfinder import PolygonEnvironment, configs
 
 BOUNDARY = [(0.0, 0.0), (10.0, 0.0), (10.0, 10.0), (0.0, 10.0)]
 HOLES = [[(3.0, 4.0), (3.0, 6.0), (7.0, 6.0), (7.0, 4.0)]]
@@ -17,10 +17,8 @@ def environment():
     return PolygonEnvironment(BOUNDARY, HOLES)
 
 
-def test_export_and_load_pickle(environment, tmp_path):
-    path = str(tmp_path / "env.pickle")
-    environment.export_pickle(path=path)
-    loaded = load_pickle(path=path)
+def test_pickle_round_trip(environment):
+    loaded = pickle.loads(pickle.dumps(environment))
 
     assert isinstance(loaded, PolygonEnvironment)
     assert loaded.find_shortest_path(START, GOAL) == environment.find_shortest_path(

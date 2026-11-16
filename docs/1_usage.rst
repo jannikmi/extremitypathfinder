@@ -391,16 +391,27 @@ Cache and import the environment
 --------------------------------
 
 
+The preparation of a large environment takes a long time, loading a stored one takes less
+(much less with Numba, because the data structures computed from the polygons are rebuilt).
+``save()`` stores the polygons and the visibility graph in a documented ``.npz`` file, ``load()`` reads it:
+
 .. code-block:: python
 
-    environment.export_pickle(path="./pickle_file.pickle")
+    environment.save("./environment.npz")
 
-    from extremitypathfinder import load_pickle
+    from extremitypathfinder import PolygonEnvironment
 
-    environment = load_pickle(path="./pickle_file.pickle")
+    environment = PolygonEnvironment.load("./environment.npz")
 
-Environments pickled with an incompatible version of this package (e.g. 2.x) cannot be loaded
-(``ValueError``): recreate them from their polygons instead.
+The file contains only data: loading it never executes code, and later versions of this package can read it
+as long as the visibility graph does not change (an unknown format version raises a ``ValueError`` asking to recreate
+the environment). The loaded environment gives the same paths and lengths.
+Loading checks the structure of the file (``ValueError``), but neither validates the polygons again
+nor verifies that the graph is the visibility graph of the polygons: load files from sources you trust.
+
+Environments can also be pickled (``pickle``, ``copy``, passing them to worker processes), which is faster to load
+but only meant for trusted data of the same version of this package: pickles of other versions raise a ``ValueError``
+(e.g. those of 2.x) and loading a pickle may execute code. Use ``save()`` and ``load()`` to keep environments.
 
 
 
