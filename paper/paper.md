@@ -125,7 +125,8 @@ so the shared graph is neither changed nor copied.
 
 <!--
 Stability (decided in #196): submit a few months after the release named here (4.0.0).
-If another release follows before the submission, name it instead. Replace the date TODO at submission.
+If another release follows before the submission, name it instead: in the version range here and in the
+AI usage disclosure, and in "This paper describes version ...". Replace the date TODO at submission.
 -->
 The package has been developed iteratively since 2018: 21 releases up to 2024 (versions 0.0.1 to 2.7.2),
 with code from four further contributors. Versions 2.8 to 4.0 (2026) modernised it, with a new API in 3.0:
