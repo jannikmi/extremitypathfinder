@@ -462,7 +462,8 @@ All of them use the same drawing:
 
     from extremitypathfinder.plotting import PlotStyle, draw
 
-    path, length = environment.find_shortest_path(start_coordinates, goal_coordinates)
+    # e.g. the grid environment above
+    path, length = environment.find_shortest_path((7.5, 1.5), (4.5, 4.5))
     fig, ax = plt.subplots()
     # the obstacles, the visibility graph, the extremities and the path
     draw(environment, path, ax=ax)
@@ -508,7 +509,7 @@ in addition to the path and its length.
     # the environment, its visibility graph and extremities
     plot_environment(environment, plotting_dir="path/to/plots")
 
-    result = environment.search(start_coordinates, goal_coordinates)
+    result = environment.search((7.5, 1.5), (4.5, 4.5))
     # the search: additionally the temporary edges of start and goal and the path
     plot_search(environment, result, plotting_dir="path/to/plots", file_name="search.png")
 
