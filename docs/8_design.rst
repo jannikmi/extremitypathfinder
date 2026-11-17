@@ -495,7 +495,8 @@ A direction exactly opposite of a bounding ray is not in front (the path runs al
 representation can differ from the bound in the last bits. With rounded coordinates (e.g. after a rotation)
 extremities which were collinear lie almost, but not exactly, on one line, and one can lie in front of another by
 a rounding error, while a vertex just as close to the shortcut blocks it.
-This is no tolerance in the geometry: it only keeps edges which are lines of sight anyway.
+This is no tolerance in the geometry: it only keeps edges which are lines of sight anyway
+(also on exact maps, where two directions can differ by less than ``RAY_WINDOW``, e.g. with very large coordinates).
 
 .. code-block:: text
 
