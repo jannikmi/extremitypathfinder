@@ -57,7 +57,7 @@ Ray = tuple[np.ndarray, float]
 # The free side of the polygon (left of its edges) reaches counter clockwise from the second to the first ray.
 Incidence = tuple[int, float, float]
 
-# window around a bounding ray in which directions are checked for being exactly on the ray (``_ray_rep()``),
+# window around a bounding ray in which directions are decided by their exact side of the ray (``Point._in_wedge()``),
 # and margin of the front range of an extremity (``_front_mask()``).
 # Larger than the rounding error of the representations of exactly collinear vectors (about 1e-16 to 1e-15).
 RAY_WINDOW = 1e-12
@@ -91,6 +91,12 @@ def _cross_sign(vector1: np.ndarray, vector2: np.ndarray) -> int:
         return 1 if cross > 0.0 else -1
     exact = Fraction(x1) * Fraction(y2) - Fraction(y1) * Fraction(x2)
     return (exact > 0) - (exact < 0)
+
+
+def _near(rep: Any, bound: float) -> Any:
+    """whether the direction(s) lie within ``RAY_WINDOW`` of the bound, across 0 = 4 as well"""
+    difference = abs(rep - bound)
+    return (difference < RAY_WINDOW) | (difference > 4.0 - RAY_WINDOW)
 
 
 def in_closure(rep: float, wedge: Wedge) -> bool:
@@ -243,11 +249,6 @@ class Point:
             )
         return self.extremity_wedge
 
-    def rep(self, vector: np.ndarray) -> float:
-        """the angle representation of the direction, identical to a ray with exactly the same direction"""
-        rep = _ray_rep(vector, self.rays)
-        return _rep(vector) if rep is None else rep
-
     def in_wedges(
         self, rep: float, vector: np.ndarray, wedges: Iterable[Wedge]
     ) -> bool:
@@ -271,17 +272,14 @@ class Point:
         if start == end:
             # a single ray: the whole circle
             return True
-        near_start = abs(rep - start) < RAY_WINDOW
-        near_end = abs(rep - end) < RAY_WINDOW
+        near_start = _near(rep, start)
+        near_end = _near(rep, end)
         if not (near_start or near_end):
             return in_closure(rep, wedge)
-        ray_rep = _ray_rep(vector, self.rays)
-        if ray_rep is not None:
-            # exactly on a ray
-            return in_closure(ray_rep, wedge)
-        # the wedge reaches counter clockwise from its start to its end
-        after_start = not near_start or _cross_sign(self._ray(start), vector) > 0
-        before_end = not near_end or _cross_sign(self._ray(end), vector) < 0
+        # the wedge reaches counter clockwise from its start to its end, the bounding rays belong to it.
+        # Note: a direction exactly on a ray is decided exactly as well (not by a floating point cross product of 0)
+        after_start = not near_start or _cross_sign(self._ray(start), vector) >= 0
+        before_end = not near_end or _cross_sign(self._ray(end), vector) <= 0
         if near_start and near_end and wedge_size(wedge) > 2.0:
             # the gap outside of the wedge is the small range between the end and the start
             return after_start or before_end
@@ -326,8 +324,7 @@ class Point:
         within = np.zeros(len(reps), dtype=bool)
         near_bound = np.zeros(len(reps), dtype=bool)
         for start, end in wedges:
-            near_bound |= np.abs(reps - start) < RAY_WINDOW
-            near_bound |= np.abs(reps - end) < RAY_WINDOW
+            near_bound |= _near(reps, start) | _near(reps, end)
             if start == end:
                 # a single ray: the whole circle (cf. ``in_closure()``)
                 within[:] = True
