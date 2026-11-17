@@ -128,18 +128,13 @@ Found by the validation while preparing the benchmark, reproducible with
 
 .. benchmark-derived: the figures of the defects (from ``benchmarks.pyvisgraph_issues`` and the cleaned map). Update this text with every full benchmark run
    (docs/contributing/performance.md, "After a full run").
-   TODO at the next full run (#234): the paragraph "Paths through obstacles" still describes the unsimplified 110m map,
-   which is no longer part of the sweep. Re-derive it on a map of the sweep (e.g. world_5k): an invalid pyvisgraph
-   path from the correctness results with its length and the valid length, and the number of pyvisgraph's edges
-   through land. Then remove this TODO.
 
-**Paths through obstacles.** On the cleaned 110m world map without simplification (4,954 vertices),
-the query from the North Sea (3, 56) to the South China Sea (105, 5) returns a path of length 150.26
-with two segments across land: Lisbon to Valencia across Iberia and Algeria to Bab-el-Mandeb across Africa.
-The valid shortest path (``extremitypathfinder``) has length 211.14, around the Cape of Good Hope.
-14 of the 277,886 edges of pyvisgraph's visibility graph of this map run through land.
+**Paths through obstacles.** On the larger world maps of the sweep, a few edges of pyvisgraph's visibility graph
+run through land, and the invalid paths use them. E.g. on one map, queries from the North Atlantic to the Pacific
+leave the Canadian Arctic and cut across the land to the coast of British Columbia,
+a much shorter path than the valid one through the Northwest Passage and the Bering Strait.
 
-All of them connect two vertices of the same polygon whose midpoint lies level with another vertex of that polygon.
+All of these edges connect two vertices of the same polygon whose midpoint lies level with another vertex of that polygon.
 pyvisgraph rejects such an edge by a point-in-polygon test of its midpoint
 (a crossing count along a horizontal ray, ``polygon_crossing``), which mixes exact and tolerant comparisons:
 edges are skipped with exact comparisons of the y-coordinates, but a vertex counts as lying on the ray
@@ -150,7 +145,7 @@ One of the two edges at that vertex is then skipped and the other one treated as
 the crossing is lost, the midpoint is classified as outside and the edge through the obstacle is kept.
 Coordinates on a decimal grid (snapped data, rounded or integer coordinates) make such coincidences frequent.
 A consistent half-open crossing rule (an edge counts when ``(a.y > p.y) != (b.y > p.y)``
-and the ray hits it at the exact x of the intersection) classifies the midpoints as inside and rejects all 14 edges.
+and the ray hits it at the exact x of the intersection) classifies the midpoints as inside and rejects all these edges.
 Reported upstream: `pyvisgraph issue #59 <https://github.com/TaipanRex/pyvisgraph/issues/59>`__.
 The smallest example is a single polygon with six vertices:
 
