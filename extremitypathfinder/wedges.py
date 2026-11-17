@@ -589,7 +589,7 @@ class Points:
             return visible
         # rule 3: the points on a line of sight (between, excluding the origin and the candidate) must be passable.
         # The points with (nearly) the same direction as a candidate: the candidates are sorted by direction
-        # and every point is looked up among them (#280). Sorting all points per origin took much longer.
+        # and every point is looked up among them (#280). The visible candidates are usually far fewer than the points.
         # Note: collinear directions might have angle representations differing in the last bit
         candidates = np.fromiter(visible, dtype=np.int64, count=len(visible))
         candidates = candidates[np.argsort(representations[candidates], kind="stable")]

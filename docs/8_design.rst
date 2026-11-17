@@ -476,7 +476,7 @@ Passing through and arriving at points
 
 Only the few points on a line of sight are checked, so this filter costs :math:`O(p \log c)` for the binary searches
 of the ``p`` points among the ``c`` visible candidates, plus :math:`O(c \log c)` for sorting the candidates.
-Sorting all points per origin instead took a large share of the time to build the graph (#280).
+The visible candidates are usually far fewer than the points, so this is cheaper than sorting the points (#280).
 
 Visibility graph reduction
 --------------------------
