@@ -26,6 +26,14 @@ Decisions about the benchmarks and releases are in the [benchmark decision log](
 those about how we work on the project are in the [process decision log](decisions-process.md).
 Earlier decisions are described in the {ref}`Design Decisions <design_decisions>` and the issues linked there.
 
+## Directions next to a bounding ray are decided by their exact side of it (#281)
+
+- **Decided by:** a maintainer ([#281](https://github.com/jannikmi/extremitypathfinder/issues/281))
+- **Rejected:** documenting the misdecisions as a limitation of rounded input (their consequences are not small:
+  lines of sight leaving the map); exact predicates for all decisions (a large and slower change to the core);
+  a tolerance (contradicts "near-contacts do not block").
+- **Details:** {ref}`Numerical Policy <numerical_policy>`
+
 ## The visibility graph is plain dicts, networkx an optional extra (#182)
 
 - **Decided by:** a maintainer ([#182](https://github.com/jannikmi/extremitypathfinder/issues/182))

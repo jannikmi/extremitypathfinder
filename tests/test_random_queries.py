@@ -316,7 +316,7 @@ def test_rotated_grid_keeps_the_lengths_between_extremities(cells_id):
     and one of them can lie in front of another by a rounding error. The straight shortcut the reduction relies on
     can then be blocked by a vertex just as close to it: paths were longer than in the grid before the rotation
     (e.g. 6.24 instead of 5.0). A rotation does not change the lengths: they are compared with the unrotated grid.
-    Some paths are shorter after the rotation: a line of sight can leave the map past vertices almost on it (#281).
+    Paths were also shorter: a line of sight could leave the map past vertices almost on it (#281).
     """
     nx, ny, cells, angle, shift = ROTATED_GRIDS[cells_id]
     grid = PolygonEnvironment.from_grid(nx, ny, cells)
@@ -339,8 +339,7 @@ def test_rotated_grid_keeps_the_lengths_between_extremities(cells_id):
             tuple(rotated.coords[i]), tuple(rotated.coords[j]), verify=False
         )
         assert expected is not None and length is not None, f"{i} - {j}"
-        # not longer (TODO #281: also not shorter)
-        assert length <= expected * (1.0 + 1e-12), f"{i} - {j}"
+        assert length == pytest.approx(expected, rel=1e-12), f"{i} - {j}"
 
 
 # grids whose rotation lost shortest paths (#277): columns, rows, the obstacle cells, the angle and the shift
