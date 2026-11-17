@@ -237,8 +237,8 @@ def test_in_wedges_mask_of_a_single_ray_is_the_whole_circle():
 
 def test_in_front_mask_exactly_opposite_of_a_bounding_ray():
     """a direction exactly opposite of a bounding ray does not lie in front, even if its representation
-    lies within the front range by a difference in the last bit: the vectorised test decides it like
-    ``Point.in_front()`` (#262)"""
+    lies within the front range by a difference in the last bit: the directions within ``RAY_WINDOW``
+    of a bound of the front range do not lie in front (#262, #277)"""
     within_range = []
     for ray, same in LAST_BIT_RAYS:
         rep = _rep(ray)
@@ -251,8 +251,8 @@ def test_in_front_mask_exactly_opposite_of_a_bounding_ray():
             ((rep, (rep + 2.5) % 4.0), -0.1),
         ):
             point = Point(0, 1, set(), [wedge], wedge, [(ray, rep)])
-            assert not point.in_front(opposite_rep, opposite)
-            mask = point.in_front_mask(np.array([opposite_rep]), opposite[None, :])
+            assert not point.in_front(opposite_rep)
+            mask = point.in_front_mask(np.array([opposite_rep]))
             assert mask.tolist() == [False]
             start, end = wedge
             front_start = (end + 2.0) % 4.0
@@ -260,8 +260,8 @@ def test_in_front_mask_exactly_opposite_of_a_bounding_ray():
             within_range.append(0.0 < (opposite_rep - front_start) % 4.0 < size)
             # a direction clearly within the front range lies in front
             inside = -(ray + side * normal)
-            assert point.in_front(_rep(inside), inside)
-            assert point.in_front_mask(np.array([_rep(inside)]), inside[None, :]).all()
+            assert point.in_front(_rep(inside))
+            assert point.in_front_mask(np.array([_rep(inside)])).all()
     # the comparison of the representations alone would be wrong for some of these cases
     assert any(within_range)
 
