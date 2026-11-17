@@ -1,6 +1,7 @@
 """Saving and loading environments with the stable file format (``PolygonEnvironment.save()`` and ``load()``)."""
 
 import pickle
+import zipfile
 
 import numpy as np
 import pytest
@@ -196,10 +197,17 @@ def test_pickled_arrays_are_rejected(tmp_path, arrays):
 
 def test_corrupted_file_is_rejected(tmp_path, arrays):
     path = tmp_path / "env.npz"
-    # incompressible data: flipping a byte in the middle hits the stored array
     np.savez_compressed(path, **arrays)
     data = bytearray(path.read_bytes())
-    data[len(data) // 2] ^= 0xFF
+    # a byte in the middle of the compressed data of the largest array. Not the middle of the file: the sizes of the
+    # compressed data depend on the zlib of the platform, and zipfile does not check the metadata of local headers
+    with zipfile.ZipFile(path) as file:
+        member = max(file.infolist(), key=lambda info: info.compress_size)
+    offset = member.header_offset
+    name_length = int.from_bytes(data[offset + 26 : offset + 28], "little")
+    extra_length = int.from_bytes(data[offset + 28 : offset + 30], "little")
+    data_start = offset + 30 + name_length + extra_length
+    data[data_start + member.compress_size // 2] ^= 0xFF
     path.write_bytes(bytes(data))
     with pytest.raises(
         ValueError, match="corrupted or truncated|not an environment file"

@@ -16,7 +16,7 @@ The tests use [pytest](https://docs.pytest.org/). A bare `pytest` only collects 
 The tox configuration in `pyproject.toml` tests all supported Python versions with the minimum and the latest
 dependencies, with and without Numba, and free-threaded CPython 3.14 (`py314t`, `py314t-numba`) with the latest
 dependencies. There, `tests/test_threads.py` fails if an imported extension module re-enables the GIL.
-CI runs all of these environments.
+CI runs all of these environments on Linux, and `py314` and `py314-numba` also on Windows and macOS (job `test-other-os`).
 
 ```sh
 make tox                  # all environments (needs all Python versions)
@@ -110,6 +110,7 @@ when you change `utils_numba.py` or code calling it.
   | `test_exact_decisions.py`, `exact.py` | floating point decisions exact on integer coordinates, exact references |
   | `test_pickle.py`, `test_file_format.py` | pickling and copying, the stable file format (`save()`, `load()`, rejected files) |
   | `test_plotting.py`, `cli_test.py` | plotting, command line interface |
+  | `test_documentation.py` | the Python examples of the documentation run and give the stated results |
   | `test_release.py`, `test_validate_release.py` | release tooling (`scripts/`) |
 
 - Expected paths must be exact shortest paths. Derive them by hand or from geometry, not from the output of the code

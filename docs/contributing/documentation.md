@@ -31,6 +31,9 @@ The Markdown files are read on GitHub and in the HTML documentation, so links mu
 
 - Document changed behaviour in the same pull request: the usage page, docstrings (the API page is generated from them),
   and the README if its example or feature list is affected.
+- The Python examples (`code-block:: python`) of the README and the user pages run in `tests/test_documentation.py`,
+  per page in order, as a reader copies them. A comment `# path: [...], length: 7.987...` or `# length: ...`
+  in the last line of a block states its result and is compared. A new page with examples must be listed there.
 - No measured numbers in static pages (README, the pages under `docs/`, docstrings, comments) and in the changelog:
   timings, speed-ups, sizes, counts of tested inputs and the like go stale or depend on the machine.
   Describe the result qualitatively (e.g. "within the noise", "much faster") and refer to the issue or pull request
