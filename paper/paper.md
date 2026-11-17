@@ -124,13 +124,14 @@ so the shared graph is neither changed nor copied.
 # Research impact statement
 
 <!--
-Stability (decided in #196): submit a few months after the next release, and name that release here.
-Replace the TODOs at submission.
+Stability (decided in #196): submit a few months after the release named here (4.0.0).
+If another release follows before the submission, name it instead: in the version range here and in the
+AI usage disclosure, and in "This paper describes version ...". Replace the date TODO at submission.
 -->
 The package has been developed iteratively since 2018: 21 releases up to 2024 (versions 0.0.1 to 2.7.2),
-with code from four further contributors. Versions 2.8 to TODO (2026) modernised it, with a new API in 3.0:
+with code from four further contributors. Versions 2.8 to 4.0 (2026) modernised it, with a new API in 3.0:
 touching obstacles now block paths, input is validated faster and accepted from Shapely, memory use is lower,
-and benchmarks are reproducible. This paper describes version TODO (released TODO).
+and benchmarks are reproducible. This paper describes version 4.0.0 (released 2026-11-17).
 Since 2020, eleven publications from at least four institutions have used the package,
 as shown by their text or by the planner in their official code:
 
@@ -168,7 +169,7 @@ the extremity graph, its edge reduction, AREA and the precomputation.
 Since September 2026, the author has used Claude Code (Anthropic), an AI coding agent, for a substantial part of the
 modernisation: about 130 of roughly 205 commits from September to November 2026 are co-authored by it
 (`Co-Authored-By` trailers), and their pull requests carry an AI disclosure. The agent wrote most of the new code
-of versions 2.8 to TODO, such as the wedges for touching obstacles, the input validation, the memory reduction,
+of versions 2.8 to 4.0, such as the wedges for touching obstacles, the input validation, the memory reduction,
 the Shapely input and the plotting, as well as tests, documentation and the floating point audit.
 It built the benchmark, surveyed the known uses and drafted this paper, which the author edited.
 Trade-offs were decided by the author; smaller decisions of the agent are marked in the decision log.
