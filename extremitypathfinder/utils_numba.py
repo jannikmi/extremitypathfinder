@@ -386,6 +386,21 @@ def compute_edge_terms(
     return terms
 
 
+def expand_ranges(
+    starts: np.ndarray, counts: np.ndarray
+) -> tuple[np.ndarray, np.ndarray]:
+    """the positions of consecutive ranges as pairs, vectorised
+
+    Range ``i`` covers the positions ``starts[i], ..., starts[i] + counts[i] - 1``.
+
+    :return: per pair the index of its range and the position, ordered by range and position
+    """
+    ranges = np.repeat(np.arange(len(counts)), counts)
+    # the position of every pair within its range: 0, 1, ..., counts[i] - 1
+    offsets = np.arange(len(ranges)) - (np.cumsum(counts) - counts)[ranges]
+    return ranges, starts[ranges] + offsets
+
+
 def compute_candidate_terms(vectors: np.ndarray, distances: np.ndarray) -> np.ndarray:
     """the terms of candidates for ``_edge_distance()`` and ``_behind_edge()`` (columns ``CANDIDATE_*``)
 

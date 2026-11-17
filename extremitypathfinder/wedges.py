@@ -36,6 +36,7 @@ import itertools
 from collections import defaultdict
 from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
 
@@ -43,6 +44,7 @@ from extremitypathfinder.utils_numba import (
     _compute_repr_n_dist,
     _lies_on_edge,
     edge_vertex_mappings,
+    expand_ranges,
     get_neighbour_idxs,
 )
 
@@ -64,9 +66,9 @@ def _rep(vector: np.ndarray) -> float:
     return rep
 
 
-def _cross(vector1: np.ndarray, vector2: np.ndarray) -> float:
-    cross: float = vector1[0] * vector2[1] - vector1[1] * vector2[0]
-    return cross
+def _cross(vector1: np.ndarray, vector2: np.ndarray) -> Any:
+    """the cross product of two vectors, or row by row of two arrays of vectors"""
+    return vector1[..., 0] * vector2[..., 1] - vector1[..., 1] * vector2[..., 0]
 
 
 def in_closure(rep: float, wedge: Wedge) -> bool:
@@ -597,13 +599,11 @@ class Points:
         # both bounds grow with the representation
         first = np.searchsorted(candidate_reps + RAY_WINDOW, point_reps, "left")
         after_last = np.searchsorted(candidate_reps - RAY_WINDOW, point_reps, "right")
-        nr_candidates = np.maximum(after_last - first, 0)
-        pair_points = np.repeat(self.idxs, nr_candidates)
-        # the positions of the candidates of every pair: consecutive from ``first`` of its point
-        offsets = np.arange(len(pair_points)) - np.repeat(
-            np.cumsum(nr_candidates) - nr_candidates, nr_candidates
+        pair_ranges, pair_positions = expand_ranges(
+            first, np.maximum(after_last - first, 0)
         )
-        pair_candidates = candidates[np.repeat(first, nr_candidates) + offsets]
+        pair_points = self.idxs[pair_ranges]
+        pair_candidates = candidates[pair_positions]
         # only points between the origin and the candidate
         point_dists = distances[pair_points]
         between = (point_dists > 0.0) & (point_dists < distances[pair_candidates])
@@ -612,12 +612,8 @@ class Points:
         # only points exactly on the line of sight
         point_vectors = coords[pair_points] - origin_position
         candidate_vectors = coords[pair_candidates] - origin_position
-        # the cross product as in ``_cross()``
-        product1 = point_vectors[:, 0] * candidate_vectors[:, 1]
-        product2 = point_vectors[:, 1] * candidate_vectors[:, 0]
-        cross = product1 - product2
         same_rep = representations[pair_points] == representations[pair_candidates]
-        on_line = same_rep | (cross == 0.0)
+        on_line = same_rep | (_cross(point_vectors, candidate_vectors) == 0.0)
         blocked: set[int] = set()
         for point_idx, candidate in zip(
             pair_points[on_line].tolist(), pair_candidates[on_line].tolist()
