@@ -203,6 +203,10 @@ bugfixes:
   (e.g. on slightly rotated grids, #263): an extremity whose edge to the origin was removed afterwards
   (the origin lies in front of it) still hid the farther extremities in the same direction.
   Such paths were up to a third longer. The visibility graph now has these edges.
+- more paths that were not the shortest on rotated grids (#277): an extremity lying in front of another
+  by a rounding error was not connected to it, although the straight shortcut was blocked
+  (e.g. 6.24 instead of 5.0). Extremities are now only disconnected when one lies clearly in front of the other
+  (not within ``RAY_WINDOW`` of the bounds of its front). With exact coordinates the visibility graphs are identical.
 
 internal:
 

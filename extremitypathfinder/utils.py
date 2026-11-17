@@ -592,7 +592,7 @@ def _find_graph_neighbours(
         # without visiting e.
         # -> e1 and e do not have to be connected in the graph, whichever of them lies in front of the other.
         # The area "in front of" e: opposite of the angle range outside of the wedge of e (cf. ``Point.in_front()``),
-        # extremities exactly opposite of a bounding ray do not lie in front (those edges must not get deleted)
+        # extremities (almost) opposite of a bounding ray do not lie in front (those edges must not get deleted, #277)
         # IMPORTANT: for start and goal only one direction holds: they are endpoints of the path.
         # A query point is not connected to the extremities it lies in front of (#222, cf. ``search()``),
         # but when it happens to be an extremity, edges to the (visible) extremities in front of it MUST be added!
@@ -602,12 +602,9 @@ def _find_graph_neighbours(
         # in the same direction the closest one. Whether its line of sight passes the skipped extremity
         # is decided by the points (rule 3). As a candidate, the skipped extremity would hide it,
         # although the edge to the skipped extremity itself is not kept (#263).
-        origin_position = coords[origin]
         idxs = np.fromiter(candidates, dtype=np.int64, count=len(candidates))
-        in_front = point.in_front_mask(
-            representations[idxs], coords[idxs] - origin_position
-        )
-        in_front |= points.in_front_of(idxs, origin_position, coords, representations)
+        in_front = point.in_front_mask(representations[idxs])
+        in_front |= points.in_front_of(idxs, representations)
         candidates = set(idxs[~in_front].tolist())
     return find_visible_from(
         origin,

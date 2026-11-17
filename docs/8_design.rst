@@ -485,11 +485,17 @@ an extremity :math:`e_1` lying *in front of* an extremity :math:`e` is never the
 on a shortest path (and vice versa), so they are not connected.
 
 *In front* (``Point.in_front()``): the obstacles at :math:`e` occupy the angle range outside of its extremity wedge.
-The front is the opposite range (rotated by 180 degree), excluding its bounding directions.
+The front is the opposite range (rotated by 180 degree).
 A path arriving at :math:`e` from the front cannot wrap around :math:`e`, so it would go on more directly
 without visiting :math:`e`.
-Like the wedge test of rule 2, the extremities are tested at once (``Point.in_front_mask()``),
-those within ``RAY_WINDOW`` of a bound of the front one by one.
+The extremities are tested at once (``Point.in_front_mask()``).
+The directions within ``RAY_WINDOW`` of a bound of the front do not lie in front (#277): the reduction only removes
+edges, keeping one more is always correct, and it relies on the straight shortcut past :math:`e` being free.
+A direction exactly opposite of a bounding ray is not in front (the path runs along the obstacle), and its
+representation can differ from the bound in the last bits. With rounded coordinates (e.g. after a rotation)
+extremities which were collinear lie almost, but not exactly, on one line, and one can lie in front of another by
+a rounding error, while a vertex just as close to the shortcut blocks it.
+This is no tolerance in the geometry: it only keeps edges which are lines of sight anyway.
 
 .. code-block:: text
 
@@ -531,9 +537,9 @@ Query
   takes most of the query time: fewer candidates make it faster, and A* gets fewer temporary edges.
   The test must be cheaper than what it saves, so it is vectorised (``Points.in_front_of()``):
   the front range of every extremity is precomputed, and the direction from an extremity to the query point is the
-  opposite of the one seen from the query point (its angle representation plus 2). Directions within
-  ``RAY_WINDOW`` of a bound of the range are decided by ``Point.in_front()``, like in the graph
-  (it excludes the directions exactly opposite of a bounding ray). The graph node merged with the query point is not
+  opposite of the one seen from the query point (its angle representation plus 2, which differs from the
+  representation seen from the extremity only by rounding). Directions within ``RAY_WINDOW`` of a bound of the range
+  do not lie in front, like in the graph. The graph node merged with the query point is not
   skipped (it is the query point). The one merged with the other query point need not be kept: the edge to it is the
   straight segment between start and goal, found by the "goal first" check. So the skipped nodes depend only on the
   query point, and ``distance_matrix()`` skips the same ones.
