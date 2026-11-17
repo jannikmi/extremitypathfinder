@@ -436,3 +436,22 @@ def test_search_result_with_query_edges_requires_its_visibility_graph():
     with pytest.raises(ValueError, match="no visibility graph"):
         _ = result.graph
     assert SearchResult([], None, np.zeros((2, 2))).graph is None
+
+
+@pytest.mark.parametrize(
+    "vector",
+    [
+        (-0.9910957822281317, 0.021703839059641333),
+        (2.2266466875251088e-07, 3.3544213050381323e-07),
+    ],
+)
+def test_distance_squares_are_products(vector):
+    """#257: the squares of the distance are correctly rounded products in both modes
+
+    ``x**2`` in plain Python calls the C library ``pow()``, which is not correctly rounded on macOS arm64
+    for these ``dx``, unlike ``x * x``, NumPy and Numba
+    """
+    dx, dy = vector
+    _, distance = _compute_repr_n_dist(np.array(vector))
+    assert distance == np.sqrt(dx * dx + dy * dy)
+    assert reps_n_distances(np.array([vector]))[1][0] == distance

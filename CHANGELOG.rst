@@ -203,6 +203,9 @@ bugfixes:
   (e.g. on slightly rotated grids, #263): an extremity whose edge to the origin was removed afterwards
   (the origin lies in front of it) still hid the farther extremities in the same direction.
   Such paths were up to a third longer. The visibility graph now has these edges.
+- distances without Numba could differ by one unit in the last place from those with Numba on macOS (#257):
+  the squares used the C library ``pow()``, which is not correctly rounded there. They are now products,
+  so the results are identical in both modes on all platforms.
 
 internal:
 
@@ -241,6 +244,9 @@ internal:
   no misdecisions when all coordinates are integers (tested in ``tests/test_exact_decisions.py``),
   the remaining ones lie within about one unit in the last place of a decision boundary
   (documented in the Numerical Policy of the design document).
+- tests: the Python examples of the README and the documentation run and give the results their comments state (#246).
+  The plotting examples of the usage page query points of the grid environment defined before them.
+- CI also tests on Windows and macOS, with and without Numba (#246).
 
 
 3.0.0 (2026-10-29)
