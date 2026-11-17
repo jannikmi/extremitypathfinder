@@ -159,6 +159,9 @@ other changes:
 - faster visibility computation, identical visibility graphs and paths (#259): the setup before the compiled check
   only computes the terms of the edges with candidates in their angle range and sorts the candidates vectorised.
   It runs once per extremity and per query point. Preparation and queries are faster with Numba, less so without.
+- faster visibility computation, identical visibility graphs and paths (#280): the test whether lines of sight
+  may pass through points (rule 3) sorts only the visible candidates by direction instead of all points.
+  It runs once per extremity and per query point. Preparation is somewhat faster, queries take about as long.
 - faster preparation of environments (#263): extremities are connected only when neither lies in front of the other.
   Both directions are now tested before the visibility is computed. Previously an edge to an extremity
   the other one lies in front of was computed, added and removed again. The visibility graphs are identical
