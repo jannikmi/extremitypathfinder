@@ -19,6 +19,7 @@ from extremitypathfinder.utils_numba import (
     _edge_distance,
     compute_candidate_terms,
     compute_edge_terms,
+    expand_ranges,
     is_within_map,
 )
 from extremitypathfinder.wedges import in_closure, wedge_size
@@ -143,6 +144,17 @@ def test_read_json_without_a_required_key(tmp_path, missing_key):
     path.write_text(json.dumps(data))
     with pytest.raises(ValueError, match=missing_key):
         read_json(str(path))
+
+
+def test_expand_ranges():
+    # ranges [5, 6], [] and [2]: empty ranges give no pairs
+    ranges, positions = expand_ranges(np.array([5, 9, 2]), np.array([2, 0, 1]))
+    assert ranges.tolist() == [0, 0, 2]
+    assert positions.tolist() == [5, 6, 2]
+    ranges, positions = expand_ranges(
+        np.zeros(0, dtype=np.int64), np.zeros(0, dtype=np.int64)
+    )
+    assert len(ranges) == len(positions) == 0
 
 
 def test_edge_parallel_to_the_ray_through_the_candidate_is_infinitely_far():

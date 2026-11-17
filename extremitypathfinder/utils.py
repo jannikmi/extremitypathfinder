@@ -25,6 +25,7 @@ from extremitypathfinder.utils_numba import (
     compute_candidate_terms,
     compute_edge_terms,
     edge_vertex_mappings,
+    expand_ranges,
     is_within_map,
     reps_n_distances,
 )
@@ -126,11 +127,12 @@ def _find_crossing(coords: t.FloatArray) -> tuple[int, int, t.FloatArray] | None
             )
         )
         chunk_end = min(max(chunk_end - 1, chunk_start + 1), nr_edges)
-        counts = nr_candidates[chunk_start:chunk_end]
-        sorted_i = np.repeat(np.arange(chunk_start, chunk_end), counts)
-        # the offsets 1, 2, ..., count within every group
-        group_starts = np.repeat(np.cumsum(counts) - counts, counts)
-        sorted_j = sorted_i + 1 + (np.arange(len(sorted_i)) - group_starts)
+        # every edge with the edges at the sorted positions after it
+        chunk_ranges, sorted_j = expand_ranges(
+            np.arange(chunk_start + 1, chunk_end + 1),
+            nr_candidates[chunk_start:chunk_end],
+        )
+        sorted_i = chunk_start + chunk_ranges
         chunk_start = chunk_end
         edge_i = order[sorted_i]
         edge_j = order[sorted_j]
