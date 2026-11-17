@@ -12,8 +12,8 @@ authors:
     family-names: Kissinger
     orcid: "https://orcid.org/0000-0002-1819-6975"
     alias: jannikmi
-version: 3.0.0
-date-released: 2026-10-29
+version: 4.0.0
+date-released: 2026-11-17
 license: MIT
 repository-code: https://github.com/jannikmi/extremitypathfinder
 url: https://extremitypathfinder.readthedocs.io/en/latest/
