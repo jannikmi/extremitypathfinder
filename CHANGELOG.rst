@@ -3,8 +3,8 @@ Changelog
 Unreleased
 ----------
 
-- citation: every release is archived on Zenodo. The DOI 10.5281/zenodo.24316506 cites all versions
-  (``CITATION.cff``, badge and citing sections of the README and the About page, #199).
+- citation: the Zenodo DOI 10.5281/zenodo.24316506 cites all versions (``CITATION.cff``, badge and citing sections
+  of the README and the About page, #199).
 
 
 4.0.0 (2026-11-17)
