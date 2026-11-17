@@ -3,6 +3,11 @@ Changelog
 Unreleased
 ----------
 
+A major release: the visibility graph is stored as plain dicts (networkx is optional), plotting draws onto
+Matplotlib axes, environments are stored in a stable file format instead of pickles, and the input is validated
+by default. See the `upgrade guide <https://extremitypathfinder.readthedocs.io/en/latest/2_upgrading.html>`__
+for how to port code written for 3.x, and code written for 2.x directly to this version.
+
 BREAKING: the visibility graph is no ``networkx.Graph`` anymore, and networkx is no dependency anymore (#182):
 
 - ``environment.graph`` is a dict of dicts: node -> neighbour -> edge length, every edge in both directions.
@@ -113,6 +118,8 @@ other changes:
   the crossing point). The crossing test solves its 2×2 system in closed form instead of with ``numpy.linalg.solve``
   and is exact for integer coordinates: valid polygons touching themselves with a vertex on an edge were rejected
   for one of the two vertex numberings.
+- documentation: the upgrade guide covers upgrading from 3.x to 4.0 and porting code written for 2.x
+  directly to 4.0.
 - documentation: the accepted numeric types of the coordinates (integers, ``float32``, ``float16``: converted to
   ``float64``) and why all computations use ``float64`` (no ``float32`` or integer mode, #274).
 - documentation: ``verify=False`` does not help with query points within rounding error of an edge (#239):
