@@ -23,7 +23,7 @@ The plan and the open tasks of the submission are in the pull request that added
 - **Every statement is checked by the maintainer** before submission, in particular text drafted by an AI tool
   and the AI usage disclosure (cf. [AI-assisted contributions](ai-assisted-contributions.md)).
 - **Benchmark-derived claims**: the benchmark runs on one machine and one type of map, so the paper states
-  performance qualitatively (e.g. "much faster", "larger maps"), without measured speed-ups, counts or map sizes,
+  performance qualitatively (e.g. "much faster", "orders of magnitude faster", "larger maps"), without measured speed-ups, counts or map sizes,
   and names these limits. The claims and the figures must agree with the committed benchmark results:
   check them, and regenerate the figures, after every full run
   (cf. [After a full run](performance.md#after-a-full-run)).

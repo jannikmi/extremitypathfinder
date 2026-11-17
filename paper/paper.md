@@ -80,8 +80,8 @@ It ran on one machine and one type of map, so the measured ratios indicate a tre
 The validation also found pyvisgraph 0.2.1 paths that cross obstacles on the larger maps.
 
 Polyanya is faster. On the same maps, its native Rust implementation [@polyanya_rs] found the same path lengths,
-an independent check of the results, but was much faster in both preprocessing and queries,
-at any number of queries. The package does not compete on speed, but serves
+an independent check of the results, but built its mesh orders of magnitude faster and answered queries about
+two orders of magnitude faster, at any number of queries. The package does not compete on speed, but serves
 Python users who need exact paths in double precision from polygons as they are.
 A binding to the Rust crate was rejected for now: it needs compiled wheels, a triangulation of the input
 and handling of single precision.
