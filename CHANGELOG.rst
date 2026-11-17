@@ -3,6 +3,20 @@ Changelog
 Unreleased
 ----------
 
+BREAKING: the visibility graph is no ``networkx.Graph`` anymore, and networkx is no dependency anymore (#182):
+
+- ``environment.graph`` is a dict of dicts: node -> neighbour -> edge length, every edge in both directions.
+  It needs a fraction of the memory of the networkx graph, which was most of the memory of a large environment.
+  ``SearchResult.graph`` (the search graph of a query) has the same form. Paths and lengths stay the same.
+- new ``PolygonEnvironment.edges()`` and ``SearchResult.edges()`` list every edge once as ``(node, neighbour, length)``.
+- new ``PolygonEnvironment.to_networkx()`` and ``SearchResult.to_networkx()`` convert them into a new ``networkx.Graph``
+  (edge attribute ``weight``) for own networkx algorithms. They need the new extra ``networkx``:
+  ``pip install "extremitypathfinder[networkx]"``.
+- ``import extremitypathfinder`` no longer imports networkx, which took a large part of the import time.
+
+Migration: replace ``environment.graph`` with ``environment.to_networkx()`` where a networkx graph is needed
+and install the ``networkx`` extra, or use the dicts directly (cf. the upgrading page).
+
 BREAKING: the plotting module (``extremitypathfinder.plotting``) has one consistent drawing:
 
 - new ``draw()`` draws an environment and a path onto Matplotlib axes, ``draw_search()`` the result of a search
@@ -22,7 +36,7 @@ BREAKING: the plotting module (``extremitypathfinder.plotting``) has one consist
 - new look: obstacles filled grey, including the area outside of the boundary polygon,
   extremities and the visibility graph in blue, the path in orange.
 
-BREAKING: environments pickled with 3.0 cannot be loaded anymore (changed attributes, pickle format version 5):
+BREAKING: environments pickled with 3.0 cannot be loaded anymore (changed attributes, pickle format version 6):
 recreate them. Loading them raises a ``ValueError`` explaining this.
 
 BREAKING: the input is validated by default: ``PolygonEnvironment()``, ``from_grid()``, ``from_shapely()``
@@ -47,11 +61,24 @@ BREAKING: malformed input is always rejected with a clear error, also with ``val
   and grids without any free cell (``TypeError`` or ``ValueError`` instead of ``AssertionError``
   and ``AttributeError``). The blocked cells may be any iterable (e.g. a generator, previously a ``TypeError``).
 
-BREAKING: ``export_pickle()`` and ``load_pickle()`` no longer print to the standard output.
-``export_pickle()`` returns the path of the file.
+BREAKING: ``export_pickle()``, ``load_pickle()`` and the import ``from extremitypathfinder import load_pickle`` are removed
+(#245). Store environments with ``environment.save(path)`` and load them with ``PolygonEnvironment.load(path)``
+(a stable file format, cf. below) and recreate stored pickles from their polygons.
+Environments can still be pickled and copied (``pickle``, ``copy``, worker processes), but such pickles can only be loaded
+by the same version of this package.
 
 other changes:
 
+- a stable file format for prepared environments (#245): ``environment.save(path)`` and ``PolygonEnvironment.load(path)``
+  keep an environment with its visibility graph in a documented ``.npz`` file that contains only data (the polygons,
+  the extremities and the edges with their lengths). Unlike a pickle it does not depend on the internal attributes,
+  so it can be loaded by later versions as long as the visibility graph stays the same, loading it never executes code,
+  and it is much smaller. Loading checks the file (format version, types and shapes, vertex numbering, extremities,
+  edges and weights, ``ValueError``) and rebuilds the data structures computed from the polygons instead of computing the graph again
+  (faster than the preparation, much faster with Numba).
+  The loaded environment gives the same graph, paths and lengths.
+- the package ships type information (``py.typed``, PEP 561) and is checked with ``mypy --strict``: type checkers now
+  use its annotations. Corrected invalid and wrong annotations (e.g. ``utils.convert_grid()``).
 - the worst case of the visibility computation is bounded (#216): environments with many extremities in front of
   many long edges (e.g. small obstacles in front of long walls) took ``O(n m²)`` to prepare and ``O(n m)`` per query
   point (``n`` vertices, ``m`` extremities), now ``O(m n log² n)`` and ``O(n log² n)``.
@@ -65,12 +92,10 @@ other changes:
   returned unchanged (e.g. tuples of ints, lists or arrays). The values are equal to the previous ones.
 - faster queries (#222): start and goal (and the points of ``distance_matrix()``) are no longer connected to
   the graph nodes they lie "in front" of (they are never the next node of a shortest path, like in the visibility
-  graph). Same paths and lengths.
-  E.g. 200 queries on an environment with 400 extremities: 18 % faster with Numba, 11 % without.
+  graph). Same paths and lengths, somewhat faster with and without Numba.
 - shortest path lengths between many points (#175): ``PolygonEnvironment.distance_matrix(points_a, points_b=None)``
   returns the lengths between all start and goal points (``inf`` without a path), identical to a loop over
   ``find_shortest_path()`` but much faster: the visibility of every point is computed once instead of twice per pair.
-  E.g. 100 points in an environment with 904 vertices: 3.1 s instead of 115 s (with Numba).
   The usage page also documents the visibility graph ``environment.graph`` for own NetworkX algorithms.
 - license: the package is licensed under MIT only again (#157). The A* search (``utils.astar_path()``) is an own
   implementation instead of a port of ``networkx.astar_path()``, so the 3-clause BSD license of networkx
@@ -82,12 +107,14 @@ other changes:
   features with a null geometry are skipped.
   Shapely (2.0.6 or later) is an optional extra: ``pip install "extremitypathfinder[shapely]"``.
 - much faster input validation of large polygons (``validate=True``, #193): only edge pairs with overlapping
-  bounding boxes are tested for crossings, vectorised. E.g. the 4,954 vertex world map (110m) of the benchmarks:
-  10.5 s to 0.08 s, a 2,180 vertex polygon: 14.6 s to 0.06 s. The errors name the polygon (``boundary polygon``
+  bounding boxes are tested for crossings, vectorised: from seconds to a fraction of a second for maps with
+  thousands of vertices. The errors name the polygon (``boundary polygon``
   or ``hole <index>``) and the location of the violation (the crossing edges with their vertex indices,
   the crossing point). The crossing test solves its 2×2 system in closed form instead of with ``numpy.linalg.solve``
   and is exact for integer coordinates: valid polygons touching themselves with a vertex on an edge were rejected
   for one of the two vertex numberings.
+- documentation: the accepted numeric types of the coordinates (integers, ``float32``, ``float16``: converted to
+  ``float64``) and why all computations use ``float64`` (no ``float32`` or integer mode, #274).
 - documentation: ``verify=False`` does not help with query points within rounding error of an edge (#239):
   their path may be wrong and depend on the query direction. Move them onto the edge or away from it.
 - documentation: agent clearance (#167), a recipe for agents that keep a minimum distance to the obstacles:
@@ -109,23 +136,38 @@ other changes:
   It measures time, peak and retained memory, with and without Numba.
   ``scripts/speed_benchmarks.py`` uses the same harness. The validation found pyvisgraph 0.2.1 paths
   through obstacles; the cause is described in the documentation.
+- comparison with Polyanya, the state of the art (#170): ``python -m benchmarks.polyanya.compare``
+  (``benchmarks/polyanya/``, a Rust harness, needs ``cargo``, not run in CI) checks that both find the same path
+  lengths and compares the build and query times. Results and limitations on the performance and alternatives pages.
 - much lower memory use and smaller pickles of large environments: the angle representations and distances
   of all vertices seen from every extremity are no longer stored (``O(m n)`` floats for ``m`` extremities
-  and ``n`` vertices, about 1 GiB for 10,000 vertices).
+  and ``n`` vertices, gigabytes for maps with tens of thousands of vertices).
   They are computed per extremity while the visibility graph is built. Queries use the distances to the goal
   and the edge weights instead. Paths and lengths are identical, preparation and query times about the same.
   The undocumented attribute ``reprs_n_distances`` and the functions ``utils.cmp_reps_n_distance_dict()``
   and ``utils.get_distance()`` are removed.
 - lower peak memory when preparing some environments with a few thousand vertices: the test which edges pass
-  through vertices processes fewer vertex-edge pairs at once (e.g. 9.7 to 7.4 MiB for the 1,985-vertex world map
-  of the benchmarks). No change where the visibility graph dominates the peak memory.
+  through vertices processes fewer vertex-edge pairs at once. No change where the visibility graph dominates the peak memory.
 - faster preparation of large environments, identical visibility graphs and paths:
   the visibility computation skips the edges without candidates in their angle range (#217),
   and the test whether a vertex lies within the map only checks the holes whose bounding box contains it (#214).
-  E.g. the 4,954 vertex world map (110m) of the benchmarks: 56 to 29 s with Numba, 163 to 50 s without Numba.
-  Queries take as long as before.
-- the ``numba`` extra no longer installs SciPy (#185): a smaller installation (SciPy takes about 110 MB)
-  and less memory per process with Numba (about 18 MiB less after import on Linux when SciPy is not installed).
+  Large world maps are prepared much faster, with and without Numba. Queries take as long as before.
+- much faster preparation of environments, identical visibility graphs and paths (#262):
+  when the visibility graph is built, the tests whether the other extremities lie within the free wedge
+  or in front of an extremity are done for all of them at once instead of one by one.
+  They took most of the preparation time.
+- faster visibility computation, identical visibility graphs and paths (#259): the setup before the compiled check
+  only computes the terms of the edges with candidates in their angle range and sorts the candidates vectorised.
+  It runs once per extremity and per query point. Preparation and queries are faster with Numba, less so without.
+- faster visibility computation, identical visibility graphs and paths (#280): the test whether lines of sight
+  may pass through points (rule 3) sorts only the visible candidates by direction instead of all points.
+  It runs once per extremity and per query point. Preparation is somewhat faster, queries take about as long.
+- faster preparation of environments (#263): extremities are connected only when neither lies in front of the other.
+  Both directions are now tested before the visibility is computed. Previously an edge to an extremity
+  the other one lies in front of was computed, added and removed again. The visibility graphs are identical
+  except in the case fixed below.
+- the ``numba`` extra no longer installs SciPy (#185): a much smaller installation
+  and less memory per process with Numba.
   The test whether a vertex lies behind an edge solves its 2×2 system in closed form instead of with
   ``numpy.linalg.solve``, the same code with and without Numba. It is exact for integer coordinates
   (e.g. grids), where LAPACK misjudged some vertices lying exactly on an edge. No paths or visibility graphs
@@ -160,9 +202,27 @@ bugfixes:
   precision (e.g. 1e-17 wide, from Shapely unions): their free side cannot be decided.
 - a vertex in a direction nearly parallel to an edge, whose determinant rounds to 0, raised a ``ZeroDivisionError``
   with Numba and was decided by the sign of an infinite value without (#3). It is now not behind the edge in both modes.
+- paths that were not the shortest when extremities lie almost, but not exactly, on one line
+  (e.g. on slightly rotated grids, #263): an extremity whose edge to the origin was removed afterwards
+  (the origin lies in front of it) still hid the farther extremities in the same direction.
+  Such paths were up to a third longer. The visibility graph now has these edges.
+- more paths that were not the shortest on rotated grids (#277): an extremity lying in front of another
+  by a rounding error was not connected to it, although the straight shortcut was blocked.
+  Extremities are now only disconnected when one lies clearly in front of the other
+  (not within ``RAY_WINDOW`` of the bounds of its front). This only keeps more edges, all of them lines of sight:
+  the visibility graphs of the test and benchmark maps are identical.
+- distances without Numba could differ by one unit in the last place from those with Numba on macOS (#257):
+  the squares used the C library ``pow()``, which is not correctly rounded there. They are now products,
+  so the results are identical in both modes on all platforms.
+- lines of sight leaving the map past vertices almost on them (e.g. on grids rotated by a tiny angle, #281):
+  a direction about one unit in the last place outside of the free wedge of a vertex compared as inside,
+  because the angle representations cannot tell such directions apart. Paths ran outside of the map and were too short.
+  Directions this close to a bounding ray are now decided by their exact side of the ray.
 
 internal:
 
+- tests: polygons and query points given as integers, ``float32`` or ``float16`` give the results of the same values
+  given as ``float64``.
 - the query algorithms (start and goal visibility, graph search, distance matrix) moved from the root module
   ``extremitypathfinder.py`` into the new module ``queries.py``, together with ``SearchResult``
   (still importable from ``extremitypathfinder`` and ``extremitypathfinder.extremitypathfinder``).
@@ -196,6 +256,9 @@ internal:
   no misdecisions when all coordinates are integers (tested in ``tests/test_exact_decisions.py``),
   the remaining ones lie within about one unit in the last place of a decision boundary
   (documented in the Numerical Policy of the design document).
+- tests: the Python examples of the README and the documentation run and give the results their comments state (#246).
+  The plotting examples of the usage page query points of the grid environment defined before them.
+- CI also tests on Windows and macOS, with and without Numba (#246).
 
 
 3.0.0 (2026-10-29)

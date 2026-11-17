@@ -7,7 +7,8 @@ This file is short on purpose. The details are in the contributing guide (`docs/
 
 `extremitypathfinder` is a Python package for exact Euclidean shortest paths in 2D polygon or grid environments,
 based on visibility graphs. Entry point: `PolygonEnvironment` (prepare an environment once, then query paths quickly).
-Runtime dependencies: numpy, networkx. Numba is an optional accelerator. Managed with uv, flat layout (no `src/`).
+Runtime dependency: numpy. Numba is an optional accelerator, networkx and shapely are
+optional extras. Managed with uv, flat layout (no `src/`).
 Supported Python versions: `requires-python` in `pyproject.toml`.
 
 ## Commands
@@ -40,11 +41,13 @@ make release-check                 # build and validate the release artifacts
 4. Queries never modify the environment or its visibility graph.
 5. Every bugfix comes with a regression test that fails before the fix.
 6. User-facing changes get an entry in the `Unreleased` section of `CHANGELOG.rst`.
-7. Never edit `uv.lock` by hand (`make lock`). Never bump the version, push tags, publish releases,
-   or edit `.github/workflows/` unless explicitly asked.
+7. Never edit `uv.lock` by hand (`make lock`). Never bump the version, push tags or publish releases unless explicitly asked.
+   Editing `.github/workflows/` is allowed, but point out every edit and its reasoning in the pull request
+   (`docs/contributing/workflow.md#pull-requests`). Never touch CI secrets.
 8. The package is licensed under MIT only: do not copy or adapt code from other projects (`docs/contributing/invariants.md`).
 9. Performance claims need before/after numbers in the issue or pull request (`docs/contributing/performance.md`).
-   Static pages, docstrings and comments state results qualitatively, without measured numbers (they go stale).
+   Static pages, docstrings, comments and the changelog state results qualitatively, without measured numbers
+   (they go stale).
 10. Stay in the scope of the task: no unrelated refactoring or reformatting. Never weaken or skip tests to pass.
 11. Before a larger change, present the trade-off with a recommendation. Unless one option is clearly better,
     a maintainer decides. Record and summarise it (`docs/contributing/workflow.md#trade-offs-and-decisions`).
@@ -68,6 +71,7 @@ make release-check                 # build and validate the release artifacts
 | documentation, figures and this contributing guide | `docs/contributing/documentation.md` |
 | changelog entries | `docs/contributing/changelog.md` |
 | optimising | `docs/contributing/performance.md` |
+| the JOSS paper (`paper/`) | `docs/contributing/paper.md` |
 | releases (only when asked) | `docs/contributing/releasing.md` |
 | rules for AI-assisted work | `docs/contributing/ai-assisted-contributions.md` |
 | algorithms and design decisions | `docs/8_design.rst` |

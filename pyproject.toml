@@ -27,11 +27,14 @@ classifiers = [
     "Topic :: Games/Entertainment"
 ]
 dependencies = [
-    "networkx>=3,<4",
     "numpy>=2.3.3,<3",
 ]
 
 [project.optional-dependencies]
+# PolygonEnvironment.to_networkx(), SearchResult.to_networkx()
+networkx = [
+    "networkx>=3,<4",
+]
 numba = [
     "numba>=0.63,<1",
 ]
@@ -52,6 +55,7 @@ Repository = "https://github.com/jannikmi/extremitypathfinder"
 dev = [
     "pre-commit",
     "pytest",
+    "pytest-cov",
     "tox",
 ]
 # also required for running the tests
@@ -87,6 +91,7 @@ source-include = [
     ".pre-commit-config.yaml",
     "CHANGELOG.rst",
     "CITATION.cff",
+    "CODE_OF_CONDUCT.md",
     "CONTRIBUTING.md",
     "Makefile",
     "tests/*.py",
@@ -109,9 +114,54 @@ entry-points = ["CONTRIBUTING.md"]
 # max-words = 1200
 # reason = "why splitting or condensing it would make it worse"
 
+[tool.ruff.lint]
+# no quiet fallbacks, no assertions in the package (cf. docs/contributing/invariants.md and code-style.md):
+# assertions, blanket ``except`` clauses and swallowed broad exceptions
+extend-select = ["S101", "S110", "S112", "BLE001", "E722"]
+
+[tool.ruff.lint.per-file-ignores]
+# assertions are the idiom of tests and scripts, only the package must not use them
+"tests/**" = ["S101"]
+"scripts/**" = ["S101"]
+"benchmarks/**" = ["S101"]
+"prototypes/**" = ["S101"]
+"docs/**" = ["S101"]
+
+[tool.mypy]
+# static type checking of the package (pre-commit hook, cf. docs/contributing/code-style.md)
+strict = true
+python_version = "3.12"
+files = ["extremitypathfinder"]
+
+# Numba and Matplotlib are optional dependencies, not installed in the pre-commit environment: their imports are
+# untyped (``Any``) there. Numba is also skipped when installed (it has no usable type information and the
+# ``except ImportError`` fallback to ``numba_replacements`` would be a redefinition). Matplotlib's types are used when
+# installed: the code passes with and without them.
+[[tool.mypy.overrides]]
+module = ["numba", "matplotlib", "matplotlib.*"]
+ignore_missing_imports = true
+follow_imports = "skip"
+
+# ``@njit(...)`` is untyped (Numba has no stubs): the decorated kernels keep their annotations in the source,
+# but the compiled functions are untyped as seen by mypy.
+[[tool.mypy.overrides]]
+module = ["extremitypathfinder.utils_numba", "extremitypathfinder.li_chao_tree"]
+disallow_untyped_decorators = false
+
 [tool.pytest.ini_options]
 # a bare `pytest` runs the test suite only (not scripts/ or prototypes/)
 testpaths = ["tests"]
+
+[tool.coverage.run]
+branch = true
+source = ["extremitypathfinder"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+fail_under = 100
+# only run in a subprocess by the tests
+omit = ["*/extremitypathfinder/command_line.py"]
 
 [tool.tox]
 legacy_tox_ini = """
@@ -126,7 +176,9 @@ envlist =
 
 [testenv]
 package = wheel
+# networkx: also the independent reference of the tests (shortest paths), tests/test_networkx.py blocks it
 extras =
+    networkx
     shapely
     numba: numba
 deps =
@@ -152,6 +204,50 @@ setenv =
 commands =
     python -m pip check
     python -m pytest {posargs}
+
+# coverage of the core algorithm (cf. docs/contributing/testing.md#coverage):
+# Numba compiled code is invisible to coverage, so the code is measured as plain Python in two runs
+# (`NUMBA_DISABLE_JIT` with Numba installed, and the stand-ins without Numba), then combined
+[testenv:cov-jit-off]
+extras =
+    networkx
+    shapely
+    numba
+deps =
+    pytest
+    pytest-cov
+    matplotlib
+setenv =
+    MPLBACKEND = Agg
+    NUMBA_DISABLE_JIT = 1
+    COVERAGE_FILE = {toxworkdir}{/}.coverage.jit-off
+commands =
+    python -m pytest --cov --cov-report= --cov-fail-under=0 --deselect tests/test_acceleration.py::test_numba_without_scipy {posargs}
+
+[testenv:cov-no-numba]
+extras =
+    networkx
+    shapely
+deps =
+    pytest
+    pytest-cov
+    matplotlib
+setenv =
+    MPLBACKEND = Agg
+    COVERAGE_FILE = {toxworkdir}{/}.coverage.no-numba
+commands =
+    python -m pytest --cov --cov-report= --cov-fail-under=0 {posargs}
+
+[testenv:coverage]
+skip_install = true
+depends = cov-jit-off, cov-no-numba
+deps =
+    coverage
+setenv =
+    COVERAGE_FILE = {toxworkdir}{/}.coverage
+commands =
+    coverage combine {toxworkdir}{/}.coverage.jit-off {toxworkdir}{/}.coverage.no-numba
+    coverage report
 
 [testenv:docs]
 basepython = python3.12

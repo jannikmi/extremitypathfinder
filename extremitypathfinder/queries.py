@@ -12,6 +12,7 @@ import itertools
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from functools import cached_property
+from typing import TYPE_CHECKING
 
 import numpy as np
 
@@ -19,6 +20,10 @@ from extremitypathfinder import configs, utils
 from extremitypathfinder import types as t
 from extremitypathfinder.types import InputCoord, Length, Path
 from extremitypathfinder.wedges import Point, Points
+
+if TYPE_CHECKING:
+    # optional dependency (extra "networkx"), only imported when used
+    import networkx as nx
 
 
 @dataclass
@@ -34,9 +39,10 @@ class SearchResult:
       e.g. when the goal is directly visible from the start.
     * ``query_edges``: the temporary edges ``(node, neighbour, length)``
       connecting start and goal to the visibility graph (``None`` without a graph search)
-    * ``graph``: the search graph (the visibility graph extended by the query edges).
+    * ``graph``: the search graph (the visibility graph extended by the query edges),
+      as dicts like :attr:`PolygonEnvironment.graph`: node -> neighbour -> edge length, every edge in both directions.
       Only built on first access (a copy of the visibility graph of the environment at that time).
-      ``None`` without a graph search.
+      ``None`` without a graph search. :meth:`edges` lists every edge once, :meth:`to_networkx` converts it.
     """
 
     path: Path
@@ -52,9 +58,40 @@ class SearchResult:
     def graph(self) -> t.Graph | None:
         if self.query_edges is None:
             return None
-        graph = self.visibility_graph.copy()
-        graph.add_weighted_edges_from(self.query_edges)
+        if self.visibility_graph is None:
+            raise ValueError(
+                "The search result has query edges, but no visibility graph."
+            )
+        graph = {
+            node: dict(neighbours) for node, neighbours in self.visibility_graph.items()
+        }
+        for u, v, length in self.query_edges:
+            weight = float(length)
+            graph.setdefault(u, {})[v] = weight
+            graph.setdefault(v, {})[u] = weight
         return graph
+
+    def edges(self) -> list[tuple[int, int, float]] | None:
+        """the edges ``(node, neighbour, length)`` of the search graph, each edge once, ``None`` without a graph search
+
+        In the order of the nodes and their neighbours in ``graph`` (cf. :meth:`PolygonEnvironment.edges`).
+        """
+        graph = self.graph
+        if graph is None:
+            return None
+        return list(utils.graph_edges(graph))
+
+    def to_networkx(self) -> "nx.Graph[int] | None":
+        """the search graph as a new ``networkx.Graph`` (edge attribute ``weight``), ``None`` without a graph search
+
+        Requires networkx (``pip install "extremitypathfinder[networkx]"``).
+
+        :raises ImportError: when networkx is not installed
+        """
+        graph = self.graph
+        if graph is None:
+            return None
+        return utils.to_networkx(graph)
 
 
 def graph_node(point: Point | None) -> int | None:
@@ -84,9 +121,7 @@ def as_coord_array(points: Iterable[InputCoord]) -> np.ndarray:
 
 
 def nodes_in_front(
-    origin: int,
     graph_nodes: np.ndarray,
-    coords: np.ndarray,
     vert_idx2repr: np.ndarray,
     points: Points,
     merged_node: int | None,
@@ -105,7 +140,7 @@ def nodes_in_front(
     :param graph_nodes: the indices of the graph nodes (extremities)
     :param merged_node: the graph node at the position of the query point, ``None`` if there is none
     """
-    in_front = points.in_front_of(graph_nodes, coords[origin], coords, vert_idx2repr)
+    in_front = points.in_front_of(graph_nodes, vert_idx2repr)
     return set(graph_nodes[in_front].tolist()) - {merged_node}
 
 
@@ -153,7 +188,7 @@ def search_graph(
     goal: int,
     query_edges: list[tuple[int, int, float]],
     goal_distances: np.ndarray,
-) -> tuple[list[int] | None, Length]:
+) -> tuple[list[int], float] | None:
     """the shortest path between two graph nodes (or query points) with A*, and its length
 
     Searches the visibility graph extended by the temporary edges of start and goal,
@@ -161,7 +196,7 @@ def search_graph(
 
     :param query_edges: the temporary edges ``(node, neighbour, length)`` of start and goal
     :param goal_distances: the distances of all coordinates to the goal: the A* heuristic
-    :return: the node indices of the path and its length, ``(None, None)`` if there is no path
+    :return: the node indices of the path and its length, ``None`` if there is no path
     """
     query_adjacency: dict[int, dict[int, float]] = {}
     for i, j, d in query_edges:
@@ -169,11 +204,12 @@ def search_graph(
         query_adjacency.setdefault(j, {})[i] = d
 
     def distance_to_goal(node: int, _goal: int) -> float:
-        return goal_distances[node]
+        distance: float = goal_distances[node]
+        return distance
 
     id_path = utils.astar_path(graph, query_adjacency, start, goal, distance_to_goal)
     if id_path is None:
-        return None, None
+        return None
 
     # the length of the path: the sum of the weights of its edges (Euclidean distances)
     distance = 0.0
@@ -203,7 +239,9 @@ def search(
     start = len(vertex_coords)
     goal = start + 1
     # temporarily extend data structure
-    coords = np.append(vertex_coords, (coords_start, coords_goal), axis=0)
+    coords = np.concatenate(
+        (vertex_coords, np.asarray((coords_start, coords_goal))), axis=0
+    )
 
     def no_graph_result(path: Path, length: Length) -> SearchResult:
         return SearchResult(path, length, coords)
@@ -223,17 +261,15 @@ def search(
     origin = goal
     # the visibility of only the graph nodes has to be checked (not all extremities!)
     # IMPORTANT: also check if the start node is visible from the goal node!
-    candidate_idxs: set[int] = set(graph.nodes)
+    candidate_idxs: set[int] = set(graph)
     candidate_idxs.add(start)
     # Note: the graph node at the start position must not hide the start
     #   (only the closest of candidates in the same direction is visible, cf. find_visible()):
     #   the start may leave its point through any free wedge, the graph node only through its own
     candidates_goal = candidate_idxs - {start_node}
     vert_idx2repr, vert_idx2dist = utils.cmp_reps_n_distances(origin, coords)
-    graph_nodes = np.fromiter(graph.nodes, dtype=int)
-    candidates_goal -= nodes_in_front(
-        origin, graph_nodes, coords, vert_idx2repr, points, goal_node
-    )
+    graph_nodes = np.fromiter(graph, dtype=int)
+    candidates_goal -= nodes_in_front(graph_nodes, vert_idx2repr, points, goal_node)
     # the distances to the goal: the A* heuristic
     # (also for a graph node merged with the goal: identical coordinates, identical distances)
     goal_distances = vert_idx2dist
@@ -275,7 +311,7 @@ def search(
     # the goal node does not have to be considered, because of the earlier check
     vert_idx2repr, vert_idx2dist = utils.cmp_reps_n_distances(origin, coords)
     candidates_start = candidate_idxs - nodes_in_front(
-        origin, graph_nodes, coords, vert_idx2repr, points, start_node
+        graph_nodes, vert_idx2repr, points, start_node
     )
     visibles_start = find_visible_from_query(
         origin,
@@ -305,11 +341,10 @@ def search(
             graph,
         )
 
-    id_path, distance = search_graph(
-        graph, start_mapped, goal_mapped, query_edges, goal_distances
-    )
-    if id_path is None:
+    found = search_graph(graph, start_mapped, goal_mapped, query_edges, goal_distances)
+    if found is None:
         return graph_result([], None)
+    id_path, distance = found
 
     # extract the coordinates from the path
     path = [_coordinate(coords[i]) for i in id_path]
@@ -360,7 +395,7 @@ def distance_matrix(
     # temporarily extend data structure (cf. search())
     coords = np.append(vertex_coords, np.array(unique_coords), axis=0)
     query_points = {i: points.at(coords[i], i) for i in unique_idx.values()}
-    graph_nodes = np.fromiter(graph.nodes, dtype=int)
+    graph_nodes = np.fromiter(graph, dtype=int)
     graph_node_at = {i: graph_node(point) for i, point in query_points.items()}
 
     # the visibility of every query point, from the point (cf. search(): the visibility is checked from the goal)
@@ -373,7 +408,7 @@ def distance_matrix(
         vert_idx2repr, vert_idx2dist = utils.cmp_reps_n_distances(origin, coords)
         query_candidates = sources if origin in is_target else []
         skipped = nodes_in_front(
-            origin, graph_nodes, coords, vert_idx2repr, points, graph_node_at[origin]
+            graph_nodes, vert_idx2repr, points, graph_node_at[origin]
         )
         visible = _find_visible_from_query_point(
             origin,
@@ -415,10 +450,10 @@ def distance_matrix(
                 query_edges = goal_edges + [
                     (start_mapped, i, d) for i, d in visible_nodes[source].items()
                 ]
-                _, length = search_graph(
+                found = search_graph(
                     graph, start_mapped, goal_mapped, query_edges, goal_distances
                 )
-                distances[source, target] = np.inf if length is None else length
+                distances[source, target] = np.inf if found is None else found[1]
 
     for i, source in enumerate(idxs_a):
         for j, target in enumerate(idxs_b):
@@ -461,19 +496,21 @@ def _find_visible_from_query_point(
         if dist == 0.0:
             continue
         rep = float(vert_idx2repr[i])
-        first = 0
+        k = 0
         if rep in closest_node:
             # Note: the graph node at the position of the candidate has the same distance
             if closest_node[rep] < dist:
                 # hidden by a closer graph node
                 continue
-            first = 1
-        for k in itertools.count(first):
+            k = 1
+        # the first round without a candidate in this direction
+        while True:
             if k == len(rounds):
                 rounds.append({})
             if rep not in rounds[k]:
                 rounds[k][rep] = i
                 break
+            k += 1
     visible: set[int] = set()
     for k, query_round in enumerate(rounds):
         candidates = set(query_round.values())

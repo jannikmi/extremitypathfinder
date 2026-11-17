@@ -10,6 +10,7 @@ from matplotlib.colors import to_rgba
 from extremitypathfinder import PolygonEnvironment
 from extremitypathfinder.plotting import (
     PlotStyle,
+    _export,
     draw,
     draw_search,
     plot_environment,
@@ -62,10 +63,7 @@ def test_draws_all_elements(environment):
         "goal",
     }
     assert len(drawn["obstacles"].get_paths()) == len(environment.holes)
-    assert (
-        len(drawn["visibility-graph"].get_segments())
-        == environment.graph.number_of_edges()
-    )
+    assert len(drawn["visibility-graph"].get_segments()) == len(environment.edges())
     assert len(drawn["extremities"].get_offsets()) == len(environment.extremity_indices)
     assert len(drawn["vertices"].get_offsets()) == environment.nr_vertices
     np.testing.assert_array_equal(drawn["path"].get_xydata(), np.array(path))
@@ -141,6 +139,15 @@ def test_group_ids_in_svg_export(environment, tmp_path):
     svg = output.read_text(encoding="utf-8")
     for gid in ("boundary", "obstacles", "visibility-graph", "path", "start", "goal"):
         assert f'id="{gid}"' in svg
+
+
+def test_export_of_the_axes_of_a_sub_figure_is_rejected(tmp_path):
+    # a sub-figure cannot be saved on its own
+    ax = plt.figure().subfigures().subplots()
+    with pytest.raises(TypeError, match="SubFigure"):
+        _export(ax, tmp_path, None, "environment")
+    assert not list(tmp_path.iterdir())
+    plt.close("all")
 
 
 def test_draw_search(environment):
@@ -231,7 +238,7 @@ def test_docs_figures(tmp_path):
         "touching_vertices.svg",
         "touching_vertex_edge.svg",
         "touching_edges.svg",
-    } | ({"clearance.svg"} if find_spec("shapely") else set())
+    } | ({"clearance.svg", "graph_reduction.svg"} if find_spec("shapely") else set())
     demo = (tmp_path / "demo.svg").read_text(encoding="utf-8")
     assert "prefers-color-scheme: dark" in demo
     assert 'id="path"' in demo
@@ -242,3 +249,24 @@ def test_docs_figures(tmp_path):
     first = {name: (tmp_path / name).read_bytes() for name in names}
     generate_figures(tmp_path)
     assert {name: (tmp_path / name).read_bytes() for name in names} == first
+
+
+@pytest.mark.skipif(find_spec("shapely") is None, reason="requires Shapely")
+def test_complete_visibility_graph():
+    """the reduced graph of the graph reduction figure is a subgraph of the complete visibility graph"""
+    from scripts.docs_figures import (
+        BOUNDARY,
+        HOLES,
+        clockwise,
+        complete_visibility_graph,
+    )
+
+    environment = PolygonEnvironment(BOUNDARY, [clockwise(h) for h in HOLES])
+    edges = complete_visibility_graph(environment)
+    complete = {frozenset(edge) for edge in edges}
+    # no duplicates and no zero-length edges (two obstacles share a vertex)
+    assert len(complete) == len(edges)
+    assert all(len(edge) == 2 for edge in complete)
+    coords = [tuple(c) for c in environment.coords]
+    reduced = {frozenset((coords[i], coords[j])) for i, j, _ in environment.edges()}
+    assert reduced and reduced < complete

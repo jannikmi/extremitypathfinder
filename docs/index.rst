@@ -34,8 +34,9 @@ Features
   Polygons may touch and overlap each other. :ref:`Touching obstacles <touching>` form a wall that paths cannot pass.
   The polygons are used directly: no triangulation or navigation mesh is needed.
 - **Grids**: convert a grid with blocked cells into a polygon environment.
-- **Few dependencies**: NumPy and NetworkX. Optional `Numba <https://numba.pydata.org/>`__ acceleration.
-- **Extras**: input validation, plotting (Matplotlib), caching environments with pickle,
+- **Few dependencies**: only NumPy. Optional `Numba <https://numba.pydata.org/>`__ acceleration,
+  export of the visibility graph to NetworkX.
+- **Extras**: input validation, plotting (Matplotlib), saving prepared environments to a file,
   and a command line interface.
 
 

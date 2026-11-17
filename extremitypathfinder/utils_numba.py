@@ -37,7 +37,8 @@ def _compute_repr_n_dist(np_vector: np.ndarray) -> tuple[float, float]:
     :return:
     """
     dx, dy = np_vector
-    distance = math.sqrt(dx**2 + dy**2)  # l-2 norm
+    # products, not dx**2: pow() of the C library is not correctly rounded on all platforms (#257)
+    distance = math.sqrt(dx * dx + dy * dy)  # l-2 norm
     if distance == 0.0:
         angle_measure = np.nan
     else:
@@ -79,7 +80,7 @@ def reps_n_distances(vectors: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     """
     dx = vectors[:, 0]
     dy = vectors[:, 1]
-    distances = np.sqrt(dx**2 + dy**2)
+    distances = np.sqrt(dx * dx + dy * dy)
     dx_positive = dx >= 0
     dy_positive = dy >= 0
     quadrants = [
@@ -110,7 +111,8 @@ def _lies_on_edge(p: np.ndarray, p1: np.ndarray, p2: np.ndarray) -> bool:
         return True
     rep1, _ = _compute_repr_n_dist(v1)
     rep2, _ = _compute_repr_n_dist(v2)
-    return abs(rep1 - rep2) == 2.0
+    opposite: bool = abs(rep1 - rep2) == 2.0
+    return opposite
 
 
 @njit(b1(f8[:], f8[:, :], b1), cache=True)
@@ -247,7 +249,8 @@ def _lies_behind_inner(p1: np.ndarray, p2: np.ndarray, v: np.ndarray) -> bool:
         return False
     mu = (a * p1[1] - b * p1[0]) / det
     # vertices on the edge are possibly visible! ( < not <=)
-    return mu < 1.0
+    in_front: bool = mu < 1.0
+    return in_front
 
 
 def is_within_map(
@@ -267,7 +270,7 @@ def is_within_map(
     if hole_bounds is not None:
         minima, maxima = hole_bounds
         in_box = np.flatnonzero(np.all((minima <= p) & (p <= maxima), axis=1))
-        holes = [holes[i] for i in in_box]
+        holes = [holes[i] for i in in_box.tolist()]
     return not any(_inside_polygon(p, hole, border_value=False) for hole in holes)
 
 
@@ -287,7 +290,8 @@ def _lies_behind(
     coords_p1_rel = coords[idx_p1] - coords_origin
     coords_p2_rel = coords[idx_p2] - coords_origin
     coords_v_rel = coords[idx_v] - coords_origin
-    return _lies_behind_inner(coords_p1_rel, coords_p2_rel, coords_v_rel)
+    lies_behind: bool = _lies_behind_inner(coords_p1_rel, coords_p2_rel, coords_v_rel)
+    return lies_behind
 
 
 # Column layout of the precomputed terms of the edges and the candidates (seen from the origin).
@@ -322,7 +326,8 @@ def _edge_distance(
     det = a * y - x * b
     if det == 0.0:
         return np.inf
-    return edge_terms[edge, EDGE_NUMERATOR] / det
+    distance: float = edge_terms[edge, EDGE_NUMERATOR] / det
+    return distance
 
 
 @njit(b1(i8, i8, f8[:, :], f8[:, :], i8[:], i8[:]), cache=True)
@@ -355,22 +360,46 @@ def _behind_edge(
 
 
 def compute_edge_terms(
-    vectors: np.ndarray, edge_vertex_idxs: np.ndarray, edges_max_dist: np.ndarray
+    p1: np.ndarray, p2: np.ndarray, max_dist: np.ndarray
 ) -> np.ndarray:
-    """the terms of all edges for ``_edge_distance()`` and ``_behind_edge()`` (columns ``EDGE_*``)
+    """the terms of edges for ``_edge_distance()`` and ``_behind_edge()`` (columns ``EDGE_*``, one row per given edge)
 
-    :param vectors: all coordinates relative to the origin
-    :param edges_max_dist: per edge the maximum distance of its vertices to the origin
+    ``utils.find_visible()`` passes one edge per range of candidates: only the edges with candidates
+    in their angle range, a crossing edge with two ranges twice.
+
+    :param p1: the first vertices of the edges relative to the origin
+    :param p2: the second vertices of the edges relative to the origin
+    :param max_dist: per edge the maximum distance of its vertices to the origin
     """
-    p1 = vectors[edge_vertex_idxs[:, 0]]
-    p2 = vectors[edge_vertex_idxs[:, 1]]
+    terms = np.empty((len(p1), 5), dtype=np.float64)
     a = p1[:, 0] - p2[:, 0]
     b = p1[:, 1] - p2[:, 1]
+    terms[:, EDGE_A] = a
+    terms[:, EDGE_B] = b
     numerator = a * p1[:, 1] - b * p1[:, 0]
+    terms[:, EDGE_NUMERATOR] = numerator
+    terms[:, EDGE_MAX_DIST] = max_dist
     # an edge is at least as far away as its line
     with np.errstate(invalid="ignore", divide="ignore"):
-        min_dist = np.abs(numerator) / np.hypot(a, b) * (1.0 - MIN_DIST_MARGIN)
-    return np.column_stack([a, b, numerator, edges_max_dist, min_dist])
+        terms[:, EDGE_MIN_DIST] = (
+            np.abs(numerator) / np.hypot(a, b) * (1.0 - MIN_DIST_MARGIN)
+        )
+    return terms
+
+
+def expand_ranges(
+    starts: np.ndarray, counts: np.ndarray
+) -> tuple[np.ndarray, np.ndarray]:
+    """the positions of consecutive ranges as pairs, vectorised
+
+    Range ``i`` covers the positions ``starts[i], ..., starts[i] + counts[i] - 1``.
+
+    :return: per pair the index of its range and the position, ordered by range and position
+    """
+    ranges = np.repeat(np.arange(len(counts)), counts)
+    # the position of every pair within its range: 0, 1, ..., counts[i] - 1
+    offsets = np.arange(len(ranges)) - (np.cumsum(counts) - counts)[ranges]
+    return ranges, starts[ranges] + offsets
 
 
 def compute_candidate_terms(vectors: np.ndarray, distances: np.ndarray) -> np.ndarray:

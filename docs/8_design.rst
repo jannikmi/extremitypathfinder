@@ -25,7 +25,7 @@ Goals
   (cf. `Visibility graph reduction`_). A small graph makes the queries fast.
 - **Well defined behaviour at the edge cases**: touching obstacles, points on edges and collinear vertices
   are handled by one consistent set of rules (cf. :ref:`touching`), not by special cases spread over the code.
-- **Few dependencies**: ``numpy`` and ``networkx`` only. ``numba`` is an optional accelerator, the package
+- **Few dependencies**: ``numpy`` only. ``numba`` is an optional accelerator, the package
   produces the same results without it.
 
 Non-goals
@@ -140,9 +140,18 @@ They are not stored: for all extremities this would take ``2 m n`` floats, about
 The visibility graph
 --------------------
 
-``graph`` is a ``networkx.Graph`` with one node per extremity (the vertex index of its point) and
-undirected edges weighted with the Euclidean distance. Extremities without any edge are kept as nodes:
-start and goal might connect to them.
+``graph`` is a dict of dicts: one node per extremity (the vertex index of its point, a Python ``int``)
+-> neighbour -> the Euclidean distance (a Python ``float``). Every undirected edge is stored in both directions.
+Extremities without any edge are kept as nodes: start and goal might connect to them.
+The order of the nodes and neighbours is deterministic (it is the order of the file format and breaks the ties of the
+search), ``utils.graph_edges()`` lists every edge once in this order.
+
+Plain dicts instead of a ``networkx.Graph`` (#182): the visibility graph is most of the memory of a large
+environment, and plain dicts need a fraction of the memory of networkx' attribute dict per edge,
+while the search reads them as fast. ``networkx`` is no dependency: importing it took a large part of the
+import time of the package. ``to_networkx()`` converts the graphs for own networkx algorithms
+(extra ``networkx``). Arrays (CSR) would need even less memory, but the search would have to be rewritten for them
+(and compiled with Numba for speed, with identical results without it).
 
 Query data
 ----------
@@ -295,9 +304,9 @@ The rules applied with the wedges (``wedges.py``):
    for a line of sight that did not cross the polygon, so it is only checked at contacts)
 
 The bounding rays belong to the wedges (closed angle ranges, ``in_closure()``): paths may run along edges.
-Directions exactly on a bounding ray (zero cross product, same direction) take the representation of that ray
-(``Point.rep()``), so that collinear edges of different length behave consistently. The check only runs for directions
-within ``RAY_WINDOW`` of a bound (cf. `Numerical Policy`_).
+Directions within ``RAY_WINDOW`` of a bound are decided by their exact side of the bounding ray, the ray itself
+included (``Point._in_wedge()``, #281): their representations cannot tell them apart, e.g. collinear edges of
+different length can have representations differing in the last bit (cf. `Numerical Policy`_).
 
 Visibility from one origin
 --------------------------
@@ -306,6 +315,9 @@ Visibility from one origin
 during construction and for start and goal during queries:
 
 1. **Leaving the origin (rule 2)**: candidates outside of the allowed wedges of the origin are dropped.
+   All candidates are tested at once (``Point.in_wedges_mask()``), only the directions within ``RAY_WINDOW``
+   of a bounding ray are decided one by one (``Point.in_wedges()``): a Python call per candidate
+   would cost more than the edge checks.
    The edges incident to the origin are then excluded from the edge checks: their effect is fully described
    by the wedges.
 2. **Edges (AREA)**: the remaining edges are checked with ``find_visible()`` (below).
@@ -367,7 +379,8 @@ Details:
   is solved for the intersection of the line of sight :math:`v` with the edge (``_lies_behind_inner()``).
   The candidate is blocked when :math:`\mu < 1` (the edge is closer than the candidate).
   Within the angle range the system is regular. The terms that only depend on the edge are computed
-  for all edges at once.
+  at once for the edges with candidates in their angle range, not for all edges:
+  this setup runs once per origin (#259).
 - **Query points on edges**: the edges touching a candidate do not block it (its arrival is decided by rule 4).
   They are skipped in its check. The candidate must lie on them: an edge is only skipped for a candidate,
   not for the comparison of the edges in the tree.
@@ -454,14 +467,16 @@ Passing through and arriving at points
 
 - **Arriving (rule 4)**: at a contact, the direction back to the origin must lie in the extremity wedge
   (for a query point candidate: in any of its wedges).
-- **Passing (rule 3)**: the points are sorted by their representation seen from the origin. For each candidate,
-  a binary search (``np.searchsorted``) finds the points with nearly the same representation
-  (within ``RAY_WINDOW``). Those closer than the candidate and exactly on the line of sight
+- **Passing (rule 3)**: the visible candidates are sorted by their representation seen from the origin.
+  For each point, a binary search (``np.searchsorted``) finds the candidates with nearly the same representation
+  (within ``RAY_WINDOW``). The points closer than such a candidate and exactly on its line of sight
   (identical representation or zero cross product) must be passable: the directions back to the origin and on to
-  the candidate must lie in the same wedge.
+  the candidate must lie in the same wedge. The pairs of points and candidates are filtered vectorised,
+  only the remaining few are checked one by one.
 
-Only the few points on a line of sight are checked, so this filter costs :math:`O(p \log p)` for sorting the
-``p`` points plus a binary search per candidate.
+Only the few points on a line of sight are checked, so this filter costs :math:`O(p \log c)` for the binary searches
+of the ``p`` points among the ``c`` visible candidates, plus :math:`O(c \log c)` for sorting the candidates.
+The visible candidates are usually far fewer than the points, so this is cheaper than sorting the points (#280).
 
 Visibility graph reduction
 --------------------------
@@ -472,23 +487,36 @@ an extremity :math:`e_1` lying *in front of* an extremity :math:`e` is never the
 on a shortest path (and vice versa), so they are not connected.
 
 *In front* (``Point.in_front()``): the obstacles at :math:`e` occupy the angle range outside of its extremity wedge.
-The front is the opposite range (rotated by 180 degree), excluding its bounding directions.
+The front is the opposite range (rotated by 180 degree).
 A path arriving at :math:`e` from the front cannot wrap around :math:`e`, so it would go on more directly
 without visiting :math:`e`.
+The extremities are tested at once (``Point.in_front_mask()``).
+The directions within ``RAY_WINDOW`` of a bound of the front do not lie in front (#277): the reduction only removes
+edges, keeping one more is always correct, and it relies on the straight shortcut past :math:`e` being free.
+A direction exactly opposite of a bounding ray is not in front (the path runs along the obstacle), and its
+representation can differ from the bound in the last bits. With rounded coordinates (e.g. after a rotation)
+extremities which were collinear lie almost, but not exactly, on one line, and one can lie in front of another by
+a rounding error, while a vertex just as close to the shortcut blocks it.
+This is no tolerance in the geometry: it only keeps edges which are lines of sight anyway
+(also on exact maps, where two directions can differ by less than ``RAY_WINDOW``, e.g. with very large coordinates).
 
 .. code-block:: text
 
     add all extremities as nodes
     for each extremity e in index order:
       later = the extremities with a higher index
-      front = { x in later ∪ neighbours(e) : x lies in front of e }
-      remove the edges between e and front  # added from the other side
+      front = { x in later : x lies in front of e, or e lies in front of x }
       visible = find_visible_from(e, later - front, [extremity wedge])
       add the edges e - visible, weighted with their distance
 
 Visibility is symmetric, so each pair is checked once (from the extremity with the lower index).
-The front condition is not symmetric: an edge added from :math:`e_1`'s side is removed again when :math:`e_1`
-lies in front of :math:`e`. That is why the current neighbours are included in the front test.
+The front condition is not symmetric, so both directions are tested before the visibility is computed
+(the second one with ``Points.in_front_of()``, like for query points): an edge is never added and removed again,
+and the candidates skipped make the visibility computation faster.
+Skipping them before the visibility computation also matters for correctness (#263): AREA keeps only the closest
+candidate per direction, so an extremity in the same direction as a closer, skipped one becomes visible, if the
+line of sight may pass the skipped one (rule 3, cf. "Skipping the nodes in front" in the query section below).
+As a candidate, the skipped extremity would hide it although the edge to the skipped extremity itself is not kept.
 Extremities without edges remain in the graph, start and goal may connect to them.
 
 The same argument holds for the edges of start and goal: it is about the extremity :math:`e` being an
@@ -512,9 +540,9 @@ Query
   takes most of the query time: fewer candidates make it faster, and A* gets fewer temporary edges.
   The test must be cheaper than what it saves, so it is vectorised (``Points.in_front_of()``):
   the front range of every extremity is precomputed, and the direction from an extremity to the query point is the
-  opposite of the one seen from the query point (its angle representation plus 2). Directions within
-  ``RAY_WINDOW`` of a bound of the range are decided by ``Point.in_front()``, like in the graph
-  (it excludes the directions exactly opposite of a bounding ray). The graph node merged with the query point is not
+  opposite of the one seen from the query point (its angle representation plus 2, which differs from the
+  representation seen from the extremity only by rounding). Directions within ``RAY_WINDOW`` of a bound of the range
+  do not lie in front, like in the graph. The graph node merged with the query point is not
   skipped (it is the query point). The one merged with the other query point need not be kept: the edge to it is the
   straight segment between start and goal, found by the "goal first" check. So the skipped nodes depend only on the
   query point, and ``distance_matrix()`` skips the same ones.
@@ -715,11 +743,8 @@ Ideas specific to visibility graphs were evaluated and not adopted, as they gave
   skipping it would need an extra check per neighbour instead.
 - **earlier termination**: the goal is only final when it is taken from the queue.
   Stopping earlier, e.g. when the goal is first reached, is not exact.
-- **a precomputed adjacency structure** (plain dicts or arrays): costs memory per environment and changes the pickled
-  state, the iteration over the networkx dicts is not the bottleneck (cf. #182).
 
-``networkx`` is kept as graph data structure because it is a familiar, inspectable public attribute
-(``environment.graph``).
+The search reads the plain dicts of the visibility graph (cf. `The visibility graph`_).
 
 Optional numba acceleration
 ---------------------------
@@ -742,31 +767,67 @@ Numba, the difference in preparation time is within the noise of the measurement
 cannot be decided in floating point: without validation, random paths ran through an obstacle.
 Callers with trusted or generated input can skip the validation with ``validate=False``.
 
-Versioned pickles
------------------
+Stored environments
+-------------------
 
-Environments are cached with ``pickle``. Every pickle stores ``configs.PICKLE_FORMAT_VERSION``,
+``save()`` and ``load()`` keep a prepared environment in a documented ``.npz`` file (``storage.py``) that contains
+only data: the polygons as stored by the environment, the extremities and the edges of the visibility graph with their
+lengths. Everything else (the coordinates of all vertices, the mappings between vertices and edges, the points with
+their free wedges) is computed from the polygons when loading. That takes less than the preparation (much less with
+Numba; without it, the test of every vertex against the polygons is the larger part of the load), and the file
+survives changes of the internal data structures: only a change of the graph semantics (which edges the graph keeps)
+needs a new ``configs.FILE_FORMAT_VERSION``, and loading a file with another version raises a ``ValueError``
+with instructions. The edges are stored in the order of the graph, so that the loaded graph iterates its neighbours
+in the same order and the search breaks ties the same way.
+
+The format is ``.npz`` (``numpy.savez_compressed``, loaded with ``allow_pickle=False``) because it needs no dependency,
+is compact, stores floats exactly and is never unpickled. JSON would be readable by other languages but larger, and
+floats would go through text; it can be added as a conversion on demand (#245). Loading checks the structure
+of the file: types and shapes, the vertex numbering, that the extremities equal those computed from the polygons, and
+that the edges connect distinct extremities once with a finite positive length. A checksum of the coordinates is not
+stored: the zip format already detects corruption, and a checksum in the same file does not detect tampering.
+The load does not verify that the graph is the visibility graph of the polygons (that needs the preparation),
+and does not validate the polygons again.
+
+Pickling an environment (``pickle``, ``copy``, passing it to worker processes) stores the internal attributes.
+There are no helper functions for pickle files: ``save()`` is the way to keep an environment. Every pickle stores ``configs.PICKLE_FORMAT_VERSION``,
 loading a pickle with a different version raises a ``ValueError`` with instructions instead of producing an
 environment with missing or outdated attributes. Increase the version whenever the stored attributes change
 incompatibly.
 
 
+.. _numerical_policy:
+
 Numerical Policy
 ================
 
-- All coordinates are ``float64``. Any finite coordinate scale is supported.
+- All coordinates are ``float64``. Any finite coordinate scale is supported. Input of other numeric types
+  (integers, ``float32``, ``float16``) is converted, without loss for ``float32``, ``float16`` and integers
+  up to 2^53 in magnitude. There is no computation in lower precision (e.g. ``float32``) or in integers:
+  rounding errors of ``float32`` would make the exact contacts unreliable and cut obstacle corners (#3),
+  distances and angle representations need floats anyway, and a second numeric type would double the code
+  paths to keep identical with and without Numba.
 - **Contacts are exact**: polygons touch when coordinates are exactly equal or a vertex lies exactly on an edge
   (exact cross product test, or angle representations exactly 180 degree apart, ``_lies_on_edge()``).
   Near-contacts do not block. This makes the behaviour reproducible and independent of a tolerance parameter.
   For integer coordinates (e.g. grids) the tests are exact.
-- **Rays are exact**: directions that are exactly the same (zero cross product, same direction) share one angle
-  representation, even when the representations computed from vectors of different length differ in the last bit
-  (``Point.rep()``). ``RAY_WINDOW`` (1e-12) is the only numeric constant in the decisions. It is not a tolerance on any
-  decision: it only limits the check for exactly collinear directions to those within 1e-12 of a bounding ray, far above
-  the last-bit differences of their representations. The regression test ``test_in_wedges_collinear_last_bit`` covers
-  directions whose representations differ from the ray's in the last bit. Directions that are not exactly collinear
-  with a ray are decided by their representations, as everywhere else. The 1e-16 bound of the audit
-  (**Audit against exact arithmetic**, below) concerns these non-collinear comparisons.
+- **Rays are exact**: the rays of a point with exactly the same direction share one angle representation
+  (``_add_ray()``), even when the representations computed from vectors of different length differ in the last bit.
+- **Sides of the bounding rays are exact** (#281): a direction within ``RAY_WINDOW`` of a bound of a free wedge
+  (across 0 = 4 as well) is decided by the exact sign of its cross product with the bounding ray: on the ray
+  (exact cross product 0, same direction) it lies in the closure of the wedge, otherwise its side decides
+  (``_cross_sign()``: the floating point cross product when it exceeds its rounding error, rational arithmetic
+  otherwise). ``RAY_WINDOW`` (1e-12) is not a tolerance on any decision: it only limits the exact test to the directions
+  within 1e-12 of a bounding ray, far above the last-bit differences of their representations.
+  The regression tests ``test_in_wedges_collinear_last_bit`` and
+  ``test_in_wedges_one_unit_in_the_last_place_outside_of_a_bounding_ray`` cover both cases.
+  The representations cannot decide it: those of directions within about one unit in the last place of the ray
+  compare equal or in the wrong order, also in the modular differences of ``in_closure()``. The consequence of such a
+  misdecision is not small: a line of sight leaving a vertex just outside of its free wedge, e.g. along an edge,
+  can run through an obstacle or outside of the map (on grids rotated by a tiny angle). This covers rules 2 to 4
+  (``Point.in_wedges()``, ``Point.passable()``); it is rare (only near the bounds) and costs nothing measurable.
+  All other directions are decided by their representations. The 1e-16 bound of the audit
+  (**Audit against exact arithmetic**, below) concerns these comparisons.
 - **Lines of sight touching edges**: a line of sight touching an edge only in one of its vertices, or running along it,
   is not blocked by the edge. What happens at the vertex is decided by its wedges.
 - Intersections are only computed (a 2x2 linear system, ``_lies_behind_inner()``) when cheaper tests

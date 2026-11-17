@@ -38,7 +38,7 @@ Numba is optional. The choice is mainly speed against memory:
 - **Speed:** without Numba, building an environment takes about twice as long,
   and queries take moderately longer (cf. the speed-up by Numba on the :ref:`performance page <speed-tests>`).
 - **Memory:** Numba and the compiled functions are loaded when the package is imported, in every process using it,
-  even if it only loads a pickled environment. This adds tens of MiB to each process (more in the resident memory
+  even if it only loads a stored environment. This adds tens of MiB to each process (more in the resident memory
   on Linux than in the footprint on macOS, where the benchmarks ran) and roughly doubles the memory of the process
   after the imports. On small maps, it is a large part of the memory a process needs
   (cf. the memory composition on the :ref:`performance page <speed-tests>`).
@@ -57,7 +57,8 @@ Supported versions and dependencies
 -----------------------------------
 
 Python >=3.12,<4 is accepted; CI currently tests CPython 3.12–3.15.
-Dependencies are NetworkX 3.x and NumPy >=2.3.3,<3.
+The only dependency is NumPy >=2.3.3,<3. The optional extras ``numba``, ``networkx`` (NetworkX 3.x, cf. :ref:`usage`)
+and ``shapely`` add their packages.
 Python <3.12 and NumPy <2.3.3 are no longer supported.
 
 The Python and NumPy floors stay within the September 2026 downstream support

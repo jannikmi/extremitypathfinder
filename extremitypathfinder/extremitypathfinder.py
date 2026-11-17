@@ -1,12 +1,11 @@
-import pickle
+import os
 from collections.abc import Iterable
-from typing import Self
+from typing import TYPE_CHECKING, Self, cast
 
 import numpy as np
 
-from extremitypathfinder import configs, queries, utils
+from extremitypathfinder import configs, queries, storage, utils
 from extremitypathfinder import types as t
-from extremitypathfinder.configs import DEFAULT_PICKLE_NAME
 from extremitypathfinder.queries import SearchResult
 from extremitypathfinder.types import (
     InputCoord,
@@ -16,7 +15,12 @@ from extremitypathfinder.types import (
     OptionalInputCoordList,
     Path,
 )
+from extremitypathfinder.utils_numba import is_within_map
 from extremitypathfinder.wedges import Point, Points
+
+if TYPE_CHECKING:
+    # optional dependency (extra "networkx"), only imported when used
+    import networkx as nx
 
 __all__ = ("PolygonEnvironment", "SearchResult")
 
@@ -42,7 +46,10 @@ class PolygonEnvironment:
     * ``holes``: the list of hole coordinates, clockwise numbering (reversed if given counter clockwise)
     * ``coords``: the coordinates of all polygon vertices (boundary first, then all holes)
     * ``extremity_indices``: the indices of all extremities in ``coords`` (at most one per vertex position)
-    * ``graph``: the precomputed visibility graph (:class:`networkx.Graph`) of the extremities
+    * ``graph``: the precomputed visibility graph of the extremities, as dicts:
+      node (the index of an extremity in ``coords``) -> neighbour -> edge length (Euclidean distance),
+      every edge in both directions. :meth:`edges` lists every edge once,
+      :meth:`to_networkx` converts it into a networkx graph.
     * ``points``: the vertex positions within the map and the free space around them
       (cf. :mod:`extremitypathfinder.wedges`)
 
@@ -103,54 +110,56 @@ class PolygonEnvironment:
         """
         # loading the map
         expected = "a list of (x,y) coordinate pairs"
-        list_of_hole_coordinates = [
+        hole_arrays = [
             utils.to_float_array(hole_coords, f"hole {hole_idx}", expected)
             for hole_idx, hole_coords in enumerate(list_of_hole_coordinates)
         ]
+        boundary_array: t.FloatArray | None = None
         if boundary_coordinates is not None:
-            boundary_coordinates = utils.to_float_array(
+            boundary_array = utils.to_float_array(
                 boundary_coordinates, "boundary polygon", expected
             )
-        elif not list_of_hole_coordinates:
+        elif not hole_arrays:
             raise ValueError(
                 "At least one hole is required when boundary_coordinates is None."
             )
-        utils.check_polygon_formats(boundary_coordinates, list_of_hole_coordinates)
+        utils.check_polygon_formats(boundary_array, hole_arrays)
         # accept both vertex numberings: reverse polygons with the opposite numbering
-        input_boundary, input_holes = boundary_coordinates, list_of_hole_coordinates
-        boundary_coordinates, list_of_hole_coordinates = utils.orient_polygons(
-            boundary_coordinates, list_of_hole_coordinates
-        )
+        input_boundary, input_holes = boundary_array, hole_arrays
+        boundary_array, hole_arrays = utils.orient_polygons(boundary_array, hole_arrays)
         if validate:
             # the error messages give the vertex indices of the input
             holes_reversed = [
                 hole is not input_hole
-                for hole, input_hole in zip(list_of_hole_coordinates, input_holes)
+                for hole, input_hole in zip(hole_arrays, input_holes)
             ]
-            if boundary_coordinates is None:
-                utils.check_hole_data_requirements(
-                    list_of_hole_coordinates, holes_reversed
-                )
+            if boundary_array is None:
+                utils.check_hole_data_requirements(hole_arrays, holes_reversed)
             else:
                 utils.check_data_requirements(
-                    boundary_coordinates,
-                    list_of_hole_coordinates,
-                    boundary_coordinates is not input_boundary,
+                    boundary_array,
+                    hole_arrays,
+                    boundary_array is not input_boundary,
                     holes_reversed,
                 )
 
+        self._store_polygons(boundary_array, hole_arrays)
+        self._compute_graph()
+
+    def _store_polygons(
+        self, boundary_array: t.FloatArray | None, hole_arrays: list[t.FloatArray]
+    ) -> None:
+        """stores the (oriented) polygons and the data structures computed from them, without the graph"""
         # Note: independent copy!
-        self.holes = list_of_hole_coordinates
-        self.boundary_polygon = boundary_coordinates
+        self.holes = hole_arrays
+        self.boundary_polygon = boundary_array
 
         (
             self.coords,
             self.edge_vertex_idxs,
             self.vertex_edge_idxs,
             self.points,
-        ) = utils.compile_polygon_datastructs(
-            boundary_coordinates, list_of_hole_coordinates
-        )
+        ) = utils.compile_polygon_datastructs(boundary_array, hole_arrays)
         self.extremity_indices = self.points.extremity_idxs
 
         self.nr_vertices = len(self.coords)
@@ -158,8 +167,6 @@ class PolygonEnvironment:
         # start and goal points will be stored after all polygon coordinates
         self.idx_start = self.nr_vertices
         self.idx_goal = self.nr_vertices + 1
-
-        self._compute_graph()
 
     @classmethod
     def from_grid(
@@ -233,35 +240,93 @@ class PolygonEnvironment:
         return self.nr_vertices
 
     @property
-    def all_extremities(self) -> list[tuple]:
+    def all_extremities(self) -> list[tuple[float, ...]]:
         coords = self.coords
         return [tuple(coords[i]) for i in self.extremity_indices]
 
     @property
-    def all_vertices(self) -> list[tuple]:
+    def all_vertices(self) -> list[tuple[float, ...]]:
         coords = self.coords
         return [tuple(coords[i]) for i in range(self.nr_vertices)]
 
-    def export_pickle(self, path: str = DEFAULT_PICKLE_NAME) -> str:
-        """stores the environment with its visibility graph in a pickle file (cf. :func:`load_pickle`)
+    def save(self, path: str | os.PathLike[str]) -> str:
+        """stores the environment with its visibility graph in a file (cf. :meth:`load`)
 
+        The recommended way to keep a prepared environment: a documented ``.npz`` file with only the polygons
+        and the visibility graph (the extremities, the edges and their lengths).
+        Unlike a pickle of the environment it can be loaded by later versions of this package
+        (as long as the visibility graph does not change), and loading it never executes code.
+        The path is used as given, a missing extension ``.npz`` is not added.
+
+        :param path: the file to write, an existing file is overwritten
         :return: the path of the file
+        :raises OSError: when the file cannot be written
         """
-        with open(path, "wb") as f:
-            pickle.dump(self, f)
-        return path
+        storage.write(
+            path,
+            self.boundary_polygon,
+            self.holes,
+            self.extremity_indices,
+            self.graph,
+        )
+        return os.fspath(path)
 
-    def __getstate__(self):
+    @classmethod
+    def load(cls, path: str | os.PathLike[str]) -> Self:
+        """loads an environment stored with :meth:`save`, without computing its visibility graph again
+
+        Only the data structures computed from the polygons are rebuilt, which takes less time than
+        the preparation of the environment (much less with Numba).
+        The loaded environment gives the same paths and lengths as the stored one.
+        The file is checked (format version, shapes and types, vertex numbering, extremities and edges),
+        but the polygons are not validated again and the graph is not verified to be the visibility graph
+        of the polygons: load files only from sources that you trust to be correct.
+
+        :param path: a file written by :meth:`save`
+        :raises ValueError: when the file is no environment file, is corrupted or truncated, was written with
+            another file format version, or its content is inconsistent. The message names the problem.
+        :raises OSError: when the file cannot be read
+        """
+        stored = storage.read(path)
+        environment = cls.__new__(cls)
+        environment._store_polygons(stored.boundary, stored.holes)
+        environment.graph = storage.build_graph(stored, environment.extremity_indices)
+        return environment
+
+    def edges(self) -> list[tuple[int, int, float]]:
+        """the edges ``(node, neighbour, length)`` of the visibility graph ``graph``, each edge once
+
+        In a deterministic order: the order of the nodes and their neighbours in ``graph``.
+        """
+        return list(utils.graph_edges(self.graph))
+
+    def to_networkx(self) -> "nx.Graph[int]":
+        """the visibility graph as a new ``networkx.Graph``, e.g. to run own networkx algorithms
+
+        The nodes are the indices of the extremities in ``coords`` (also those without edges),
+        the edges have their length as attribute ``weight``.
+        Requires networkx (``pip install "extremitypathfinder[networkx]"``).
+        Changing the returned graph does not change the environment.
+
+        :raises ImportError: when networkx is not installed
+        """
+        return utils.to_networkx(self.graph)
+
+    def __getstate__(self) -> t.PickleState:
         """adds the pickle format version to the state. Subclasses overriding this must call ``super()``"""
-        state = super().__getstate__()
+        full_state = cast(t.PickleState, super().__getstate__())
         # (dict, slots) for subclasses with ``__slots__``
-        state, slots = state if isinstance(state, tuple) else (state, None)
+        state, slots = (
+            full_state if isinstance(full_state, tuple) else (full_state, None)
+        )
         state = {**state, _PICKLE_FORMAT_KEY: configs.PICKLE_FORMAT_VERSION}
         return state if slots is None else (state, slots)
 
-    def __setstate__(self, state):
-        state, slots = state if isinstance(state, tuple) else (state, None)
-        state = dict(state)
+    def __setstate__(self, full_state: t.PickleState) -> None:
+        loaded, slots = (
+            full_state if isinstance(full_state, tuple) else (full_state, None)
+        )
+        state = dict(loaded)
         pickle_format = state.pop(_PICKLE_FORMAT_KEY, None)
         if pickle_format != configs.PICKLE_FORMAT_VERSION:
             found = (
@@ -278,7 +343,7 @@ class PolygonEnvironment:
         for name, value in (slots or {}).items():
             setattr(self, name, value)
 
-    def _compute_graph(self):
+    def _compute_graph(self) -> None:
         """Computes a visibility graph optimized (=reduced) for path planning and stores it
 
         Computes all directly reachable extremities based on visibility and their distance to each other
@@ -311,7 +376,7 @@ class PolygonEnvironment:
         :param coords: numerical tuple representing coordinates
         :return: whether the given coordinate is a valid query point
         """
-        return utils.is_within_map(coords, self.boundary_polygon, self.holes)
+        return is_within_map(coords, self.boundary_polygon, self.holes)
 
     def get_visible_idxs(
         self,

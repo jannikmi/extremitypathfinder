@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from extremitypathfinder import PolygonEnvironment, load_pickle
+from extremitypathfinder import PolygonEnvironment
 
 BOUNDARY = [(0, 0), (10, 0), (10, 10), (0, 10)]
 HOLE = [(4, 4), (6, 4), (6, 6), (4, 6)]
@@ -206,15 +206,6 @@ def test_grid_without_obstacles_accepts_a_generator():
     assert environment.boundary_polygon.tolist() == [[0, 0], [3, 0], [3, 2], [0, 2]]
 
 
-def test_pickle_export_and_import_do_not_print(environment, tmp_path, capsys):
-    path = str(tmp_path / "environment.pickle")
-    assert environment.export_pickle(path=path) == path
-    load_pickle(path=path)
-    captured = capsys.readouterr()
-    assert captured.out == ""
-    assert captured.err == ""
-
-
 def test_grid_with_narrow_integer_sizes():
     # 16 * 17 overflows as uint8: not mistaken for a grid without free cells
     obstacles = [(x, 0) for x in range(16)]
@@ -262,3 +253,80 @@ def test_validation_is_the_default():
     # validate=False stays available to skip the validation
     env = PolygonEnvironment(BOW_TIE_BOUNDARY, [BOW_TIE_HOLE], validate=False)
     assert env.find_shortest_path((1, 5), (9, 5)) == ([], None)
+
+
+def test_all_vertices_and_extremities(environment):
+    # the order of the vertices is not part of the API (polygons are reversed when stored)
+    assert set(environment.all_vertices) == set(BOUNDARY + HOLE)
+    assert len(environment.all_vertices) == len(BOUNDARY + HOLE)
+    assert set(environment.all_extremities) == set(HOLE)
+
+
+def test_extremities_of_a_concave_boundary():
+    # only the reflex corner (5, 5) of the L shape is an extremity
+    boundary = [(0, 0), (10, 0), (10, 5), (5, 5), (5, 10), (0, 10)]
+    environment = PolygonEnvironment(boundary, [])
+    assert set(environment.all_vertices) == set(boundary)
+    assert set(environment.all_extremities) == {(5.0, 5.0)}
+
+
+# two holes touching at (4, 6), a third one touching an edge of the second one at (7, 5)
+DTYPE_BOUNDARY = [(0, 0), (12, 0), (12, 10), (0, 10)]
+DTYPE_HOLES = [
+    [(2, 4), (4, 6), (2, 8)],
+    [(4, 6), (7, 3), (7, 7)],
+    [(7, 5), (9, 4), (9, 6)],
+]
+DTYPE_QUERIES = [
+    ((1, 6), (11, 5)),
+    ((5, 2), (5, 9)),
+    ((3, 3), (8, 8)),
+    ((1, 1), (11, 9)),
+]
+
+
+def _environment_state(boundary, holes, queries):
+    environment = PolygonEnvironment(boundary, holes)
+    paths = [environment.find_shortest_path(start, goal) for start, goal in queries]
+    return environment.all_vertices, environment.graph, paths
+
+
+@pytest.mark.parametrize(
+    "dtype, scale",
+    [
+        (np.int32, 1),
+        (np.int64, 10**6),
+        (np.float32, 1.0),
+        (np.float32, 0.1),
+        (np.float32, 1e6 + 0.37),
+        (np.float16, 0.1),
+    ],
+)
+def test_numeric_types_give_the_float64_results(dtype, scale):
+    """input of other numeric types gives the results of the same values given as float64"""
+
+    def convert(points):
+        return (np.array(points) * scale).astype(dtype)
+
+    boundary = convert(DTYPE_BOUNDARY)
+    holes = [convert(hole) for hole in DTYPE_HOLES]
+    queries = [(convert(start), convert(goal)) for start, goal in DTYPE_QUERIES]
+    as_float64 = _environment_state(
+        boundary.astype(np.float64),
+        [hole.astype(np.float64) for hole in holes],
+        [
+            (start.astype(np.float64), goal.astype(np.float64))
+            for start, goal in queries
+        ],
+    )
+    assert _environment_state(boundary, holes, queries) == as_float64
+    # also as lists of Python numbers (numpy scalars as Python float or int)
+    assert (
+        _environment_state(
+            boundary.tolist(),
+            [hole.tolist() for hole in holes],
+            [(start.tolist(), goal.tolist()) for start, goal in queries],
+        )
+        == as_float64
+    )
+    assert all(path for path, _ in as_float64[2])

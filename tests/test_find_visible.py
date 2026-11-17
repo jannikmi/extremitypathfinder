@@ -211,15 +211,15 @@ def _visibility_relation(boundary_data) -> set[tuple[tuple[float, float], ...]]:
     for origin in extremity_indices:
         representations, distances = utils.cmp_reps_n_distances(origin, coords)
         candidates = set(extremity_indices.tolist()) - {int(origin)}
-        _, visible_idxs = utils._find_visible_and_in_front(
+        visible_idxs = utils._find_graph_neighbours(
             origin,
             candidates,
-            set(),
             coords,
             representations,
             distances,
             edge_vertex_idxs,
             points,
+            reduce=False,
         )
         for i in visible_idxs:
             relation.add((tuple(coords[origin]), tuple(coords[i])))
@@ -315,8 +315,7 @@ def test_graph_equals_brute_force(env, monkeypatch):
     graph = PolygonEnvironment(boundary, holes).graph
     monkeypatch.setattr(utils, "find_visible", find_visible_brute_force)
     expected = PolygonEnvironment(boundary, holes).graph
-    assert sorted(graph.edges(data="weight")) == sorted(expected.edges(data="weight"))
-    assert sorted(graph.nodes) == sorted(expected.nodes)
+    assert graph == expected
 
 
 def _crossing_segments(seed: int):

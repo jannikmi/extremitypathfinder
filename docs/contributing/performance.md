@@ -54,11 +54,13 @@ The tables are written to `benchmarks/results/` and the figures to `docs/_static
 `--baselines benchmarks/results/benchmark.json` measures the baselines without input data
 (cf. {ref}`benchmark-measurements`) and adds them to the raw results of a run on the same machine,
 without repeating the run.
+The comparison with Polyanya (#170) is separate: `benchmarks/polyanya/compare.py`.
 
 ### After a full run
 
-The tables and figures are rendered from the results, the text derived from them is not
-(the take-aways of the performance page, the comparison with pyvisgraph, the claims about Numba).
+The results render the tables and figures, not the text derived from them
+(the performance page take-aways, the pyvisgraph comparison, the Numba claims)
+nor the figures and numbers of the [JOSS paper](paper.md).
 It is marked with `.. benchmark-derived:` comments, each covering the text up to the next heading.
 A full run lists the files with one (or `git grep -n '\.\. benchmark-derived:'`). Update every marked passage in the pull request of the results.
 Mark new derived text the same way, and keep it qualitative (cf. [Documentation](documentation.md#content)).
@@ -100,7 +102,7 @@ Alternatives compared in #152 (with measurements) and rejected, mainly for maint
   changes shared state during a query (not thread-safe, edges of extremities merged with start or goal must be kept)
   and was considerably slower than the own search.
 - other graph libraries (scipy `csgraph`, igraph, rustworkx): an additional dependency
-  and a second graph representation (or `environment.graph` is no networkx graph anymore).
+  and a second graph representation (or `environment.graph` in the format of the library).
   Their Dijkstra searches were slower than the own search (no heuristic, adding the temporary edges is expensive),
   the A* of rustworkx saved only little time per query.
 - precomputed shortest paths between all extremities: memory grows quadratically

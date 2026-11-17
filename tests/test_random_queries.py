@@ -183,15 +183,15 @@ def _unpruned_graph(environment) -> nx.Graph:
     for origin in extremities:
         representations, distances = utils.cmp_reps_n_distances(origin, coords)
         candidates = set(extremities.tolist()) - {int(origin)}
-        _, visible = utils._find_visible_and_in_front(
+        visible = utils._find_graph_neighbours(
             origin,
             candidates,
-            set(),
             coords,
             representations,
             distances,
             environment.edge_vertex_idxs,
             environment.points,
+            reduce=False,
         )
         for i in visible:
             graph.add_edge(int(origin), int(i), weight=float(distances[i]))
@@ -257,6 +257,154 @@ def test_paths_between_extremities_match_the_unpruned_graph(environment):
             assert length is None, f"{start} - {goal}"
         else:
             assert length == pytest.approx(expected, rel=1e-12), f"{start} - {goal}"
+
+
+def _grid_rotated_slightly():
+    """a grid rotated by 1e-9 rad: many extremities lie almost, but not exactly, on one line (#263)
+
+    E.g. the extremities near (6.1, 5.07), (3.1, 5.07) and (2.1, 5.07): the first lies in front of the second.
+    AREA keeps only the closest candidate per direction, so the second hid the third (same angle representation)
+    as long as it stayed a candidate, although the line of sight passes it on its bounding ray (rule 3).
+    """
+    cells = [
+        (0, 4),
+        (0, 5),
+        (1, 2),
+        (1, 3),
+        (2, 5),
+        (2, 6),
+        (3, 1),
+        (3, 2),
+        (5, 5),
+        (6, 0),
+    ]
+    cells += [
+        (6, 2),
+        (6, 6),
+        (7, 3),
+        (7, 5),
+        (8, 5),
+        (8, 6),
+        (9, 5),
+        (10, 0),
+        (10, 1),
+        (10, 6),
+    ]
+    grid = PolygonEnvironment.from_grid(11, 7, cells)
+    c, s = cos(1e-9), sin(1e-9)
+
+    def transform(p):
+        return (c * p[0] - s * p[1] + 0.1, s * p[0] + c * p[1] + 0.07)
+
+    boundary = [transform(p) for p in grid.boundary_polygon.tolist()]
+    holes = [[transform(p) for p in hole] for hole in grid.holes]
+    return PolygonEnvironment(boundary, holes)
+
+
+def test_extremities_in_front_do_not_hide_the_ones_behind_them():
+    """#263: the extremities the origin lies in front of are skipped before AREA, like those lying in front of it.
+    As a candidate, such an extremity hid the farther extremities in the same direction, and its own edge was removed
+    afterwards: shortest paths through them were lost (e.g. 7.06 instead of 4.41)."""
+    environment = _grid_rotated_slightly()
+    test_paths_between_extremities_match_the_unpruned_graph(environment)
+
+
+@pytest.mark.parametrize("cells_id", ["#277", "random grid 13", "random grid 28"])
+def test_rotated_grid_keeps_the_lengths_between_extremities(cells_id):
+    """#277: the graph reduction only drops an edge when one extremity lies clearly in front of the other.
+    A rotation rounds the coordinates: extremities which were collinear are almost, but not exactly, collinear,
+    and one of them can lie in front of another by a rounding error. The straight shortcut the reduction relies on
+    can then be blocked by a vertex just as close to it: paths were longer than in the grid before the rotation
+    (e.g. 6.24 instead of 5.0). A rotation does not change the lengths: they are compared with the unrotated grid.
+    Paths were also shorter: a line of sight could leave the map past vertices almost on it (#281).
+    """
+    nx, ny, cells, angle, shift = ROTATED_GRIDS[cells_id]
+    grid = PolygonEnvironment.from_grid(nx, ny, cells)
+    c, s = cos(angle), sin(angle)
+
+    def transform(p):
+        return (c * p[0] - s * p[1] + shift, s * p[0] + c * p[1] + 0.7 * shift)
+
+    rotated = PolygonEnvironment(
+        *_transformed((grid.boundary_polygon.tolist(), grid.holes), transform)
+    )
+    assert len(rotated.coords) == len(grid.coords)
+    extremities = grid.extremity_indices
+    assert extremities.tolist() == rotated.extremity_indices.tolist()
+    for i, j in itertools.combinations(extremities, 2):
+        _, expected = grid.find_shortest_path(
+            tuple(grid.coords[i]), tuple(grid.coords[j]), verify=False
+        )
+        _, length = rotated.find_shortest_path(
+            tuple(rotated.coords[i]), tuple(rotated.coords[j]), verify=False
+        )
+        assert expected is not None and length is not None, f"{i} - {j}"
+        assert length == pytest.approx(expected, rel=1e-12), f"{i} - {j}"
+
+
+# grids whose rotation lost shortest paths (#277): columns, rows, the obstacle cells, the angle and the shift
+ROTATED_GRIDS = {
+    "#277": (
+        6,
+        13,
+        [(0, 6), (0, 7), (0, 8), (0, 12), (1, 1), (1, 4), (1, 8), (1, 12), (2, 0)]
+        + [(2, 3), (2, 8), (2, 9), (2, 10), (2, 11), (2, 12), (3, 0), (3, 3), (3, 7)]
+        + [(4, 5), (5, 2), (5, 3), (5, 5), (5, 10)],
+        0.3,
+        1 / 3,
+    ),
+    "random grid 13": (
+        11,
+        12,
+        [
+            (1, 3),
+            (1, 4),
+            (1, 8),
+            (2, 5),
+            (2, 6),
+            (2, 8),
+            (3, 3),
+            (3, 5),
+            (3, 10),
+            (4, 0),
+        ]
+        + [
+            (4, 2),
+            (4, 7),
+            (5, 0),
+            (5, 2),
+            (5, 5),
+            (5, 6),
+            (5, 8),
+            (6, 2),
+            (8, 1),
+            (8, 6),
+        ]
+        + [(9, 3), (9, 9), (10, 5), (10, 9)],
+        0.3,
+        1 / 3,
+    ),
+    "random grid 28": (
+        13,
+        11,
+        [(1, 1), (1, 2), (1, 5), (1, 6), (2, 2), (2, 9), (4, 6), (4, 8), (5, 2), (5, 6)]
+        + [
+            (5, 10),
+            (6, 0),
+            (6, 9),
+            (7, 2),
+            (7, 6),
+            (7, 9),
+            (8, 2),
+            (8, 7),
+            (8, 8),
+            (9, 1),
+        ]
+        + [(9, 8), (10, 3), (10, 9), (10, 10), (12, 7)],
+        0.3,
+        1 / 3,
+    ),
+}
 
 
 def _transformed(env_params, transform):
@@ -391,11 +539,35 @@ def test_in_front_of_matches_point_in_front(environment, query_points):
         origin = len(coords) - 1
         representations, distances = utils.cmp_reps_n_distances(origin, coords)
         candidates = extremities[distances[extremities] != 0.0]
-        found = points.in_front_of(candidates, coords[origin], coords, representations)
+        found = points.in_front_of(candidates, representations)
         expected = [
-            points.by_idx[i].in_front(
-                wedges._rep(coords[origin] - coords[i]), coords[origin] - coords[i]
-            )
+            points.by_idx[i].in_front(wedges._rep(coords[origin] - coords[i]))
             for i in candidates
         ]
         assert found.tolist() == expected, f"from {position}"
+
+
+def test_wedge_masks_match_the_scalar_tests(environment, query_points):
+    """the vectorised tests give the same results as ``Point.in_wedges()`` and ``Point.in_front()`` (#262)
+
+    seen from every point of the environment, for the directions to all vertices and query points,
+    which include directions exactly on, opposite of and next to the bounding rays
+    """
+    coords = np.append(environment.coords, query_points, axis=0)
+    for origin, point in environment.points.by_idx.items():
+        representations, distances = utils.cmp_reps_n_distances(origin, coords)
+        others = np.flatnonzero(distances != 0.0)
+        reps = representations[others]
+        vectors = coords[others] - coords[origin]
+        wedge_sets = [point.wedges, *([wedge] for wedge in point.wedges)]
+        for wedge_set in wedge_sets:
+            found = point.in_wedges_mask(reps, vectors, wedge_set)
+            expected = [
+                point.in_wedges(rep, vector, wedge_set)
+                for rep, vector in zip(reps.tolist(), vectors)
+            ]
+            assert found.tolist() == expected, f"from {coords[origin]}"
+        if point.is_extremity:
+            found = point.in_front_mask(reps)
+            expected = [point.in_front(rep) for rep in reps.tolist()]
+            assert found.tolist() == expected, f"from {coords[origin]}"

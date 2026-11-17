@@ -1,3 +1,5 @@
+import copy
+import json
 from os.path import abspath, join, pardir
 
 import networkx as nx
@@ -12,7 +14,15 @@ from extremitypathfinder.utils import (
     polygon_bounds,
     read_json,
 )
-from extremitypathfinder.utils_numba import _compute_repr_n_dist, is_within_map
+from extremitypathfinder.utils_numba import (
+    _compute_repr_n_dist,
+    _edge_distance,
+    compute_candidate_terms,
+    compute_edge_terms,
+    expand_ranges,
+    is_within_map,
+)
+from extremitypathfinder.wedges import in_closure, wedge_size
 from tests.helpers import proto_test_case
 from tests.test_find_visible import _clean_visibles
 
@@ -119,6 +129,56 @@ def test_read_json():
     assert len(first_hole) == 4
     assert len(first_hole[0]) == 2
     PolygonEnvironment(boundary_coordinates, list_of_holes, validate=True)
+
+
+@pytest.mark.parametrize(
+    "missing_key", [configs.BOUNDARY_JSON_KEY, configs.HOLES_JSON_KEY]
+)
+def test_read_json_without_a_required_key(tmp_path, missing_key):
+    data = {
+        configs.BOUNDARY_JSON_KEY: [[0, 0], [1, 0], [1, 1]],
+        configs.HOLES_JSON_KEY: [],
+    }
+    del data[missing_key]
+    path = tmp_path / "environment.json"
+    path.write_text(json.dumps(data))
+    with pytest.raises(ValueError, match=missing_key):
+        read_json(str(path))
+
+
+def test_expand_ranges():
+    # ranges [5, 6], [] and [2]: empty ranges give no pairs
+    ranges, positions = expand_ranges(np.array([5, 9, 2]), np.array([2, 0, 1]))
+    assert ranges.tolist() == [0, 0, 2]
+    assert positions.tolist() == [5, 6, 2]
+    ranges, positions = expand_ranges(
+        np.zeros(0, dtype=np.int64), np.zeros(0, dtype=np.int64)
+    )
+    assert len(ranges) == len(positions) == 0
+
+
+def test_edge_parallel_to_the_ray_through_the_candidate_is_infinitely_far():
+    # the edge (1, 2)-(2, 3) is parallel to the ray through the candidate (1, 1) and does not lie on it:
+    # the ray never crosses it (the determinant is 0, the numerator is not)
+    vectors = np.array([[1.0, 2.0], [2.0, 3.0], [1.0, 1.0]])
+    distances = np.hypot(*vectors.T)
+    edge_terms = compute_edge_terms(
+        vectors[:1], vectors[1:2], distances[:2].max(keepdims=True)
+    )
+    candidate_terms = compute_candidate_terms(vectors[2:], distances[2:])
+    assert edge_terms[0, 2] != 0.0
+    assert _edge_distance(0, 0, edge_terms, candidate_terms) == np.inf
+
+
+def test_wedge_of_a_single_ray_is_the_whole_circle():
+    wedge = (1.5, 1.5)
+    assert wedge_size(wedge) == 4.0
+    for direction in (0.0, 1.5, 3.9):
+        assert in_closure(direction, wedge)
+    # in contrast to a wedge with two different rays
+    assert wedge_size((1.5, 2.5)) == 1.0
+    assert in_closure(2.0, (1.5, 2.5))
+    assert not in_closure(3.9, (1.5, 2.5))
 
 
 @pytest.mark.parametrize(
@@ -294,10 +354,17 @@ def test_angle_repr_quadrant(input, expected):
     assert res < expected + 1
 
 
+def _adjacency(graph):
+    """the visibility graph representation (node -> neighbour -> weight) of a networkx graph"""
+    return {
+        node: {neighbour: data["weight"] for neighbour, data in neighbours.items()}
+        for node, neighbours in graph.adj.items()
+    }
+
+
 def test_astar_path_uses_query_edges_without_changing_the_graph():
-    graph = nx.Graph()
-    graph.add_weighted_edges_from([(0, 1, 1.0), (1, 2, 1.0), (0, 2, 5.0)])
-    edges_before = sorted(graph.edges(data="weight"))
+    graph = {0: {1: 1.0, 2: 5.0}, 1: {0: 1.0, 2: 1.0}, 2: {1: 1.0, 0: 5.0}}
+    graph_before = copy.deepcopy(graph)
 
     def no_heuristic(n1, n2):
         return 0.0
@@ -312,8 +379,7 @@ def test_astar_path_uses_query_edges_without_changing_the_graph():
     # no path
     assert astar_path(graph, {}, 0, 6, no_heuristic) is None
     assert astar_path(graph, {6: {7: 1.0}, 7: {6: 1.0}}, 0, 7, no_heuristic) is None
-    assert sorted(graph.edges(data="weight")) == edges_before
-    assert 3 not in graph
+    assert graph == graph_before
 
 
 def test_astar_path_expands_a_node_again_with_an_inconsistent_heuristic():
@@ -321,8 +387,12 @@ def test_astar_path_expands_a_node_again_with_an_inconsistent_heuristic():
     # the shorter path through A (distance 2) is found only afterwards.
     # guards the decision of #157 against a closed set (it would return [s, b, g])
     s, a, b, g = range(4)
-    graph = nx.Graph()
-    graph.add_weighted_edges_from([(s, a, 1.0), (s, b, 3.0), (a, b, 1.0), (b, g, 3.0)])
+    graph = {
+        s: {a: 1.0, b: 3.0},
+        a: {s: 1.0, b: 1.0},
+        b: {s: 3.0, a: 1.0, g: 3.0},
+        g: {b: 3.0},
+    }
     estimates = {s: 0.0, a: 4.0, b: 0.0, g: 0.0}
 
     def heuristic(n1, n2):
@@ -365,6 +435,7 @@ def test_astar_path_matches_networkx(seed):
         expected = nx.astar_path(search_graph, source, target, heuristic=distance)
     except nx.NetworkXNoPath:
         expected = None
-    edges_before = sorted(graph.edges(data="weight"))
-    assert astar_path(graph, query_edges, source, target, distance) == expected
-    assert sorted(graph.edges(data="weight")) == edges_before
+    adjacency = _adjacency(graph)
+    adjacency_before = copy.deepcopy(adjacency)
+    assert astar_path(adjacency, query_edges, source, target, distance) == expected
+    assert adjacency == adjacency_before

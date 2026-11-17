@@ -4,6 +4,7 @@
 :func:`plot_environment` and :func:`plot_search` export these drawings as files.
 """
 
+import os
 import time
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -13,6 +14,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.axes import Axes
 from matplotlib.collections import LineCollection, PatchCollection
+from matplotlib.figure import Figure
 from matplotlib.patches import PathPatch, Polygon
 from matplotlib.path import Path as DrawingPath
 
@@ -52,7 +54,9 @@ class PlotStyle:
 DEFAULT_STYLE = PlotStyle()
 
 
-def _draw_endpoints(ax: Axes, start, goal, style: PlotStyle):
+def _draw_endpoints(
+    ax: Axes, start: Sequence[float], goal: Sequence[float], style: PlotStyle
+) -> None:
     """start: ring, goal: disk"""
     area = (2.5 * style.marker_size) ** 2
     ax.scatter(
@@ -154,7 +158,7 @@ def draw(
     coords = environment.coords
     if graph:
         edges = LineCollection(
-            [(coords[i], coords[j]) for i, j in environment.graph.edges],
+            [(coords[i], coords[j]) for i, j, _ in environment.edges()],
             colors=style.graph_color,
             alpha=style.graph_alpha,
             linewidths=width,
@@ -256,20 +260,29 @@ def draw_search(
     return ax
 
 
-def _export(ax: Axes, plotting_dir, file_name: str | None, default_name: str) -> Path:
+def _export(
+    ax: Axes,
+    plotting_dir: str | os.PathLike[str],
+    file_name: str | None,
+    default_name: str,
+) -> Path:
     if file_name is None:
         file_name = f"{default_name}_{time.time_ns()}{PLOT_FILE_ENDING}"
     directory = Path(plotting_dir)
     directory.mkdir(parents=True, exist_ok=True)
     file_path = directory / file_name
-    ax.figure.savefig(file_path, bbox_inches="tight")
-    plt.close(ax.figure)
+    figure = ax.figure
+    if not isinstance(figure, Figure):
+        # a sub-figure cannot be saved on its own
+        raise TypeError(f"expected axes of a figure, got {type(figure).__name__}")
+    figure.savefig(file_path, bbox_inches="tight")
+    plt.close(figure)
     return file_path.resolve()
 
 
 def plot_environment(
     environment: PolygonEnvironment,
-    plotting_dir=PLOTTING_DIR,
+    plotting_dir: str | os.PathLike[str] = PLOTTING_DIR,
     *,
     file_name: str | None = None,
     style: PlotStyle = DEFAULT_STYLE,
@@ -291,7 +304,7 @@ def plot_environment(
 def plot_search(
     environment: PolygonEnvironment,
     result: SearchResult,
-    plotting_dir=PLOTTING_DIR,
+    plotting_dir: str | os.PathLike[str] = PLOTTING_DIR,
     *,
     file_name: str | None = None,
     style: PlotStyle = DEFAULT_STYLE,

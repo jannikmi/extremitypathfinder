@@ -48,7 +48,7 @@ the [invariants](invariants.md). Before implementing one:
 2. **Recommend one** and justify it in the issue.
 3. **Decide.** If one option is clearly better on all criteria that matter, the contributor decides.
    Otherwise, and always for the invariants, a maintainer decides before anything is implemented.
-4. **Record** the decision in the [Decision log](decisions.md) or the [process log](decisions-process.md) (if it meets the criteria stated there),
+4. **Record** the decision in the [Decision log](decisions.md), the [benchmark log](decisions-benchmarks.md) or the [process log](decisions-process.md) (if it meets the criteria stated there),
    in the pull request that implements it, or in the pull request of the [unblock run](unblock-and-rerank.md)
    that decided it. Amend the issue description with the decision instead of adding a comment.
    The full reasoning goes where it is read: the {ref}`Design Decisions <design_decisions>` (package design),
@@ -77,15 +77,15 @@ Push your branch and open a pull request against `master`. The template asks for
 - what changed and why, with a link to the issue
 - the trade-off of a larger change (cf. [Trade-offs and decisions](#trade-offs-and-decisions))
 - the checks you ran (`make check`, tox environments, benchmarks for performance changes)
+- every edit of `.github/workflows/` with its reasoning
 - a changelog entry for user-facing changes (cf. [Changelog](changelog.md))
 - documentation updates for changed behaviour (cf. [Documentation](documentation.md))
 - whether AI assistance was used substantially (cf. [AI-assisted contributions](ai-assisted-contributions.md))
 
 CI (`.github/workflows/build.yml`) runs the pre-commit hooks, the tests on all supported Python versions
-with minimum and latest dependencies, with and without Numba, the strict documentation build,
-the release tooling tests and the release artifact validation.
-Branch protection of `master` requires the job `ci-passed`, which succeeds only if all these jobs succeeded.
-Add new jobs that must pass before a merge to the `needs` of `ci-passed`, and keep its name.
+and dependency versions with and without Numba, the documentation build, the coverage, the release tooling tests
+and the release artifact validation. Branch protection requires the job `ci-passed`, which succeeds only if all
+its `needs` jobs succeeded: add new required jobs there and keep its name.
 
 ## Reviews
 

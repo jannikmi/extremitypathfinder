@@ -16,7 +16,7 @@ The tests use [pytest](https://docs.pytest.org/). A bare `pytest` only collects 
 The tox configuration in `pyproject.toml` tests all supported Python versions with the minimum and the latest
 dependencies, with and without Numba, and free-threaded CPython 3.14 (`py314t`, `py314t-numba`) with the latest
 dependencies. There, `tests/test_threads.py` fails if an imported extension module re-enables the GIL.
-CI runs all of these environments.
+CI runs all of these environments on Linux, and `py314` and `py314-numba` also on Windows and macOS (job `test-other-os`).
 
 ```sh
 make tox                  # all environments (needs all Python versions)
@@ -51,6 +51,22 @@ Run it in both modes when you change one of these functions:
 uv run python prototypes/float_audit.py -n 100000
 uv run python prototypes/float_audit.py -n 100000 --no-numba
 ```
+
+## Coverage
+
+The core algorithm (all modules of the package except `command_line.py`, which the tests only run in a subprocess)
+is tested completely: every line and every branch. Check it after a change:
+
+```sh
+make coverage    # the tox environments cov-jit-off, cov-no-numba and coverage
+```
+
+Numba compiled code is invisible to coverage, so the code is measured as plain Python in two runs
+(`NUMBA_DISABLE_JIT=1` with Numba installed, and without Numba, which covers `numba_replacements.py`),
+and the results are combined. The report lists the missing lines and fails below 100%.
+New code needs tests that assert its behaviour (not only run it). Exclude a line with `# pragma: no cover`
+or `# pragma: no branch` only if it cannot be reached, and say why in a comment.
+The CI job `coverage` runs the same environments and is required by `ci-passed`.
 
 ## CI and external packages
 
@@ -90,8 +106,11 @@ when you change `utils_numba.py` or code calling it.
   | `helper_fcts_test.py` | helper functions in `utils.py` |
   | `test_input_and_output.py` | malformed input is always rejected, results are Python floats |
   | `test_acceleration.py` | the execution backend (Numba or not) |
+  | `test_networkx.py` | the conversion to networkx, and the package without networkx (#182) |
   | `test_exact_decisions.py`, `exact.py` | floating point decisions exact on integer coordinates, exact references |
-  | `test_pickle.py`, `test_plotting.py`, `cli_test.py` | pickle export, plotting, command line interface |
+  | `test_pickle.py`, `test_file_format.py` | pickling and copying, the stable file format (`save()`, `load()`, rejected files) |
+  | `test_plotting.py`, `cli_test.py` | plotting, command line interface |
+  | `test_documentation.py` | the Python examples of the documentation run and give the stated results |
   | `test_release.py`, `test_validate_release.py` | release tooling (`scripts/`) |
 
 - Expected paths must be exact shortest paths. Derive them by hand or from geometry, not from the output of the code

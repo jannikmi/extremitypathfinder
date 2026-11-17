@@ -19,7 +19,9 @@ contributing/performance
 contributing/documentation
 contributing/changelog
 contributing/releasing
+contributing/paper
 contributing/ai-assisted-contributions
 contributing/decisions
+contributing/decisions-benchmarks
 contributing/decisions-process
 ```

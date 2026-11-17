@@ -22,7 +22,8 @@ The environment is initialised in one step and allows fast consecutive shortest 
 **Required data format:**
 Ensure that all the following conditions on the polygons are fulfilled:
 
-- numpy or python array of coordinate tuples: ``[(x1,y1), (x2,y2,)...]``
+- numpy or python array of coordinate tuples: ``[(x1,y1), (x2,y2,)...]``.
+  The coordinates may be Python or numpy integers and floats (also ``float32`` and ``float16``)
 - the first point is NOT repeated at the end
 - must at least contain 3 vertices, with finite coordinates
 - no consequent vertices with identical coordinates in the polygons (same coordinates in general are allowed)
@@ -43,6 +44,16 @@ Ensure that all the following conditions on the polygons are fulfilled:
     (one degree of longitude is shorter than one degree of latitude, except at the equator).
     Project geographic data into a projected coordinate system first, e.g. UTM or another local
     projection with `pyproj <https://pyproj4.github.io/pyproj/>`__, and transform the path back afterwards.
+
+.. note::
+
+    All coordinates (also start and goal) are converted to ``float64`` and all computations use ``float64``.
+    The conversion does not change ``float32`` or ``float16`` values and integers up to 2^53 in magnitude,
+    so the results are those of the same values given as ``float64``.
+    Integer coordinates up to 2^20 in magnitude (polygons and query points, e.g. grids) make the decisions
+    on contacts and visibility exact
+    (cf. :ref:`touching obstacles <touching>`). There is no lower precision mode, cf. the Numerical Policy in the
+    :doc:`engineering design <8_design>`.
 
 .. note::
 
@@ -175,9 +186,38 @@ Only the lengths are returned: to get a path, call ``find_shortest_path()`` for 
 E.g. 100 random points (9,900 pairs) in an environment with 904 vertices: 3.1 s instead of 115 s with a loop over
 ``find_shortest_path()`` (with Numba, ``prototypes/distance_matrix_profile.py``).
 
-To run your own NetworkX algorithms, use the visibility graph ``environment.graph``:
-its nodes are the indices of the extremities in ``environment.coords``, the edge attribute ``weight``
-is the Euclidean length of the edge. Start and goal points are not part of it.
+The visibility graph ``environment.graph`` maps every node to its neighbours and the Euclidean lengths of the edges
+(``{node: {neighbour: length}}``, every edge in both directions).
+The nodes are the indices of the extremities in ``environment.coords``. Start and goal points are not part of it.
+``SearchResult.graph`` is the search graph of one query in the same form: the visibility graph and the edges of start
+and goal. ``environment.edges()`` and ``result.edges()`` list every edge once as ``(node, neighbour, length)``:
+
+.. code-block:: python
+
+    for node, neighbour, length in environment.edges():
+        print(environment.coords[node], environment.coords[neighbour], length)
+
+.. note::
+
+    Do not modify ``environment.graph``: the queries rely on it. Nothing checks it, so a changed graph gives wrong paths
+    without an error, e.g. an edge removed in only one direction.
+    To experiment with the graph, modify a copy (``environment.to_networkx()`` or
+    ``{node: dict(neighbours) for node, neighbours in environment.graph.items()}``).
+
+To run your own NetworkX algorithms, convert the graphs with ``environment.to_networkx()``
+or ``result.to_networkx()``: a new ``networkx.Graph`` with the length of an edge as attribute ``weight``.
+NetworkX is an optional dependency:
+
+.. code-block:: console
+
+    pip install "extremitypathfinder[networkx]"
+
+.. code-block:: python
+
+    import networkx as nx
+
+    graph = environment.to_networkx()
+    components = list(nx.connected_components(graph))
 
 
 
@@ -380,16 +420,27 @@ Cache and import the environment
 --------------------------------
 
 
+The preparation of a large environment takes a long time, loading a stored one takes less
+(much less with Numba, because the data structures computed from the polygons are rebuilt).
+``save()`` stores the polygons and the visibility graph in a documented ``.npz`` file, ``load()`` reads it:
+
 .. code-block:: python
 
-    environment.export_pickle(path="./pickle_file.pickle")
+    environment.save("./environment.npz")
 
-    from extremitypathfinder import load_pickle
+    from extremitypathfinder import PolygonEnvironment
 
-    environment = load_pickle(path="./pickle_file.pickle")
+    environment = PolygonEnvironment.load("./environment.npz")
 
-Environments pickled with an incompatible version of this package (e.g. 2.x) cannot be loaded
-(``ValueError``): recreate them from their polygons instead.
+The file contains only data: loading it never executes code, and later versions of this package can read it
+as long as the visibility graph does not change (an unknown format version raises a ``ValueError`` asking to recreate
+the environment). The loaded environment gives the same paths and lengths.
+Loading checks the structure of the file (``ValueError``), but neither validates the polygons again
+nor verifies that the graph is the visibility graph of the polygons: load files from sources you trust.
+
+Environments can also be pickled (``pickle``, ``copy``, passing them to worker processes), which is faster to load
+but only meant for trusted data of the same version of this package: pickles of other versions raise a ``ValueError``
+(e.g. those of 2.x) and loading a pickle may execute code. Use ``save()`` and ``load()`` to keep environments.
 
 
 
@@ -411,7 +462,8 @@ All of them use the same drawing:
 
     from extremitypathfinder.plotting import PlotStyle, draw
 
-    path, length = environment.find_shortest_path(start_coordinates, goal_coordinates)
+    # e.g. the grid environment above
+    path, length = environment.find_shortest_path((7.5, 1.5), (4.5, 4.5))
     fig, ax = plt.subplots()
     # the obstacles, the visibility graph, the extremities and the path
     draw(environment, path, ax=ax)
@@ -457,7 +509,7 @@ in addition to the path and its length.
     # the environment, its visibility graph and extremities
     plot_environment(environment, plotting_dir="path/to/plots")
 
-    result = environment.search(start_coordinates, goal_coordinates)
+    result = environment.search((7.5, 1.5), (4.5, 4.5))
     # the search: additionally the temporary edges of start and goal and the path
     plot_search(environment, result, plotting_dir="path/to/plots", file_name="search.png")
 

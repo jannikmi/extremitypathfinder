@@ -95,13 +95,39 @@ Both functions are in ``extremitypathfinder.plotting``. Each exports one file an
 ``draw()`` and ``draw_search()`` draw onto Matplotlib axes instead (cf. :ref:`usage`).
 
 
+Visibility graph
+----------------
+
+``env.graph`` and ``result.graph`` are dicts instead of ``networkx.Graph`` objects, and NetworkX is no dependency anymore.
+Install it with ``pip install "extremitypathfinder[networkx]"`` to convert the graphs (cf. :ref:`usage`).
+
+.. list-table::
+   :header-rows: 1
+   :widths: 50 50
+
+   * - 2.x and 3.0
+     - 3.x
+   * - ``env.graph`` (a ``networkx.Graph``), e.g. ``nx.connected_components(env.graph)``
+     - ``env.to_networkx()``, e.g. ``nx.connected_components(env.to_networkx())``
+   * - ``result.graph`` (a ``networkx.Graph``)
+     - ``result.to_networkx()``
+   * - ``env.graph.nodes``
+     - ``env.graph`` (the keys)
+   * - ``env.graph.neighbors(node)``, ``env.graph[node][neighbour]["weight"]``
+     - ``env.graph[node]``, ``env.graph[node][neighbour]``
+   * - ``env.graph.edges(data="weight")``
+     - ``env.edges()``
+
+
 Pickled environments
 --------------------
 
-Environments pickled with 2.x cannot be loaded anymore.
-``load_pickle()`` raises a ``ValueError`` for them; pickles of a 2.x ``PlottingEnvironment``
-fail earlier, because that class no longer exists.
-Recreate the environments from their polygons and export them again with ``export_pickle()``.
+``export_pickle()`` and ``load_pickle()`` are removed (also the import ``from extremitypathfinder import load_pickle``).
+Store environments with ``environment.save(path)`` and load them with ``PolygonEnvironment.load(path)``:
+the file format does not depend on the internal attributes (cf. :ref:`usage <usage>`).
+Environments pickled with 2.x cannot be loaded anymore: ``pickle.load()`` raises a ``ValueError`` for them;
+pickles of a 2.x ``PlottingEnvironment`` fail earlier, because that class no longer exists.
+Recreate the environments from their polygons and store them again with ``save()``.
 
 
 Different results: touching obstacles block paths

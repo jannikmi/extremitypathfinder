@@ -25,13 +25,30 @@ The [Engineering Design](../8_design.rst) page gives the full reasoning.
   source of truth for which points are graph nodes and where a line of sight may start, pass through and arrive.
   Do not add special cases for vertices elsewhere.
 
+## Input
+
+- **Malformed input is never accepted silently.** Input that violates the requirements raises an error that names
+  the problem and its location (`TypeError` or `ValueError`). It never gives a wrong result, a default or a silently
+  repaired value, and an unexpected internal state is no reason to return a plausible answer: fail loudly.
+  Cheap structural checks (polygon format, finite coordinates, point format) always run; only the geometric
+  checks can be skipped, with the explicit `validate=False`. A regression test covers every new check.
+
+- **No quiet fallbacks.** Never replace an unexpected state by a default, `None`, `False`, an empty result or a skipped
+  step: raise an error that names the problem. A documented, tested outcome is a result, not a fallback
+  (e.g. no path: `None` and an infinite distance). `except ...: pass` is only for an exception that is the expected
+  outcome (comment why). Ruff enforces the mechanical part (`assert`, blind and swallowed `except`, cf. `pyproject.toml`).
+
 ## Architecture
 
 - **Module layering.** A module only imports from the layers below it (cf. [Codebase map](codebase-map.md)).
 - **Queries do not change the environment.** A query works on a copy of the coordinates and query local data,
   and never writes to the environment or its visibility graph (thread safety, #136).
   `utils.astar_path()` follows the temporary edges of start and goal for this reason.
-- **Few dependencies.** Runtime dependencies are numpy and networkx, Numba is an optional extra.
+- **The file format of `save()` changes only with the graph semantics.** The file stores the polygons and the visibility
+  graph, everything else is recomputed (cf. the engineering design). A change that keeps other edges needs a new
+  `configs.FILE_FORMAT_VERSION`: `test_file_format.py` fails for it.
+- **Few dependencies.** The only runtime dependency is numpy (#182). Numba, networkx and Shapely are optional extras,
+  only imported where they are used.
   A new dependency must be justified (what it saves compared to the code it replaces) and accepted by a maintainer.
 
 ## Public API and licensing

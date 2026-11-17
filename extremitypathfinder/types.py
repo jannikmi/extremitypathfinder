@@ -1,7 +1,6 @@
 from collections.abc import Iterable, Mapping
 from typing import TYPE_CHECKING, Any, Protocol
 
-import networkx as nx
 import numpy as np
 import numpy.typing as npt
 
@@ -14,11 +13,15 @@ Path = list[Coordinate]
 Length = float | None
 InputNumerical = float | int
 InputCoord = tuple[InputNumerical, InputNumerical]
-InputCoordList = np.ndarray | list[InputCoord]
+InputCoordList = npt.NDArray[Any] | list[InputCoord]
 OptionalInputCoordList = InputCoordList | None
 ObstacleIterator = Iterable[InputCoord]
-Graph = nx.Graph
+# the visibility graph: node -> neighbour -> edge weight (Euclidean distance), every edge in both directions
+type Graph = dict[int, dict[int, float]]
 FloatArray = npt.NDArray[np.float64]
+IntArray = npt.NDArray[np.int64]
+# the state of a pickled environment: the attributes, and the ``__slots__`` of subclasses as a second dict
+type PickleState = dict[str, object] | tuple[dict[str, object], dict[str, object]]
 
 
 class GeoInterface(Protocol):

@@ -53,6 +53,49 @@ jobs:
       - name: Run tox
         run: tox
 
+  # other operating systems (#246): platform specific file paths, the Numba cache and floating point functions
+  # of the C library (#257). One Python version, with and without Numba
+  test-other-os:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    env:
+      TOXENV: py314,py314-numba
+      TOX_SKIP_MISSING_INTERPRETERS: False
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+
+      - name: Install test dependencies
+        run: python -m pip install --upgrade pip tox
+
+      - name: Run tox
+        run: tox
+
+  # 100% line and branch coverage of the core algorithm, measured in two runs (cf. docs/contributing/testing.md)
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install test dependencies
+        run: python -m pip install --upgrade pip tox
+
+      - name: Check the coverage
+        run: tox -e cov-jit-off,cov-no-numba,coverage
+
   release-validation:
     runs-on: ubuntu-latest
     steps:
@@ -86,7 +129,7 @@ jobs:
   # the single check that branch protection requires: its name does not change with the test matrix
   ci-passed:
     runs-on: ubuntu-latest
-    needs: [test, release-validation]
+    needs: [test, test-other-os, coverage, release-validation]
     # also run when a needed job failed or was cancelled: a skipped required check would count as passed
     if: always()
     steps:

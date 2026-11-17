@@ -13,7 +13,7 @@ What sets this package apart
 
 Not the raw speed: compiled tools (cf. `Other packages`_) are faster. What no other package offers together:
 
-- **Python first**: installable with ``pip``, only NumPy and NetworkX as dependencies,
+- **Python first**: installable with ``pip``, only NumPy as dependency,
   optional Numba acceleration with identical results. The only other package on PyPI, pyvisgraph, has been inactive
   since June 2018 and returns wrong paths for some inputs (cf. `Other packages`_).
 - **Real-world input as it is**: polygons may touch, overlap and intersect, a boundary polygon is optional,
@@ -43,7 +43,9 @@ Consider an alternative when:
 - the environment is very large (many protruding corners): the visibility graph can have up to quadratically many
   edges in the number of extremities :math:`m`, and computing it typically takes :math:`O(m \, n \log n)` time
   for :math:`n` vertices, :math:`O(m \, n \log^2 n)` in the worst case (cf. :ref:`engineering design <design>`).
-  Polyanya needs no visibility graph, but a navigation mesh of the free space, which is likely cheaper to build.
+  Polyanya needs no visibility graph, but a navigation mesh of the free space, which is much cheaper to build
+  (cf. :ref:`polyanya-comparison`).
+- speed matters more than working in Python: Polyanya (native code) answers queries much faster too
 - the environment changes often: every change requires computing the visibility graph again
 - the input is a grid and approximate (grid or any-angle) paths are good enough: grid planners are simpler
   and can be faster on dense grids with many small obstacles (cf. :ref:`usage <usage>`)
@@ -86,11 +88,20 @@ Other packages
     Requires a triangulation (navigation mesh) of the free space as input.
     Differences to this package:
 
-    - using Polyanya from Python requires writing bindings
+    .. polyanya-derived: the comparison with Polyanya. Update this text when the comparison is run again
+       (``benchmarks/polyanya/compare.py``).
+
+    - using Polyanya from Python requires writing bindings. If you need it in Python, tell us your use case in
+      `issue #177 <https://github.com/jannikmi/extremitypathfinder/issues/177>`__
     - Polyanya needs a triangulation of the free space, this package takes the polygons directly
       (also touching and overlapping ones)
-    - Polyanya needs no visibility graph, only the navigation mesh. It likely scales better to very large
-      environments, and a change of the environment only requires a new mesh (not measured yet, cf. below)
+    - Polyanya needs no visibility graph, only the navigation mesh: its preprocessing is orders of magnitude faster
+      and grows about linearly with the map, and a change of the environment only requires a new mesh
+    - the Rust implementation also answers queries about two orders of magnitude faster.
+      This package does not catch up at any number of queries per environment
+    - both find the same shortest paths (Polyanya in single precision)
+
+    Measured comparison on the world maps of the benchmark: :ref:`polyanya-comparison`.
 
 `VisiLibity1 <https://karlobermeyer.github.io/VisiLibity1/>`__ (C++)
     Library for 2D floating-point visibility computations and shortest paths in polygonal environments.
@@ -117,4 +128,4 @@ Grid planners, e.g. `pythetastar <https://pypi.org/project/pythetastar/>`__ (The
     any-angle planners like Theta* find shorter paths,
     but both are in general longer than the euclidean shortest paths found by this package.
 
-A speed comparison exists for pyvisgraph only (:ref:`speed-tests`).
+Speed comparisons exist for pyvisgraph (:ref:`speed-tests`) and Polyanya (:ref:`polyanya-comparison`).

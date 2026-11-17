@@ -36,6 +36,8 @@ import itertools
 from collections import defaultdict
 from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass
+from fractions import Fraction
+from typing import Any
 
 import numpy as np
 
@@ -43,6 +45,7 @@ from extremitypathfinder.utils_numba import (
     _compute_repr_n_dist,
     _lies_on_edge,
     edge_vertex_mappings,
+    expand_ranges,
     get_neighbour_idxs,
 )
 
@@ -54,17 +57,46 @@ Ray = tuple[np.ndarray, float]
 # The free side of the polygon (left of its edges) reaches counter clockwise from the second to the first ray.
 Incidence = tuple[int, float, float]
 
-# window around a bounding ray in which directions are checked for being exactly on the ray (``_ray_rep()``).
+# window around a bounding ray in which directions are decided by their exact side of the ray (``Point._in_wedge()``),
+# and margin of the front range of an extremity (``_front_mask()``).
 # Larger than the rounding error of the representations of exactly collinear vectors (about 1e-16 to 1e-15).
 RAY_WINDOW = 1e-12
 
 
 def _rep(vector: np.ndarray) -> float:
-    return _compute_repr_n_dist(vector)[0]
+    rep: float = _compute_repr_n_dist(vector)[0]
+    return rep
 
 
-def _cross(vector1: np.ndarray, vector2: np.ndarray) -> float:
-    return vector1[0] * vector2[1] - vector1[1] * vector2[0]
+def _cross(vector1: np.ndarray, vector2: np.ndarray) -> Any:
+    """the cross product of two vectors, or row by row of two arrays of vectors"""
+    return vector1[..., 0] * vector2[..., 1] - vector1[..., 1] * vector2[..., 0]
+
+
+# relative error bound of the floating point cross product (twice the unit roundoff per product, with margin)
+_CROSS_ERROR = 4.0 * float(np.finfo(np.float64).eps)
+
+
+def _cross_sign(vector1: np.ndarray, vector2: np.ndarray) -> int:
+    """the exact sign of the cross product of two float vectors: 1 (counter clockwise), -1 (clockwise) or 0
+
+    The floating point result decides when it is larger than its rounding error,
+    otherwise the products are computed exactly (rational arithmetic, only for almost collinear vectors).
+    """
+    x1, y1 = float(vector1[0]), float(vector1[1])
+    x2, y2 = float(vector2[0]), float(vector2[1])
+    product1, product2 = x1 * y2, y1 * x2
+    cross = product1 - product2
+    if abs(cross) > _CROSS_ERROR * (abs(product1) + abs(product2)):
+        return 1 if cross > 0.0 else -1
+    exact = Fraction(x1) * Fraction(y2) - Fraction(y1) * Fraction(x2)
+    return (exact > 0) - (exact < 0)
+
+
+def _near(rep: Any, bound: float) -> Any:
+    """whether the direction(s) lie within ``RAY_WINDOW`` of the bound, across 0 = 4 as well"""
+    difference = abs(rep - bound)
+    return (difference < RAY_WINDOW) | (difference > 4.0 - RAY_WINDOW)
 
 
 def in_closure(rep: float, wedge: Wedge) -> bool:
@@ -136,7 +168,7 @@ def free_wedges(
                 counts[incidence[0]] += 1
         arc_counts.append(counts)
 
-    blocking_counts = {}
+    blocking_counts: dict[int, set[int]] = {}
     for polygon_idx in polygon_idxs:
         polygon_counts = {counts[polygon_idx] for counts in arc_counts}
         if len(polygon_counts) == 1:
@@ -152,6 +184,33 @@ def free_wedges(
         for arc, counts in zip(arcs, arc_counts)
         if not any(counts[p] in blocking_counts[p] for p in polygon_idxs)
     ]
+
+
+def _front_range(start: float, end: float) -> tuple[float, float]:
+    """the angle range "in front" of an extremity with the extremity wedge (start, end): its start and size
+
+    The obstacles reach counter clockwise from end to start: the front is the opposite range.
+    """
+    front_start = (end + 2.0) % 4.0
+    size = ((start + 2.0) % 4.0 - front_start) % 4.0
+    return front_start, size
+
+
+def _front_mask(
+    reps: np.ndarray, front_start: float | np.ndarray, size: float | np.ndarray
+) -> np.ndarray:
+    """whether each direction lies in front: within the front range, at least ``RAY_WINDOW`` away from its bounds
+
+    The graph reduction only removes edges: keeping one more is always correct (it is a line of sight),
+    removing a needed one loses shortest paths. Lying in front is only decided where it is certain.
+    A direction exactly opposite of a bounding ray does not lie in front (its representation can differ
+    from the bound in the last bits), and neither does a direction almost opposite of it: with rounded coordinates
+    (e.g. after a rotation), extremities that were collinear are not exactly collinear anymore,
+    and the straight shortcut the reduction relies on can be blocked by a vertex just as close to it (#277).
+    """
+    offsets = (reps - front_start) % 4.0
+    in_front: np.ndarray = (offsets >= RAY_WINDOW) & (offsets <= size - RAY_WINDOW)
+    return in_front
 
 
 @dataclass
@@ -181,10 +240,14 @@ class Point:
     def is_extremity(self) -> bool:
         return self.extremity_wedge is not None
 
-    def rep(self, vector: np.ndarray) -> float:
-        """the angle representation of the direction, identical to a ray with exactly the same direction"""
-        rep = _ray_rep(vector, self.rays)
-        return _rep(vector) if rep is None else rep
+    def _front_wedge(self) -> Wedge:
+        """the extremity wedge, which defines the "front": an error for a point that is no extremity"""
+        if self.extremity_wedge is None:
+            raise ValueError(
+                f"Point {self.idx} is no extremity (no free wedge larger than 180 degree): "
+                "only extremities have a front."
+            )
+        return self.extremity_wedge
 
     def in_wedges(
         self, rep: float, vector: np.ndarray, wedges: Iterable[Wedge]
@@ -194,34 +257,95 @@ class Point:
         :param rep: the angle representation of the direction
         :param vector: the direction, to compare it exactly with the bounding rays
         """
-        for wedge in wedges:
-            if any(abs(rep - bound) < RAY_WINDOW for bound in wedge):
-                rep = self.rep(vector)
-            if in_closure(rep, wedge):
-                return True
-        return False
+        return any(self._in_wedge(rep, vector, wedge) for wedge in wedges)
 
-    def in_front(self, rep: float, vector: np.ndarray) -> bool:
-        """whether the direction points "in front of" the extremity, its bounding rays excluded
+    def _in_wedge(self, rep: float, vector: np.ndarray, wedge: Wedge) -> bool:
+        """whether the direction lies within the closure of the wedge
 
-        In front: strictly within the angle range opposite of the angle range outside of the extremity wedge
+        A direction within ``RAY_WINDOW`` of a bounding ray is decided by its exact side of the ray (#281):
+        the representations of directions within about one unit in the last place of the ray can compare equal
+        or in the wrong order, also in the modular differences of ``in_closure()``.
+        Such a misdecision is not small in its consequences: a line of sight leaving a vertex just outside of its
+        free wedge, e.g. along an edge, runs through the obstacle or outside of the map.
+        """
+        start, end = wedge
+        if start == end:
+            # a single ray: the whole circle
+            return True
+        near_start = _near(rep, start)
+        near_end = _near(rep, end)
+        if not (near_start or near_end):
+            return in_closure(rep, wedge)
+        # the wedge reaches counter clockwise from its start to its end, the bounding rays belong to it.
+        # Note: a direction exactly on a ray is decided exactly as well (not by a floating point cross product of 0)
+        after_start = not near_start or _cross_sign(self._ray(start), vector) >= 0
+        before_end = not near_end or _cross_sign(self._ray(end), vector) <= 0
+        if near_start and near_end and wedge_size(wedge) > 2.0:
+            # the gap outside of the wedge is the small range between the end and the start
+            return after_start or before_end
+        return after_start and before_end
+
+    def _ray(self, rep: float) -> np.ndarray:
+        """the direction of the ray with the angle representation"""
+        for ray, ray_rep in self.rays:
+            if ray_rep == rep:
+                return ray
+        raise ValueError(
+            f"Point {self.idx} has no ray with the angle representation {rep}."
+        )
+
+    def in_front(self, rep: float) -> bool:
+        """whether the direction points "in front of" the extremity
+
+        In front: within the angle range opposite of the angle range outside of the extremity wedge
         (the range of the obstacles), cf. [1, Ch. II 4.4.2 "Property One"].
+        The directions within ``RAY_WINDOW`` of a bound of this range do not lie in front (``_front_mask()``).
 
         :param rep: the angle representation of the direction
-        :param vector: the direction, to compare it exactly with the bounding rays
         """
-        start, end = self.extremity_wedge
-        if any(
-            _cross(ray, vector) == 0.0 and np.dot(ray, vector) < 0.0
-            for ray, ray_rep in self.rays
-            if ray_rep in (start, end)
-        ):
-            # exactly opposite of a bounding ray
-            return False
-        # the obstacles reach counter clockwise from end to start
-        front_start = (end + 2.0) % 4.0
-        front_end = (start + 2.0) % 4.0
-        return 0.0 < (rep - front_start) % 4.0 < (front_end - front_start) % 4.0
+        start, end = self._front_wedge()
+        front_start, size = _front_range(start, end)
+        return bool(_front_mask(np.array([rep]), front_start, size)[0])
+
+    def in_wedges_mask(
+        self, reps: np.ndarray, vectors: np.ndarray, wedges: Iterable[Wedge]
+    ) -> np.ndarray:
+        """whether each direction lies within (the closure of) one of the wedges, like ``in_wedges()``, vectorised
+
+        Called with all candidates of a visibility computation: calling ``in_wedges()`` for each of them
+        costs more than the visibility computation itself (#262).
+        Only the directions close to a bounding ray are decided by ``in_wedges()``.
+
+        :param reps: the angle representations of the directions
+        :param vectors: the directions
+        :return: a boolean mask of the directions
+        """
+        wedges = list(wedges)
+        within = np.zeros(len(reps), dtype=bool)
+        near_bound = np.zeros(len(reps), dtype=bool)
+        for start, end in wedges:
+            near_bound |= _near(reps, start) | _near(reps, end)
+            if start == end:
+                # a single ray: the whole circle (cf. ``in_closure()``)
+                within[:] = True
+            else:
+                within |= (reps - start) % 4.0 <= (end - start) % 4.0
+        # directions close to a bounding ray: the exact test
+        for i in np.flatnonzero(near_bound).tolist():
+            within[i] = self.in_wedges(float(reps[i]), vectors[i], wedges)
+        return within
+
+    def in_front_mask(self, reps: np.ndarray) -> np.ndarray:
+        """whether each direction points "in front of" the extremity, like ``in_front()``, vectorised
+
+        Called with all other extremities when the visibility graph is built (#262).
+
+        :param reps: the angle representations of the directions
+        :return: a boolean mask of the directions
+        """
+        start, end = self._front_wedge()
+        front_start, size = _front_range(start, end)
+        return _front_mask(reps, front_start, size)
 
     def passable(self, vector_in: np.ndarray, vector_out: np.ndarray) -> bool:
         """whether a line of sight may pass through the point (rule 3)
@@ -229,12 +353,13 @@ class Point:
         :param vector_in: the direction from the point back to the start of the line of sight
         :param vector_out: the direction from the point to the end of the line of sight
         """
-        rep_in = self.rep(vector_in)
-        rep_out = self.rep(vector_out)
-        return any(
-            in_closure(rep_in, wedge) and in_closure(rep_out, wedge)
-            for wedge in self.wedges
-        )
+        rep_in = _rep(vector_in)
+        rep_out = _rep(vector_out)
+        for wedge in self.wedges:
+            arrives = self._in_wedge(rep_in, vector_in, wedge)
+            if arrives and self._in_wedge(rep_out, vector_out, wedge):
+                return True
+        return False
 
 
 def _group_identical(coords: np.ndarray) -> list[list[int]]:
@@ -326,7 +451,9 @@ def _incidences(
     pairs = [
         get_neighbour_idxs(i, vertex_edge_idxs, edge_vertex_idxs) for i in vertex_idxs
     ]
-    pairs += [tuple(int(i) for i in edge_vertex_idxs[e]) for e in edge_idxs]
+    pairs += [
+        (int(edge_vertex_idxs[e, 0]), int(edge_vertex_idxs[e, 1])) for e in edge_idxs
+    ]
     return [
         (
             int(vertex_polygon_idxs[i_a]),
@@ -382,11 +509,9 @@ class Points:
         self.front_starts = np.full(len(coords), np.nan)
         self.front_sizes = np.full(len(coords), np.nan)
         for idx, point in self.by_idx.items():
-            if point.is_extremity:
+            if point.extremity_wedge is not None:
                 start, end = point.extremity_wedge
-                front_start = (end + 2.0) % 4.0
-                self.front_starts[idx] = front_start
-                self.front_sizes[idx] = ((start + 2.0) % 4.0 - front_start) % 4.0
+                self.front_starts[idx], self.front_sizes[idx] = _front_range(start, end)
 
     def _make_point(
         self,
@@ -451,33 +576,24 @@ class Points:
     def in_front_of(
         self,
         candidates: np.ndarray,
-        position: np.ndarray,
-        coords: np.ndarray,
         representations: np.ndarray,
     ) -> np.ndarray:
         """whether the position lies "in front" of each candidate extremity, like ``Point.in_front()``, vectorised
 
         Called for every query with all extremities as candidates: calling ``Point.in_front()`` for each of them
-        would cost more than skipping the extremities saves (#222). Only the directions close to a bound of the
-        front range are decided by ``Point.in_front()``.
+        would cost more than skipping the extremities saves (#222).
 
         :param candidates: the indices of extremities
         :param representations: the angle representations of all coordinates seen from the position
         :return: a boolean mask of the candidates
         """
-        # the direction from a candidate to the position: the opposite of the one seen from the position
+        # the direction from a candidate to the position: the opposite of the one seen from the position.
+        # Note: it differs from the representation computed from the candidate by rounding only,
+        # far less than ``RAY_WINDOW``
         reps = (representations[candidates] + 2.0) % 4.0
-        sizes = self.front_sizes[candidates]
-        offsets = (reps - self.front_starts[candidates]) % 4.0
-        in_front = (offsets > 0.0) & (offsets < sizes)
-        # directions close to a bounding ray: the exact test
-        near_start = (offsets < RAY_WINDOW) | (offsets > 4.0 - RAY_WINDOW)
-        near_bound = near_start | (np.abs(offsets - sizes) < RAY_WINDOW)
-        for i in np.flatnonzero(near_bound):
-            candidate = int(candidates[i])
-            vector = position - coords[candidate]
-            in_front[i] = self.by_idx[candidate].in_front(_rep(vector), vector)
-        return in_front
+        return _front_mask(
+            reps, self.front_starts[candidates], self.front_sizes[candidates]
+        )
 
     def filter_visible(
         self,
@@ -509,46 +625,56 @@ class Points:
                 point = self.by_idx[candidate]
                 if not point.is_contact:
                     return True
-                wedges = [point.extremity_wedge]
+                extremity_wedge = point.extremity_wedge
+                if extremity_wedge is None:
+                    raise ValueError(
+                        f"The candidate {candidate} is no extremity: only extremities are candidates."
+                    )
+                wedges = [extremity_wedge]
             vector = origin_position - coords[candidate]
             return point.in_wedges(_rep(vector), vector, wedges)
-
-        def passes(candidate: int, point_idxs: np.ndarray) -> bool:
-            # rule 3: all points on the line of sight (between, excluding the origin and the candidate)
-            # Note: collinear directions might have angle representations differing in the last bit
-            candidate_vector = coords[candidate] - origin_position
-            for point_idx in point_idxs:
-                point_idx = int(point_idx)
-                point_vector = coords[point_idx] - origin_position
-                if not 0.0 < distances[point_idx] < distances[candidate]:
-                    continue
-                same_rep = representations[point_idx] == representations[candidate]
-                if not same_rep and _cross(point_vector, candidate_vector) != 0.0:
-                    # not on the line of sight
-                    continue
-                point_position = coords[point_idx]
-                if not self.by_idx[point_idx].passable(
-                    origin_position - point_position, coords[candidate] - point_position
-                ):
-                    return False
-            return True
 
         visible = {i for i in visible if arrives(i)}
         if len(visible) == 0:
             return visible
-        # the points with (nearly) the same direction as a candidate
-        order = np.argsort(representations[self.idxs])
-        point_idxs_sorted = self.idxs[order]
-        point_reps_sorted = representations[point_idxs_sorted]
-        candidates = np.fromiter(visible, dtype=int, count=len(visible))
+        # rule 3: the points on a line of sight (between, excluding the origin and the candidate) must be passable.
+        # The points with (nearly) the same direction as a candidate: the candidates are sorted by direction
+        # and every point is looked up among them (#280). The visible candidates are usually far fewer than the points.
+        # Note: collinear directions might have angle representations differing in the last bit
+        candidates = np.fromiter(visible, dtype=np.int64, count=len(visible))
+        candidates = candidates[np.argsort(representations[candidates], kind="stable")]
         candidate_reps = representations[candidates]
-        lower = np.searchsorted(point_reps_sorted, candidate_reps - RAY_WINDOW)
-        upper = np.searchsorted(point_reps_sorted, candidate_reps + RAY_WINDOW, "right")
-        blocked = {
-            int(candidate)
-            for candidate, low, up in zip(candidates, lower, upper)
-            if low < up and not passes(int(candidate), point_idxs_sorted[low:up])
-        }
+        point_reps = representations[self.idxs]
+        # the candidates whose window [rep - RAY_WINDOW, rep + RAY_WINDOW] contains the direction of a point:
+        # both bounds grow with the representation
+        first = np.searchsorted(candidate_reps + RAY_WINDOW, point_reps, "left")
+        after_last = np.searchsorted(candidate_reps - RAY_WINDOW, point_reps, "right")
+        pair_ranges, pair_positions = expand_ranges(
+            first, np.maximum(after_last - first, 0)
+        )
+        pair_points = self.idxs[pair_ranges]
+        pair_candidates = candidates[pair_positions]
+        # only points between the origin and the candidate
+        point_dists = distances[pair_points]
+        between = (point_dists > 0.0) & (point_dists < distances[pair_candidates])
+        pair_points = pair_points[between]
+        pair_candidates = pair_candidates[between]
+        # only points exactly on the line of sight
+        point_vectors = coords[pair_points] - origin_position
+        candidate_vectors = coords[pair_candidates] - origin_position
+        same_rep = representations[pair_points] == representations[pair_candidates]
+        on_line = same_rep | (_cross(point_vectors, candidate_vectors) == 0.0)
+        blocked: set[int] = set()
+        for point_idx, candidate in zip(
+            pair_points[on_line].tolist(), pair_candidates[on_line].tolist()
+        ):
+            if candidate in blocked:
+                continue
+            point_position = coords[point_idx]
+            if not self.by_idx[point_idx].passable(
+                origin_position - point_position, coords[candidate] - point_position
+            ):
+                blocked.add(candidate)
         return visible - blocked
 
 
@@ -567,7 +693,7 @@ def _resolvable(reps: list[float]) -> bool:
     return True
 
 
-def check_polygon_contacts(coords: np.ndarray):
+def check_polygon_contacts(coords: np.ndarray) -> None:
     """ensures that a polygon touching itself does not cross itself and has no overlapping edges
 
     * crossing at a vertex: a vertex lying on another edge with its neighbours on opposite sides
