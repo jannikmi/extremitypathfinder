@@ -37,9 +37,8 @@ Strengths of ``extremitypathfinder``:
   pyvisgraph's full visibility graph, and the difference grows with the size of the map within each source data set.
   The queries search this smaller graph.
 - **Larger maps.** At the largest map of the sweep, pyvisgraph needs a large part of the build budget,
-  ``extremitypathfinder`` a small fraction of it. The sweep stops there to keep the full run short:
-  in an earlier full run with larger maps (commit ``de8280f``), pyvisgraph exceeded the budget on a map
-  that ``extremitypathfinder`` built.
+  ``extremitypathfinder`` a small fraction of it: it builds larger maps within the same time.
+  The sweep stops there to keep the full run short.
 - **Less retained memory.** On the small maps its prepared environment keeps about as much memory as pyvisgraph's,
   from 2,000 vertices on less, and the difference grows with the size of the map within each source data set.
 - **Fast without Numba too.** Without Numba, builds take two to five times as long and queries about two to three
