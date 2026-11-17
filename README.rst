@@ -22,6 +22,10 @@ extremitypathfinder
     :alt: supported Python versions
     :target: https://pypi.python.org/pypi/extremitypathfinder
 
+.. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.24316506.svg
+    :alt: DOI
+    :target: https://doi.org/10.5281/zenodo.24316506
+
 .. image:: https://static.pepy.tech/badge/extremitypathfinder
     :alt: total PyPI downloads
     :target: https://pepy.tech/projects/extremitypathfinder
@@ -173,6 +177,8 @@ The citation metadata is in
 `CITATION.cff <https://github.com/jannikmi/extremitypathfinder/blob/master/CITATION.cff>`__:
 GitHub converts it into APA and BibTeX ("Cite this repository" in the sidebar of the repository).
 Please cite the version you used.
+Every release is archived on Zenodo. The DOI `10.5281/zenodo.24316506 <https://doi.org/10.5281/zenodo.24316506>`__ cites all versions
+and resolves to the latest one; the Zenodo page lists the DOI of each version.
 
 
 Contributing and License
