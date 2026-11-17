@@ -305,8 +305,9 @@ The rules applied with the wedges (``wedges.py``):
 
 The bounding rays belong to the wedges (closed angle ranges, ``in_closure()``): paths may run along edges.
 Directions exactly on a bounding ray (zero cross product, same direction) take the representation of that ray
-(``Point.rep()``), so that collinear edges of different length behave consistently. The check only runs for directions
-within ``RAY_WINDOW`` of a bound (cf. `Numerical Policy`_).
+(``Point.rep()``), so that collinear edges of different length behave consistently. Other directions within
+``RAY_WINDOW`` of a bound are decided by their exact side of the bounding ray (``Point._in_wedge()``, #281):
+their representations cannot tell them apart (cf. `Numerical Policy`_).
 
 Visibility from one origin
 --------------------------
@@ -789,6 +790,8 @@ environment with missing or outdated attributes. Increase the version whenever t
 incompatibly.
 
 
+.. _numerical_policy:
+
 Numerical Policy
 ================
 
@@ -807,9 +810,17 @@ Numerical Policy
   (``Point.rep()``). ``RAY_WINDOW`` (1e-12) is the only numeric constant in the decisions. It is not a tolerance on any
   decision: it only limits the check for exactly collinear directions to those within 1e-12 of a bounding ray, far above
   the last-bit differences of their representations. The regression test ``test_in_wedges_collinear_last_bit`` covers
-  directions whose representations differ from the ray's in the last bit. Directions that are not exactly collinear
-  with a ray are decided by their representations, as everywhere else. The 1e-16 bound of the audit
-  (**Audit against exact arithmetic**, below) concerns these non-collinear comparisons.
+  directions whose representations differ from the ray's in the last bit.
+- **Sides of the bounding rays are exact** (#281): a direction within ``RAY_WINDOW`` of a bound of a free wedge, but not
+  exactly on the bounding ray, is decided by the exact sign of its cross product with the ray (``_cross_sign()``:
+  the floating point cross product when it exceeds its rounding error, rational arithmetic otherwise).
+  The representations cannot decide it: those of directions within about one unit in the last place of the ray
+  compare equal or in the wrong order, also in the modular differences of ``in_closure()``. The consequence of such a
+  misdecision is not small: a line of sight leaving a vertex just outside of its free wedge, e.g. along an edge,
+  can run through an obstacle or outside of the map (on grids rotated by a tiny angle). This covers rules 2 to 4
+  (``Point.in_wedges()``, ``Point.passable()``); it is rare (only near the bounds) and costs nothing measurable.
+  All other directions are decided by their representations. The 1e-16 bound of the audit
+  (**Audit against exact arithmetic**, below) concerns these comparisons.
 - **Lines of sight touching edges**: a line of sight touching an edge only in one of its vertices, or running along it,
   is not blocked by the edge. What happens at the vertex is decided by its wedges.
 - Intersections are only computed (a 2x2 linear system, ``_lies_behind_inner()``) when cheaper tests

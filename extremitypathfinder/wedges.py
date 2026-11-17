@@ -36,6 +36,7 @@ import itertools
 from collections import defaultdict
 from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass
+from fractions import Fraction
 from typing import Any
 
 import numpy as np
@@ -69,6 +70,26 @@ def _rep(vector: np.ndarray) -> float:
 def _cross(vector1: np.ndarray, vector2: np.ndarray) -> Any:
     """the cross product of two vectors, or row by row of two arrays of vectors"""
     return vector1[..., 0] * vector2[..., 1] - vector1[..., 1] * vector2[..., 0]
+
+
+# relative error bound of the floating point cross product (twice the unit roundoff per product, with margin)
+_CROSS_ERROR = 4.0 * float(np.finfo(np.float64).eps)
+
+
+def _cross_sign(vector1: np.ndarray, vector2: np.ndarray) -> int:
+    """the exact sign of the cross product of two float vectors: 1 (counter clockwise), -1 (clockwise) or 0
+
+    The floating point result decides when it is larger than its rounding error,
+    otherwise the products are computed exactly (rational arithmetic, only for almost collinear vectors).
+    """
+    x1, y1 = float(vector1[0]), float(vector1[1])
+    x2, y2 = float(vector2[0]), float(vector2[1])
+    product1, product2 = x1 * y2, y1 * x2
+    cross = product1 - product2
+    if abs(cross) > _CROSS_ERROR * (abs(product1) + abs(product2)):
+        return 1 if cross > 0.0 else -1
+    exact = Fraction(x1) * Fraction(y2) - Fraction(y1) * Fraction(x2)
+    return (exact > 0) - (exact < 0)
 
 
 def in_closure(rep: float, wedge: Wedge) -> bool:
@@ -207,12 +228,45 @@ class Point:
         :param rep: the angle representation of the direction
         :param vector: the direction, to compare it exactly with the bounding rays
         """
-        for wedge in wedges:
-            if any(abs(rep - bound) < RAY_WINDOW for bound in wedge):
-                rep = self.rep(vector)
-            if in_closure(rep, wedge):
-                return True
-        return False
+        return any(self._in_wedge(rep, vector, wedge) for wedge in wedges)
+
+    def _in_wedge(self, rep: float, vector: np.ndarray, wedge: Wedge) -> bool:
+        """whether the direction lies within the closure of the wedge
+
+        A direction within ``RAY_WINDOW`` of a bounding ray is decided by its exact side of the ray (#281):
+        the representations of directions within about one unit in the last place of the ray can compare equal
+        or in the wrong order, also in the modular differences of ``in_closure()``.
+        Such a misdecision is not small in its consequences: a line of sight leaving a vertex just outside of its
+        free wedge, e.g. along an edge, runs through the obstacle or outside of the map.
+        """
+        start, end = wedge
+        if start == end:
+            # a single ray: the whole circle
+            return True
+        near_start = abs(rep - start) < RAY_WINDOW
+        near_end = abs(rep - end) < RAY_WINDOW
+        if not (near_start or near_end):
+            return in_closure(rep, wedge)
+        ray_rep = _ray_rep(vector, self.rays)
+        if ray_rep is not None:
+            # exactly on a ray
+            return in_closure(ray_rep, wedge)
+        # the wedge reaches counter clockwise from its start to its end
+        after_start = not near_start or _cross_sign(self._ray(start), vector) > 0
+        before_end = not near_end or _cross_sign(self._ray(end), vector) < 0
+        if near_start and near_end and wedge_size(wedge) > 2.0:
+            # the gap outside of the wedge is the small range between the end and the start
+            return after_start or before_end
+        return after_start and before_end
+
+    def _ray(self, rep: float) -> np.ndarray:
+        """the direction of the ray with the angle representation"""
+        for ray, ray_rep in self.rays:
+            if ray_rep == rep:
+                return ray
+        raise ValueError(
+            f"Point {self.idx} has no ray with the angle representation {rep}."
+        )
 
     def in_front(self, rep: float, vector: np.ndarray) -> bool:
         """whether the direction points "in front of" the extremity, its bounding rays excluded
@@ -293,12 +347,13 @@ class Point:
         :param vector_in: the direction from the point back to the start of the line of sight
         :param vector_out: the direction from the point to the end of the line of sight
         """
-        rep_in = self.rep(vector_in)
-        rep_out = self.rep(vector_out)
-        return any(
-            in_closure(rep_in, wedge) and in_closure(rep_out, wedge)
-            for wedge in self.wedges
-        )
+        rep_in = _rep(vector_in)
+        rep_out = _rep(vector_out)
+        for wedge in self.wedges:
+            arrives = self._in_wedge(rep_in, vector_in, wedge)
+            if arrives and self._in_wedge(rep_out, vector_out, wedge):
+                return True
+        return False
 
 
 def _group_identical(coords: np.ndarray) -> list[list[int]]:

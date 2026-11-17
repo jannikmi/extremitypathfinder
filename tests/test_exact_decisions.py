@@ -19,7 +19,7 @@ from extremitypathfinder.utils_numba import (
     _lies_on_edge,
     reps_n_distances,
 )
-from extremitypathfinder.wedges import Point, _rep
+from extremitypathfinder.wedges import Point, _cross_sign, _rep
 from tests import exact
 
 NR_CASES = 2000
@@ -264,3 +264,39 @@ def test_in_front_mask_exactly_opposite_of_a_bounding_ray():
             assert point.in_front_mask(np.array([_rep(inside)]), inside[None, :]).all()
     # the comparison of the representations alone would be wrong for some of these cases
     assert any(within_range)
+
+
+def test_cross_sign_is_exact():
+    """the sign of the cross product of almost collinear float vectors (#281), compared with rational arithmetic"""
+    rng = np.random.default_rng(0)
+    for _ in range(2000):
+        vector1 = rng.normal(size=2) * 10.0 ** rng.integers(-8, 9)
+        # almost collinear: scaled and perturbed in the last bits
+        factor = rng.normal() * 10.0 ** rng.integers(-3, 4)
+        vector2 = vector1 * factor
+        vector2 = vector2 + rng.integers(-3, 4, size=2) * np.spacing(vector2)
+        exact_cross = exact.cross(vector1, vector2)
+        expected = (exact_cross > 0) - (exact_cross < 0)
+        assert _cross_sign(vector1, vector2) == expected, (vector1, vector2)
+
+
+def test_in_wedges_one_unit_in_the_last_place_outside_of_a_bounding_ray():
+    """#281: a direction outside of the wedge, whose angle representation lies one unit in the last place beyond
+    the bound, compared as inside (the modular differences in ``in_closure()`` both round to the same value).
+    Within ``RAY_WINDOW`` of a bound, the exact side of the bounding ray decides."""
+    ray = np.array([-9.99999860695766e-10, 1.0])
+    start_ray = np.array([-1.0, -1.000000082740371e-09])
+    wedge = (_rep(start_ray), _rep(ray))
+    point = Point(0, 1, set(), [wedge], wedge, [(start_ray, wedge[0]), (ray, wedge[1])])
+    outside = np.array([-3.000000026176508e-09, 3.0])
+    assert exact.cross(ray, outside) > 0  # counter clockwise of the end of the wedge
+    assert point.in_wedges(_rep(outside), outside, [wedge]) is False
+    assert point.in_wedges_mask(
+        np.array([_rep(outside)]), outside[None, :], [wedge]
+    ).tolist() == [False]
+    # rule 3: arriving along the other bounding ray (within the closure), leaving outside
+    assert not point.passable(start_ray, outside)
+    inside = np.array([-2.9999995e-09, 3.0])
+    assert exact.cross(ray, inside) < 0
+    assert point.in_wedges(_rep(inside), inside, [wedge]) is True
+    assert point.passable(start_ray, inside)

@@ -455,3 +455,59 @@ def test_distance_squares_are_products(vector):
     _, distance = _compute_repr_n_dist(np.array(vector))
     assert distance == np.sqrt(dx * dx + dy * dy)
     assert reps_n_distances(np.array([vector]))[1][0] == distance
+
+
+def test_line_of_sight_does_not_leave_the_map_past_almost_collinear_vertices():
+    """#281: in a grid rotated by 1e-9 rad, the extremities near (1, 7) and (1, 10) lie almost, but not exactly,
+    on one line with the boundary vertices near (1, 8) and (1, 9), the corners of a notch. Between these corners
+    the line runs outside of the map. The direction to (1, 10) lies about one unit in the last place outside of the
+    free wedge at (1, 7), on the far side of its edge to (1, 8), but its angle representation compared as inside:
+    the path took the straight line (3.0) instead of going around (as in the unrotated grid).
+    """
+    cells = [
+        (0, 0),
+        (0, 1),
+        (0, 7),
+        (0, 9),
+        (0, 11),
+        (1, 2),
+        (1, 8),
+        (2, 2),
+        (2, 7),
+        (2, 10),
+    ]
+    cells += [
+        (3, 0),
+        (3, 2),
+        (3, 6),
+        (3, 8),
+        (3, 9),
+        (4, 9),
+        (4, 11),
+        (5, 1),
+        (5, 3),
+        (5, 6),
+        (5, 7),
+    ]
+    grid = PolygonEnvironment.from_grid(6, 13, cells)
+    c, s = np.cos(1e-9), np.sin(1e-9)
+
+    def rotate(p):
+        return (c * p[0] - s * p[1] + 0.1, s * p[0] + c * p[1] + 0.07)
+
+    rotated = PolygonEnvironment(
+        [rotate(p) for p in grid.boundary_polygon.tolist()],
+        [[rotate(p) for p in hole] for hole in grid.holes],
+    )
+    start, goal = 47, 24
+    assert grid.coords[start].tolist() == [1.0, 7.0]
+    assert grid.coords[goal].tolist() == [1.0, 10.0]
+    _, expected = grid.find_shortest_path(
+        tuple(grid.coords[start]), tuple(grid.coords[goal])
+    )
+    assert expected > 3.0
+    for a, b in ((start, goal), (goal, start)):
+        _, length = rotated.find_shortest_path(
+            tuple(rotated.coords[a]), tuple(rotated.coords[b])
+        )
+        assert length == pytest.approx(expected, rel=1e-12)
