@@ -304,9 +304,9 @@ The rules applied with the wedges (``wedges.py``):
    for a line of sight that did not cross the polygon, so it is only checked at contacts)
 
 The bounding rays belong to the wedges (closed angle ranges, ``in_closure()``): paths may run along edges.
-Directions exactly on a bounding ray (zero cross product, same direction) take the representation of that ray
-(``Point.rep()``), so that collinear edges of different length behave consistently. The check only runs for directions
-within ``RAY_WINDOW`` of a bound (cf. `Numerical Policy`_).
+Directions within ``RAY_WINDOW`` of a bound are decided by their exact side of the bounding ray, the ray itself
+included (``Point._in_wedge()``, #281): their representations cannot tell them apart, e.g. collinear edges of
+different length can have representations differing in the last bit (cf. `Numerical Policy`_).
 
 Visibility from one origin
 --------------------------
@@ -796,6 +796,8 @@ environment with missing or outdated attributes. Increase the version whenever t
 incompatibly.
 
 
+.. _numerical_policy:
+
 Numerical Policy
 ================
 
@@ -809,14 +811,23 @@ Numerical Policy
   (exact cross product test, or angle representations exactly 180 degree apart, ``_lies_on_edge()``).
   Near-contacts do not block. This makes the behaviour reproducible and independent of a tolerance parameter.
   For integer coordinates (e.g. grids) the tests are exact.
-- **Rays are exact**: directions that are exactly the same (zero cross product, same direction) share one angle
-  representation, even when the representations computed from vectors of different length differ in the last bit
-  (``Point.rep()``). ``RAY_WINDOW`` (1e-12) is the only numeric constant in the decisions. It is not a tolerance on any
-  decision: it only limits the check for exactly collinear directions to those within 1e-12 of a bounding ray, far above
-  the last-bit differences of their representations. The regression test ``test_in_wedges_collinear_last_bit`` covers
-  directions whose representations differ from the ray's in the last bit. Directions that are not exactly collinear
-  with a ray are decided by their representations, as everywhere else. The 1e-16 bound of the audit
-  (**Audit against exact arithmetic**, below) concerns these non-collinear comparisons.
+- **Rays are exact**: the rays of a point with exactly the same direction share one angle representation
+  (``_add_ray()``), even when the representations computed from vectors of different length differ in the last bit.
+- **Sides of the bounding rays are exact** (#281): a direction within ``RAY_WINDOW`` of a bound of a free wedge
+  (across 0 = 4 as well) is decided by the exact sign of its cross product with the bounding ray: on the ray
+  (exact cross product 0, same direction) it lies in the closure of the wedge, otherwise its side decides
+  (``_cross_sign()``: the floating point cross product when it exceeds its rounding error, rational arithmetic
+  otherwise). ``RAY_WINDOW`` (1e-12) is not a tolerance on any decision: it only limits the exact test to the directions
+  within 1e-12 of a bounding ray, far above the last-bit differences of their representations.
+  The regression tests ``test_in_wedges_collinear_last_bit`` and
+  ``test_in_wedges_one_unit_in_the_last_place_outside_of_a_bounding_ray`` cover both cases.
+  The representations cannot decide it: those of directions within about one unit in the last place of the ray
+  compare equal or in the wrong order, also in the modular differences of ``in_closure()``. The consequence of such a
+  misdecision is not small: a line of sight leaving a vertex just outside of its free wedge, e.g. along an edge,
+  can run through an obstacle or outside of the map (on grids rotated by a tiny angle). This covers rules 2 to 4
+  (``Point.in_wedges()``, ``Point.passable()``); it is rare (only near the bounds) and costs nothing measurable.
+  All other directions are decided by their representations. The 1e-16 bound of the audit
+  (**Audit against exact arithmetic**, below) concerns these comparisons.
 - **Lines of sight touching edges**: a line of sight touching an edge only in one of its vertices, or running along it,
   is not blocked by the edge. What happens at the vertex is decided by its wedges.
 - Intersections are only computed (a 2x2 linear system, ``_lies_behind_inner()``) when cheaper tests

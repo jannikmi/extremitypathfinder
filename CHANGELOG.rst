@@ -219,6 +219,10 @@ bugfixes:
 - distances without Numba could differ by one unit in the last place from those with Numba on macOS (#257):
   the squares used the C library ``pow()``, which is not correctly rounded there. They are now products,
   so the results are identical in both modes on all platforms.
+- lines of sight leaving the map past vertices almost on them (e.g. on grids rotated by a tiny angle, #281):
+  a direction about one unit in the last place outside of the free wedge of a vertex compared as inside,
+  because the angle representations cannot tell such directions apart. Paths ran outside of the map and were too short.
+  Directions this close to a bounding ray are now decided by their exact side of the ray.
 
 internal:
 

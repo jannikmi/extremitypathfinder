@@ -19,7 +19,7 @@ from extremitypathfinder.utils_numba import (
     _lies_on_edge,
     reps_n_distances,
 )
-from extremitypathfinder.wedges import Point, _rep
+from extremitypathfinder.wedges import Point, _cross_sign, _rep
 from tests import exact
 
 NR_CASES = 2000
@@ -187,12 +187,12 @@ def test_in_wedges_exactly_near_the_bounding_rays(rng):
                 assert mask.tolist() == [expected]
 
 
-# exactly collinear float vectors (cross product 0.0) whose representations differ in the last bit
+# exactly collinear float vectors (exact cross product 0) whose representations differ in the last bit
 # (found by a search over random ray directions and integer factors, full precision)
 LAST_BIT_RAYS = [
     (
-        np.array([2.9437902314850017, 2.307702229625077]),
-        np.array([100.08886787049006, 78.46187580725262]),
+        np.array([7.9163001012675664, 1.3138134244236506]),
+        np.array([158.32600202535133, 26.27626848847301]),
     ),
     (
         np.array([7.798711114410413, 6.44747655086141]),
@@ -208,8 +208,8 @@ LAST_BIT_RAYS = [
 @pytest.mark.parametrize(("ray", "same"), LAST_BIT_RAYS)
 def test_in_wedges_collinear_last_bit(ray, same):
     """a direction exactly on a bounding ray lies in the closure of its wedge, even if its own representation
-    differs from the ray's in the last bit (``RAY_WINDOW``, ``Point.rep()``)"""
-    assert ray[0] * same[1] - ray[1] * same[0] == 0.0
+    differs from the ray's in the last bit (``RAY_WINDOW``, ``Point._in_wedge()``)"""
+    assert exact.cross(ray, same) == 0
     rep = _rep(ray)
     assert _rep(same) != rep
     point = Point(0, 2, set(), [], None, [(ray, rep)])
@@ -264,3 +264,85 @@ def test_in_front_mask_exactly_opposite_of_a_bounding_ray():
             assert point.in_front_mask(np.array([_rep(inside)])).all()
     # the comparison of the representations alone would be wrong for some of these cases
     assert any(within_range)
+
+
+def test_cross_sign_is_exact():
+    """the sign of the cross product of almost collinear float vectors (#281), compared with rational arithmetic"""
+    rng = np.random.default_rng(0)
+    for _ in range(2000):
+        vector1 = rng.normal(size=2) * 10.0 ** rng.integers(-8, 9)
+        # almost collinear: scaled and perturbed in the last bits
+        factor = rng.normal() * 10.0 ** rng.integers(-3, 4)
+        vector2 = vector1 * factor
+        vector2 = vector2 + rng.integers(-3, 4, size=2) * np.spacing(vector2)
+        exact_cross = exact.cross(vector1, vector2)
+        expected = (exact_cross > 0) - (exact_cross < 0)
+        assert _cross_sign(vector1, vector2) == expected, (vector1, vector2)
+
+
+def test_in_wedges_one_unit_in_the_last_place_outside_of_a_bounding_ray():
+    """#281: a direction outside of the wedge, whose angle representation lies one unit in the last place beyond
+    the bound, compared as inside (the modular differences in ``in_closure()`` both round to the same value).
+    Within ``RAY_WINDOW`` of a bound, the exact side of the bounding ray decides."""
+    ray = np.array([-9.99999860695766e-10, 1.0])
+    start_ray = np.array([-1.0, -1.000000082740371e-09])
+    wedge = (_rep(start_ray), _rep(ray))
+    point = Point(0, 1, set(), [wedge], wedge, [(start_ray, wedge[0]), (ray, wedge[1])])
+    outside = np.array([-3.000000026176508e-09, 3.0])
+    assert exact.cross(ray, outside) > 0  # counter clockwise of the end of the wedge
+    assert point.in_wedges(_rep(outside), outside, [wedge]) is False
+    assert point.in_wedges_mask(
+        np.array([_rep(outside)]), outside[None, :], [wedge]
+    ).tolist() == [False]
+    # rule 3: arriving along the other bounding ray (within the closure), leaving outside
+    assert not point.passable(start_ray, outside)
+    inside = np.array([-2.9999995e-09, 3.0])
+    assert exact.cross(ray, inside) < 0
+    assert point.in_wedges(_rep(inside), inside, [wedge]) is True
+    assert point.passable(start_ray, inside)
+
+
+def test_in_wedges_exactly_next_to_a_ray_and_across_zero():
+    """#281: the exact side decides also where the floating point cross product rounds to 0,
+    and for directions next to a bound across 0 = 4 (whose representation can even round to 4.0)"""
+    ray = np.array([-9.99999860695766e-10, 1.0])
+    start_ray = np.array([-1.0, -1.000000082740371e-09])
+    wedge = (_rep(start_ray), _rep(ray))
+    point = Point(0, 1, set(), [wedge], wedge, [(start_ray, wedge[0]), (ray, wedge[1])])
+    # the floating point cross product is 0, the exact one is not: outside of the wedge
+    outside = np.array([-5.597999180373703e-09, 5.597999960198798])
+    assert exact.cross(ray, outside) > 0
+    assert point.in_wedges(_rep(outside), outside, [wedge]) is False
+
+    # a wedge starting at 0: the direction just clockwise of its start ray is outside (representation 4.0)
+    start_ray, end_ray = np.array([1.0, 0.0]), np.array([0.0, 1.0])
+    wedge = (0.0, 1.0)
+    point = Point(0, 1, set(), [wedge], wedge, [(start_ray, 0.0), (end_ray, 1.0)])
+    below = np.array([1.0, -1e-17])
+    assert _rep(below) == 4.0
+    assert point.in_wedges(_rep(below), below, [wedge]) is False
+    assert point.in_wedges_mask(
+        np.array([_rep(below)]), below[None, :], [wedge]
+    ).tolist() == [False]
+    above = np.array([1.0, 1e-17])
+    assert point.in_wedges(_rep(above), above, [wedge]) is True
+
+    # a wedge of almost the full circle: a direction next to both bounds is outside only within the gap
+    end_ray = np.array([1.0, -1e-13])
+    wedge = (0.0, _rep(end_ray))
+    point = Point(0, 1, set(), [wedge], wedge, [(start_ray, 0.0), (end_ray, wedge[1])])
+    for vector, inside in (
+        ([1.0, -5e-14], False),
+        ([1.0, -2e-13], True),
+        ([1.0, 1e-14], True),
+    ):
+        vector = np.array(vector)
+        assert point.in_wedges(_rep(vector), vector, [wedge]) is inside, vector
+
+
+def test_wedge_bound_without_a_ray_is_rejected():
+    """no quiet fallback: a wedge bound must be the representation of one of the rays of the point"""
+    wedge = (0.0, 1.0)
+    point = Point(0, 1, set(), [wedge], wedge, [(np.array([0.0, 1.0]), 1.0)])
+    with pytest.raises(ValueError, match="no ray"):
+        point.in_wedges(_rep(np.array([1.0, 1e-17])), np.array([1.0, 1e-17]), [wedge])
