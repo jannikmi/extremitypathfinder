@@ -3,6 +3,11 @@ Changelog
 Unreleased
 ----------
 
+A major release: the visibility graph is stored as plain dicts (networkx is optional), plotting draws onto
+Matplotlib axes, environments are stored in a stable file format instead of pickles, and the input is validated
+by default. See the `upgrade guide <https://extremitypathfinder.readthedocs.io/en/latest/2_upgrading.html>`__
+for how to port code written for 3.x, and code written for 2.x directly to this version.
+
 BREAKING: the visibility graph is no ``networkx.Graph`` anymore, and networkx is no dependency anymore (#182):
 
 - ``environment.graph`` is a dict of dicts: node -> neighbour -> edge length, every edge in both directions.
@@ -100,7 +105,7 @@ other changes:
 - license: the package is licensed under MIT only again (#157). The A* search (``utils.astar_path()``) is an own
   implementation instead of a port of ``networkx.astar_path()``, so the 3-clause BSD license of networkx
   (``LICENSES/networkx.txt``) no longer applies. Same paths and lengths, same speed.
-- Shapely and GeoJSON input (#166): ``PolygonEnvironment.from_shapely(boundary, obstacles, validate=False)``
+- Shapely and GeoJSON input (#166): ``PolygonEnvironment.from_shapely(boundary, obstacles, validate=True)``
   accepts Shapely polygons, multi-polygons and collections, GeoJSON-like mappings and objects with a
   ``__geo_interface__`` (e.g. GeoPandas), and gives the same environment as the equivalent coordinate lists.
   Repeated closing and consecutive vertices are removed, interior rings of obstacles are ignored with a warning,
