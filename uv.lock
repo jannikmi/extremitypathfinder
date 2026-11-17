@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.12, <4"
 resolution-markers = [
     "python_full_version >= '3.13'",
@@ -411,7 +411,7 @@ wheels = [
 
 [[package]]
 name = "extremitypathfinder"
-version = "3.0.0"
+version = "4.0.0"
 source = { editable = "." }
 dependencies = [
     { name = "numpy" },

@@ -1,7 +1,7 @@
 Changelog
 ==
-Unreleased
-----------
+4.0.0 (2026-11-17)
+------------------
 
 A major release: the visibility graph is stored as plain dicts (networkx is optional), plotting draws onto
 Matplotlib axes, environments are stored in a stable file format instead of pickles, and the input is validated
