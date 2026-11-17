@@ -582,42 +582,53 @@ class Points:
             vector = origin_position - coords[candidate]
             return point.in_wedges(_rep(vector), vector, wedges)
 
-        def passes(candidate: int, point_idxs: np.ndarray) -> bool:
-            # rule 3: all points on the line of sight (between, excluding the origin and the candidate)
-            # Note: collinear directions might have angle representations differing in the last bit
-            candidate_vector = coords[candidate] - origin_position
-            for point_idx in point_idxs:
-                point_idx = int(point_idx)
-                point_vector = coords[point_idx] - origin_position
-                if not 0.0 < distances[point_idx] < distances[candidate]:
-                    continue
-                same_rep = representations[point_idx] == representations[candidate]
-                if not same_rep and _cross(point_vector, candidate_vector) != 0.0:
-                    # not on the line of sight
-                    continue
-                point_position = coords[point_idx]
-                if not self.by_idx[point_idx].passable(
-                    origin_position - point_position, coords[candidate] - point_position
-                ):
-                    return False
-            return True
-
         visible = {i for i in visible if arrives(i)}
         if len(visible) == 0:
             return visible
-        # the points with (nearly) the same direction as a candidate
-        order = np.argsort(representations[self.idxs])
-        point_idxs_sorted = self.idxs[order]
-        point_reps_sorted = representations[point_idxs_sorted]
-        candidates = np.fromiter(visible, dtype=int, count=len(visible))
+        # rule 3: the points on a line of sight (between, excluding the origin and the candidate) must be passable.
+        # The points with (nearly) the same direction as a candidate: the candidates are sorted by direction
+        # and every point is looked up among them (#280). Sorting all points per origin took much longer.
+        # Note: collinear directions might have angle representations differing in the last bit
+        candidates = np.fromiter(visible, dtype=np.int64, count=len(visible))
+        candidates = candidates[np.argsort(representations[candidates], kind="stable")]
         candidate_reps = representations[candidates]
-        lower = np.searchsorted(point_reps_sorted, candidate_reps - RAY_WINDOW)
-        upper = np.searchsorted(point_reps_sorted, candidate_reps + RAY_WINDOW, "right")
-        blocked = {
-            int(candidate)
-            for candidate, low, up in zip(candidates, lower, upper)
-            if low < up and not passes(int(candidate), point_idxs_sorted[low:up])
-        }
+        point_reps = representations[self.idxs]
+        # the candidates whose window [rep - RAY_WINDOW, rep + RAY_WINDOW] contains the direction of a point:
+        # both bounds grow with the representation
+        first = np.searchsorted(candidate_reps + RAY_WINDOW, point_reps, "left")
+        after_last = np.searchsorted(candidate_reps - RAY_WINDOW, point_reps, "right")
+        nr_candidates = np.maximum(after_last - first, 0)
+        pair_points = np.repeat(self.idxs, nr_candidates)
+        # the positions of the candidates of every pair: consecutive from ``first`` of its point
+        offsets = np.arange(len(pair_points)) - np.repeat(
+            np.cumsum(nr_candidates) - nr_candidates, nr_candidates
+        )
+        pair_candidates = candidates[np.repeat(first, nr_candidates) + offsets]
+        # only points between the origin and the candidate
+        point_dists = distances[pair_points]
+        between = (point_dists > 0.0) & (point_dists < distances[pair_candidates])
+        pair_points = pair_points[between]
+        pair_candidates = pair_candidates[between]
+        # only points exactly on the line of sight
+        point_vectors = coords[pair_points] - origin_position
+        candidate_vectors = coords[pair_candidates] - origin_position
+        # the cross product as in ``_cross()``
+        product1 = point_vectors[:, 0] * candidate_vectors[:, 1]
+        product2 = point_vectors[:, 1] * candidate_vectors[:, 0]
+        cross = product1 - product2
+        same_rep = representations[pair_points] == representations[pair_candidates]
+        on_line = same_rep | (cross == 0.0)
+        blocked: set[int] = set()
+        for point_idx, candidate in zip(
+            pair_points[on_line].tolist(), pair_candidates[on_line].tolist()
+        ):
+            if candidate in blocked:
+                continue
+            point_position = coords[point_idx]
+            if not self.by_idx[point_idx].passable(
+                origin_position - point_position, coords[candidate] - point_position
+            ):
+                blocked.add(candidate)
         return visible - blocked
 
 

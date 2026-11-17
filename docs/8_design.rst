@@ -467,14 +467,16 @@ Passing through and arriving at points
 
 - **Arriving (rule 4)**: at a contact, the direction back to the origin must lie in the extremity wedge
   (for a query point candidate: in any of its wedges).
-- **Passing (rule 3)**: the points are sorted by their representation seen from the origin. For each candidate,
-  a binary search (``np.searchsorted``) finds the points with nearly the same representation
-  (within ``RAY_WINDOW``). Those closer than the candidate and exactly on the line of sight
+- **Passing (rule 3)**: the visible candidates are sorted by their representation seen from the origin.
+  For each point, a binary search (``np.searchsorted``) finds the candidates with nearly the same representation
+  (within ``RAY_WINDOW``). The points closer than such a candidate and exactly on its line of sight
   (identical representation or zero cross product) must be passable: the directions back to the origin and on to
-  the candidate must lie in the same wedge.
+  the candidate must lie in the same wedge. The pairs of points and candidates are filtered vectorised,
+  only the remaining few are checked one by one.
 
-Only the few points on a line of sight are checked, so this filter costs :math:`O(p \log p)` for sorting the
-``p`` points plus a binary search per candidate.
+Only the few points on a line of sight are checked, so this filter costs :math:`O(p \log c)` for the binary searches
+of the ``p`` points among the ``c`` visible candidates, plus :math:`O(c \log c)` for sorting the candidates.
+Sorting all points per origin instead took a large share of the time to build the graph (#280).
 
 Visibility graph reduction
 --------------------------
