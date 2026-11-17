@@ -1,5 +1,6 @@
 # citation metadata (https://citation-file-format.github.io/), GitHub shows a "Cite this repository" button.
 # version and date-released are set by scripts/release.py prepare (cf. docs/contributing/releasing.md)
+# doi: the Zenodo concept DOI, it resolves to the latest version and stays the same for all versions
 cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
 type: software
@@ -14,6 +15,7 @@ authors:
     alias: jannikmi
 version: 4.0.0
 date-released: 2026-11-17
+doi: 10.5281/zenodo.24316506
 license: MIT
 repository-code: https://github.com/jannikmi/extremitypathfinder
 url: https://extremitypathfinder.readthedocs.io/en/latest/

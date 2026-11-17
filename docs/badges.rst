@@ -14,6 +14,10 @@
     :alt: supported Python versions
     :target: https://pypi.python.org/pypi/extremitypathfinder
 
+.. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.24316506.svg
+    :alt: DOI
+    :target: https://doi.org/10.5281/zenodo.24316506
+
 .. image:: https://static.pepy.tech/badge/extremitypathfinder
     :alt: total PyPI downloads
     :target: https://pepy.tech/projects/extremitypathfinder

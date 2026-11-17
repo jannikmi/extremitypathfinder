@@ -66,6 +66,9 @@ Releases are automated with GitHub Actions:
 4. The build workflow tests the tag and validates the release artifacts again. Its deploy job verifies
    that the version is not already on PyPI, uploads the validated artifacts to a draft GitHub release,
    publishes them to PyPI, and makes the GitHub release public only after the PyPI upload succeeds.
+   Publishing the GitHub release triggers the Zenodo archive of the version: Zenodo assigns it a DOI
+   and takes its metadata from `CITATION.cff`. The concept DOI in `CITATION.cff` stays the same for all versions.
+   The GitHub release has no description: add the summary of the changelog section by hand.
 
 If a step fails after the tag exists, fix the cause and re-run the build workflow on the tag
 (Actions tab: "build", "Run workflow", select the tag).

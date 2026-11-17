@@ -27,6 +27,8 @@ The citation metadata is in
 GitHub converts it into APA and BibTeX ("Cite this repository" in the sidebar of the
 `repository <https://github.com/jannikmi/extremitypathfinder>`__).
 Please cite the version you used.
+Every release is archived on Zenodo. The DOI `10.5281/zenodo.24316506 <https://doi.org/10.5281/zenodo.24316506>`__ cites all versions
+and resolves to the latest one; the Zenodo page lists the DOI of each version.
 
 
 License
