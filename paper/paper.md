@@ -73,11 +73,12 @@ Its implementation takes $O(n^3)$ in the worst case and has no boundary polygon.
 would have been a rewrite: the reduction to extremities, the edge pruning, the boundary polygon and touching polygons change its data model,
 visibility computation and search.
 
-A reproducible benchmark on world maps of up to 9,952 vertices, validating every path independently with Shapely,
-measured `extremitypathfinder` (with Numba) as 4.6 to 7.2 times faster than pyvisgraph in building the
-environment, with several times fewer graph edges and faster queries (\autoref{fig:benchmark}).
-Independent validation also found pyvisgraph 0.2.1 paths that cross obstacles (59 of 200 on the
-4,954-vertex map).
+A reproducible benchmark on world maps of up to 6,097 vertices, validating every path independently with Shapely,
+measured `extremitypathfinder` (with Numba) as 18 to 96 times faster than pyvisgraph in building the
+environment, with several times fewer graph edges, and 21 to 60 times faster in answering queries
+where pyvisgraph's paths are valid (\autoref{fig:benchmark}).
+Independent validation also found pyvisgraph 0.2.1 paths that cross obstacles (11 to 31 of 200 on each map
+from 3,046 vertices on).
 
 Polyanya is faster. On maps up to 6,097 vertices, its native Rust implementation [@polyanya_rs] found the same path lengths,
 an independent check of the results, but built its mesh orders of magnitude faster and answered queries about
@@ -86,8 +87,8 @@ Python users who need exact paths in double precision from polygons as they are.
 A binding to the Rust crate was rejected for now: it needs compiled wheels, a triangulation of the input
 and handling of single precision.
 
-![Benchmark on world maps (Apple M1 Pro, one thread). pyvisgraph exceeded the budget at 9,952 vertices;
-its queries on 4,954 vertices are left out, because they are invalid.\label{fig:benchmark}](benchmark_sweep.svg)
+![Benchmark on world maps (Apple M1 Pro, one thread). The queries of pyvisgraph from 3,046 vertices on
+are left out, because they are invalid.\label{fig:benchmark}](benchmark_sweep.svg)
 
 # Software design
 

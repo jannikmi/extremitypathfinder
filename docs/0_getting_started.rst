@@ -32,14 +32,18 @@ more memory and an initial compilation time (see :ref:`with-or-without-numba`):
 With or without Numba
 ~~~~~~~~~~~~~~~~~~~~~
 
+.. benchmark-derived: the speed and memory with and without Numba. Update this text with every full benchmark run
+   (docs/contributing/performance.md, "After a full run").
+
 Numba is optional. The choice is mainly speed against memory:
 
 - **Results:** paths and lengths are identical with and without Numba.
-- **Speed:** without Numba, building an environment takes about twice as long,
-  and queries take moderately longer (cf. the speed-up by Numba on the :ref:`performance page <speed-tests>`).
+- **Speed:** without Numba, building an environment takes two to five times as long,
+  and queries take two to three times as long, more on larger maps
+  (cf. the speed-up by Numba on the :ref:`performance page <speed-tests>`).
 - **Memory:** Numba and the compiled functions are loaded when the package is imported, in every process using it,
   even if it only loads a stored environment. This adds tens of MiB to each process (more in the resident memory
-  on Linux than in the footprint on macOS, where the benchmarks ran) and roughly doubles the memory of the process
+  on Linux than in the footprint on macOS, where the benchmarks ran) and roughly triples the memory of the process
   after the imports. On small maps, it is a large part of the memory a process needs
   (cf. the memory composition on the :ref:`performance page <speed-tests>`).
 - **First use:** the first import compiles the functions, which takes several seconds and temporarily more memory.

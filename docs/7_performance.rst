@@ -28,30 +28,29 @@ Written from the measured data of this run.
 
 Strengths of ``extremitypathfinder``:
 
-- **Faster preprocessing and queries.** It builds the environment several times faster on all maps both packages
-  built within the budget. On the maps where both packages return valid paths, it also answers queries several times
-  faster (median). Both ratios grow with the size of the map.
+- **Faster preprocessing and queries.** It builds the environment more than an order of magnitude faster on all maps.
+  On the maps where both packages return valid paths, it also answers queries more than an order of magnitude faster
+  (median). Both ratios grow with the size of the map (the build ratio within each source data set).
 - **Correct paths.** All its paths are valid and agree in length with the valid paths of pyvisgraph.
   On larger maps pyvisgraph returned paths through land (cf. :ref:`benchmark-correctness`).
 - **The graph reduction pays off at query time.** Its visibility graph has several times fewer edges than
   pyvisgraph's full visibility graph, and the difference grows with the size of the map.
   The queries search this smaller graph.
-- **Larger maps within the budget.** It built maps for which pyvisgraph exceeded the build budget.
-- **Less retained memory.** On every map its prepared environment keeps less memory than pyvisgraph's,
-  and the difference grows with the size of the map.
-- **Fast without Numba too.** Without Numba, builds take more than twice as long and queries moderately longer.
-  It is still faster than pyvisgraph, and it built the same maps within the budget.
-  The baseline drops by more than half, the retained memory stays the same.
+- **Less retained memory.** On the small maps its prepared environment keeps about as much memory as pyvisgraph's,
+  from 2,000 vertices on less, and the difference grows with the size of the map.
+- **Fast without Numba too.** Without Numba, builds take two to five times as long and queries two to three times
+  as long, more on larger maps. It is still more than an order of magnitude faster than pyvisgraph.
+  The baseline drops by about two thirds, the retained memory stays the same.
   When to install without Numba: see :ref:`with-or-without-numba`.
 
 Weaknesses and limitations:
 
-- **The preprocessing limits the map size.** The build time grows steeply with the map,
-  and the sweep ends where it exceeds the build budget (cf. the build table).
-  Going from the coarse 110m data (up to 2k vertices) to the finer source data adds many polygons,
-  and the visibility graph grows much faster than the number of vertices there.
-- **Memory on small maps.** Its peak above the baseline is close to pyvisgraph's on small maps, despite the lower
-  retained memory: the build needs temporary data. On large maps the peak is much lower than pyvisgraph's.
+- **The preprocessing limits the map size.** The build time grows faster than linearly with the map (cf. the build
+  table), most steeply where the finer source data starts: going from the coarse 110m data (up to 4k vertices)
+  to the 50m data adds many small polygons, and the visibility graph grows much faster than the number of vertices
+  there. The sweep ends at 6k vertices, where both packages still built within the budget.
+- **Memory on small maps.** Its peak above the baseline is close to pyvisgraph's on small maps:
+  the build needs temporary data. On large maps the peak is about half of pyvisgraph's.
   Its baseline is much larger, so its process needs several times as much memory in total on the smallest maps.
   The gap shrinks with the size of the map.
   Most of the difference in the baseline is Numba (which is optional, cf. the baselines without input data).
@@ -87,7 +86,8 @@ Speed
    :alt: edges of the visibility graph over the number of vertices, log-log, one line per package
 
    Amount of work: edges of the visibility graph. ``extremitypathfinder`` keeps only the extremities as nodes and
-   only the edges between them; ``pyvisgraph`` connects every vertex. The dotted lines show linear and quadratic growth.
+   only the edges between them (the same with and without Numba); ``pyvisgraph`` connects every vertex.
+   The dotted lines show linear and quadratic growth. A hollow marker is a build with invalid paths.
 
 .. benchmark-derived: the comparison of the cost per edge. Update this text with every full benchmark run
    (docs/contributing/performance.md, "After a full run").
@@ -98,8 +98,8 @@ Speed
 
    Build time over the edges of the graph (see the table below for the time per edge).
    Graphs with invalid edges are left out. Where both graphs are valid (up to 2,000 vertices),
-   the build time per edge of the two packages is about the same:
-   the lower build time of ``extremitypathfinder`` comes from the smaller graph, not from a cheaper edge.
+   ``extremitypathfinder`` also spends much less time per edge, and the difference grows with the map:
+   its lower build time comes from both the smaller graph and a cheaper edge.
 
 .. include:: ../benchmarks/results/benchmark_graph.rst
 
@@ -110,13 +110,6 @@ Speed
    Query latency: median and 5th to 95th percentile band.
 
 .. include:: ../benchmarks/results/benchmark_query.rst
-
-.. figure:: _static/benchmark_graph_size.svg
-   :width: 100%
-   :alt: number of visibility graph edges over the number of vertices, log-log, one line per package
-
-   Edges of the visibility graph: the reduced graph of ``extremitypathfinder`` (the same with and without Numba)
-   and the complete graph of pyvisgraph. A hollow marker is a build with invalid paths.
 
 .. figure:: _static/benchmark_ratio.svg
    :width: 100%
@@ -166,15 +159,17 @@ if a line follows its markers, the measured time grows like the term.
 
 What this shows:
 
-- The shapes agree: the measured times grow about like the terms. The build of ``pyvisgraph`` has the slope
-  of ``n² log n``, not that of its ``n³`` worst case. The dotted worst cases start at the first measured point:
-  only the slopes can be compared. The measured maps stay close to the typical case of ``extremitypathfinder``.
-  The build of ``extremitypathfinder`` grows slightly slower than its term
-  (the term is the typical case, an upper estimate here).
+- The build of ``pyvisgraph`` grows like its term: it has the slope of ``n² log n``,
+  not that of its ``n³`` worst case. The dotted worst cases start at the first measured point:
+  only the slopes can be compared.
+- The times of ``extremitypathfinder`` grow clearly slower than its terms, for the build and even more for queries:
+  on these maps the typical-case terms are upper estimates. Work that does not grow with the map
+  (e.g. fixed costs per origin and per query) is still a large part of the time.
   Its query worst case is close to the typical case on these maps: the search term ``E log E`` dominates.
+  The queries of ``pyvisgraph`` also grow somewhat slower than their term.
 - The terms alone do not explain the difference between the packages. They predict a build advantage of
-  ``extremitypathfinder`` of 1.2 to 1.5 and a query advantage of 2.4 to 4.4, the measured ratios are
-  4.6 to 7.2 for the build and 6.6 to 8.4 for queries. The constant factors are not part of ``O(...)``:
+  ``extremitypathfinder`` below a factor of two and a query advantage of a few times,
+  the measured ratios are one to two orders of magnitude. The constant factors are not part of ``O(...)``:
   most of the practical difference comes from the implementation (vectorised, optionally compiled code
   against pure Python), the rest from the smaller graph.
 
@@ -189,10 +184,8 @@ Limitations:
   the query term (a heap based Dijkstra search and two single-point sweeps) is not stated by its authors.
 - The terms of ``extremitypathfinder`` are the typical case, its worst case is a reference line.
   They are defined in ``benchmarks/complexity.py`` and have to be updated when the complexities change.
-  The measured times are those of the run stated above: a later change of the visibility computation
-  (e.g. the bounded worst case, #216, which also made typical maps somewhat faster) shows only in the next full run.
-- The map with 9,952 vertices comes from a different data set (50 m) than the smaller ones (110 m):
-  its point is not a continuation of the others.
+- The maps with 5,020 and 6,097 vertices come from a different data set (50 m) than the smaller ones (110 m):
+  their points are not a continuation of the others.
 
 Memory
 ~~~~~~
