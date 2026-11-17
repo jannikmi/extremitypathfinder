@@ -36,6 +36,10 @@ Strengths of ``extremitypathfinder``:
 - **The graph reduction pays off at query time.** Its visibility graph has several times fewer edges than
   pyvisgraph's full visibility graph, and the difference grows with the size of the map within each source data set.
   The queries search this smaller graph.
+- **Larger maps.** At the largest map of the sweep, pyvisgraph needs a large part of the build budget,
+  ``extremitypathfinder`` a small fraction of it. The sweep stops there to keep the full run short:
+  in an earlier full run with larger maps (commit ``de8280f``), pyvisgraph exceeded the budget on a map
+  that ``extremitypathfinder`` built.
 - **Less retained memory.** On the small maps its prepared environment keeps about as much memory as pyvisgraph's,
   from 2,000 vertices on less, and the difference grows with the size of the map within each source data set.
 - **Fast without Numba too.** Without Numba, builds take two to five times as long and queries about two to three
@@ -49,7 +53,7 @@ Weaknesses and limitations:
 - **The preprocessing limits the map size.** The build time grows faster than linearly with the map (cf. the build
   table), most steeply where the finer source data starts: going from the coarse 110m data (up to 4k vertices)
   to the 50m data adds many small polygons, and the visibility graph grows much faster than the number of vertices
-  there. The sweep ends at 6k vertices, where both packages still built within the budget.
+  there.
 - **Memory on small maps.** Its peak above the baseline is close to pyvisgraph's on small maps:
   the build needs temporary data. On large maps the peak is between a third and two thirds of pyvisgraph's.
   Its baseline is much larger, so its process needs several times as much memory in total on the smallest maps.
@@ -57,9 +61,10 @@ Weaknesses and limitations:
   Most of the difference in the baseline is Numba (which is optional, cf. the baselines without input data).
 - **Query time grows with the map.** Connecting start and goal to the graph checks the visibility of all vertices
   (cf. :ref:`design`).
-- **Scope of the comparison.** One machine, single-threaded (pyvisgraph can build its graph with several processes,
-  which was not measured). Longitude and latitude are used as
-  planar coordinates, and the query points keep a distance from the coasts.
+- **Scope of the comparison.** One machine and one type of map (a world map at several resolutions),
+  single-threaded (pyvisgraph can build its graph with several processes, which was not measured).
+  Longitude and latitude are used as planar coordinates, and the query points keep a distance from the coasts.
+  Other machines and maps give other numbers: the ratios show the order of magnitude, not a guarantee.
 
 
 .. _benchmark-results:
