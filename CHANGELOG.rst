@@ -105,7 +105,7 @@ other changes:
 - license: the package is licensed under MIT only again (#157). The A* search (``utils.astar_path()``) is an own
   implementation instead of a port of ``networkx.astar_path()``, so the 3-clause BSD license of networkx
   (``LICENSES/networkx.txt``) no longer applies. Same paths and lengths, same speed.
-- Shapely and GeoJSON input (#166): ``PolygonEnvironment.from_shapely(boundary, obstacles, validate=False)``
+- Shapely and GeoJSON input (#166): ``PolygonEnvironment.from_shapely(boundary, obstacles, validate=True)``
   accepts Shapely polygons, multi-polygons and collections, GeoJSON-like mappings and objects with a
   ``__geo_interface__`` (e.g. GeoPandas), and gives the same environment as the equivalent coordinate lists.
   Repeated closing and consecutive vertices are removed, interior rings of obstacles are ignored with a warning,
@@ -118,8 +118,6 @@ other changes:
   the crossing point). The crossing test solves its 2×2 system in closed form instead of with ``numpy.linalg.solve``
   and is exact for integer coordinates: valid polygons touching themselves with a vertex on an edge were rejected
   for one of the two vertex numberings.
-- documentation: the upgrade guide covers upgrading from 3.x to 4.0 and porting code written for 2.x
-  directly to 4.0.
 - documentation: the accepted numeric types of the coordinates (integers, ``float32``, ``float16``: converted to
   ``float64``) and why all computations use ``float64`` (no ``float32`` or integer mode, #274).
 - documentation: ``verify=False`` does not help with query points within rounding error of an edge (#239):

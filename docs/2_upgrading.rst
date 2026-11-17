@@ -11,7 +11,7 @@ The :ref:`changelog <changelog>` lists all changes.
 * **From 2.x:** port your code directly to 4.0. First follow :ref:`upgrading-from-2`,
   then :ref:`upgrading-4`. Version 3 changed how an environment is set up and how touching obstacles are handled.
   The supported Python and NumPy versions were raised in 2.8.0 (cf. :ref:`getting started <getting_started>`).
-  Code that has to keep running on older versions can stay on its pinned 2.x release.
+  Code that has to keep running on older versions can stay on a release before 2.8.0 (e.g. 2.7.2).
 
 
 .. _upgrading-4:
@@ -62,8 +62,8 @@ The figure can then be adjusted, shown and saved with Matplotlib (cf. :ref:`usag
 
    * - 3.x
      - 4.0
-   * - ``draw_with_path()``, ``draw_prepared_map()``, ``draw_graph()``, ``draw_path()`` and the other ``draw_*()``
-       helpers, ``mark_points()``, ``set_limits()``
+   * - ``draw_with_path()``, ``draw_prepared_map()``, ``draw_graph()``, ``draw_path()`` and the other removed
+       ``draw_*()`` helpers, ``mark_points()``, ``set_limits()``
      - ``ax = draw(env, path)``, ``ax = draw(env, graph=False)`` without the visibility graph,
        ``ax = draw_search(env, result)`` for a search
    * - ``export_plot()``, ``get_plot_name()``, ``SHOW_PLOTS``
@@ -96,8 +96,8 @@ but such pickles can only be loaded by the same version of this package.
 Input validation
 ----------------
 
-The input is validated by default: ``PolygonEnvironment()``, ``from_grid()``, ``from_shapely()``
-and the command line interface use ``validate=True`` (in 3.x the default was ``validate=False``).
+The input is validated by default: ``PolygonEnvironment()``, ``from_grid()`` and the command line interface
+use ``validate=True`` (in 3.x the default was ``validate=False``), like the new ``from_shapely()``.
 Input that violates the requirements (e.g. self intersecting polygons, collinear overlapping edges)
 gave wrong results without an error before, e.g. no path although start and goal are in the free space.
 It now raises a ``ValueError`` naming the polygon and the location.
@@ -108,8 +108,7 @@ Malformed input is always rejected, also with ``validate=False`` and with ``veri
 
 * polygons with fewer than 3 coordinate pairs or ragged lists (``TypeError``),
   non-finite coordinates (``ValueError``)
-* start and goal points that do not consist of two values (``TypeError``) or are not finite (``ValueError``),
-  also in ``distance_matrix()``
+* start and goal points that do not consist of two values (``TypeError``) or are not finite (``ValueError``)
 * ``from_grid()``: sizes that are no positive integers, blocked cells that are no integer pairs or lie outside of the
   grid (previously ignored: remove them from the input) and grids without any free cell
   (``TypeError`` or ``ValueError``)
@@ -123,14 +122,16 @@ and the length as a Python float. Previously they were ``numpy.float64`` values,
 the start returned the passed objects unchanged (e.g. tuples of ints, lists or arrays).
 The values are the same. Only code that depends on the types needs to change.
 
+Polygons are accepted with clockwise and counter clockwise vertex numbering. Polygons with the opposite numbering
+(previously rejected with ``validate=True``, wrong results without) are reversed into the internal convention, also in ``boundary_polygon``
+and ``holes``: with ``validate=False``, their vertex indices (``extremity_indices``, the nodes of ``env.graph``)
+differ from 3.x.
+
 
 .. _upgrading-from-2:
 
 Upgrading from 2.x to 3.0
 =========================
-
-Then continue with :ref:`upgrading-4`.
-
 
 Initialisation
 --------------
@@ -243,4 +244,6 @@ To keep a passage open, leave a gap between the obstacles.
 
 ``validate=True`` rejects more input than in 2.x:
 polygons crossing themselves at a vertex and collinear overlapping edges within a polygon
-(zero-width spikes or slits) are invalid. Since 4.0 the input is validated by default (cf. :ref:`upgrading-4`).
+(zero-width spikes or slits) are invalid. Since 4.0 the input is validated by default.
+
+Then continue with :ref:`upgrading-4`.
