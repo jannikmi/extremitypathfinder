@@ -39,7 +39,7 @@ Numba is optional. The choice is mainly speed against memory:
 
 - **Results:** paths and lengths are identical with and without Numba.
 - **Speed:** without Numba, building an environment takes two to five times as long,
-  and queries take two to three times as long, more on larger maps
+  and queries take about two to three times as long, more on larger maps
   (cf. the speed-up by Numba on the :ref:`performance page <speed-tests>`).
 - **Memory:** Numba and the compiled functions are loaded when the package is imported, in every process using it,
   even if it only loads a stored environment. This adds tens of MiB to each process (more in the resident memory

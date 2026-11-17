@@ -34,12 +34,13 @@ Strengths of ``extremitypathfinder``:
 - **Correct paths.** All its paths are valid and agree in length with the valid paths of pyvisgraph.
   On larger maps pyvisgraph returned paths through land (cf. :ref:`benchmark-correctness`).
 - **The graph reduction pays off at query time.** Its visibility graph has several times fewer edges than
-  pyvisgraph's full visibility graph, and the difference grows with the size of the map.
+  pyvisgraph's full visibility graph, and the difference grows with the size of the map within each source data set.
   The queries search this smaller graph.
 - **Less retained memory.** On the small maps its prepared environment keeps about as much memory as pyvisgraph's,
-  from 2,000 vertices on less, and the difference grows with the size of the map.
-- **Fast without Numba too.** Without Numba, builds take two to five times as long and queries two to three times
-  as long, more on larger maps. It is still more than an order of magnitude faster than pyvisgraph.
+  from 2,000 vertices on less, and the difference grows with the size of the map within each source data set.
+- **Fast without Numba too.** Without Numba, builds take two to five times as long and queries about two to three
+  times as long, more on larger maps. It is still several times faster than pyvisgraph to build
+  (more than ten times from 500 vertices on) and more than ten times faster to query.
   The baseline drops by about two thirds, the retained memory stays the same.
   When to install without Numba: see :ref:`with-or-without-numba`.
 
@@ -50,7 +51,7 @@ Weaknesses and limitations:
   to the 50m data adds many small polygons, and the visibility graph grows much faster than the number of vertices
   there. The sweep ends at 6k vertices, where both packages still built within the budget.
 - **Memory on small maps.** Its peak above the baseline is close to pyvisgraph's on small maps:
-  the build needs temporary data. On large maps the peak is about half of pyvisgraph's.
+  the build needs temporary data. On large maps the peak is between a third and two thirds of pyvisgraph's.
   Its baseline is much larger, so its process needs several times as much memory in total on the smallest maps.
   The gap shrinks with the size of the map.
   Most of the difference in the baseline is Numba (which is optional, cf. the baselines without input data).
@@ -166,7 +167,7 @@ What this shows:
   on these maps the typical-case terms are upper estimates. Work that does not grow with the map
   (e.g. fixed costs per origin and per query) is still a large part of the time.
   Its query worst case is close to the typical case on these maps: the search term ``E log E`` dominates.
-  The queries of ``pyvisgraph`` also grow somewhat slower than their term.
+  The queries of ``pyvisgraph`` also grow clearly slower than their term.
 - The terms alone do not explain the difference between the packages. They predict a build advantage of
   ``extremitypathfinder`` below a factor of two and a query advantage of a few times,
   the measured ratios are one to two orders of magnitude. The constant factors are not part of ``O(...)``:
