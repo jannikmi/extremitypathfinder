@@ -121,9 +121,7 @@ def as_coord_array(points: Iterable[InputCoord]) -> np.ndarray:
 
 
 def nodes_in_front(
-    origin: int,
     graph_nodes: np.ndarray,
-    coords: np.ndarray,
     vert_idx2repr: np.ndarray,
     points: Points,
     merged_node: int | None,
@@ -142,7 +140,7 @@ def nodes_in_front(
     :param graph_nodes: the indices of the graph nodes (extremities)
     :param merged_node: the graph node at the position of the query point, ``None`` if there is none
     """
-    in_front = points.in_front_of(graph_nodes, coords[origin], coords, vert_idx2repr)
+    in_front = points.in_front_of(graph_nodes, vert_idx2repr)
     return set(graph_nodes[in_front].tolist()) - {merged_node}
 
 
@@ -271,9 +269,7 @@ def search(
     candidates_goal = candidate_idxs - {start_node}
     vert_idx2repr, vert_idx2dist = utils.cmp_reps_n_distances(origin, coords)
     graph_nodes = np.fromiter(graph, dtype=int)
-    candidates_goal -= nodes_in_front(
-        origin, graph_nodes, coords, vert_idx2repr, points, goal_node
-    )
+    candidates_goal -= nodes_in_front(graph_nodes, vert_idx2repr, points, goal_node)
     # the distances to the goal: the A* heuristic
     # (also for a graph node merged with the goal: identical coordinates, identical distances)
     goal_distances = vert_idx2dist
@@ -315,7 +311,7 @@ def search(
     # the goal node does not have to be considered, because of the earlier check
     vert_idx2repr, vert_idx2dist = utils.cmp_reps_n_distances(origin, coords)
     candidates_start = candidate_idxs - nodes_in_front(
-        origin, graph_nodes, coords, vert_idx2repr, points, start_node
+        graph_nodes, vert_idx2repr, points, start_node
     )
     visibles_start = find_visible_from_query(
         origin,
@@ -412,7 +408,7 @@ def distance_matrix(
         vert_idx2repr, vert_idx2dist = utils.cmp_reps_n_distances(origin, coords)
         query_candidates = sources if origin in is_target else []
         skipped = nodes_in_front(
-            origin, graph_nodes, coords, vert_idx2repr, points, graph_node_at[origin]
+            graph_nodes, vert_idx2repr, points, graph_node_at[origin]
         )
         visible = _find_visible_from_query_point(
             origin,

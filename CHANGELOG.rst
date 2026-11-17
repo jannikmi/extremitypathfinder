@@ -206,6 +206,11 @@ bugfixes:
   (e.g. on slightly rotated grids, #263): an extremity whose edge to the origin was removed afterwards
   (the origin lies in front of it) still hid the farther extremities in the same direction.
   Such paths were up to a third longer. The visibility graph now has these edges.
+- more paths that were not the shortest on rotated grids (#277): an extremity lying in front of another
+  by a rounding error was not connected to it, although the straight shortcut was blocked.
+  Extremities are now only disconnected when one lies clearly in front of the other
+  (not within ``RAY_WINDOW`` of the bounds of its front). This only keeps more edges, all of them lines of sight:
+  the visibility graphs of the test and benchmark maps are identical.
 - distances without Numba could differ by one unit in the last place from those with Numba on macOS (#257):
   the squares used the C library ``pow()``, which is not correctly rounded there. They are now products,
   so the results are identical in both modes on all platforms.

@@ -139,8 +139,7 @@ def test_graph_nodes_in_front_of_each_other_are_not_connected(environment):
         for origin, other in ((u, v), (v, u)):
             point = environment.points.by_idx[origin]
             representations, _ = utils.cmp_reps_n_distances(origin, coords)
-            vector = coords[other] - coords[origin]
-            assert not point.in_front(representations[other], vector)
+            assert not point.in_front(representations[other])
 
 
 def test_vectorised_representations_are_identical():
@@ -402,9 +401,9 @@ def test_non_extremities_are_rejected_where_only_extremities_are_defined():
     representations, distances = utils.cmp_reps_n_distances(0, coords)
 
     with pytest.raises(ValueError, match="no extremity"):
-        corner.in_front(0.5, np.array([1.0, 1.0]))
+        corner.in_front(0.5)
     with pytest.raises(ValueError, match="no extremity"):
-        corner.in_front_mask(np.array([0.5]), np.array([[1.0, 1.0]]))
+        corner.in_front_mask(np.array([0.5]))
 
     with pytest.raises(ValueError, match="no extremity"):
         utils._find_graph_neighbours(
