@@ -155,7 +155,7 @@ The `documentation <https://extremitypathfinder.readthedocs.io/en/latest/>`__ co
 
 - `Usage <https://extremitypathfinder.readthedocs.io/en/latest/1_usage.html>`__:
   all features, the input requirements, plotting and caching
-- `Upgrading from 2.x <https://extremitypathfinder.readthedocs.io/en/latest/2_upgrading.html>`__
+- `Upgrading from 2.x or 3.x <https://extremitypathfinder.readthedocs.io/en/latest/2_upgrading.html>`__
 - `About <https://extremitypathfinder.readthedocs.io/en/latest/3_about.html>`__:
   how it works and the handling of touching obstacles
 - `Engineering Design <https://extremitypathfinder.readthedocs.io/en/latest/8_design.html>`__:

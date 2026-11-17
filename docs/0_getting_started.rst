@@ -121,4 +121,4 @@ Basics
 
 
 All available features of this package are explained :ref:`HERE <usage>`.
-Upgrading from version 2.x: see the :ref:`upgrade guide <upgrading>`.
+Upgrading from version 2.x or 3.x: see the :ref:`upgrade guide <upgrading>`.

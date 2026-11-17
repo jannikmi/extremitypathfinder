@@ -45,7 +45,7 @@ Where to start
 
 - New to the package? :ref:`Getting started <getting_started>` shows the installation and a first example,
   :ref:`Usage <usage>` explains all features.
-- Upgrading from version 2.x? Follow the :ref:`upgrade guide <upgrading>`.
+- Upgrading from version 2.x or 3.x? Follow the :ref:`upgrade guide <upgrading>`.
 - Curious how it works? :ref:`About <algorithm>` gives an illustrated overview,
   the :ref:`engineering design <design>` describes the architecture and the algorithms.
 - Comparing packages? :ref:`Alternatives <alternatives>` lists similar packages and how they differ.
@@ -59,7 +59,7 @@ Where to start
 
     Getting Started <0_getting_started>
     Usage <1_usage>
-    Upgrading from 2.x <2_upgrading>
+    Upgrading <2_upgrading>
     API <4_api>
 
 .. toctree::
