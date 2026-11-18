@@ -125,22 +125,6 @@ def benchmark_sweep(results: dict, output_dir: Path):
     save(fig, output_dir / "benchmark_sweep.svg")
 
 
-def world_example(results: dict, output_dir: Path):
-    entry, query_idx = plot.world_example_query(results)
-    fig, ax = plt.subplots(figsize=(7.0, 3.6))
-    plot.draw_world_example(ax, results, entry, query_idx)
-    nr_invalid = entry["results"]["pyvisgraph"]["validation"]["failed"]
-    nr_queries = entry["results"]["pyvisgraph"]["validation"]["checked"]
-    ax.set_title(
-        f"world map with {entry['map']['vertices']:,} vertices: one of {nr_invalid} invalid"
-        f" pyvisgraph paths of {nr_queries} queries",
-        fontsize=9,
-    )
-    ax.tick_params(labelsize=8)
-    ax.legend(frameon=False, fontsize=8, loc="lower left")
-    save(fig, output_dir / "benchmark_world_example.svg")
-
-
 def main(output_dir: Path = OUTPUT_DIR):
     output_dir.mkdir(parents=True, exist_ok=True)
     with open(RESULTS) as f:
@@ -149,7 +133,6 @@ def main(output_dir: Path = OUTPUT_DIR):
         raise SystemExit(f"{RESULTS} holds a --quick run: run the full benchmark first")
     graph_reduction(output_dir)
     benchmark_sweep(results, output_dir)
-    world_example(results, output_dir)
     # the invalid runs of the sweep, for the caption
     invalid = [
         (entry["map"]["vertices"], package)
