@@ -51,13 +51,13 @@ for example from GeoPandas, are accepted directly, and the visibility graph conv
 
 Typical use cases ask many queries in one static environment: reference paths for trajectory planners,
 distance matrices for task allocation, oracle planners in reinforcement learning, simulations that move many agents
-through the same map. Environments are therefore prepared once, and can be stored and reused.
+through the same map. Environments are therefore prepared once, and can be stored in a stable file format and reused.
 
 Polygons are used as they are: they may touch, overlap and intersect, vertices may lie on edges of other polygons,
 and either vertex order is accepted. Grids are converted into polygons along the borders of the blocked cells.
 Contacts, points on edges and collinear vertices follow one documented set of rules; touching obstacles block paths.
 No triangulation or navigation mesh has to be built first. Coordinates are planar, so geographic data is projected
-first, and agents with a size are handled by inflating the obstacles, for which the documentation gives a recipe.
+first, and agents with a size are handled by inflating the obstacles (a documented recipe).
 
 # State of the field
 
@@ -69,8 +69,8 @@ by triangular expansion. Both need a triangulation of the free space, and neithe
 
 In Python, the closest alternative is pyvisgraph [@pyvisgraph], which has had no release or commit since June 2018 [@pyvisgraph_pypi; @pyvisgraph_commits]. It builds the complete
 visibility graph of all obstacle vertices with Lee's algorithm and searches it with Dijkstra's algorithm.
-Its implementation takes $O(n^3)$ in the worst case and has no boundary polygon. A contribution to pyvisgraph
-would have been a rewrite: the reduction to extremities, the edge pruning, the boundary polygon and touching polygons change its data model,
+Its implementation takes $O(n^3)$ in the worst case and has no boundary polygon. Adding the reduction to
+extremities, the boundary polygon and touching polygons to pyvisgraph would have rewritten its data model,
 visibility computation and search.
 
 A reproducible benchmark on a world map at several resolutions, validating every path independently with Shapely,
@@ -82,9 +82,7 @@ The validation also found pyvisgraph 0.2.1 paths that cross obstacles on the lar
 Polyanya is faster. On the same maps, its native Rust implementation [@polyanya_rs] found the same path lengths,
 an independent check of the results, but built its mesh orders of magnitude faster and answered queries about
 two orders of magnitude faster, at any number of queries. The package does not compete on speed, but serves
-Python users who need exact paths in double precision from polygons as they are.
-A binding to the Rust crate was rejected for now: it needs compiled wheels, a triangulation of the input
-and handling of single precision.
+Python users who need exact double precision paths from polygons as they are.
 
 ![Benchmark on world maps (Apple M1 Pro, one thread). The queries of pyvisgraph on the larger maps
 are left out, because they are invalid.\label{fig:benchmark}](benchmark_sweep.svg)
@@ -92,22 +90,23 @@ are left out, because they are invalid.\label{fig:benchmark}](benchmark_sweep.sv
 # Software design
 
 The design trades preprocessing time for query time. The visibility between extremities depends only on the
-environment and is computed once. A query only computes the visibility of its start and goal, keeps its data local
-and never modifies the environment, so environments are immutable and queries can run in any order.
+environment and is computed once. A query only computes the visibility of its start and goal, and its A\* search
+follows their temporary edges without changing or copying the shared graph, so queries can run in any order
+and in parallel.
 
-The graph is kept small without losing optimality. A shortest path bends only at extremities, so other vertices
-are not graph nodes. In addition, an extremity lying "in front of" another one, seen from its obstacle side,
-is never its successor on a shortest path, and the edge between them is omitted
-[Property One in @vinther2015pathfinding].
+A shortest path bends only at extremities, so other vertices are not graph nodes. In addition, an extremity
+lying "in front of" another one, seen from its obstacle side, is never its successor on a shortest path,
+and the edge between them is omitted [Property One in @vinther2015pathfinding].
 
 Visibility is computed with the Angle Range Elimination Algorithm (AREA), developed for this package.
 From each origin it sorts the candidate vertices and the edges by angle, and every edge eliminates the candidates
 behind it, instead of a rotating ray keeping the edges in a tree. Cheap tests on angle ranges and distances decide
 most cases, and directions are compared with a trigonometry-free angle representation.
 With $m$ extremities, the visibility graph typically takes $O(m\,n \log n)$ time, because a candidate is checked
-against few edges: about 1.5 on the benchmark maps, independent of their size. The worst case,
-$O(n\,m^2)$ or $O(n^3)$ for $m \sim n$, is worse than Lee's. AREA was kept, because a rotational sweep with
-a tree of edges was slower in Python on the measured maps.
+against few edges on the benchmark maps, independent of their size. For worst cases, such as small obstacles in front
+of long walls, a segment tree over the candidates keeps only the closest edge per range of directions (a Li Chao tree),
+which bounds the time to $O(m\,n \log^2 n)$, a logarithmic factor above Lee's for $m \sim n$.
+AREA was kept: a rotational sweep was slower on the measured maps and needs edges that do not cross.
 
 All questions at vertices, such as which vertices are extremities and where a line of sight may pass,
 are answered by the free angle ranges ("wedges") around each vertex position, computed with a winding number.
@@ -117,9 +116,7 @@ The package computes with double precision and has no tolerance parameter: polyg
 are exactly equal or a vertex lies exactly on an edge. Every floating point decision was audited against exact
 rational arithmetic. With integer coordinates up to $2^{20}$, such as grids,
 no decision differed. Otherwise, differences occurred only within about one unit in the last place of
-a decision boundary, which is within the rounding of the coordinates themselves.
-An own A\* search also follows the temporary edges of start and goal,
-so the shared graph is neither changed nor copied.
+a decision boundary, within the rounding of the coordinates.
 
 # Research impact statement
 
@@ -129,9 +126,10 @@ If another release follows before the submission, name it instead: in the versio
 AI usage disclosure, and in "This paper describes version ...". Replace the date TODO at submission.
 -->
 The package has been developed iteratively since 2018: 21 releases up to 2024 (versions 0.0.1 to 2.7.2),
-with code from four further contributors. Versions 2.8 to 4.0 (2026) modernised it, with a new API in 3.0:
-touching obstacles now block paths, input is validated faster and accepted from Shapely, memory use is lower,
-and benchmarks are reproducible. This paper describes version 4.0.0 (released 2026-11-17).
+with code from four further contributors. Versions 2.8 to 4.0 (2026) modernised it, with new APIs in 3.0 and 4.0:
+touching obstacles now block paths, input is validated by default and accepted from Shapely,
+memory use is lower, environments are stored in a stable file format, and benchmarks are reproducible.
+This paper describes version 4.0.0 (released 2026-11-17).
 Since 2020, eleven publications from at least four institutions have used the package,
 as shown by their text or by the planner in their official code:
 
@@ -167,7 +165,7 @@ Confirmed by the maintainer: no AI tools were used from 2018 to 2024.
 The core approach and its original implementation (2018 to 2024) were written by the author without AI tools:
 the extremity graph, its edge reduction, AREA and the precomputation.
 Since September 2026, the author has used Claude Code (Anthropic), an AI coding agent, for a substantial part of the
-modernisation: about 130 of roughly 205 commits from September to November 2026 are co-authored by it
+modernisation: about 170 of roughly 285 commits from September to November 2026 are co-authored by it
 (`Co-Authored-By` trailers), and their pull requests carry an AI disclosure. The agent wrote most of the new code
 of versions 2.8 to 4.0, such as the wedges for touching obstacles, the input validation, the memory reduction,
 the Shapely input and the plotting, as well as tests, documentation and the floating point audit.
