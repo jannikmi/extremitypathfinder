@@ -92,7 +92,7 @@ are left out, because they are invalid.\label{fig:benchmark}](benchmark_sweep.sv
 The design trades preprocessing time for query time. The visibility between extremities depends only on the
 environment and is computed once. A query only computes the visibility of its start and goal, and its A\* search
 follows their temporary edges without changing or copying the shared graph, so queries can run in any order
-and in parallel.
+and concurrently.
 
 A shortest path bends only at extremities, so other vertices are not graph nodes. In addition, an extremity
 lying "in front of" another one, seen from its obstacle side, is never its successor on a shortest path,
@@ -103,10 +103,10 @@ From each origin it sorts the candidate vertices and the edges by angle, and eve
 behind it, instead of a rotating ray keeping the edges in a tree. Cheap tests on angle ranges and distances decide
 most cases, and directions are compared with a trigonometry-free angle representation.
 With $m$ extremities, the visibility graph typically takes $O(m\,n \log n)$ time, because a candidate is checked
-against few edges on the benchmark maps, independent of their size. For worst cases, such as small obstacles in front
-of long walls, a segment tree over the candidates keeps only the closest edge per range of directions (a Li Chao tree),
-which bounds the time to $O(m\,n \log^2 n)$, a logarithmic factor above Lee's for $m \sim n$.
-AREA was kept: a rotational sweep was slower on the measured maps and needs edges that do not cross.
+against few edges on the benchmark maps, independent of their size. For worst cases, e.g. small obstacles in front
+of long walls, a segment tree over the candidates keeps the closest edge per range of directions (a Li Chao tree),
+which bounds the time to $O(m\,n \log^2 n)$, a logarithmic factor above Lee's sweep for $m \sim n$.
+AREA was kept: a rotational sweep was slower in Python on the measured maps and needs edges that do not cross.
 
 All questions at vertices, such as which vertices are extremities and where a line of sight may pass,
 are answered by the free angle ranges ("wedges") around each vertex position, computed with a winding number.
