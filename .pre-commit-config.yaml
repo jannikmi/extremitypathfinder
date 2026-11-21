@@ -22,7 +22,7 @@ repos:
       - id: detect-private-key
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.17.4
+    rev: v0.17.5
     hooks:
       # linter.
       - id: ruff-check
@@ -31,7 +31,7 @@ repos:
 
   # strict static type checking, configured in pyproject.toml (cf. docs/contributing/code-style.md)
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.20.0
+    rev: v2.4.1
     hooks:
       - id: mypy
         # the files are configured in pyproject.toml
@@ -67,7 +67,7 @@ repos:
     hooks:
       - id: check-manifest
         args: [ "--no-build-isolation", "--ignore",  "*.png,*.svg,docs/*,docs/contributing/*,paper/*,paper/references/*,paper/references/*/*,AGENTS.md,CLAUDE.md,.claude/*,.claude/skills/*/*,publish.py,readthedocs.yml,uv.lock,pyproject.toml.orig,setup.py,scripts/*,prototypes/*,benchmarks/*,benchmarks/results/*,benchmarks/polyanya/*,benchmarks/polyanya/src/*" ]
-        additional_dependencies: [ numpy, "uv_build>=0.13.7,<0.14" ]
+        additional_dependencies: [ numpy, "uv_build>=0.13.8,<0.14" ]
 
   - repo: https://github.com/asottile/pyupgrade
     rev: v3.22.0
